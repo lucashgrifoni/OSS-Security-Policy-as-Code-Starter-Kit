@@ -16,7 +16,7 @@
     "react-intersection-observer": "^10.0.3"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
+    "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
