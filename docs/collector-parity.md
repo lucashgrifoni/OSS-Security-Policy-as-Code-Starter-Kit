@@ -138,7 +138,7 @@ Until the bundled collectors call these endpoints, the v5.1.0 / v5.2.0 controls 
 - `GH-RUNNER-062`: signal-grade detection from workflow YAML; evidence-backed via hand-filled `runner-groups.json`.
 - `RELEASE-ARCHIVE-063`: signal-grade detection of policy file; evidence-backed via hand-filled `release-archival-policy.json`.
 
-The collector additions are tracked in `melhorias/ativos/post-v5.0.0-profile-maturity-2026-05-06/03-execution-roadmap.md` (Phase C1).
+The collector additions are scheduled as a separate engineering push (Phase C1 of the post-v5.0.0 maturity roadmap).
 
 ## See also
 
