@@ -38,6 +38,33 @@ class DriftReport:
     after_profile_id: str | None = None
 
 
+def _extract_profile_id(report: dict[str, Any]) -> str | None:
+    """Extract the profile id from an evaluation report regardless of contract version.
+
+    ``reports/1.0`` nests profile data under ``profile.id``. ``reports/0.3`` and ``0.2``
+    expose the flat ``profile_id`` key at the root. Returns ``None`` when no usable id
+    can be found, so legacy or partial reports do not silently corrupt drift output.
+    """
+
+    nested = report.get("profile")
+    if isinstance(nested, dict):
+        candidate = nested.get("id")
+        if isinstance(candidate, str):
+            stripped = candidate.strip()
+            if stripped:
+                return stripped
+    flat = report.get("profile_id")
+    if isinstance(flat, str):
+        stripped = flat.strip()
+        if stripped:
+            return stripped
+    if flat is not None and not isinstance(flat, str):
+        coerced = str(flat).strip()
+        if coerced:
+            return coerced
+    return None
+
+
 def _result_map(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
     rows = report.get("results")
     if not isinstance(rows, list):
@@ -82,10 +109,8 @@ def compute_drift(before: dict[str, Any], after: dict[str, Any]) -> DriftReport:
     after_path = str(after.get("_path", ""))
     before_kv = str(before.get("kit_version", ""))
     after_kv = str(after.get("kit_version", ""))
-    before_profile = before.get("profile_id")
-    after_profile = after.get("profile_id")
-    before_pid = str(before_profile).strip() if before_profile is not None else None
-    after_pid = str(after_profile).strip() if after_profile is not None else None
+    before_pid = _extract_profile_id(before)
+    after_pid = _extract_profile_id(after)
     profile_mismatch = bool(
         before_pid is not None
         and before_pid != ""

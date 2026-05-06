@@ -1,0 +1,10 @@
+# Normalize text artifacts to LF in repository and working tree.
+# Overrides system-level core.autocrlf for matched patterns.
+
+*.md        text eol=lf
+*.py        text eol=lf
+*.json      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.toml      text eol=lf
+.gitignore  text eol=lf

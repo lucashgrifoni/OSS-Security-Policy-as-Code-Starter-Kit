@@ -319,7 +319,8 @@ def _suggestions_for_platform(
                     "github-release-hardening-2",
                     (
                         "GitHub Actions and/or GitHub-shaped evidence JSON is present; "
-                        "evaluate declared release posture with github-release-hardening-2."
+                        "evaluate declared release posture with github-release-hardening-2 "
+                        "(verify evidence JSONs are filled, not templates)."
                     ),
                     _normalize_based_on(bo, wf_paths, github_ev),
                 )
@@ -365,7 +366,8 @@ def _suggestions_for_platform(
                     "azure-release-hardening-2",
                     (
                         "Azure Pipelines and/or Azure-shaped evidence JSON is present; "
-                        "evaluate declared release posture with azure-release-hardening-2."
+                        "evaluate declared release posture with azure-release-hardening-2 "
+                        "(verify evidence JSONs are filled, not templates)."
                     ),
                     _normalize_based_on_az(bo, az_paths, azure_ev),
                 )
@@ -407,7 +409,8 @@ def _suggestions_for_platform(
                 "aws-release-hardening-2",
                 (
                     "A buildspec and/or AWS-shaped evidence JSON is present; "
-                    "evaluate declared release posture with aws-release-hardening-2."
+                    "evaluate declared release posture with aws-release-hardening-2 "
+                    "(verify evidence JSONs are filled, not templates)."
                 ),
                 _normalize_based_on_aws(bo, buildspec, aws_ev),
             )

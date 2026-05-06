@@ -99,3 +99,52 @@ def test_azure_level_3_hard_gate_keeps_at_least_one_self_attested_row() -> None:
     assert counts["fail"] == 0
     assert counts["manual-review-required"] == 0
     assert counts.get("self-attested", 0) >= 1
+
+
+def test_github_release_hardening_2_dominantly_passes_on_hardened_repo() -> None:
+    """``github-release-hardening-2`` is the release-track ladder for GitHub teams.
+
+    On the synthetic fixture it should be predominantly green: governance, branch protection,
+    workflow hardening and platform evidence all line up. The realistic exceptions are
+    ``GH-PROV-023`` (no provenance signal embedded in the synthetic workflows) and
+    ``OSS-SCORECARD-001`` (no scorecard JSON provided to the evaluator) — these are intentional
+    and document the tier's expectation that maintainers wire provenance and scorecard before
+    relying on the gate.
+    """
+
+    counts = _status_counts(_evaluate(EXAMPLE_HARDENED, "github-release-hardening-2"))
+    # No manual-review at this tier — controls either pass, fail honestly, or are skipped.
+    assert counts["manual-review-required"] == 0
+    # Generous failure ceiling tracks the documented "fill provenance / scorecard before release" caveats.
+    assert counts["fail"] <= 2, f"github-release-hardening-2 regression: {dict(counts)}"
+    # At least the governance + workflow + branch-protection rows must pass.
+    assert counts["pass"] >= 20
+
+
+def test_azure_release_hardening_2_predominantly_passes_with_self_attested_tail() -> None:
+    """``azure-release-hardening-2`` keeps the synthetic fixture green on the deterministic side.
+
+    The expected ``self-attested`` rows correspond to the artifact-bound SBOM/provenance
+    evidence (whose digests must come from a real release pipeline, not a clone-visible file).
+    No ``fail`` and no ``manual-review-required`` should appear at this tier on the hardened
+    fixture; deviations are signal that an evaluator silently changed contract.
+    """
+
+    counts = _status_counts(_evaluate(EXAMPLE_HARDENED, "azure-release-hardening-2"))
+    assert counts["fail"] == 0
+    assert counts["manual-review-required"] == 0
+    assert counts["pass"] >= 15
+    assert counts.get("self-attested", 0) >= 1, "Synthetic fixture must not claim live-attested posture"
+
+
+def test_aws_release_hardening_2_predominantly_passes_with_self_attested_tail() -> None:
+    """``aws-release-hardening-2`` mirrors the Azure invariant: no fails on the hardened fixture,
+    deterministic rows pass, and a small ``self-attested`` tail remains for artifact-bound rows
+    that need release-pipeline-emitted digests.
+    """
+
+    counts = _status_counts(_evaluate(EXAMPLE_HARDENED, "aws-release-hardening-2"))
+    assert counts["fail"] == 0
+    assert counts["manual-review-required"] == 0
+    assert counts["pass"] >= 15
+    assert counts.get("self-attested", 0) >= 1, "Synthetic fixture must not claim live-attested posture"

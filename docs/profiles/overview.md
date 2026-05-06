@@ -1,12 +1,35 @@
 # Profiles overview
 
-This page summarizes the **21 bundled profiles** in this kit build: deterministic ladder profiles per platform (`github-*`, `azure-*`, `aws-*`), two **advisory-only hybrid** profiles, and one **legacy bundled id** that remains for compatibility.
+This page summarizes the **20 bundled profiles** in this kit build: deterministic ladder profiles per platform (`github-*`, `azure-*`, `aws-*`) plus two **advisory-only hybrid** profiles. The legacy bundled id `github-release-hardening` was **removed in v5.0.0**; passing it now returns a migration error pointing to the canonical `github-release-hardening-1`. See [docs/v5.0.0-migration-guide.md](../v5.0.0-migration-guide.md).
+
+> **Hybrid profiles are advisory-only.** `github-aws-level-2` and `github-azure-level-2` combine GitHub SCM signals with AWS or Azure CI signals. They emit JSON `posture: multi_platform_advisory_hybrid`. **Do not use these profiles as a release or PR gate** — use the platform-specific `*-level-3` or `*-release-hardening-3` ladders instead.
+>
+> The non-hybrid `*-level-2` profiles (`github-level-2`, `azure-level-2`, `aws-level-2`) are also advisory-only by design (`posture: advisory`). They include several `signal` controls whose PASS is directional, not verified. Use them as scorecards, not as gates.
 
 ## Assurance vocabulary
 
-- **deterministic**: evaluated from files in the clone (YAML, manifests, paths) with structured parsing where possible.
-- **signal**: keyword or heuristic posture in CI files; PASS is directional, not proof of execution.
-- **evidence-backed**: requires `.oss-policy-kit/evidence/*.json` (manual attestation or `collect-evidence` API exports) for a credible PASS.
+The **catalog `assurance` field** classifies how a control proves its conclusion:
+
+- **`deterministic`**: evaluated from files in the clone (YAML, manifests, paths) with structured parsing where possible.
+- **`signal`**: keyword or heuristic posture in CI files; PASS is directional, not proof of execution.
+- **`evidence-backed`**: requires `.oss-policy-kit/evidence/*.json` (manual attestation or `collect-evidence` API exports) for a credible PASS.
+
+The **`reports/1.0` Evidence Model v2** (visible per result in `evaluation-report.json` when the default contract is used) projects a richer trust picture using these keys (full reference in [docs/reports-contract-v1.0.md](../reports-contract-v1.0.md)):
+
+- **`source_type`**: where the conclusion came from — `clone_file`, `workflow_yaml`, `pipeline_yaml`, `evidence_json`, `api_collected`, `heuristic_signal`, etc.
+- **`collection_method`**: how it was gathered — `clone_inspection`, `workflow_yaml_parse`, `evidence_attestation`, `api_collected`, `keyword_match`, etc.
+- **`trust_level`**: derived semantic level — `verified` (high), `attested`, `observed`, `heuristic` (lowest). Keyword-only matches cap trust at `heuristic` even when the status is `pass`.
+- **`attestation_status`**: `signed`, `self_attested`, `none`. Promoted from `self_attested` to `signed` only when the control source is `api_collected` and an `attested_by` value is present.
+- **`freshness_status`**: `fresh`, `stale`, `unknown`. Driven by `extra.collected_at` (ISO8601) on live evidence; without it, the projection emits `unknown`.
+- **`evidence_required`**: boolean — true on `evidence-backed` catalog controls; surfaces explicitly in `reports/1.0`.
+- **`limitations`**: free-form strings explaining why a result cannot project to a higher trust level (for example, `keyword-only signal cannot project to verified`).
+
+These projection fields are **read on emission** from the evaluator's existing `evidence_sources`, `evidence_collection_method`, `assurance`, `status`, and the `extra` mapping. Existing evaluator plugins do not need to change. They are not present in `reports/0.3` or `reports/0.2` payloads.
+
+Two consequences worth keeping in mind:
+
+- A `pass` on a `signal` control is not the same shape of proof as a `pass` on a `deterministic` or `evidence-backed` control. The Evidence Model v2 makes that explicit; the report Markdown surfaces the same idea with the assurance label per row.
+- Hard-gate profiles (`*-level-3`, `*-release-hardening-3`) treat evidence freshness and attestation as part of the gate, not as a side note. If you wire `--fail-on fail` on those profiles in CI, plan for `collect-evidence` upstream (see [L3 evidence-heavy caveat](#l3-evidence-heavy-caveat-read-before-wiring-a-hard-gate)).
 
 ## Profile ladder vocabulary
 
@@ -26,7 +49,7 @@ Use this matrix as an operator shortcut (derived from current bundled profile in
 | Daily baseline | `*-level-1`, `*-level-2`, `*-release-hardening-1`, `*-release-hardening-2` | Best for routine triage and incremental hardening. |
 | Extreme hard-gate | `*-level-3`, `*-release-hardening-3` (single-platform) | Evidence-first posture; treat non-pass rows and warnings as real work. |
 | Advisory-only | `github-aws-level-2`, `github-azure-level-2` | Multi-platform guidance; **not** a hard-gate replacement. |
-| Legacy compatibility id | `github-release-hardening` | Supported alias of `github-release-hardening-1`; prefer canonical id for new automation/docs. |
+| Legacy id (removed) | `github-release-hardening` | **Removed in v5.0.0.** Returns a migration error. Use `github-release-hardening-1`. |
 
 ## `maturity_label` glossary and recommended `--fail-on`
 
@@ -40,7 +63,6 @@ Use this matrix as an operator shortcut (derived from current bundled profile in
 | `release ladder` | `*-release-hardening-1`, `*-release-hardening-2` | `fail` (release-hardening-1) or `degraded` (release-hardening-2) | Clone signals plus minimal release evidence; freshness matters. |
 | `release hard-gate (extreme)` | `*-release-hardening-3` | `fail` paired with `collect-evidence` live + artifact-bound SBOM/provenance | Strictest bundled release gate per platform. |
 | `advisory hybrid (multi-platform)` | `github-aws-level-2`, `github-azure-level-2` | `degraded` only — **never** use as the hard-gate for a release | GitHub + AWS/Azure signals combined; advisory by design. |
-| `legacy bundled id (non-canonical)` | `github-release-hardening` | Same as the canonical profile it aliases (`github-release-hardening-1`) | Same as canonical. Prefer the canonical id in new automation. |
 
 Multi-platform hybrids deserve a short note of their own: **`github-aws-level-2`** and **`github-azure-level-2`** exist for teams whose source of truth is GitHub (repo lives on github.com) but whose CI/CD terminates on AWS CodePipeline or Azure Pipelines. They stack GitHub workflow signals on top of the platform family's clone-visible controls and are **advisory by design**. Use them as a PR-level gate with `--fail-on degraded`; when it is time to cut a release, pick the pure single-platform hard-gate (`aws-release-hardening-3` or `azure-release-hardening-3`) for the environment that actually ships the artifact.
 
@@ -71,6 +93,36 @@ If you hit this pattern, the honest moves are:
 
 If `evaluation-batch.md` shows several targets failing the same set — typically `GOV-COWN-003`, `GOV-WAIV-014`, `GOV-CON-002`, `GOV-DISC-013`, `GOV-LIC-004`, `GOV-SEC-001`, `REL-CHANGE-012` — that is the expected `*-level-1` shape on bare application code, **not** a kit defect or regression. Apply one of the moves above instead of treating it as noise.
 
+## Profile maturity tier (read before choosing a hard gate)
+
+The 20 bundled profiles are not equally mature in **operational fit**. The catalog itself is uniformly `lifecycle: stable`, but two practical things differ between profiles:
+
+1. how much **evidence-template work** the operator must do up front, and
+2. how complete the **collector** is for the platform.
+
+The table below is the honest current state. It does **not** modify any profile or control; it is a docs-only snapshot to set operator expectations.
+
+| Tier | Profiles | What "mature" means here | Caveat |
+|---|---|---|---|
+| **Mature daily baseline** | `github-level-1`, `azure-level-1`, `aws-level-1` | Designed for routine PR triage; no evidence files needed; results are reproducible from a clone alone. | None beyond the standard `*-level-1` caveat about bare application repos (see previous section). |
+| **Mature daily baseline (with caveats)** | `github-release-hardening-1`, `azure-release-hardening-1`, `aws-release-hardening-1` | Adds branch-protection evidence on top of `*-level-1`. Pass on the new evidence row requires a single small JSON file. | One control will sit at `manual-review-required` / `self-attested` until you fill the JSON or run `collect-evidence`. |
+| **Mature advisory** | `github-level-2`, `azure-level-2`, `aws-level-2`, `github-aws-level-2`, `github-azure-level-2` | Designed to be advisory; **not** a release gate. Posture is `advisory` (or `multi_platform_advisory_hybrid` for hybrids). | Wiring `--fail-on fail` against an advisory profile defeats the design. Use `--fail-on degraded`. |
+| **Operationally mature; collector mature** | `github-level-3`, `github-release-hardening-3` | The most mature path in the kit: deterministic + evidence-backed + GitHub collector retrieves all 4 platform evidence files. Reaches `pass` end-to-end with `collect-evidence --platform github` and a token. | Requires `GITHUB_TOKEN` with the right permissions for `branch-protection`, `rulesets`, `secret-scanning`, `environments`. |
+| **Operationally mature; collector partial** | `azure-level-3`, `aws-level-3`, `azure-release-hardening-3`, `aws-release-hardening-3` | Catalog and evaluator side are stable. The collector retrieves 2-3 endpoints (vs. GitHub's 4) and several artifact-bound evidence files (`*-sbom-artifact`, `*-provenance-artifact`, `org-mfa-posture`) intentionally stay self-attested because their digests must come from the release pipeline. | Without a real `collect-evidence` run on the right project, expect a tail of `self-attested` rows; this is the current parity gap, documented in [collector-parity.md](../collector-parity.md). |
+| **UX-bound (operationally mature when used right)** | `github-release-hardening-2`, `azure-release-hardening-2`, `aws-release-hardening-2` | The profile itself is mature — the issue was historically with the **recommendation heuristic** that suggested them when only evidence templates were present. Mitigated in the v5.0.0 line: `recommend-profile` rationale strings now include "(verify evidence JSONs are filled, not templates)" and `docs/cli-reference.md` + `docs/results-guide.md` carry the same caveat. | If you fill the templates (or run `collect-evidence`) the profile reaches `pass=majority` cleanly on the bundled hardened fixture; the test suite locks in those expected counts. |
+
+### Why no new profile is being added to fix Tier 5/6
+
+These tiers are **not** evidence of catalog immaturity — they reflect the limits of what a tool that does not control the underlying CI platform can prove from a clone or a single REST call. Adding a new profile would not change those limits. The maturity work to close them is:
+
+- expanding `collect-evidence` for Azure/AWS to reach GitHub-level coverage (deferred follow-up listed in [profiles/deferred-followups.md](deferred-followups.md));
+- emitting artifact-bound evidence (SBOM/provenance) directly from the release pipeline; and
+- continuing to project `signal` controls as `inferred` trust regardless of profile (already enforced by `evidence_projection`).
+
+### Framework alignment
+
+Each bundled profile description (`profiles --format detailed`) now ends with a **Framework alignment** sentence pointing operators at [framework-alignment.md](../framework-alignment.md), which maps the 65 catalog controls to OpenSSF Scorecard, OSPS Baseline, OWASP CI/CD Top 10, SLSA v1.0, NIST SSDF SP 800-218, Microsoft S2C2F, CIS Software Supply Chain Security Benchmark, AWS Well-Architected (Security Pillar), and Azure DevOps Security Best Practices. The page documents YES / PARTIAL / OUT / GAP coverage per framework requirement and explains why no framework-aligned profile (e.g., a hypothetical `slsa-l2-aligned` or `scorecard-baseline-aligned`) was added: subsets of the existing catalog serve operators better as **mapping documentation** than as additional profiles.
+
 ## Matrix (derived from bundled YAML + catalog assurance mix)
 
 | Profile | Controls | Status (CLI `maturity_label`) | Extreme gate profile? | det / sig / evi |
@@ -81,7 +133,6 @@ If `evaluation-batch.md` shows several targets failing the same set — typicall
 | github-release-hardening-1 | 16 | release ladder | no | 12 / 3 / 1 |
 | github-release-hardening-2 | 30 | release ladder | no | 18 / 8 / 4 |
 | github-release-hardening-3 | 32 | release hard-gate (extreme) | **yes** | 19 / 8 / 5 |
-| github-release-hardening | 16 | legacy bundled id (non-canonical) | no | 12 / 3 / 1 |
 | github-aws-level-2 | 35 | advisory hybrid (multi-platform) | no | 22 / 13 / 0 |
 | github-azure-level-2 | 36 | advisory hybrid (multi-platform) | no | 23 / 12 / 1 |
 | azure-level-1 | 13 | starter ladder | no | 9 / 4 / 0 |
@@ -133,6 +184,29 @@ The hardened fixture is strong for the single-platform extreme tracks, but it is
 - Evidence under `examples/hardened-repo` is **synthetic** (it does not replace `collect-evidence` with real credentials).
 - **OSS-SCORECARD-001** stays **not-evaluated** until you pass `--scorecard-json`.
 - Extreme AWS/Azure profiles need more **evidence discipline** than GitHub to reach the same operational confidence. See [docs/profiles/aws.md](aws.md) and [docs/profiles/azure.md](azure.md) for the explicit `collect-evidence` expectation at L3 / release-hardening-3.
+
+## L3 evidence-heavy caveat (read before wiring a hard gate)
+
+Extreme profiles (`*-level-3`, `*-release-hardening-3`) intentionally embed evidence-backed controls so that a `pass` on a hard gate reflects something more than clone-visible signals. The trade-off is that **without `collect-evidence` (or hand-filled evidence files matching the bundled schemas), some controls will land on `manual-review-required`, `not-applicable`, or stay at lower confidence**. That is not a defect — it is the difference between *clone-visible* checks and *evidence-backed* checks.
+
+The proportion of evidence-backed controls per extreme profile (source: `python -m oss_policy_kit profiles --format json` against the bundled catalog in this revision):
+
+| Profile | Total controls | Evidence-backed | % evidence-backed |
+| --- | ---: | ---: | ---: |
+| `azure-level-3` | 27 | 8 | 29.6% |
+| `aws-level-3` | 25 | 7 | 28.0% |
+| `azure-release-hardening-3` | 30 | 8 | 26.7% |
+| `aws-release-hardening-3` | 29 | 7 | 24.1% |
+| `github-release-hardening-3` | 32 | 5 | 15.6% |
+| `github-level-3` | 33 | 4 | 12.1% |
+
+Operational reading:
+
+- If you wire one of these as `--fail-on fail` in CI without an evidence pipeline, expect a meaningful tail of `manual-review-required` rows. That output is *honest*, not a regression.
+- `summary_by_status.fail == 0` does not imply *all-pass*. See [Zero `fail` is not the same as all-pass](#zero-fail-is-not-the-same-as-all-pass) on this same page.
+- The intended path is `collect-evidence` for the matching family (`github`, `azure`, `aws`) before the hard gate fires. AWS and Azure extreme profiles depend on this more than GitHub by construction.
+
+For the platform-specific `collect-evidence` expectation see [docs/profiles/aws.md](aws.md) and [docs/profiles/azure.md](azure.md). For the operator playbook see [docs/release-playbook-hardgate.md](../release-playbook-hardgate.md).
 
 ## How `recommend-profile` reads `.oss-policy-kit/evidence/`
 

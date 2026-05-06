@@ -10,6 +10,7 @@ description: >
   strong gate when evidence is maintained.
   **Natural next step:** `github-release-hardening-3` when releases are the primary risk surface;
   otherwise maintain evidence freshness and live collectors — there is no higher bundled pure-repo gate.
+  **Framework alignment:** see `docs/framework-alignment.md` (Scorecard 11/19 YES + 3 PARTIAL; OWASP CICD Top 10 covers 8/10; NIST SSDF PS/PW are deepest).
 audience: Security-focused maintainers seeking strict GitHub supply-chain posture with evidence.
 controls:
   - GOV-SEC-001

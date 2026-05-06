@@ -10,6 +10,7 @@ description: >
   active gating.
   **Natural next step:** operate live `collect-evidence` and policy waivers explicitly — this is the
   ceiling of the bundled GitHub release profile set.
+  **Framework alignment:** see `docs/framework-alignment.md` (Scorecard 11/19 YES + 3 PARTIAL; OSPS Mature; SLSA Build L2 evidence expectations met when collect-evidence runs live; OWASP CICD Top 10 covers 8/10).
 audience: Teams with high-assurance release governance and explicit platform evidence discipline.
 controls:
   - GOV-SEC-001

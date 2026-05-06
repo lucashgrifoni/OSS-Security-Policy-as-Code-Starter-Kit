@@ -47,6 +47,12 @@ _REPO_GLOB_PRIMARY: tuple[str, ...] = (
     "pipelines/azure/*.yaml",
     ".azure-pipelines/*.yml",
     ".azure-pipelines/*.yaml",
+    # GitHub Actions workflow files count as a repository signal: a `.github/workflows/`
+    # directory alone is not enough (a parent project might just hold a templates folder),
+    # but at least one workflow YAML inside it is a strong indicator that this directory
+    # is a CI-bearing repository root.
+    ".github/workflows/*.yml",
+    ".github/workflows/*.yaml",
 )
 
 REPO_SIGNALS = _REPO_PRIMARY_SIGNALS

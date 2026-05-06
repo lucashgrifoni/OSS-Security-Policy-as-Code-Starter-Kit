@@ -282,6 +282,30 @@ def test_cli_scaffold_evidence_respects_force(tmp_path: Path) -> None:
     assert "HOLD" not in bp.read_text(encoding="utf-8")
 
 
+def test_cli_scaffold_evidence_creates_missing_target_dir(tmp_path: Path) -> None:
+    """``scaffold-evidence`` auto-creates a missing ``--target`` (with parents)."""
+
+    runner = CliRunner()
+    nested = tmp_path / "deep" / "nested" / "repo"
+    assert not nested.exists()
+    result = runner.invoke(app, ["scaffold-evidence", "--target", str(nested), "--platform", "github"])
+    assert result.exit_code == 0, result.output
+    assert nested.is_dir()
+    assert (nested / ".oss-policy-kit" / "evidence" / "branch-protection.json").is_file()
+    assert (nested / ".oss-policy-kit" / "evidence" / "README.md").is_file()
+
+
+def test_cli_scaffold_evidence_existing_target_no_extra_create(tmp_path: Path) -> None:
+    """``scaffold-evidence`` does not require auto-create when ``--target`` exists."""
+
+    runner = CliRunner()
+    repo = tmp_path / "exists"
+    repo.mkdir()
+    result = runner.invoke(app, ["scaffold-evidence", "--target", str(repo), "--platform", "azure"])
+    assert result.exit_code == 0, result.output
+    assert (repo / ".oss-policy-kit" / "evidence" / "azure-branch-policies.json").is_file()
+
+
 def test_cli_collect_evidence_aws_dry_run_lists_three_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``collect-evidence --platform aws --dry-run`` must preview the three AWS files without credentials.
 
@@ -416,7 +440,8 @@ def test_cli_profiles_recommended_gate_column_renders_without_polluting_json() -
     assert "Recommended" in human_out and "gate" in human_out
     assert "--fail-on fail" in human_out
     assert "--fail-on none" in human_out
-    assert "(migrate)" in human_out  # legacy alias row
+    # v5.0.0: the legacy 'github-release-hardening' alias was removed; no '(migrate)' row.
+    assert "(migrate)" not in human_out
 
     payload = runner.invoke(app, ["profiles", "--format", "json"])
     assert payload.exit_code == 0, payload.output

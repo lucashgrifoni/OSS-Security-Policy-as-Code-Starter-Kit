@@ -82,6 +82,7 @@ def test_false_positive_template_mentions_reproducibility() -> None:
 
 
 def test_public_docs_do_not_expose_maintainer_local_paths() -> None:
+    forbidden_windows_home = "C:" + "\\" + "Users" + "\\"
     for path in _PUBLIC_DOCS:
         text = path.read_text(encoding="utf-8")
-        assert "C:\\Users\\" not in text, f"{path.relative_to(_REPO_ROOT)} must not expose Windows user paths"
+        assert forbidden_windows_home not in text, f"{path.relative_to(_REPO_ROOT)} must not expose Windows user paths"

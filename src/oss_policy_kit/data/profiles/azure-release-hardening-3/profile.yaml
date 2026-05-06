@@ -13,6 +13,7 @@ description: >
   this kit GitHub remains the most mature path; use `github-release-hardening-3` as the extreme
   reference until Azure evidence collection reaches parity.
   **Natural next step:** keep evidence live via `collect-evidence --platform azure` and explicit waivers — this is the ceiling of the bundled Azure release profile set.
+  **Framework alignment:** see `docs/framework-alignment.md` (Azure DevOps Security Best Practices fully covered except Audit-log/SIEM; SLSA Build L2 evidence expectations met when collect-evidence runs live).
 audience: High-assurance Azure DevOps teams combining API-backed evidence with release hygiene signals.
 controls:
   - GOV-SEC-001

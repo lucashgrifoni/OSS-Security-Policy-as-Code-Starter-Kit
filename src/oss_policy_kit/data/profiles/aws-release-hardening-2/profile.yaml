@@ -6,6 +6,7 @@ description: >
   must already meet the structured bar (AWS-PIPE-042). Includes dependency auto-update detection
   and container image security posture checks (digest pinning,   non-root user, image scanning signals).
   **Natural next step:** `aws-release-hardening-3` for the strictest bundled AWS release gate.
+  **Framework alignment:** see `docs/framework-alignment.md` (AWS Well-Architected DevOps lens on automate-best-practices, IAM federation; SLSA Build L2 evidence expectations directional when JSONs are filled).
 audience: AWS teams combining curated pipeline files with platform evidence JSON for releases.
 controls:
   - GOV-SEC-001

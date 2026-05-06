@@ -162,15 +162,31 @@ def load_profile(path: Path, *, validate_external_schema: bool = False) -> Profi
 
 
 # Bundled profile id -> directory name under ``profiles/`` (same id except legacy aliases).
-PROFILE_DIRECTORY_ALIASES: dict[str, str] = {
+# In v5.0.0 the legacy alias `github-release-hardening` was removed; the mapping is empty
+# and kept only as a public symbol for downstream tooling that imports it.
+PROFILE_DIRECTORY_ALIASES: dict[str, str] = {}
+BUNDLED_PROFILE_LEGACY_IDS: frozenset[str] = frozenset(PROFILE_DIRECTORY_ALIASES.keys())
+
+# Profile ids that were removed in v5.0.0. Resolving these raises a hard error with
+# explicit migration guidance instead of silently mapping to the canonical id.
+REMOVED_PROFILE_IDS: dict[str, str] = {
     "github-release-hardening": "github-release-hardening-1",
 }
-BUNDLED_PROFILE_LEGACY_IDS: frozenset[str] = frozenset(PROFILE_DIRECTORY_ALIASES.keys())
 
 
 def resolve_profile_file(kit_root: Path, profile_id: str) -> Path:
-    """Return path to ``profiles/<id>/profile.yaml`` (after resolving legacy directory aliases)."""
+    """Return path to ``profiles/<id>/profile.yaml``.
 
+    Profile ids removed in v5.0.0 raise ``LoadError`` with migration guidance.
+    """
+
+    if profile_id in REMOVED_PROFILE_IDS:
+        canonical = REMOVED_PROFILE_IDS[profile_id]
+        raise LoadError(
+            f"Profile id '{profile_id}' was removed in v5.0.0. "
+            f"The canonical profile is '{canonical}' (same control set). "
+            f"Update your scripts and CI workflows. See docs/v5.0.0-migration-guide.md."
+        )
     dirname = PROFILE_DIRECTORY_ALIASES.get(profile_id, profile_id)
     candidate = kit_root / "profiles" / dirname / "profile.yaml"
     if not candidate.is_file():
@@ -191,21 +207,7 @@ def load_profile_by_id(kit_root: Path, profile_id: str) -> ProfileSpec:
     if _is_filesystem_profile_ref(profile_id):
         return load_profile(Path(profile_id).resolve(), validate_external_schema=True)
     path = resolve_profile_file(kit_root, profile_id)
-    spec = load_profile(path)
-    if profile_id in PROFILE_DIRECTORY_ALIASES:
-        legacy_note = (
-            "This profile id is a **legacy alias** for `github-release-hardening-1` (same control set). "
-            "Prefer `github-release-hardening-1` in documentation and automation."
-        )
-        merged_desc = f"{spec.description.rstrip()}\n\n{legacy_note}\n".strip() + "\n"
-        return ProfileSpec(
-            id=profile_id,
-            title=spec.title,
-            description=merged_desc,
-            audience=spec.audience,
-            control_ids=spec.control_ids,
-        )
-    return spec
+    return load_profile(path)
 
 
 def merge_kit_root(cli_kit_root: Path | None) -> Path:

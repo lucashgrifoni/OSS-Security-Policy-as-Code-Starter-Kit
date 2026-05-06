@@ -21,6 +21,19 @@ Six profiles: `azure-level-1` through `azure-level-3` and `azure-release-hardeni
 `azure-release-hardening-3` adds the **AZ-SEC / AZ-SBOM / AZ-SCA 031..033** signal bundle for
 release visibility; those controls stay **signal** grade per catalog — treat PASS as directional.
 
+## `azure-level-3` vs `azure-release-hardening-3` — when to use which
+
+Both are Azure DevOps extreme hard-gates and both expect live `collect-evidence --platform azure`. They differ in operational fit:
+
+- Use **`azure-level-3`** for **steady-state Azure DevOps hardening** — branch policies, pipeline governance, federated identity (`AZ-WIFEV-057`), service connection posture, and ORG-MFA. 8 of the 27 controls are evidence-backed (the highest evidence ratio of any profile in this kit).
+- Use **`azure-release-hardening-3`** when the gate runs at the **release event** — adds the `AZ-SEC / AZ-SBOM / AZ-SCA 031..033` signal bundle on top of the same hard-gate core, plus artifact-bound SBOM/provenance evidence files (`AZ-ARTSBOM-058`, `AZ-ARTPRV-059`). 8 of the 30 controls are evidence-backed; release signals stay `signal`-grade and are directional, not proof of execution.
+
+Operational rule of thumb:
+
+- For PR-time and steady-state CI on Azure: `azure-level-3`.
+- For tag/release-time gates on Azure: `azure-release-hardening-3`.
+- Both depend on `AZURE_DEVOPS_ORG` and `AZURE_DEVOPS_TOKEN` for live collection. Without it, expect `self-attested` rows on platform-evidence controls — see [L3 evidence-heavy caveat](overview.md#l3-evidence-heavy-caveat-read-before-wiring-a-hard-gate).
+
 ## When to use each profile
 
 Pick the lowest level that actually matches how your release flow is governed today:

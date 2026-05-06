@@ -13,6 +13,9 @@ Repository entry points:
 
 ## For Users
 
+- [validation-walkthrough.md](validation-walkthrough.md) - full step-by-step demo with screenshots (CLI help, profile discovery, fixture comparison, controls table, CI gating)
+- [cli-reference.md](cli-reference.md) - full CLI reference (subcommands, flags, exit codes, examples)
+- [results-guide.md](results-guide.md) - how to interpret report statuses (`pass`, `fail`, `manual-review-required`, `self-attested`, ...)
 - [adoption-guide.md](adoption-guide.md) - choose a baseline and understand expected outcomes
 - [recommended-adoption-playbook.md](recommended-adoption-playbook.md) - copy/paste adoption path for a standard Python repository
 - [profiles/overview.md](profiles/overview.md) - bundled profiles matrix, assurance mix, daily/extreme/advisory usage classes, and **zero `fail`** vs **all-pass**
@@ -31,7 +34,16 @@ Repository entry points:
 ## Reference
 
 - [architecture.md](architecture.md) - package structure, trust model, and evidence boundaries
+- [controls-catalog.md](controls-catalog.md) - full catalog of 65 controls in one page (category, assurance, weight, profile membership)
+- [collector-parity.md](collector-parity.md) - what each platform collector retrieves today (GitHub vs Azure vs AWS) and what intentionally stays self-attested
+- [framework-alignment.md](framework-alignment.md) - master cross-framework mapping (Scorecard, OSPS, OWASP CICD Top 10, SLSA v1.0, NIST SSDF, S2C2F, CIS SSCS, AWS Well-Architected, Azure DevOps Security)
 - [policy-data-lifecycle.md](policy-data-lifecycle.md) - lifecycle states for controls and profiles
+
+## Migration guides
+
+- [v3.0.0 release notes](v3.0.0-migration-guide.md)
+- [v3 → v4](v4.0.0-migration-guide.md)
+- [v4 → v5](v5.0.0-migration-guide.md)
 
 ## Scope Reminder
 

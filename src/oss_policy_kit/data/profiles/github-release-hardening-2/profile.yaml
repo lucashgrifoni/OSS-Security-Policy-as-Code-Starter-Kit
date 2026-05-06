@@ -6,6 +6,7 @@ description: >
   auto-update detection, OpenSSF Scorecard signal, and container image security posture
   checks (digest pinning, non-root user, image scanning signals).
   **Natural next step:** `github-release-hardening-3` for the strictest bundled release gate.
+  **Framework alignment:** see `docs/framework-alignment.md` (OSPS Mature ladder; SLSA Build L2 evidence expectations directional when JSONs are filled).
 audience: Teams enforcing medium-hardening release posture with explicit GitHub evidence.
 controls:
   - GOV-SEC-001

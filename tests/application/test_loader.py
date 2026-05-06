@@ -9,7 +9,7 @@ from oss_policy_kit.application.loader import (
     load_catalog,
     load_profile_by_id,
 )
-from oss_policy_kit.domain.errors import ProfileLoadError
+from oss_policy_kit.domain.errors import LoadError, ProfileLoadError
 
 
 def test_load_catalog_and_profiles() -> None:
@@ -20,9 +20,9 @@ def test_load_catalog_and_profiles() -> None:
     assert "PLAT-BRPROT-015" not in p1.control_ids
     p2 = load_profile_by_id(root, "github-release-hardening-1")
     assert "PLAT-BRPROT-015" in p2.control_ids
-    p2_alias = load_profile_by_id(root, "github-release-hardening")
-    assert p2_alias.control_ids == p2.control_ids
-    assert p2_alias.id == "github-release-hardening"
+    # v5.0.0: legacy alias 'github-release-hardening' is rejected with migration text.
+    with pytest.raises(LoadError, match="removed in v5.0.0"):
+        load_profile_by_id(root, "github-release-hardening")
     p3 = load_profile_by_id(root, "github-level-2")
     assert "GH-WF-018" in p3.control_ids
     p4 = load_profile_by_id(root, "github-level-3")

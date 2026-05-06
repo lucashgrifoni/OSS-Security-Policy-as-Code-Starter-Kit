@@ -13,6 +13,7 @@ description: >
   Inside this kit GitHub remains the most mature path; use `github-release-hardening-3` as the
   extreme reference until AWS evidence collection reaches parity.
   **Natural next step:** keep evidence live via `collect-evidence --platform aws` and explicit waivers — this is the ceiling of the bundled AWS release profile set.
+  **Framework alignment:** see `docs/framework-alignment.md` (AWS Well-Architected Security Pillar covers IAM federation, identity, automation; Enable-Traceability is GAP; SLSA Build L2 evidence expectations met when collect-evidence runs live).
 audience: High-assurance AWS teams combining API-collectable evidence with release-time supply-chain signals.
 controls:
   - GOV-SEC-001

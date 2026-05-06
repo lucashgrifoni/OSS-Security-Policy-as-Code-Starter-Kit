@@ -4,6 +4,64 @@ This is the maintainer checklist for patch releases, public launch, and routine 
 
 Keep detailed launch evidence, private planning notes, and internal traceability packs outside the public repository. This page is the public operational checklist.
 
+## v5.0.0 release gate (additive to the routine checklist below)
+
+The v5.0.0 release introduces `reports/1.0` (default), Evidence Model v2, SARIF 2.1.0 output, and removes the legacy profile alias `github-release-hardening`. Before tagging:
+
+- [ ] `pyproject.toml` `version` bumped to `5.0.0` and matches `src/oss_policy_kit/__init__.py`.
+- [ ] `CHANGELOG.md` v5.0.0 entry written (highlights, improvements, notes, breaking changes).
+- [ ] `docs/v5.0.0-migration-guide.md` reflects final shipped behavior.
+- [ ] `docs/reports-contract-v1.0.md` matches the bundled `evaluation-report-v1.schema.json`.
+- [ ] Default report contract is `reports/1.0` and `--report-json-contract 0.1` returns the migration error.
+- [ ] Legacy alias `github-release-hardening` returns the migration error (exit code 2).
+- [ ] SARIF output validates as SARIF 2.1.0 for hardened, vulnerable, and healthy runs.
+- [ ] `docs/signal-controls-audit.md` captures the v5.0.0 signal control disposition.
+- [ ] `docs/azure-aws-collector-privacy.md` describes credentials and privacy boundaries.
+- [ ] Bundled `evaluation-report-v3.schema.json` is UTF-8 (no BOM); v1 schema is strict (`additionalProperties: false`).
+- [ ] `python scripts/check_public_hygiene.py` (see below) returns clean against tracked files.
+- [ ] Mirror clone validation per `docs/release-readiness.md` mirror block returns clean.
+- [ ] Wheel and sdist install in a clean venv (`scripts/consumer_smoke.py`).
+- [ ] `evaluate` smokes on `examples/hardened-repo` and `examples/vulnerable-repo` produce expected exit codes.
+
+### Supply chain expectations for v5.0.0
+
+The v5.0.0 release line ships with **partial provenance**, not SLSA L3. What is in scope:
+
+- CycloneDX SBOM generated as a CI artifact alongside wheel/sdist.
+- GitHub Actions workflow pinned to immutable SHAs; reviewed before each tag.
+- GitHub artifact attestations for the wheel and sdist when the publish workflow is run with `attestations: write` (track this as a v5.x.y enhancement; not a v5.0.0 hard requirement).
+- Release notes describe how to verify wheel/sdist checksums published on the GitHub Release page.
+
+What is **not** in scope for v5.0.0 and must not be claimed:
+
+- SLSA L3 build provenance (no isolated builder yet).
+- Cosign signing as a hard requirement (optional path documented; not required for v5.0.0 to ship).
+- OpenSSF Scorecard score as a merge gate (track as advisory in v5.x; gate later when stable).
+
+### Public hygiene scan (must be run before tagging)
+
+The release must fail if any private maintainer, workstation, credential, tenant, or internal planning marker appears in tracked files, generated release assets, or mirror-clone reachable objects.
+
+This includes:
+
+- personal email addresses or consumer email domains
+- workstation home-directory paths
+- private planning, prompt, validation, or traceability artifact names
+- Git author-mapping files used only for local history hygiene
+- real cloud account or organization identifiers (other than the synthetic `000000000000`)
+- real service connection identifiers
+- credential-looking secrets
+- self-hosted runner machine names
+- private fixture names
+
+Run the helper:
+
+```bash
+python scripts/check_public_hygiene.py
+```
+
+This script grep-scans tracked files for the forbidden tokens and exits non-zero if any are found. Pair it with a mirror-clone scan (see below) before tagging.
+
 ## Repository contents
 
 - [ ] `LICENSE` is present and correct

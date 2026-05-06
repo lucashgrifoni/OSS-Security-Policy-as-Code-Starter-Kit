@@ -24,9 +24,21 @@ Adjust `--profile` to `aws-release-hardening-3` or `azure-release-hardening-3` w
 
 Other supported flags for this workflow include `--format`, `--summary-only`, and `--output-dir` as documented in `python -m oss_policy_kit evaluate --help`.
 
-## Legacy profile id (GitHub)
+## Legacy profile id (GitHub) — removed in v5.0.0
 
-The bundled id `github-release-hardening` is a **legacy** alias for `github-release-hardening-1`. It remains supported, but the CLI prints a **stderr** warning and lists it as non-canonical in `profiles --format json`. Prefer `github-release-hardening-1` in new automation and documentation.
+The bundled id `github-release-hardening` was **removed in v5.0.0**. Passing `--profile github-release-hardening` exits with code `2` and a migration message pointing to the canonical `github-release-hardening-1` (same control set). Update CI workflows, scripts, and dashboards. See [docs/v5.0.0-migration-guide.md](v5.0.0-migration-guide.md).
+
+## Operational warnings on supplemental evidence
+
+When a hard-gate profile passes a row using only supplemental evidence (a hand-filled `.oss-policy-kit/evidence/` JSON, a keyword match in a workflow, or a Scorecard heuristic), the CLI emits an **operational warning** on stderr:
+
+> Signal came from supplemental evidence only; prefer in-repo workflow evidence or API-backed collection for hard gates.
+
+Treat this as a real signal in CI:
+
+- The default of `evaluate` keeps these warnings visible. In a release-gate run, do **not** suppress them with `--quiet/-q` — that flag is meant for daily triage runs where the warnings would dominate stdout, not for the strict release path.
+- Operational warnings alone do **not** flip `--fail-on fail` or `--fail-on degraded`. They are informational. Promote a warning to a hard gate by replacing the supplemental source with `collect-evidence` output for the matching family.
+- For `*-level-3` and `*-release-hardening-3` profiles, plan the `collect-evidence` step before the gate runs (see [Optional: populate evidence from APIs](#optional-populate-evidence-from-apis) below). The warning is the kit telling you that the row's `trust_level` is `heuristic` or `observed` and not yet `verified`/`attested`.
 
 ## Optional: populate evidence from APIs
 

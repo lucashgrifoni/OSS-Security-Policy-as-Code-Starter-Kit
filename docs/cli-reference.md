@@ -1,0 +1,194 @@
+# CLI Reference
+
+Full reference for the `oss-policy-kit` CLI. Always run the relevant `--help` for the authoritative wording — this page exists so reviewers can scan the surface in one place.
+
+## Public Contract
+
+The supported CLI forms are:
+
+- preferred: `python -m oss_policy_kit evaluate ...`
+- compatible: `python -m oss_policy_kit --target ./repo --profile ...`
+- also supported: `python -m oss_policy_kit ./repo --profile ...`
+
+The explicit `evaluate` subcommand is the clearest form and should be preferred in docs, scripts, and examples.
+
+## Day-to-day usage
+
+1. **First run**: install the package, then `python -m oss_policy_kit profiles` (or `--show-profiles`) to pick a ladder, and `python -m oss_policy_kit recommend-profile --target .` for a quick hint.
+2. **Local maintainer loop**: `python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/latest` before tagging or opening a release PR; open `evaluation-report.md` for the narrative view.
+3. **Multi-app / monorepo**: `python -m oss_policy_kit evaluate-many --target-root ./apps --profiles github-level-1 --output-dir ./out/batch` — read `evaluation-batch.md` first (consolidated totals, repeated gaps, relative paths to per-repo reports).
+4. **Waivers**: keep versioned waivers in-repo for `GOV-WAIV-014`; use `--waivers path.yaml` only for temporary or CI-local exceptions and treat them as explicitly out-of-band from versioned policy.
+5. **Release-hardening + evidence**: run `scaffold-evidence` once, fill `.oss-policy-kit/evidence/*.json`, then evaluate with `github-release-hardening-*` (or Azure/AWS equivalents). Re-run scaffold **without** `--force` to preserve hand-edited JSON; use `--force` only when you intend to replace templates.
+6. **Interpreting scope**: read [results-guide.md](results-guide.md) when results look similar across apps — the kit measures clone-visible posture, not application logic flaws.
+
+## Profile Discovery
+
+Use either of these:
+
+- `python -m oss_policy_kit profiles`
+- `python -m oss_policy_kit --show-profiles`
+
+Both commands list the bundled ladders with platform, level, control count, and whether the profile stays clone-only or extends into release-hardening/evidence expectations. **Listing goes to stdout** (errors stay on stderr). Machine-readable catalog:
+
+```bash
+python -m oss_policy_kit profiles --format json
+```
+
+Heuristic profile suggestion from repository layout:
+
+```bash
+python -m oss_policy_kit recommend-profile --target ./examples/hardened-repo
+python -m oss_policy_kit recommend-profile --target . --format json
+```
+
+`recommend-profile` is **heuristic guidance**, not a compliance verdict. It can be strongly influenced by local `.oss-policy-kit/evidence/*.json`, platform signals in CI files, and repository manifests/lockfiles. Treat the recommendation as a starting point, then confirm with an explicit `evaluate` run and review the resulting statuses.
+
+> **Caveat: evidence templates trigger release-hardening recommendations.**
+> `recommend-profile` may suggest `release-hardening-*` profiles when it detects evidence JSON files under `.oss-policy-kit/evidence/` — even if those files still contain placeholder values from `scaffold-evidence`. Running `evaluate` against an unfilled template will surface `manual-review-required` for evidence-backed controls (this is the tool being honest about missing evidence; not a bug). Recommended flow: run `scaffold-evidence`, fill the JSONs with real values, then re-run `recommend-profile`. See also [results-guide.md](results-guide.md#evidence-templates-vs-real-evidence).
+
+## Batch / Monorepo
+
+Evaluate each **immediate child directory** of a root folder against one or more profiles (paths with spaces are supported via normal shell quoting):
+
+```bash
+python -m oss_policy_kit evaluate-many --target-root ./path/to/apps --profiles github-level-1 --output-dir ./out/batch
+```
+
+This writes per-target reports under `./out/batch/<child-name>/<profile-id>/` plus consolidated `evaluation-batch.json` and `evaluation-batch.md`.
+
+`evaluate-many` inspects immediate child directories of `--target-root`. It does not recurse into monorepos. For nested layouts, run `evaluate-many` once per level or invoke `evaluate` per target.
+
+### `--skip-non-repos` requires a primary signal at child root
+
+`--skip-non-repos` rejects a child directory unless it contains at least one **primary signal at its own root**: `.git/`, a build manifest (`package.json`, `pyproject.toml`, `requirements.txt`, `go.mod`, `Cargo.toml`, `pom.xml`, etc.), a CI file (`.github/workflows/`, `azure-pipelines.yml`, `pipelines/azure/*.yml`, `buildspec.yml`), or a `Dockerfile`. `README.md` alone is **not** sufficient.
+
+This is a deliberate contract — but it can surprise modern monorepo layouts where the manifest or CI lives in a subfolder. For example, a child shaped like:
+
+```text
+my-app/
+├── README.md
+├── docs/
+├── infra/
+│   └── terraform/...
+├── services/
+│   ├── api/
+│   │   └── package.json
+│   └── worker/
+│       └── pyproject.toml
+└── gateway/
+    └── Dockerfile
+```
+
+…will be skipped because no primary signal sits at `my-app/` root. The skip is recorded in `evaluation-batch.json.skipped_directories[].reason`. To evaluate this layout, run one of:
+
+```bash
+# Evaluate each service as its own target
+python -m oss_policy_kit evaluate-many --target-root ./my-app/services --profiles github-level-1 --output-dir ./out/services
+
+# Or evaluate a specific service directly
+python -m oss_policy_kit evaluate --target ./my-app/services/api --profile github-level-1 --output-dir ./out/api
+```
+
+## Evidence Scaffolding
+
+Generate schema-shaped starter files under `.oss-policy-kit/evidence/`:
+
+```bash
+python -m oss_policy_kit scaffold-evidence --target . --platform github
+```
+
+By default, **existing files are not overwritten** (stdout prints `created` / `skipped` / `overwritten`). Use `--force` only when you want to replace templates you have already edited.
+
+Replace placeholders, then re-run `evaluate` with a `release-hardening-*` profile. Evidence remains **self-attested** (maintainer-supplied), not platform-verified.
+
+## Common Examples
+
+Subcommand with `--target`:
+
+```bash
+python -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile github-level-1 --output-dir ./out/hardened
+```
+
+Subcommand with positional target:
+
+```bash
+python -m oss_policy_kit evaluate ./examples/hardened-repo --profile github-level-1 --output-dir ./out/hardened
+```
+
+Top-level compatibility form:
+
+```bash
+python -m oss_policy_kit --target ./examples/hardened-repo --profile github-level-1 --output-dir ./out/hardened-root
+```
+
+## Optional Inputs
+
+Unix-like shells:
+
+```bash
+python -m oss_policy_kit evaluate --target ./path/to/repo \
+  --profile github-level-1 \
+  --output-dir ./out \
+  --waivers ./waivers/waivers.example.yaml \
+  --scorecard-json ./path/to/scorecard.json
+```
+
+Windows PowerShell:
+
+```powershell
+python -m oss_policy_kit evaluate --target .\path\to\repo --profile github-level-1 --output-dir .\out --waivers .\waivers\waivers.example.yaml
+```
+
+## Pipeline-Friendly Output
+
+For compact stdout suitable for CI parsing:
+
+```bash
+python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out --summary-only --format json
+```
+
+The JSON summary includes:
+
+- ordered `summary_by_status`
+- `controls_total`
+- `operational_warnings_count`
+
+The **human** `--summary-only` mode prints a short, action-oriented recap (counts, top gaps, suggested next step) while keeping this JSON contract stable.
+
+## Waivers: versioned in repo vs `--waivers`
+
+- **`--waivers`**: external YAML loaded for **this run only**; may set specific controls to `waived`. The report states the absolute path under `external_waiver_path`.
+- **`GOV-WAIV-014`**: checks for a **versioned** waiver policy file **inside the clone** (for example `waivers/waivers.yaml`). Using `--waivers` does **not** satisfy that control by design; the Markdown report explains both mechanisms side by side.
+
+## Exit Codes
+
+After a successful evaluation:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Completed and `--fail-on` threshold was not violated |
+| `1` | Completed and `--fail-on` threshold was violated |
+| `2` | Invalid usage, missing paths, or other user-correctable errors |
+| `3` | Unexpected internal error |
+
+## Windows Note
+
+`pyproject.toml` exposes the `oss-policy-kit` console script, but on Windows the Scripts directory is not always on `PATH`.
+
+- canonical invocation: `python -m oss_policy_kit`
+- if you prefer the console script, use an activated virtual environment or ensure the Scripts directory is on `PATH`
+
+## Quick reference (real flags per subcommand)
+
+| Subcommand | Required | Common flags | Notes |
+| --- | --- | --- | --- |
+| (root) | — | `--version/-V`, `--help/-h`, `--show-profiles/-sp` | Compatibility entry point; also accepts the same flags as `evaluate` for backward compat. |
+| `profiles` | — | `--format/-f` (`compact` default, `table`, `detailed`, `json`), `--family` (`github`/`azure`/`aws`), `--only-extreme`, `--advisory-only` | Listing only. JSON returns the `oss-policy-kit/profile-list/v2` schema. |
+| `evaluate` | `--profile/-p` (or positional target) | `--target/-t`, `--output-dir/-o`, `--format/-f`, `--summary-only/-so`, `--fail-on/-fo` (`none`/`fail`/`degraded`), `--waivers/-w`, `--scorecard-json/-sj`, `--report-json-contract` (`1.0`/`0.3`/`0.2`), `--sarif-output`, `--verbose/-v`, `--quiet/-q`, `--kit-root/-k` | Default contract is `1.0`; `0.3` and `0.2` remain selectable. SARIF only emitted when `--sarif-output` is set. |
+| `evaluate-many` | `--target-root`, `--profiles/-p` (comma-separated) | `--output-dir/-o`, `--include`, `--exclude` (fnmatch on child names), `--fail-on/-fo`, `--skip-non-repos`, `--quiet/-q`, `--kit-root/-k` | Iterates immediate children of `--target-root`. `--profiles` is plural. |
+| `recommend-profile` | `--target/-t` | `--format/-f` (`human` default, `json`) | Heuristic — never a compliance verdict. |
+| `scaffold-evidence` | `--target/-t`, `--platform` (`github`/`azure`/`aws`) | `--force` | Creates `.oss-policy-kit/evidence/` and template JSON files. `--target` must already exist. |
+| `collect-evidence` | `--target/-t`, `--platform` (`github`/`azure`/`aws`) | `--repo`, `--output-dir/-o`, `--dry-run` | `--dry-run` reports presence/absence of credential env vars without printing values. |
+| `diff-reports` | `--before`, `--after` | `--format/-f` (`table` default, `json`, `markdown`), `--fail-on-regression` / `--no-fail-on-regression` | Default is to exit `1` on regression; opt out with `--no-fail-on-regression`. |
+
+Exit codes are uniform across subcommands: `0` success, `1` `--fail-on` / regression threshold violated, `2` invalid usage or missing input, `3` unexpected internal error.

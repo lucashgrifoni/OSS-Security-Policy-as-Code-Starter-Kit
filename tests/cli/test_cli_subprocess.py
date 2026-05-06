@@ -202,8 +202,8 @@ def test_subprocess_show_profiles_flag() -> None:
     assert "Summary" not in proc.stdout
 
 
-def test_subprocess_evaluate_with_target_flag() -> None:
-    out_dir = ROOT / "out" / "pytest-subprocess-target"
+def test_subprocess_evaluate_with_target_flag(tmp_path: Path) -> None:
+    out_dir = tmp_path / "pytest-subprocess-target"
     out_dir.mkdir(parents=True, exist_ok=True)
     proc = _run_module(
         [
@@ -220,8 +220,8 @@ def test_subprocess_evaluate_with_target_flag() -> None:
     assert (out_dir / "evaluation-report.json").is_file()
 
 
-def test_subprocess_evaluate_with_profile_short_flag() -> None:
-    out_dir = ROOT / "out" / "pytest-subprocess-target-short-profile"
+def test_subprocess_evaluate_with_profile_short_flag(tmp_path: Path) -> None:
+    out_dir = tmp_path / "pytest-subprocess-target-short-profile"
     out_dir.mkdir(parents=True, exist_ok=True)
     proc = _run_module(
         [
@@ -238,8 +238,8 @@ def test_subprocess_evaluate_with_profile_short_flag() -> None:
     assert (out_dir / "evaluation-report.json").is_file()
 
 
-def test_subprocess_evaluate_positional_target() -> None:
-    out_dir = ROOT / "out" / "pytest-subprocess-positional"
+def test_subprocess_evaluate_positional_target(tmp_path: Path) -> None:
+    out_dir = tmp_path / "pytest-subprocess-positional"
     out_dir.mkdir(parents=True, exist_ok=True)
     proc = _run_module(
         [
@@ -254,8 +254,8 @@ def test_subprocess_evaluate_positional_target() -> None:
     assert proc.returncode == 0, proc.stderr + proc.stdout
 
 
-def test_subprocess_root_top_level_target() -> None:
-    out_dir = ROOT / "out" / "pytest-subprocess-root-top"
+def test_subprocess_root_top_level_target(tmp_path: Path) -> None:
+    out_dir = tmp_path / "pytest-subprocess-root-top"
     out_dir.mkdir(parents=True, exist_ok=True)
     proc = _run_module(
         [
@@ -270,8 +270,8 @@ def test_subprocess_root_top_level_target() -> None:
     assert proc.returncode == 0, proc.stderr + proc.stdout
 
 
-def test_subprocess_root_top_level_profile_short_flag() -> None:
-    out_dir = ROOT / "out" / "pytest-subprocess-root-top-short-profile"
+def test_subprocess_root_top_level_profile_short_flag(tmp_path: Path) -> None:
+    out_dir = tmp_path / "pytest-subprocess-root-top-short-profile"
     out_dir.mkdir(parents=True, exist_ok=True)
     proc = _run_module(
         [
@@ -287,8 +287,8 @@ def test_subprocess_root_top_level_profile_short_flag() -> None:
     assert (out_dir / "evaluation-report.json").is_file()
 
 
-def test_subprocess_root_positional_target() -> None:
-    out_dir = ROOT / "out" / "pytest-subprocess-root-pos"
+def test_subprocess_root_positional_target(tmp_path: Path) -> None:
+    out_dir = tmp_path / "pytest-subprocess-root-pos"
     out_dir.mkdir(parents=True, exist_ok=True)
     proc = _run_module(
         [
@@ -302,7 +302,7 @@ def test_subprocess_root_positional_target() -> None:
     assert proc.returncode == 0, proc.stderr + proc.stdout
 
 
-def test_subprocess_missing_target_exit_code_2() -> None:
+def test_subprocess_missing_target_exit_code_2(tmp_path: Path) -> None:
     proc = _run_module(
         [
             "--target",
@@ -310,13 +310,13 @@ def test_subprocess_missing_target_exit_code_2() -> None:
             "--profile",
             "github-level-1",
             "--output-dir",
-            str(ROOT / "out" / "pytest-subprocess-missing"),
+            str(tmp_path / "pytest-subprocess-missing"),
         ]
     )
     assert proc.returncode == 2
 
 
-def test_subprocess_missing_waivers_exit_code_2() -> None:
+def test_subprocess_missing_waivers_exit_code_2(tmp_path: Path) -> None:
     proc = _run_module(
         [
             "evaluate",
@@ -327,15 +327,15 @@ def test_subprocess_missing_waivers_exit_code_2() -> None:
             "--waivers",
             str(TEST_FIXTURES / "missing-waivers.yaml"),
             "--output-dir",
-            str(ROOT / "out" / "pytest-subprocess-missing-waivers"),
+            str(tmp_path / "pytest-subprocess-missing-waivers"),
         ]
     )
     assert proc.returncode == 2
 
 
 @pytest.mark.skipif(not _INVALID_WORKFLOW.is_dir(), reason="invalid-workflow fixture not present")
-def test_subprocess_invalid_workflow_emits_operational_warnings() -> None:
-    out_dir = ROOT / "out" / "pytest-subprocess-invalid-wf"
+def test_subprocess_invalid_workflow_emits_operational_warnings(tmp_path: Path) -> None:
+    out_dir = tmp_path / "pytest-subprocess-invalid-wf"
     out_dir.mkdir(parents=True, exist_ok=True)
     proc = _run_module(
         [
@@ -355,8 +355,8 @@ def test_subprocess_invalid_workflow_emits_operational_warnings() -> None:
 
 
 @pytest.mark.skipif(not _INVALID_WORKFLOW.is_dir(), reason="invalid-workflow fixture not present")
-def test_subprocess_invalid_workflow_quiet_suppresses_operational_warnings() -> None:
-    out_dir = ROOT / "out" / "pytest-subprocess-invalid-wf-quiet"
+def test_subprocess_invalid_workflow_quiet_suppresses_operational_warnings(tmp_path: Path) -> None:
+    out_dir = tmp_path / "pytest-subprocess-invalid-wf-quiet"
     out_dir.mkdir(parents=True, exist_ok=True)
     proc = _run_module(
         [
@@ -378,8 +378,8 @@ def test_subprocess_invalid_workflow_quiet_suppresses_operational_warnings() -> 
 
 
 @pytest.mark.skipif(not _REPO_WITH_SPACES.is_dir(), reason="repo with spaces fixture not present")
-def test_subprocess_target_with_spaces() -> None:
-    out_dir = ROOT / "out" / "pytest-subprocess-spaces"
+def test_subprocess_target_with_spaces(tmp_path: Path) -> None:
+    out_dir = tmp_path / "pytest-subprocess-spaces"
     out_dir.mkdir(parents=True, exist_ok=True)
     proc = _run_module(
         [
@@ -433,8 +433,8 @@ def test_subprocess_scaffold_evidence_skip_then_force(tmp_path: Path) -> None:
     assert "KEEP" not in bp.read_text(encoding="utf-8")
 
 
-def test_subprocess_evaluate_many_profiles_short_flag() -> None:
-    out_dir = ROOT / "out" / "pytest-subprocess-batch-short-profile"
+def test_subprocess_evaluate_many_profiles_short_flag(tmp_path: Path) -> None:
+    out_dir = tmp_path / "pytest-subprocess-batch-short-profile"
     out_dir.mkdir(parents=True, exist_ok=True)
     proc = _run_module(
         [

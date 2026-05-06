@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from io import StringIO
 from pathlib import Path
@@ -11,11 +12,18 @@ from rich.console import Console
 from rich.table import Table
 
 from oss_policy_kit.application.drift import ControlDelta, DriftReport
+from oss_policy_kit.application.evidence_projection import (
+    EVIDENCE_PROVENANCE_VERSION,
+    gate_role_for,
+    normalize_confidence,
+    project_evidence,
+)
 from oss_policy_kit.domain.models import ControlResult, ControlStatus, ExecutionReport, LiveCollectionMetadata
 
 REPORT_JSON_SCHEMA_URL_V0_1 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.1"
 REPORT_JSON_SCHEMA_URL_V0_2 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.2"
 REPORT_JSON_SCHEMA_URL_V0_3 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.3"
+REPORT_JSON_SCHEMA_URL_V1_0 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/1.0"
 
 
 def _effective_schema_version(report: ExecutionReport, schema_version_override: str | None) -> str:
@@ -24,6 +32,12 @@ def _effective_schema_version(report: ExecutionReport, schema_version_override: 
     o = schema_version_override.strip()
     if "reports/0.1" in o or o.rstrip("/").endswith("0.1"):
         return REPORT_JSON_SCHEMA_URL_V0_1
+    if "reports/0.2" in o or o.rstrip("/").endswith("0.2"):
+        return REPORT_JSON_SCHEMA_URL_V0_2
+    if "reports/0.3" in o or o.rstrip("/").endswith("0.3"):
+        return REPORT_JSON_SCHEMA_URL_V0_3
+    if "reports/1.0" in o or o.rstrip("/").endswith("1.0"):
+        return REPORT_JSON_SCHEMA_URL_V1_0
     return report.schema_version
 
 
@@ -34,6 +48,10 @@ def _emit_contract_v2(schema_version_effective: str) -> bool:
 
 def _emit_contract_v3(schema_version_effective: str) -> bool:
     return "reports/0.3" in schema_version_effective
+
+
+def _emit_contract_v1_0(schema_version_effective: str) -> bool:
+    return "reports/1.0" in schema_version_effective
 
 
 def compute_summary_by_gate_role(summary_by_status: dict[str, int]) -> dict[str, int]:
@@ -75,6 +93,113 @@ GATE_EXECUTION_MODEL_V1: dict[str, Any] = {
         "Waivers may convert `fail` to `waived` before summaries are computed.",
     ],
 }
+
+
+GATE_EXECUTION_MODEL_V2: dict[str, Any] = {
+    "model_version": 2,
+    "report_contract": "reports/1.0",
+    "fail_on_semantics": {
+        "none": {"exit_1_from_results": False},
+        "fail": {
+            "exit_1_when": "ci_blocking_fail > 0",
+            "maps_to_summary_status": "fail",
+        },
+        "degraded": {
+            "exit_1_when": "ci_blocking_fail > 0 OR human_review_gate > 0",
+            "maps_to_summary_statuses": ["fail", "manual-review-required"],
+        },
+    },
+    "trust_boundary_notes": [
+        "`not-evaluated` never triggers fail-on by itself - it signals evaluation limits or missing evidence.",
+        "`self-attested` is declarative and is not the same as verifier-backed pass.",
+        "Waivers may convert `fail` to `waived` before summaries are computed.",
+        "`assurance: signal` controls cannot project to `trust_level: verified` in the v1 evidence model.",
+        "`evidence.freshness_status: stale` reduces trust to `declared` even when collection method is live.",
+    ],
+}
+
+
+_GITHUB_PROFILE_PREFIX = "github-"
+_AZURE_PROFILE_PREFIX = "azure-"
+_AWS_PROFILE_PREFIX = "aws-"
+
+
+def derive_profile_metadata(profile_id: str) -> dict[str, Any]:
+    """Derive lightweight profile metadata from a profile id for reports/1.0.
+
+    Falls back to ``None`` for fields that cannot be inferred from the id alone.
+    Centralizing this in the reporting layer avoids coupling reports to the CLI
+    profile-listing helpers.
+    """
+
+    pid = profile_id.strip()
+    family: str | None = None
+    if pid.startswith(_GITHUB_PROFILE_PREFIX):
+        family = "github"
+    elif pid.startswith(_AZURE_PROFILE_PREFIX):
+        family = "azure"
+    elif pid.startswith(_AWS_PROFILE_PREFIX):
+        family = "aws"
+
+    level: str | None = None
+    for token in ("level-1", "level-2", "level-3"):
+        if token in pid:
+            level = "L" + token.split("-", 1)[1]
+            break
+
+    is_release_track = "release-hardening" in pid
+
+    posture: str | None = None
+    is_hybrid = pid.startswith(("github-aws-", "github-azure-"))
+    if is_hybrid:
+        posture = "multi_platform_advisory_hybrid"
+    elif pid.endswith("-level-1") or pid.endswith("release-hardening-1"):
+        posture = "starter"
+    elif pid.endswith("-level-2"):
+        posture = "advisory"
+    elif pid.endswith("-level-3") or pid.endswith("release-hardening-3"):
+        posture = "hard_gate"
+    elif pid.endswith("release-hardening-2"):
+        posture = "release_track"
+
+    recommended_gate: str | None = None
+    if posture in {"starter", "release_track", "hard_gate"} or is_release_track:
+        recommended_gate = "--fail-on fail"
+    elif posture in {"advisory", "multi_platform_advisory_hybrid"}:
+        recommended_gate = "--fail-on none"
+
+    return {
+        "family": family,
+        "level": level,
+        "posture": posture,
+        "is_release_track": is_release_track,
+        "recommended_gate": recommended_gate,
+    }
+
+
+def compute_results_digest(results: list[ControlResult]) -> str:
+    """Stable sha256 digest over canonical control-result fields.
+
+    Covers the deterministic columns: ``control_id``, ``profile``, ``status``,
+    ``lifecycle``, ``assurance``, ``weight``. Excludes free-form text (reason,
+    remediation), evidence references, and timestamps so the digest is robust to
+    cosmetic refactors and to evidence freshness changes.
+    """
+
+    canonical = []
+    for r in sorted(results, key=lambda x: (x.profile, x.control_id)):
+        canonical.append(
+            {
+                "control_id": r.control_id,
+                "profile": r.profile,
+                "status": r.status.value,
+                "lifecycle": r.lifecycle,
+                "assurance": r.assurance,
+                "weight": r.weight,
+            }
+        )
+    payload = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
 
 
 def _live_collection_dict(lc: LiveCollectionMetadata | None) -> dict[str, Any] | None:
@@ -184,6 +309,98 @@ def _result_to_dict(r: ControlResult, *, contract_v2: bool) -> dict[str, Any]:
     return d
 
 
+def _result_to_dict_v1(r: ControlResult) -> dict[str, Any]:
+    """Project a ControlResult into the reports/1.0 control_result_v1 shape."""
+
+    waiver_dict: dict[str, Any] | None = None
+    if r.waiver:
+        waiver_dict = {
+            "control_id": r.waiver.control_id,
+            "justification": r.waiver.justification,
+            "owner": r.waiver.owner,
+            "status": r.waiver.status,
+            "expires_at": r.waiver.expires_at.isoformat() if r.waiver.expires_at else None,
+            "applies_to": r.waiver.applies_to,
+        }
+
+    payload: dict[str, Any] = {
+        "control_id": r.control_id,
+        "title": r.title,
+        "category": r.category,
+        "lifecycle": r.lifecycle,
+        "profile": r.profile,
+        "status": r.status.value,
+        "gate_role": gate_role_for(r.status),
+        "assurance": r.assurance,
+        "confidence": normalize_confidence(r.confidence),
+        "weight": r.weight,
+        "reason": r.reason,
+        "remediation": r.remediation,
+        "evidence": project_evidence(r),
+        "owner": r.owner,
+        "expires_at": r.expires_at.isoformat() if r.expires_at else None,
+        "waiver": waiver_dict,
+        "extra": dict(r.extra) if isinstance(r.extra, dict) else {},
+    }
+    if r.deprecation_note is not None:
+        payload["deprecation_note"] = r.deprecation_note
+    payload["finding_id"] = f"{r.control_id}@{r.profile}"
+    return payload
+
+
+def report_to_dict_v1(report: ExecutionReport) -> dict[str, Any]:
+    """Serialize execution report under the reports/1.0 contract."""
+
+    profile_meta = derive_profile_metadata(report.profile_id)
+    profile_block = {
+        "id": report.profile_id,
+        "title": report.profile_title,
+        "family": profile_meta["family"],
+        "level": profile_meta["level"],
+        "posture": profile_meta["posture"],
+        "is_release_track": profile_meta["is_release_track"],
+        "recommended_gate": profile_meta["recommended_gate"],
+    }
+
+    scorecard_block = {
+        "path": report.scorecard_path,
+        "supplemental": report.scorecard_supplemental,
+    }
+
+    weighted_score_block: dict[str, Any] | None = None
+    if report.weighted_score is not None:
+        weighted_score_block = {
+            "earned": report.weighted_score.earned,
+            "possible": report.weighted_score.possible,
+            "percent": report.weighted_score.percent,
+        }
+
+    results_v1 = [_result_to_dict_v1(r) for r in report.results]
+
+    payload: dict[str, Any] = {
+        "schema_version": REPORT_JSON_SCHEMA_URL_V1_0,
+        "evidence_provenance_version": EVIDENCE_PROVENANCE_VERSION,
+        "generated_at": report.generated_at,
+        "kit_version": report.kit_version,
+        "target_path": report.target_path,
+        "profile": profile_block,
+        "summary_by_status": report.summary_by_status,
+        "summary_by_gate_role": compute_summary_by_gate_role(report.summary_by_status),
+        "gate_execution_model": GATE_EXECUTION_MODEL_V2,
+        "results": results_v1,
+        "results_digest": compute_results_digest(report.results),
+        "operational_warnings": report.operational_warnings,
+        "scorecard": scorecard_block,
+        "external_waiver_path": report.external_waiver_path,
+        "action_insights": compute_priority_insights(report),
+        "live_collection": _live_collection_dict(report.live_collection),
+        "weighted_score": weighted_score_block,
+        "migration": None,
+        "extensions": {},
+    }
+    return payload
+
+
 def report_to_dict(
     report: ExecutionReport,
     *,
@@ -194,9 +411,14 @@ def report_to_dict(
     When *schema_version_override* is a string containing ``reports/0.1`` (or ends
     with ``0.1``), emit the legacy ``reports/0.1`` payload shape without v0.2-only keys,
     even if the in-memory report object targets ``reports/0.2``.
+
+    When *schema_version_override* targets ``reports/1.0``, dispatch to the v1
+    projection which uses a structured ``evidence`` object per result.
     """
 
     effective = _effective_schema_version(report, schema_version_override)
+    if _emit_contract_v1_0(effective):
+        return report_to_dict_v1(report)
     contract_v2 = _emit_contract_v2(effective)
     payload: dict[str, Any] = {
         "schema_version": effective,

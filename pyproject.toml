@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oss-policy-kit"
-version = "4.0.4"
+version = "5.0.0"
 description = "Open source starter kit for adopting OSS security baselines via policy packs, templates, evidence, and remediation."
 readme = "README.md"
 license = "Apache-2.0"
@@ -86,13 +86,20 @@ oss_policy_kit = [
 target-version = "py312"
 line-length = 120
 src = ["src", "tests", "scripts"]
-exclude = ["gitpage", ".venv", ".venv-ci", ".venv-smoke", "venv"]
+exclude = ["gitpage", ".venv", ".venv-ci", ".venv-smoke", ".venv-v5-baseline", "venv"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/oss_policy_kit/cli/main.py" = ["B008"]
+"src/oss_policy_kit/cli/common.py" = ["B008"]
+"src/oss_policy_kit/cli/evaluate.py" = ["B008"]
+"src/oss_policy_kit/cli/batch.py" = ["B008"]
+"src/oss_policy_kit/cli/evidence.py" = ["B008"]
+"src/oss_policy_kit/cli/profiles.py" = ["B008"]
+"src/oss_policy_kit/cli/recommend.py" = ["B008"]
+"src/oss_policy_kit/cli/reports.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.12"

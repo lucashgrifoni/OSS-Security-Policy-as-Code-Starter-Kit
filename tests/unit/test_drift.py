@@ -110,6 +110,106 @@ def test_render_drift_table_without_color_has_no_ansi_sequences() -> None:
     assert "\x1b[" not in out
 
 
+def test_compute_drift_extracts_profile_id_from_v1_nested_object() -> None:
+    """``reports/1.0`` nests profile data under ``profile.id`` — drift must read it."""
+
+    before = {
+        "results": [_row("X", "xt", "pass")],
+        "kit_version": "5",
+        "profile": {"id": "github-level-1", "title": "GitHub OSS starter baseline (level 1)"},
+    }
+    after = {
+        "results": [_row("X", "xt", "pass")],
+        "kit_version": "5",
+        "profile": {"id": "github-level-1", "title": "GitHub OSS starter baseline (level 1)"},
+    }
+    d = compute_drift(before, after)
+    assert d.before_profile_id == "github-level-1"
+    assert d.after_profile_id == "github-level-1"
+    assert d.profile_mismatch is False
+
+
+def test_compute_drift_extracts_profile_id_from_v03_flat_field() -> None:
+    """``reports/0.3`` keeps the flat ``profile_id`` at the root — drift must still read it."""
+
+    before = {
+        "results": [_row("X", "xt", "pass")],
+        "kit_version": "5",
+        "profile_id": "github-level-1",
+    }
+    after = {
+        "results": [_row("X", "xt", "pass")],
+        "kit_version": "5",
+        "profile_id": "github-level-1",
+    }
+    d = compute_drift(before, after)
+    assert d.before_profile_id == "github-level-1"
+    assert d.after_profile_id == "github-level-1"
+    assert d.profile_mismatch is False
+
+
+def test_compute_drift_flags_profile_mismatch_across_versions_v1() -> None:
+    """Different ``profile.id`` in two ``reports/1.0`` payloads sets ``profile_mismatch=True``."""
+
+    before = {
+        "results": [_row("X", "xt", "pass")],
+        "profile": {"id": "github-level-1"},
+    }
+    after = {
+        "results": [_row("X", "xt", "pass")],
+        "profile": {"id": "github-level-2"},
+    }
+    d = compute_drift(before, after)
+    assert d.before_profile_id == "github-level-1"
+    assert d.after_profile_id == "github-level-2"
+    assert d.profile_mismatch is True
+
+
+def test_compute_drift_flags_profile_mismatch_across_versions_v03() -> None:
+    """Different ``profile_id`` in two ``reports/0.3`` payloads sets ``profile_mismatch=True``."""
+
+    before = {"results": [_row("X", "xt", "pass")], "profile_id": "azure-level-1"}
+    after = {"results": [_row("X", "xt", "pass")], "profile_id": "aws-level-1"}
+    d = compute_drift(before, after)
+    assert d.before_profile_id == "azure-level-1"
+    assert d.after_profile_id == "aws-level-1"
+    assert d.profile_mismatch is True
+
+
+def test_compute_drift_handles_legacy_report_without_profile() -> None:
+    """A report missing both shapes must produce ``None`` profile ids and no false mismatch."""
+
+    before = {"results": [_row("X", "xt", "pass")], "kit_version": "1"}
+    after = {"results": [_row("X", "xt", "pass")], "kit_version": "2"}
+    d = compute_drift(before, after)
+    assert d.before_profile_id is None
+    assert d.after_profile_id is None
+    assert d.profile_mismatch is False
+
+
+def test_compute_drift_v1_takes_precedence_over_legacy_flat_when_both_present() -> None:
+    """If a payload carries both shapes (mixed/legacy migration), prefer ``profile.id``.
+
+    This guards against drift accidentally reading the wrong field on a hybrid payload
+    produced by a tool that emits both keys for safety.
+    """
+
+    before = {
+        "results": [_row("X", "xt", "pass")],
+        "profile": {"id": "github-level-3"},
+        "profile_id": "github-level-1",
+    }
+    after = {
+        "results": [_row("X", "xt", "pass")],
+        "profile": {"id": "github-level-3"},
+        "profile_id": "github-level-1",
+    }
+    d = compute_drift(before, after)
+    assert d.before_profile_id == "github-level-3"
+    assert d.after_profile_id == "github-level-3"
+    assert d.profile_mismatch is False
+
+
 def test_profile_mismatch_detected() -> None:
     before = {"profile_id": "github-level-1", "results": [], "kit_version": "1"}
     after = {"profile_id": "github-level-2", "results": [], "kit_version": "2"}

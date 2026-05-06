@@ -15,6 +15,7 @@
 .pytest_cache/
 .ruff_cache/
 .venv/
+.venv-v5-baseline/
 .consumer-smoke-venv/
 __pycache__/
 *.egg-info/
@@ -31,6 +32,8 @@ out/
 sonar-report/
 test-runs/
 teste-projeto/
+# Per-auditor scratch directory used when running validation rounds locally; never public.
+.tmp-validation/
 # Local validation run outputs (per-auditor snapshots under reports/validacao-<date>/)
 reports/validacao-*/
 
@@ -43,8 +46,6 @@ gitpage/node_modules/
 docs/superpowers/
 private-notes/
 secrets/sonar.token
-# Maintainer-private working notes folder kept outside the public mirror.
-/melhorias/
 
 # Maintainer-private planning documents kept at the repository root.
 # These are never intended for the public mirror; pinning them here prevents

@@ -81,19 +81,28 @@ def _hard_gate_evidence_warning(profile_id: str, repo_root: Path) -> str | None:
 REPORT_JSON_SCHEMA_URL_V0_1 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.1"
 REPORT_JSON_SCHEMA_URL_V0_2 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.2"
 REPORT_JSON_SCHEMA_URL_V0_3 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.3"
+REPORT_JSON_SCHEMA_URL_V1_0 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/1.0"
 
 
 def report_json_schema_url(contract: str) -> str:
-    """Return the full ``schema_version`` URL for an evaluation JSON report contract."""
+    """Return the full ``schema_version`` URL for an evaluation JSON report contract.
+
+    v5.0.0 default: ``1.0``. Selectable: ``1.0``, ``0.3``, ``0.2``. Removed: ``0.1``.
+    """
 
     c = contract.strip().lower().removeprefix("v")
-    if c in {"", "0.3"}:
+    if c in {"", "1.0"}:
+        return REPORT_JSON_SCHEMA_URL_V1_0
+    if c == "0.3":
         return REPORT_JSON_SCHEMA_URL_V0_3
     if c == "0.2":
         return REPORT_JSON_SCHEMA_URL_V0_2
     if c == "0.1":
-        return REPORT_JSON_SCHEMA_URL_V0_1
-    raise LoadError(f"Unknown report JSON contract {contract!r}; expected '0.1', '0.2', or '0.3'.")
+        raise LoadError(
+            "Report JSON contract '0.1' was removed in v5.0.0. Use '1.0' (default), '0.3', or '0.2'. "
+            "See docs/v5.0.0-migration-guide.md."
+        )
+    raise LoadError(f"Unknown report JSON contract {contract!r}; expected '1.0', '0.3', or '0.2'.")
 
 
 def _apply_waiver(

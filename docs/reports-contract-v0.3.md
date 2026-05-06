@@ -1,5 +1,7 @@
 # Evaluation report contract `reports/0.3`
 
+> **`reports/1.0` is the v5.0.0 default contract.** `0.3` remains selectable for the entire `5.x` line via `--report-json-contract 0.3`. New integrations should target [reports/1.0](reports-contract-v1.0.md).
+
 Version **0.3** is the default JSON contract for `evaluation-report.json` **for the v4.0.0 release line** once published; until **`v4.0.0`** is tagged and released, treat defaults on this branch as **implementation preview** alongside **`CHANGELOG.md`**.
 
 It is a **strict superset** of `reports/0.2`: every key required by v0.2 remains, with two additional top-level objects that make CI gate semantics explicit for JSON consumers.

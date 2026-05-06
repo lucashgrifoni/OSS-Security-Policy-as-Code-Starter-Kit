@@ -181,3 +181,50 @@ def test_github_workflows_without_github_evidence_starts_with_level_1(tmp_path: 
     (wf / "ci.yml").write_text(workflow_yaml, encoding="utf-8")
     rec = build_profile_recommendation(tmp_path)
     assert rec.suggestions[0]["profile_id"] == "github-level-1"
+
+
+def test_release_hardening_2_rationale_warns_about_unfilled_evidence_templates(tmp_path: Path) -> None:
+    """Every ``release-hardening-2`` rationale must explicitly tell the user to verify that the
+    evidence JSONs are not still scaffold templates. Removing this hint silently re-introduces
+    a UX problem where ``recommend-profile`` would suggest a release-hardening-2 profile over
+    unfilled placeholders, which then surfaced as ``manual-review-required`` in evaluate. The
+    hint travels with the recommendation, so users see it both in docs and in the CLI output.
+    """
+
+    expected_warning = "verify evidence JSONs are filled, not templates"
+
+    # GitHub: workflow + evidence template triggers github-release-hardening-2.
+    wf = tmp_path / "gh" / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "ci.yml").write_text(
+        "on: push\njobs: {a: {runs-on: ubuntu-latest, steps: [{run: 'echo x'}]}}\n",
+        encoding="utf-8",
+    )
+    ev = tmp_path / "gh" / ".oss-policy-kit" / "evidence"
+    ev.mkdir(parents=True)
+    (ev / "branch-protection.json").write_text(json.dumps({"schema_version": "x"}), encoding="utf-8")
+    rec = build_profile_recommendation(tmp_path / "gh")
+    rh2 = next(s for s in rec.suggestions if s["profile_id"] == "github-release-hardening-2")
+    assert expected_warning in rh2["rationale"], rh2["rationale"]
+
+    # Azure: pipeline yaml + evidence template triggers azure-release-hardening-2.
+    az = tmp_path / "az"
+    az.mkdir()
+    (az / "azure-pipelines.yml").write_text("trigger: [main]\npool: {vmImage: ubuntu-latest}\n", encoding="utf-8")
+    az_ev = az / ".oss-policy-kit" / "evidence"
+    az_ev.mkdir(parents=True)
+    (az_ev / "azure-branch-policies.json").write_text(json.dumps({"schema_version": "x"}), encoding="utf-8")
+    rec_az = build_profile_recommendation(az)
+    rh2_az = next(s for s in rec_az.suggestions if s["profile_id"] == "azure-release-hardening-2")
+    assert expected_warning in rh2_az["rationale"], rh2_az["rationale"]
+
+    # AWS: buildspec + evidence template triggers aws-release-hardening-2.
+    aws = tmp_path / "aws"
+    aws.mkdir()
+    (aws / "buildspec.yml").write_text("version: 0.2\nphases: {build: {commands: ['echo ok']}}\n", encoding="utf-8")
+    aws_ev = aws / ".oss-policy-kit" / "evidence"
+    aws_ev.mkdir(parents=True)
+    (aws_ev / "aws-codebuild-project.json").write_text(json.dumps({"schema_version": "x"}), encoding="utf-8")
+    rec_aws = build_profile_recommendation(aws)
+    rh2_aws = next(s for s in rec_aws.suggestions if s["profile_id"] == "aws-release-hardening-2")
+    assert expected_warning in rh2_aws["rationale"], rh2_aws["rationale"]

@@ -13,6 +13,7 @@ description: >
   discipline than the GitHub hard-gate family. Treat `github-level-3` / `github-release-hardening-3`
   as the most mature reference inside this kit until Azure evidence collection reaches parity.
   **Natural next step:** `azure-release-hardening-3` when release-time signal visibility should sit on top of this hard-gate.
+  **Framework alignment:** see `docs/framework-alignment.md` (Azure DevOps Security Best Practices fully covered except Audit-log/SIEM; SLSA Build L2 directional; OWASP CICD Top 10 covers 8/10).
 audience: Security-focused maintainers who need defensible Azure DevOps gates beyond clone heuristics.
 controls:
   - GOV-SEC-001

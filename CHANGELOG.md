@@ -6,6 +6,116 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## OSS Security Policy as Code Starter Kit v5.0.0
+
+This major release graduates the evaluation report to a stable wire contract (`reports/1.0`), introduces the Evidence Model v2 with explicit trust semantics, adds SARIF 2.1.0 output for direct ingestion by code-scanning systems, removes the legacy profile alias `github-release-hardening`, and tightens the public-hygiene posture of the repository. Older report contracts remain selectable for the entire `5.x` line so downstream parsers can migrate at their own pace.
+
+---
+
+### Highlights
+
+- Promoted the evaluation JSON report to the new default contract `reports/1.0`, decoupled from the package version
+- Introduced the Evidence Model v2 with structured per-result `evidence` objects, explicit trust levels, freshness and attestation status, and limitation text
+- Added SARIF 2.1.0 output via `--sarif-output PATH` on `evaluate`, with stable per-finding fingerprints and honest repository-level vs file-level location handling
+- Removed the legacy bundled profile alias `github-release-hardening`, with an actionable migration error pointing to the canonical `github-release-hardening-1`
+- Removed `reports/0.1` from the CLI selector, replaced by an explicit migration error
+- Re-encoded the bundled v3 evaluation-report schema as UTF-8 without BOM for cleaner downstream validation
+- Added a public-hygiene scanner (`scripts/check_public_hygiene.py`) used as a release gate
+- Added a documented signal-control audit so a `pass` on a signal-grade control is never confused with end-to-end proof
+
+---
+
+### Improvements
+
+- Better wire stability for downstream tooling through a strict (`additionalProperties: false`) report schema with explicit `extensions.x_*` growth surface
+- Stronger trust semantics: keyword-only matches map to `heuristic_signal` evidence and cannot project to `verified` trust, even when status is `pass`, even on hard-gate profiles
+- Clearer profile metadata in the v1 report (`profile.{id, title, family, level, posture, is_release_track, recommended_gate}`) and consolidated `scorecard.{path, supplemental}` block
+- Deterministic `results_digest` (sha256 over canonical control-result fields) for drift comparison across runs
+- Confidence enum normalization (`high|medium|low|none`) on emission for `1.0`; `0.3`/`0.2` payloads remain byte-for-byte unchanged
+- Honest SARIF projection: repository-level findings emit `uri: "."` and omit `region` (no fake line ranges); file-backed findings emit paths relative to `%SRCROOT%`; `properties.security-severity` is derived from weight × status
+- Stable SARIF deduplication via `partialFingerprints.controlAndProfile/v1`
+- Hard-gate profiles continue to fire the runtime `_HARD_GATE_EVIDENCE_PROFILES` warning when evidence is missing or contains placeholders, and the `evidence.limitations` array now surfaces the signal-cap rule per result
+- Migration guidance is first-class: the report payload includes a `migration` block when legacy artifacts are encountered during evaluation
+- Public-facing documentation expanded with the v5.0.0 migration guide, the `reports/1.0` contract reference, the signal-control audit, and the Azure/AWS collector privacy boundary
+
+---
+
+### Onboarding, docs, and CI diagnostics
+
+- Reorganized the public documentation surface so onboarding stays in `README.md` while reference material lives in `docs/`. The README is now ~190 lines and links to dedicated pages for the validation walkthrough, the full CLI reference, and how to interpret report statuses
+- Added `docs/validation-walkthrough.md` with the step-by-step demo (CLI help, profile discovery, fixture comparison, controls table, CI gating) preserving the existing screenshots
+- Added `docs/cli-reference.md` consolidating the public CLI surface (subcommands, flags, exit codes, examples) in one place
+- Added `docs/results-guide.md` covering result statuses, automation limits, applicability, and the v1.0 report top-level keys
+- Updated `docs/README.md` so the documentation hub points at the new walkthrough/reference/results-guide trio without losing existing entries
+- CI diagnostics: the `quality` job in `.github/workflows/github-ci-cd.yml` now uploads `./out/**` as an `oss-policy-kit-ci-out-${{ github.run_id }}` artifact with `if: always()`, `if-no-files-found: warn`, and 14-day retention. Reports remain available even when the self-check gate fails, using the same SHA-pinned `actions/upload-artifact@v4` already in use elsewhere
+
+---
+
+### Internal CLI maintenance
+
+- Modularized `src/oss_policy_kit/cli/main.py` (formerly ~1,700 lines) into focused modules without changing the public CLI contract: `cli/help_text.py` (epilogs), `cli/common.py` (shared Typer app, console plumbing, `execute_evaluate`), `cli/profiles.py`, `cli/evaluate.py`, `cli/batch.py`, `cli/evidence.py`, `cli/reports.py`, and `cli/recommend.py`
+- `cli/main.py` is now a slim entrypoint (≈40 lines) that re-exports `app` and `prepare_cli_args` so existing imports such as `from oss_policy_kit.cli.main import app, prepare_cli_args` keep working
+- All seven subcommands (`profiles`, `evaluate`, `evaluate-many`, `scaffold-evidence`, `collect-evidence`, `diff-reports`, `recommend-profile`) plus the root-callback compatibility entry retain the same flags, exit codes, and report shapes
+- No new flags, schemas, control IDs, profile IDs, or behaviors were introduced by the refactor; `ruff check`, `ruff format --check`, `mypy --strict`, and the full pytest suite (494 passed, 1 skipped) continue to pass
+
+---
+
+### Post-raio-x docs and CI uplift (no behavior change)
+
+- Documented `evaluate-many --skip-non-repos` contract: the heuristic requires a primary signal **at the child root**; modern monorepos with manifests in subfolders are correctly skipped (`docs/cli-reference.md`)
+- Added a defensive caveat to `recommend-profile` in `docs/cli-reference.md` and `docs/results-guide.md`: presence of `release-hardening-*` evidence templates can trigger a release-hardening suggestion even before the templates are filled. The same hint is now appended to the `release-hardening-2` rationale strings emitted by `application/profile_hints.py` so the warning travels with the recommendation
+- Added `docs/controls-catalog.md`: single-page catalog of all 65 controls (category, assurance, weight, profile membership) with a per-control profile membership index. Linked from `docs/README.md`
+- Cross-linked the v3.0.0 → v4.0.0 → v5.0.0 migration guides via "See also" sections; added a Migration guides block to `docs/README.md`
+- Added a header docstring to `scripts/demo-video.ps1` clarifying it is a maintainer convenience script (not used by tests, CI, or packaging) and listed it explicitly in the README's Maintainer Self-Check section together with the other maintainer-only scripts
+- Added a callout to `docs/profiles/overview.md` and reinforced the README At-A-Glance row stating that `github-aws-level-2` and `github-azure-level-2` are advisory-only and must not be wired as a release or PR gate
+- Expanded `docs/profiles/deferred-followups.md` with a "Future considerations (post-v5.0.0, not in current scope)" section summarizing conceptual follow-ups identified during the 2026-05-06 audit
+- CI: the `quality` job now also runs smoke steps for `evaluate-many`, `scaffold-evidence`, `collect-evidence --dry-run`, and `diff-reports`, exercising the four subcommands previously not exercised in public CI
+
+---
+
+### Profile maturity uplift (no behavior change)
+
+- Added an explicit "Profile maturity tier" section to `docs/profiles/overview.md` classifying the 20 bundled profiles into six tiers (mature daily baseline, with-caveats baseline, advisory, GitHub L3 collector-mature, Azure/AWS L3 collector-partial, UX-bound `release-hardening-2`). The tiering is descriptive only — no profile, control, or assurance changed
+- Added `docs/collector-parity.md` documenting the concrete endpoint coverage of `GitHubEvidenceCollector` (4 endpoints), `AzureDevOpsEvidenceCollector` (2 endpoints), and `AWSEvidenceCollector` (up to 3 endpoints), plus the artifact-bound files that are self-attested by design
+- Locked the post-raio-x mitigations into the test suite: a new test asserts that every `release-hardening-2` rationale string in `recommend-profile` contains "verify evidence JSONs are filled, not templates"; three new tests in `test_hardened_repo_cloud_profiles.py` pin the invariants for `github/azure/aws-release-hardening-2` against the bundled hardened fixture; and a new `test_hardened_repo_evidence_purity.py` blocks regressions where the fixture evidence is silently re-templated (placeholder tokens / template digests / missing attested metadata)
+- The hardened fixture's evidence files were not modified; the README under `examples/hardened-repo/.oss-policy-kit/evidence/` remains the source of truth for why those files are intentionally self-attested
+
+---
+
+### Framework alignment (no behavior change, no new profiles)
+
+- Added `docs/framework-alignment.md`: a master cross-framework mapping covering OpenSSF Scorecard v4 (~19 checks), OpenSSF OSPS Baseline, OWASP CI/CD Top 10 (2022), SLSA v1.0 (Build track), NIST SSDF SP 800-218, Microsoft S2C2F, CIS Software Supply Chain Security Benchmark, AWS Well-Architected (Security Pillar / DevOps lens), and Azure DevOps Security Best Practices. Coverage is documented per requirement using YES / PARTIAL / OUT / GAP labels. The doc also lists frameworks intentionally out of scope (OWASP ASVS, NIST 800-53, PCI DSS 4.0, ISO 27001 / SOC 2, SAFECode, MITRE ATT&CK for CI/CD) and explains why
+- Refreshed `docs/scorecard-mapping.md` and `docs/osps-mapping.md` from generic notes into concrete per-check / per-theme tables that reference exact catalog control IDs
+- Each `*-level-3` and `*-release-hardening-2/3` profile description now ends with a one-line "Framework alignment:" pointer back to `docs/framework-alignment.md`. The control lists, assurance metadata, weights, and lifecycle of every profile / control are byte-equivalent before and after this change — only the description metadata changed
+- Documented two explicit decisions in the alignment page: (a) **no new profiles** added (subsets of the catalog are documentation, not gates) and (b) **no new controls** added in v5.0.0 (gaps require org-scoped audit log access or runtime build-platform telemetry that is out of scope for this release line). Both rationales are recorded with concrete reasoning
+- Future framework-driven work is ranked in the alignment page (audit-log evidence, sigstore/cosign signature verification, OpenSSF Best Practices badge ingestion, deeper self-hosted runner posture, container hardening extensions) and mirrored in `docs/profiles/deferred-followups.md`
+
+---
+
+### Breaking changes
+
+- The default report contract is now `reports/1.0`. Downstream parsers pinned to the v4 wire shape must select `--report-json-contract 0.3` explicitly. The `0.3` and `0.2` shapes remain byte-equivalent to v4.0.4
+- `--report-json-contract 0.1` is removed from the CLI selector. Passing `0.1` returns a usage error referencing the v5 migration guide
+- The legacy bundled profile alias `github-release-hardening` is removed. Passing `--profile github-release-hardening` returns exit code `2` with a migration message pointing at the canonical `github-release-hardening-1`. The control set itself is unchanged
+- Per-result `evidence` is now a structured object in `reports/1.0`. The flat `evidence_sources` and `evidence_collection_method` keys are not present in `1.0` payloads, but remain in `0.3`/`0.2` payloads exactly as before
+- The bundled `evaluation-report-v3.schema.json` is re-encoded as UTF-8 without BOM. Validators that previously assumed UTF-8 should now succeed; validators that explicitly required UTF-16 will not
+
+---
+
+### Notes
+
+- This is a major release and introduces the new default JSON wire contract `reports/1.0`
+- Contract `1.0` describes wire stability for downstream tooling; the package classifier remains `Development Status :: 4 - Beta`. Those two stability promises are intentionally decoupled
+- `reports/0.3` and `reports/0.2` remain selectable for the entire `5.x` line; `0.3` is the recommended pin for parsers that cannot adopt `1.0` yet
+- The Evidence Model v2 projection runs on emission and does not require evaluator-plugin changes; richer `extra` keys (`collected_at`, `attested_by`, `digest`, `evidence_schema_id`, `source_platform`) are honored when present
+- SARIF output is additive and only written when `--sarif-output PATH` is set; relative paths resolve under `--output-dir`
+- Python minimum remains `>=3.12`. No SLSA L3 claim is made in this release; supply-chain expectations and what is in/out of scope are documented in `docs/release-readiness.md`
+- Review `docs/v5.0.0-migration-guide.md` before upgrading from the 4.x line
+
+**License:** Apache-2.0.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v4.0.4
 
 This patch release aligns the current public repository state with the release line after the post-v4.0.3 documentation, site, CI, and public provenance hygiene updates. It does not change runtime behavior, bundled profiles, the control catalog, evaluator scoring, CLI flags, report schemas, or packaged policy data.

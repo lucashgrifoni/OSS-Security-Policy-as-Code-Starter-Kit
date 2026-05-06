@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/schema/evaluation-report-v1.schema.json",
+  "title": "OSS Policy Kit evaluation report (reports/1.0)",
+  "description": "Stable wire contract for evaluation-report.json. Decoupled from the Python package version. Adds a structured evidence object per result, gate-role aggregation, and a deterministic results_digest. See docs/reports-contract-v1.0.md.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "evidence_provenance_version",
+    "generated_at",
+    "kit_version",
+    "target_path",
+    "profile",
+    "summary_by_status",
+    "summary_by_gate_role",
+    "gate_execution_model",
+    "results",
+    "results_digest",
+    "operational_warnings",
+    "scorecard",
+    "external_waiver_path",
+    "action_insights",
+    "live_collection",
+    "weighted_score",
+    "migration",
+    "extensions"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": ".*/reports/1\\.0$"
+    },
+    "evidence_provenance_version": {
+      "type": "string",
+      "pattern": "^evidence/[0-9]+\\.[0-9]+$"
+    },
+    "generated_at": { "type": "string" },
+    "kit_version": { "type": "string" },
+    "target_path": { "type": "string" },
+    "profile": {
+      "type": "object",
+      "required": ["id", "title"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "family": { "type": ["string", "null"] },
+        "level": { "type": ["string", "null"] },
+        "posture": { "type": ["string", "null"] },
+        "is_release_track": { "type": "boolean" },
+        "recommended_gate": { "type": ["string", "null"] }
+      }
+    },
+    "summary_by_status": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "summary_by_gate_role": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "gate_execution_model": {
+      "type": "object",
+      "required": ["model_version", "report_contract", "fail_on_semantics", "trust_boundary_notes"],
+      "additionalProperties": true,
+      "properties": {
+        "model_version": { "type": "integer", "minimum": 2 },
+        "report_contract": { "type": "string" },
+        "fail_on_semantics": { "type": "object" },
+        "trust_boundary_notes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "operational_warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "scorecard": {
+      "type": "object",
+      "required": ["path", "supplemental"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": ["string", "null"] },
+        "supplemental": { "type": ["object", "null"] }
+      }
+    },
+    "external_waiver_path": { "type": ["string", "null"] },
+    "action_insights": {
+      "type": "object",
+      "required": ["top_structural_causes", "recommended_actions", "failing_controls_by_category"],
+      "additionalProperties": false,
+      "properties": {
+        "top_structural_causes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["bucket", "count"],
+            "additionalProperties": false,
+            "properties": {
+              "bucket": { "type": "string" },
+              "count": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "recommended_actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "failing_controls_by_category": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "live_collection": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["performed", "platform", "collected_at", "api_evidence_sources"],
+          "additionalProperties": false,
+          "properties": {
+            "performed": { "type": "boolean" },
+            "platform": { "type": ["string", "null"] },
+            "collected_at": { "type": ["string", "null"] },
+            "api_evidence_sources": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      ]
+    },
+    "weighted_score": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["earned", "possible", "percent"],
+          "additionalProperties": false,
+          "properties": {
+            "earned": { "type": "integer", "minimum": 0 },
+            "possible": { "type": "integer", "minimum": 0 },
+            "percent": { "type": "number", "minimum": 0, "maximum": 100 }
+          }
+        }
+      ]
+    },
+    "migration": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "legacy_alias_used": { "type": ["string", "null"] },
+            "canonical_id": { "type": ["string", "null"] },
+            "notes": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      ]
+    },
+    "extensions": {
+      "type": "object",
+      "patternProperties": {
+        "^x_[a-z0-9_]+$": {}
+      },
+      "additionalProperties": false
+    },
+    "results": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/control_result_v1" }
+    },
+    "results_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  },
+  "$defs": {
+    "control_result_v1": {
+      "type": "object",
+      "required": [
+        "control_id",
+        "title",
+        "category",
+        "lifecycle",
+        "profile",
+        "status",
+        "gate_role",
+        "assurance",
+        "confidence",
+        "weight",
+        "reason",
+        "remediation",
+        "evidence",
+        "owner",
+        "expires_at",
+        "waiver",
+        "extra"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "control_id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "lifecycle": {
+          "type": "string",
+          "enum": ["experimental", "stable", "deprecated"]
+        },
+        "profile": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "manual-review-required",
+            "self-attested",
+            "not-evaluated",
+            "not-observable",
+            "not-applicable",
+            "waived"
+          ]
+        },
+        "gate_role": {
+          "type": "string",
+          "enum": [
+            "ci_blocking_fail",
+            "human_review_gate",
+            "passed_observation",
+            "self_attested_declarative",
+            "not_evaluated_limit",
+            "waived",
+            "not_applicable",
+            "not_observable"
+          ]
+        },
+        "assurance": {
+          "type": "string",
+          "enum": ["deterministic", "signal", "evidence-backed"]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "none"]
+        },
+        "weight": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "reason": { "type": "string" },
+        "remediation": { "type": "string" },
+        "evidence": {
+          "type": "object",
+          "required": [
+            "source_type",
+            "trust_level",
+            "collection_method",
+            "collected_at",
+            "source_platform",
+            "freshness_status",
+            "attestation_status",
+            "references",
+            "limitations"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "source_type": {
+              "type": "string",
+              "enum": [
+                "static_clone",
+                "api_collected",
+                "user_supplied",
+                "derived",
+                "heuristic_signal",
+                "manual_review",
+                "not_observable"
+              ]
+            },
+            "trust_level": {
+              "type": "string",
+              "enum": ["verified", "declared", "inferred", "unobserved"]
+            },
+            "collection_method": {
+              "type": "string",
+              "enum": ["live", "manual", "static"]
+            },
+            "collected_at": { "type": ["string", "null"] },
+            "source_platform": { "type": ["string", "null"] },
+            "freshness_status": {
+              "type": "string",
+              "enum": ["fresh", "stale", "unknown", "not_applicable"]
+            },
+            "attestation_status": {
+              "type": "string",
+              "enum": ["signed", "self_attested", "none", "not_applicable"]
+            },
+            "references": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["kind", "value", "redacted"],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": ["path", "url", "schema_id", "control_extra"]
+                  },
+                  "value": { "type": "string" },
+                  "redacted": { "type": "boolean" }
+                }
+              }
+            },
+            "limitations": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "digest": { "type": ["string", "null"] },
+            "evidence_schema_id": { "type": ["string", "null"] }
+          }
+        },
+        "owner": { "type": ["string", "null"] },
+        "expires_at": { "type": ["string", "null"] },
+        "waiver": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["control_id", "justification", "owner", "status"],
+              "additionalProperties": false,
+              "properties": {
+                "control_id": { "type": "string" },
+                "justification": { "type": "string" },
+                "owner": { "type": "string" },
+                "status": { "type": "string" },
+                "expires_at": { "type": ["string", "null"] },
+                "applies_to": {
+                  "type": ["array", "null"],
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          ]
+        },
+        "extra": { "type": "object" },
+        "deprecation_note": { "type": "string" },
+        "finding_id": { "type": "string" }
+      }
+    }
+  }
+}

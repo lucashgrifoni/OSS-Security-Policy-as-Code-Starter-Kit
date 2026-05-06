@@ -24,6 +24,78 @@ def test_discover_skips_dot_directories(tmp_path: Path) -> None:
     assert [p.name for p in found] == ["visible"]
 
 
+def test_discover_include_filters_by_fnmatch(tmp_path: Path) -> None:
+    """``--include`` selects only matching child directories (fnmatch on name)."""
+
+    for name in ("lab-foo", "lab-bar", "service-x", "service-y"):
+        (tmp_path / name).mkdir()
+    found = discover_batch_targets(tmp_path, include="lab-*", exclude=None)
+    assert sorted(p.name for p in found) == ["lab-bar", "lab-foo"]
+
+
+def test_discover_exclude_removes_matching_dirs(tmp_path: Path) -> None:
+    """``--exclude`` removes matching child directories (fnmatch on name)."""
+
+    for name in ("svc-app", "svc-out", "out-build", "out-cache"):
+        (tmp_path / name).mkdir()
+    found = discover_batch_targets(tmp_path, include=None, exclude="out-*")
+    assert sorted(p.name for p in found) == ["svc-app", "svc-out"]
+
+
+def test_discover_include_and_exclude_combine(tmp_path: Path) -> None:
+    """``--include`` and ``--exclude`` combine: include narrows first, then exclude trims.
+
+    With ``--include "svc-*" --exclude "*-deprecated"``, only ``svc-app`` survives —
+    ``svc-deprecated`` matches include but is filtered out by exclude, and the other
+    children never matched include.
+    """
+
+    for name in ("svc-app", "svc-deprecated", "lab-x", "out-build"):
+        (tmp_path / name).mkdir()
+    found = discover_batch_targets(tmp_path, include="svc-*", exclude="*-deprecated")
+    assert [p.name for p in found] == ["svc-app"]
+
+
+def test_run_batch_evaluation_applies_include_filter(tmp_path: Path) -> None:
+    """``run_batch_evaluation`` honors ``--include`` end-to-end (no excluded child gets evaluated)."""
+
+    mono = tmp_path / "mono"
+    shutil.copytree(EXAMPLE_VULNERABLE, mono / "lab-foo")
+    shutil.copytree(EXAMPLE_VULNERABLE, mono / "service-x")
+    out = tmp_path / "out"
+    run_batch_evaluation(
+        target_root=mono,
+        profile_ids=["github-level-1"],
+        output_dir=out,
+        kit_root=None,
+        include="lab-*",
+        exclude=None,
+    )
+    payload = json.loads((out / "evaluation-batch.json").read_text(encoding="utf-8"))
+    processed = {r["target_name"] for r in payload.get("runs", [])}
+    assert processed == {"lab-foo"}
+
+
+def test_run_batch_evaluation_applies_exclude_filter(tmp_path: Path) -> None:
+    """``run_batch_evaluation`` honors ``--exclude`` end-to-end."""
+
+    mono = tmp_path / "mono"
+    shutil.copytree(EXAMPLE_VULNERABLE, mono / "svc-keep")
+    shutil.copytree(EXAMPLE_VULNERABLE, mono / "out-build")
+    out = tmp_path / "out"
+    run_batch_evaluation(
+        target_root=mono,
+        profile_ids=["github-level-1"],
+        output_dir=out,
+        kit_root=None,
+        include=None,
+        exclude="out-*",
+    )
+    payload = json.loads((out / "evaluation-batch.json").read_text(encoding="utf-8"))
+    processed = {r["target_name"] for r in payload.get("runs", [])}
+    assert processed == {"svc-keep"}
+
+
 def test_readme_alone_is_not_a_repository(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text("# just docs", encoding="utf-8")
     ok, sig = is_likely_repository(tmp_path)
@@ -60,6 +132,78 @@ def test_nested_azure_pipeline_marks_likely_repository(tmp_path: Path) -> None:
     ok, sig = is_likely_repository(tmp_path)
     assert ok is True
     assert sig == "pipelines/azure/*.yml"
+
+
+def test_github_workflows_yml_is_a_repository_signal(tmp_path: Path) -> None:
+    """A directory with at least one ``.github/workflows/*.yml`` is repo-like.
+
+    Catches the case where a project owns CI workflows but no manifest file at the
+    target root (for example, a docs-bearing repo that only ships GitHub Actions).
+    """
+
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "ci.yml").write_text("on: [push]\njobs: {}\n", encoding="utf-8")
+    ok, sig = is_likely_repository(tmp_path)
+    assert ok is True
+    assert sig == ".github/workflows/*.yml"
+
+
+def test_github_workflows_yaml_extension_is_a_repository_signal(tmp_path: Path) -> None:
+    """The same signal works for the ``.yaml`` extension."""
+
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "ci.yaml").write_text("on: [push]\njobs: {}\n", encoding="utf-8")
+    ok, sig = is_likely_repository(tmp_path)
+    assert ok is True
+    assert sig == ".github/workflows/*.yaml"
+
+
+def test_empty_github_workflows_directory_is_not_a_repository(tmp_path: Path) -> None:
+    """A bare ``.github/workflows/`` (no YAML files) must NOT count as a repo signal.
+
+    This prevents false positives from a parent project that only carries a templates
+    or docs folder under ``.github/`` without actual workflow files.
+    """
+
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    ok, sig = is_likely_repository(tmp_path)
+    assert ok is False
+    assert sig == ""
+
+
+def test_skip_non_repos_processes_workflows_only_target(tmp_path: Path) -> None:
+    """``--skip-non-repos`` must process a child whose only signal is ``.github/workflows/``."""
+
+    mono = tmp_path / "mono"
+    workflows_only = mono / "ci-only"
+    workflows_only.mkdir(parents=True)
+    wf = workflows_only / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "ci.yml").write_text("on: [push]\njobs: {}\n", encoding="utf-8")
+    manifest_child = mono / "with-manifest"
+    manifest_child.mkdir()
+    (manifest_child / "package.json").write_text('{"name":"x"}', encoding="utf-8")
+    noise = mono / "scripts"
+    noise.mkdir()
+    out = tmp_path / "out"
+    run_batch_evaluation(
+        target_root=mono,
+        profile_ids=["github-level-1"],
+        output_dir=out,
+        kit_root=None,
+        include=None,
+        exclude=None,
+        skip_non_repos=True,
+    )
+    payload = json.loads((out / "evaluation-batch.json").read_text(encoding="utf-8"))
+    processed = sorted({r["target_name"] for r in payload.get("runs", [])})
+    skipped = [s["name"] for s in payload.get("skipped_directories", [])]
+    assert "ci-only" in processed
+    assert "with-manifest" in processed
+    assert "scripts" in skipped
 
 
 def test_batch_all_tied_true_when_same_fail_counts(tmp_path: Path) -> None:

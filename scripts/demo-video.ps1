@@ -1,3 +1,22 @@
+<#
+.SYNOPSIS
+Maintainer convenience script to record a demo GIF/video of the CLI.
+
+.DESCRIPTION
+Drives the CLI through a scripted sequence (help, profiles, evaluate hardened/vulnerable)
+with timed pauses suitable for screen capture. Not invoked by tests, CI, packaging, or
+Python runtime; this is purely a maintainer aid for refreshing public marketing assets.
+
+Outputs go to ./out/video-demo/ under the repository root.
+
+.NOTES
+Requires PowerShell 5.1+ or PowerShell 7. The script tolerates a missing `oss-policy-kit`
+script on PATH by always invoking the CLI as `python -m oss_policy_kit`.
+
+.EXAMPLE
+pwsh ./scripts/demo-video.ps1
+#>
+
 [CmdletBinding()]
 param(
     [int]$IntroPauseMs = 350,

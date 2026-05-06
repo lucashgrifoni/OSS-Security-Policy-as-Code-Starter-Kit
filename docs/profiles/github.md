@@ -1,12 +1,11 @@
 # GitHub profiles
 
-Pure GitHub family in this kit: **seven** ids (`github-level-1..3`, `github-release-hardening-1..3`, plus the legacy alias `github-release-hardening`).
+Pure GitHub family in this kit: **six** ids (`github-level-1..3`, `github-release-hardening-1..3`). The legacy alias `github-release-hardening` was **removed in v5.0.0** — use the canonical `github-release-hardening-1`. See [docs/v5.0.0-migration-guide.md](../v5.0.0-migration-guide.md).
 
 ## Usage classes
 
 - **Daily baseline**: `github-level-1`, `github-level-2`, `github-release-hardening-1`, `github-release-hardening-2`.
 - **Extreme hard-gate**: `github-level-3`, `github-release-hardening-3`.
-- **Legacy compatibility**: `github-release-hardening` only (same control set as `github-release-hardening-1`).
 
 ## What each ladder means
 
@@ -20,6 +19,19 @@ Pure GitHub family in this kit: **seven** ids (`github-level-1..3`, `github-rele
 - **release-hardening-2**: level-2 style strictness with release-oriented evidence expectations.
 - **release-hardening-3**: strictest GitHub release posture in this kit (extreme reference profile).
 
+## `github-level-3` vs `github-release-hardening-3` — when to use which
+
+Both are extreme hard-gate profiles for the GitHub family. They overlap heavily, but the operational fit differs:
+
+- Use **`github-level-3`** for **repository-service hardening** — a steady-state gate that watches workflow posture, supply-chain hygiene, and platform evidence (`rulesets`, environment protection, secret scanning, org MFA). 4 of the 33 controls are evidence-backed; the rest are deterministic or signal.
+- Use **`github-release-hardening-3`** when the bar of the run is the **release event itself** — branch protection evidence, merge queue, freshness of the evidence pack, and release-time discipline are first-class. 5 of the 32 controls are evidence-backed; the release-track controls (`*-REL-*`, `BUILD-SBOM-QUAL-*`, `GH-MERGEQ-*`) are present here and not in `github-level-3`.
+
+Operational rule of thumb:
+
+- For PR-time gates and steady-state CI on GitHub: `github-level-3`.
+- For tag/release-time gates and post-merge release discipline on GitHub: `github-release-hardening-3`.
+- Without `collect-evidence --platform github` (or hand-filled GitHub evidence files matching the bundled schemas), expect `manual-review-required` on the platform-evidence rows in either profile. That is honest — see [L3 evidence-heavy caveat](overview.md#l3-evidence-heavy-caveat-read-before-wiring-a-hard-gate).
+
 ## Practical maturity and fixture limits
 
 GitHub is the most mature path in this kit (collector support, schema coverage, and profile ergonomics).  
@@ -28,14 +40,15 @@ Still, the hardened fixture is **not** expected to be universally green across a
 - 2026-04-22 validation recorded fixture failures on `github-level-2` and `github-release-hardening-2` (`GH-PROV-023` / `SEC-SECRETS-050`).
 - That reflects fixture representativity limits, not an automatic defect in those profiles.
 
-## Legacy alias handling
+## Legacy alias handling (v4.x → v5.0.0)
 
-`github-release-hardening` remains supported for backward compatibility and resolves to the same controls as `github-release-hardening-1`. The CLI:
+In v4.x, `github-release-hardening` was a supported alias for `github-release-hardening-1` and emitted a deprecation warning.
 
-- emits a warning on `evaluate --profile github-release-hardening`
-- marks it in `profiles --format json` with `is_legacy_alias: true` and canonical id mapping
+**v5.0.0 removes the alias.** Passing `--profile github-release-hardening` exits with code `2` and the migration message:
 
-For new docs and automation, use `github-release-hardening-1`.
+> Profile id 'github-release-hardening' was removed in v5.0.0. The canonical profile is 'github-release-hardening-1' (same control set). Update your scripts and CI workflows. See docs/v5.0.0-migration-guide.md.
+
+Update CI workflows, scripts, and dashboards to use `github-release-hardening-1`. The control list is identical; only the id changed.
 
 ## See also
 

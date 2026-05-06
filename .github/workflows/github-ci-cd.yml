@@ -75,6 +75,31 @@ jobs:
         run: |
           python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck-ci --fail-on fail
 
+      - name: Smoke evaluate-many
+        run: |
+          python -m oss_policy_kit evaluate-many --target-root ./examples --profiles github-level-1 --output-dir ./out/ci-evaluate-many --skip-non-repos --quiet
+
+      - name: Smoke scaffold-evidence
+        run: |
+          python -m oss_policy_kit scaffold-evidence --target ./out/ci-scaffold-test --platform github
+
+      - name: Smoke collect-evidence dry-run
+        run: |
+          python -m oss_policy_kit collect-evidence --target . --platform github --repo "owner/repo" --output-dir ./out/ci-collect --dry-run
+
+      - name: Smoke diff-reports
+        run: |
+          python -m oss_policy_kit diff-reports --before ./out/ci-hardened-example/evaluation-report.json --after ./out/selfcheck-ci/evaluation-report.json --no-fail-on-regression --format markdown
+
+      - name: Upload evaluation outputs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: oss-policy-kit-ci-out-${{ github.run_id }}
+          path: ./out/**
+          if-no-files-found: warn
+          retention-days: 14
+
   package:
     name: Package (build, twine, SBOM)
     runs-on: ubuntu-latest
