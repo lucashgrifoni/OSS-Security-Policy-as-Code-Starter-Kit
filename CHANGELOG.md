@@ -6,6 +6,55 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## OSS Security Policy as Code Starter Kit v5.2.0
+
+This minor release introduces the **first non-platform-prefixed profile** (`cra-eu-ready-1`), adds two evidence-collectable controls, and matures the loader / `profiles --format json` to surface multi-platform regulatory profiles. EU CRA reporting deadline (2026-09-11) is the driver.
+
+---
+
+### Highlights
+
+- New profile **`cra-eu-ready-1`** — multi-platform advisory profile mapping the kit's existing controls to **EU Cyber Resilience Act** preparation. 12 controls covering CycloneDX SBOM, vulnerability handling, branch-protection (history integrity), audit-log streaming, signed-provenance verification, and 10-year release archival. Posture: `advisory`. Recommended `--fail-on degraded` only. **First non-platform-prefixed profile in the catalog.**
+- Added control **`GH-RUNNER-062`** (lifecycle: `experimental`, assurance: `signal`) — closes OWASP CICD-SEC-7 (Insecure System Configuration) on the GitHub side. Direct response to the 2026-03 trivy-action force-push incident: detects PR-triggered self-hosted workflows (FAIL), self-hosted without `ephemeral` label (manual-review-required), and uniform `[self-hosted, ephemeral]` posture (PASS at signal grade). Evidence-backed promotion via `.oss-policy-kit/evidence/runner-groups.json`.
+- Added control **`RELEASE-ARCHIVE-063`** (lifecycle: `experimental`, assurance: `signal`) — closes NIST SSDF PS.3 (Archive & protect each release) GAP. Signal layer detects `RELEASE_ARCHIVAL.md`, `.github/release-archival.yml`, or "release archival" / "retention policy" sections in `docs/release-readiness.md`. Evidence-backed via `.oss-policy-kit/evidence/release-archival-policy.json` with `retention_years` (≥10 aligns with EU CRA), `archive_destination`, and `vulnerability_handling_doc`.
+
+---
+
+### Improvements
+
+- **Loader** now accepts profile IDs without a platform prefix. `profile-list/v2` emits `family: "multi"` for those profiles; the existing 20 profiles continue to emit `family: github | azure | aws`.
+- **`profiles --format json`** gains `posture: "framework_aligned_advisory"` and `live_signal_posture: "regulatory_mapping_no_release_gate"` for regulatory profiles.
+- **`profiles --family multi`** filter is now valid (in addition to `github | azure | aws`).
+- **`recommend-profile`** does not suggest non-platform profiles — they are regulatory mappings, not heuristic recommendations.
+- **`docs/framework-alignment.md`** EU CRA section now references `cra-eu-ready-1` directly.
+- New JSON Schema `evidence-runner-groups.schema.json` (v1) and `evidence-release-archival-policy.schema.json` (v1) (mirrored under `reports/schema/`).
+- Bundled hardened fixture grew two synthetic evidence files (`runner-groups.json`, `release-archival-policy.json`) so `*-release-hardening-3` profiles continue to reach `summary_by_status.fail == 0`.
+
+---
+
+### Breaking changes
+
+None. v5.2.0 is fully backwards-compatible with v5.1.0:
+
+- `reports/1.0`, `reports/0.3`, `reports/0.2` shapes are byte-stable.
+- All v5.1.0 profile IDs and control IDs remain.
+- v5.0.0 / v5.1.0 evidence files continue to validate.
+
+The new control IDs (`GH-RUNNER-062`, `RELEASE-ARCHIVE-063`) only appear when a profile that includes them is selected.
+
+---
+
+### Notes
+
+- This is a minor release in the `5.x` line.
+- The two new controls and the new profile are marked `lifecycle: experimental`. They will be promoted to `stable` after one minor cycle of operator feedback.
+- `cra-eu-ready-1` is **not** a CRA certification claim. Honesty contract is in the profile YAML `description:` and in `docs/framework-alignment.md` (EU Cyber Resilience Act section).
+- Suite: 539 passed, 1 skipped (vs. 519 in v5.1.0).
+
+**License:** Apache-2.0.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.1.0
 
 This minor release closes two long-standing framework-alignment gaps in the bundled catalog without breaking any existing contract: **OWASP CICD-SEC-10 (logging/visibility)** and **SLSA Build L2 "Provenance signed"** both move from PARTIAL/GAP to YES via two new evidence-backed controls.

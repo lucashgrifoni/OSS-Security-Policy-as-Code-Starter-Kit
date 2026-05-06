@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/schema/evidence-release-archival-policy.schema.json",
+  "title": "Release archival / retention policy evidence",
+  "description": "Records the team's release artifact archival/retention policy. Consumed by RELEASE-ARCHIVE-063 (closes NIST SSDF PS.3 GAP and aligns EU CRA 10-year retention). Place at .oss-policy-kit/evidence/release-archival-policy.json.",
+  "type": "object",
+  "required": ["schema_version", "attested_at", "attested_by", "retention_years", "archive_destination", "vulnerability_handling_doc"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "release-archival-policy/v1" },
+    "attested_at": { "type": "string", "format": "date" },
+    "attested_by": { "type": "string" },
+    "retention_years": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of years release artifacts and security documentation are retained. EU CRA expects >= 10."
+    },
+    "archive_destination": {
+      "type": "string",
+      "description": "Where artifacts are archived. Examples: github-releases, s3://bucket, swh:archive, azure-blob://container."
+    },
+    "vulnerability_handling_doc": {
+      "type": "string",
+      "description": "Path or URL to the vulnerability-handling process document (e.g. SECURITY.md)."
+    },
+    "swhid": {
+      "type": "string",
+      "description": "Optional Software Heritage IDentifier for source archival. ISO/IEC 18670."
+    },
+    "policy_owner": {
+      "type": "string",
+      "description": "Owner team or distribution list for the archival policy."
+    },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_collection_method", "collected_at"],
+      "properties": {
+        "evidence_collection_method": { "type": "string", "enum": ["live", "manual"] },
+        "collected_at": { "type": "string" },
+        "source_url": { "type": "string" }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

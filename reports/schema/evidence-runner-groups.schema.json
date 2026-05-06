@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/schema/evidence-runner-groups.schema.json",
+  "title": "GitHub Actions runner-group posture evidence",
+  "description": "Self-attested or API-collected GitHub Actions runner-group configuration. Consumed by GH-RUNNER-062 to confirm that self-hosted runners are restricted to private repos and configured ephemerally. Place at .oss-policy-kit/evidence/runner-groups.json.",
+  "type": "object",
+  "required": ["schema_version", "attested_at", "attested_by", "org_name", "runner_groups"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "runner-groups/v1" },
+    "attested_at": { "type": "string", "format": "date" },
+    "attested_by": { "type": "string" },
+    "org_name": { "type": "string" },
+    "runner_groups": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "restricted_to_private_repos", "allows_public_repositories"],
+        "properties": {
+          "name": { "type": "string" },
+          "restricted_to_private_repos": { "type": "boolean" },
+          "allows_public_repositories": { "type": "boolean" },
+          "ephemeral_runners": { "type": "boolean" },
+          "selected_repositories_count": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_collection_method", "collected_at"],
+      "properties": {
+        "evidence_collection_method": { "type": "string", "enum": ["live", "manual"] },
+        "collected_at": { "type": "string" },
+        "source_url": { "type": "string" },
+        "mode": { "type": "string", "enum": ["api"] }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

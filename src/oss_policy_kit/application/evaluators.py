@@ -171,6 +171,16 @@ def _audit_log_streaming_schema() -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(raw))
 
 
+def _runner_groups_schema() -> dict[str, Any]:
+    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-runner-groups.schema.json").read_bytes()
+    return cast(dict[str, Any], json.loads(raw))
+
+
+def _release_archival_policy_schema() -> dict[str, Any]:
+    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-release-archival-policy.schema.json").read_bytes()
+    return cast(dict[str, Any], json.loads(raw))
+
+
 def _evidence_is_api_backed(data: dict[str, Any]) -> bool:
     """True when JSON was produced by ``collect-evidence`` / cloud API collection (not manual scaffold)."""
 
@@ -4381,6 +4391,326 @@ def eval_prov_verify_061(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+_SELF_HOSTED_PATTERN = re.compile(r"runs-on\s*:\s*(.+)", re.IGNORECASE)
+
+
+def _workflow_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _self_hosted_workflow_paths(repo: Path) -> tuple[list[Path], list[Path]]:
+    """Return (all_self_hosted_paths, paths_marked_ephemeral) by raw scanning workflow YAMLs."""
+
+    wf_dir = repo / ".github" / "workflows"
+    if not wf_dir.is_dir():
+        return [], []
+    all_self: list[Path] = []
+    ephemeral_self: list[Path] = []
+    for yml in sorted(list(wf_dir.glob("*.yml")) + list(wf_dir.glob("*.yaml"))):
+        text = _workflow_text(yml)
+        if not text:
+            continue
+        is_self = False
+        is_ephemeral = False
+        for match in _SELF_HOSTED_PATTERN.finditer(text):
+            line = match.group(1).strip().lower()
+            if "self-hosted" in line:
+                is_self = True
+                if "ephemeral" in line:
+                    is_ephemeral = True
+        if is_self:
+            all_self.append(yml)
+            if is_ephemeral:
+                ephemeral_self.append(yml)
+    return all_self, ephemeral_self
+
+
+def eval_gh_runner_062(ctx: EvalContext) -> EvalOutcome:
+    """GH-RUNNER-062: Self-hosted runners are ephemeral and restricted from PR-triggered workflows."""
+    if not ctx.workflows.workflow_paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitHub Actions workflows found; self-hosted runner posture is not applicable.",
+            remediation="N/A unless GitHub Actions is adopted for this repository.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    pr_self_hosted = list(ctx.workflows.pr_self_hosted_runner_paths)
+    if pr_self_hosted:
+        names = ", ".join(p.name for p in pr_self_hosted[:5])
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"PR-triggered workflows use self-hosted runners ({names}). This is the trivy-action "
+                "2026-03 attack pattern: any forked-PR can run on the runner host and exfiltrate secrets."
+            ),
+            remediation=(
+                "Move PR-triggered jobs to GitHub-hosted runners, or split CI so self-hosted only runs on "
+                "push/schedule with restricted runner-groups."
+            ),
+            evidence_sources=[str(p.resolve()) for p in pr_self_hosted],
+            confidence="high",
+        )
+    all_self, ephemeral = _self_hosted_workflow_paths(ctx.repo_root)
+    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "runner-groups.json"
+    if not all_self and not evidence.is_file():
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=(
+                "No self-hosted runners detected in workflows; using GitHub-hosted runners "
+                "avoids the runner-host attack surface."
+            ),
+            remediation="Stay on GitHub-hosted runners unless you have a strong justification for self-hosted.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    if all_self and not ephemeral:
+        names = ", ".join(p.name for p in all_self[:5])
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"Self-hosted runners detected ({names}) but no `ephemeral` label found on `runs-on:`. "
+                "Persistent runner state is the dominant 2026 supply-chain risk for self-hosted CI."
+            ),
+            remediation=(
+                "Add `ephemeral` to the `runs-on:` label list (e.g. `runs-on: [self-hosted, ephemeral]`) "
+                "and configure the runner group with ephemeral / just-in-time registration."
+            ),
+            evidence_sources=[str(p.resolve()) for p in all_self],
+            confidence="medium",
+        )
+    if all_self and len(ephemeral) < len(all_self):
+        non_ephem = [p for p in all_self if p not in ephemeral]
+        names = ", ".join(p.name for p in non_ephem[:5])
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"Some self-hosted workflows declare `ephemeral` but others do not ({names}). "
+                "Mixed posture reduces the attack-surface guarantees ephemeral runners provide."
+            ),
+            remediation="Apply the `ephemeral` label uniformly to every workflow that uses `self-hosted`.",
+            evidence_sources=[str(p.resolve()) for p in all_self],
+            confidence="medium",
+        )
+    if all_self and ephemeral and len(ephemeral) == len(all_self) and not evidence.is_file():
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=(
+                f"All self-hosted workflows declare the `ephemeral` label ({len(ephemeral)} workflow(s)). "
+                "Promote to evidence-backed by adding .oss-policy-kit/evidence/runner-groups.json."
+            ),
+            remediation=(
+                "Document runner-group posture in .oss-policy-kit/evidence/runner-groups.json so trust "
+                "projects to verified."
+            ),
+            evidence_sources=[str(p.resolve()) for p in ephemeral],
+            confidence="medium",
+            operational_warnings=(_KEYWORD_CI_SIGNAL_WARN,),
+        )
+    if not evidence.is_file():
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="Self-hosted runner posture cannot be fully assessed without a runner-groups.json evidence file.",
+            remediation="Add .oss-policy-kit/evidence/runner-groups.json per evidence-runner-groups.schema.json.",
+            evidence_sources=[],
+            confidence="medium",
+        )
+    data, error, ph = _validate_json_evidence(
+        evidence, schema_loader=_runner_groups_schema, evidence_name="Runner groups"
+    )
+    if error:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=error,
+            remediation="Regenerate evidence using reports/schema/evidence-runner-groups.schema.json.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    blocked = _evidence_placeholder_outcome(evidence, ph)
+    if blocked is not None:
+        return blocked
+    assert data is not None
+    groups = data.get("runner_groups") or []
+    if not isinstance(groups, list) or not groups:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason="runner-groups.json contains no runner_groups entries.",
+            remediation="Configure at least one runner group with restricted_to_private_repos: true.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+        )
+    risky = [
+        g
+        for g in groups
+        if isinstance(g, dict)
+        and (g.get("allows_public_repositories") is True or g.get("restricted_to_private_repos") is False)
+    ]
+    if risky:
+        names = ", ".join(str(g.get("name", "?")) for g in risky)
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"Runner group(s) {names} allow public repositories or are not restricted to private repos. "
+                "Public-fork workflows running on self-hosted runners is the trivy-action attack pattern."
+            ),
+            remediation=(
+                "Set restricted_to_private_repos: true and allows_public_repositories: false on every runner group."
+            ),
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"All {len(groups)} runner group(s) restricted to private repos and disallow public repositories.",
+        remediation="Re-attest periodically; verify ephemeral runners remain in use.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="high",
+        evidence_collection_method=EvidenceCollectionMethod.LIVE
+        if isinstance(data.get("collection"), dict)
+        and str(data["collection"].get("evidence_collection_method", "")).strip().lower() == "live"
+        else EvidenceCollectionMethod.MANUAL,
+    )
+
+
+_RELEASE_ARCHIVE_SIGNAL_PATHS: tuple[str, ...] = (
+    "RELEASE_ARCHIVAL.md",
+    ".github/release-archival.yml",
+    ".github/release-archival.yaml",
+    "docs/release-readiness.md",
+    "docs/release-archival.md",
+)
+_RELEASE_ARCHIVE_KEYWORDS: tuple[str, ...] = (
+    "release archival",
+    "release_archival",
+    "release-archival",
+    "retention policy",
+    "retention_years",
+)
+
+
+def _release_archive_signal_match(repo: Path) -> Path | None:
+    for rel in _RELEASE_ARCHIVE_SIGNAL_PATHS:
+        p = repo / rel
+        if not p.is_file():
+            continue
+        if rel.endswith((".yml", ".yaml")):
+            return p
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+        except OSError:
+            continue
+        if any(kw in text for kw in _RELEASE_ARCHIVE_KEYWORDS):
+            return p
+    return None
+
+
+def eval_release_archive_063(ctx: EvalContext) -> EvalOutcome:
+    """RELEASE-ARCHIVE-063: Release artifacts have an explicit archival/retention policy."""
+    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "release-archival-policy.json"
+    if not evidence.is_file():
+        signal = _release_archive_signal_match(ctx.repo_root)
+        if signal is not None:
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason=(
+                    f"Release archival/retention policy intent detected via {signal.name}. "
+                    "Heuristic only — promote to evidence-backed by adding "
+                    ".oss-policy-kit/evidence/release-archival-policy.json with retention_years."
+                ),
+                remediation=(
+                    "Document retention_years (>= 10 for EU CRA alignment), archive_destination, "
+                    "and vulnerability_handling_doc in .oss-policy-kit/evidence/release-archival-policy.json."
+                ),
+                evidence_sources=[str(signal.resolve())],
+                confidence="low",
+                operational_warnings=(_KEYWORD_CI_SIGNAL_WARN,),
+            )
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No release archival/retention policy evidence found. Closes NIST SSDF PS.3 (Archive & "
+                "protect each release) and aligns EU CRA 10-year retention. Add either a policy file "
+                "(RELEASE_ARCHIVAL.md / .github/release-archival.yml) or "
+                ".oss-policy-kit/evidence/release-archival-policy.json."
+            ),
+            remediation=(
+                "Document the team's release artifact retention policy and archival destination "
+                "(github-releases / S3 / Software Heritage). EU CRA expects retention_years >= 10."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    data, error, ph = _validate_json_evidence(
+        evidence,
+        schema_loader=_release_archival_policy_schema,
+        evidence_name="Release archival policy",
+    )
+    if error:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=error,
+            remediation="Regenerate evidence using reports/schema/evidence-release-archival-policy.schema.json.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    blocked = _evidence_placeholder_outcome(evidence, ph)
+    if blocked is not None:
+        return blocked
+    assert data is not None
+    retention = data.get("retention_years")
+    archive_dest = str(data.get("archive_destination", "")).strip()
+    vuln_doc = str(data.get("vulnerability_handling_doc", "")).strip()
+    if not isinstance(retention, int) or retention < 0:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="release-archival-policy.json has missing or invalid retention_years.",
+            remediation="Set retention_years to a non-negative integer (>= 10 aligns with EU CRA).",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    if not archive_dest:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason="release-archival-policy.json reports an empty archive_destination.",
+            remediation="Set archive_destination to a real location (github-releases, s3://, swh:archive, etc.).",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+        )
+    if not vuln_doc:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason="release-archival-policy.json does not reference a vulnerability_handling_doc.",
+            remediation="Point vulnerability_handling_doc at SECURITY.md (or equivalent).",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+        )
+    if retention < 10:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"retention_years={retention} is below EU CRA's 10-year expectation. "
+                "Acceptable for non-EU products; review for CRA-affected scopes."
+            ),
+            remediation="Increase retention_years to >= 10 if you place products on the EU market.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=(
+            f"Release archival policy: retention_years={retention} (>= 10), "
+            f"archive_destination={archive_dest}, vulnerability_handling_doc={vuln_doc}."
+        ),
+        remediation="Re-attest periodically and keep retention storage active.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="high",
+        evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+    )
+
+
 EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "GOV-SEC-001": eval_gov_sec_001,
     "GOV-CON-002": eval_gov_con_002,
@@ -4449,6 +4779,8 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "BUILD-SBOM-QUAL-003": eval_build_sbom_qual_003,
     "AUDIT-STREAM-060": eval_audit_stream_060,
     "PROV-VERIFY-061": eval_prov_verify_061,
+    "GH-RUNNER-062": eval_gh_runner_062,
+    "RELEASE-ARCHIVE-063": eval_release_archive_063,
 }
 
 

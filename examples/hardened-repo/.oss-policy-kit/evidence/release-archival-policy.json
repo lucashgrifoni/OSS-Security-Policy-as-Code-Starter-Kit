@@ -1,0 +1,11 @@
+{
+  "schema_version": "release-archival-policy/v1",
+  "attested_at": "2026-04-21",
+  "attested_by": "example-maintainer",
+  "retention_years": 10,
+  "archive_destination": "github-releases",
+  "vulnerability_handling_doc": "SECURITY.md",
+  "swhid": "swh:1:rev:0000000000000000000000000000000000000000",
+  "policy_owner": "release-engineering@example-org",
+  "notes": "Synthetic archival policy for fixture evaluation; aligned with EU CRA 10-year retention."
+}

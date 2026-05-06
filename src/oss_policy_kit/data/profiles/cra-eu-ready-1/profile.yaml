@@ -1,0 +1,31 @@
+id: cra-eu-ready-1
+title: EU Cyber Resilience Act preparation (advisory)
+description: >
+  **Advisory profile for EU CRA preparation** (regulatory mapping, not certification).
+  Multi-platform (no platform prefix): the bundled controls cut across GitHub, Azure DevOps,
+  and AWS CodePipeline projects. Bundles existing CycloneDX SBOM controls, vulnerability
+  handling controls (SECURITY.md, responsible disclosure, dependency review, auto-update),
+  branch protection (history integrity), audit log streaming for incident reporting, signed
+  provenance verification for artifact integrity, and release archival policy with 10-year
+  retention alignment.
+  **Posture:** advisory. CRA reporting deadline is 2026-09-11; full obligations apply
+  2027-12-11. This profile is a *mapping* between the kit's existing evidence and CRA
+  expectations — it does not certify compliance.
+  **Recommended `--fail-on`:** `degraded` only. CRA outcomes depend on legal/process decisions
+  outside the kit's evidence surface.
+  **Framework alignment:** see `docs/framework-alignment.md` (EU Cyber Resilience Act section).
+audience: Manufacturers placing software products on the EU market who need a clone-side posture
+  indicator before September 2026. Use as a discovery surface, not as a release gate.
+controls:
+  - GOV-SEC-001
+  - GOV-DISC-013
+  - GOV-WAIV-014
+  - REL-CHANGE-012
+  - BUILD-SBOM-QUAL-003
+  - PROV-VERIFY-061
+  - AUDIT-STREAM-060
+  - RELEASE-ARCHIVE-063
+  - SEC-DEPREV-011
+  - DEP-UPDATE-001
+  - SEC-SECRETS-050
+  - PLAT-BRPROT-015

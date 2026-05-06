@@ -1,0 +1,16 @@
+{
+  "schema_version": "runner-groups/v1",
+  "attested_at": "2026-04-21",
+  "attested_by": "example-maintainer",
+  "org_name": "example-org",
+  "runner_groups": [
+    {
+      "name": "default",
+      "restricted_to_private_repos": true,
+      "allows_public_repositories": false,
+      "ephemeral_runners": true,
+      "selected_repositories_count": 5
+    }
+  ],
+  "notes": "Synthetic runner-groups posture for fixture evaluation."
+}

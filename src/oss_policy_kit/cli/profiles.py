@@ -28,6 +28,8 @@ from oss_policy_kit.cli.common import (
 from oss_policy_kit.domain.errors import InvalidInputError, LoadError, OssPolicyKitError
 
 _PROFILE_DISPLAY_ALIAS_TARGETS = dict(PROFILE_DIRECTORY_ALIASES)
+_REGULATORY_PROFILE_IDS: frozenset[str] = frozenset({"cra-eu-ready-1"})
+
 _PROFILE_COMPACT_AUDIENCES = {
     "aws-level-1": "AWS teams starting honest checks.",
     "aws-level-2": "AWS teams with mature pipelines.",
@@ -50,6 +52,7 @@ _PROFILE_COMPACT_AUDIENCES = {
     "github-release-hardening-1": "GitHub teams preparing releases.",
     "github-release-hardening-2": "GitHub teams enforcing release posture.",
     "github-release-hardening-3": "High-assurance GitHub release teams.",
+    "cra-eu-ready-1": "EU manufacturers preparing for CRA reporting (advisory, multi-platform).",
 }
 _PROFILE_COMPACT_DESCRIPTIONS = {
     "aws-level-1": "Starter AWS buildspec/pipeline signals (honest clone checks).",
@@ -73,6 +76,7 @@ _PROFILE_COMPACT_DESCRIPTIONS = {
     "github-release-hardening-1": "GitHub baseline plus release settings evidence.",
     "github-release-hardening-2": "Stricter GitHub release posture with evidence.",
     "github-release-hardening-3": "Highest GitHub release governance with evidence.",
+    "cra-eu-ready-1": "EU CRA preparation (advisory) — multi-platform mapping, not certification.",
 }
 
 
@@ -97,6 +101,8 @@ def _profile_maturity_label(profile_id: str, *, is_legacy_alias: bool) -> str:
 
     if is_legacy_alias:
         return "legacy bundled id (non-canonical)"
+    if profile_id in _REGULATORY_PROFILE_IDS:
+        return "framework-aligned advisory (regulatory)"
     if profile_id in {"github-aws-level-2", "github-azure-level-2"}:
         return "advisory hybrid (multi-platform)"
     if profile_id.endswith("release-hardening-3"):
@@ -127,13 +133,17 @@ def _profile_row_is_advisory(row: _ProfileDisplayRow) -> bool:
 
 
 def _profile_family_key(platform: str) -> str:
-    return {"GitHub": "github", "Azure": "azure", "AWS": "aws", "Custom": "custom"}.get(platform, "custom")
+    return {"GitHub": "github", "Azure": "azure", "AWS": "aws", "Multi": "multi", "Custom": "custom"}.get(
+        platform, "custom"
+    )
 
 
 def _profile_posture_descriptor(profile_id: str, maturity: str) -> str:
     ml = maturity.lower()
     if "legacy" in ml:
         return "legacy_alias"
+    if "regulatory" in ml or profile_id in _REGULATORY_PROFILE_IDS:
+        return "framework_aligned_advisory"
     if "hybrid" in ml:
         return "multi_platform_advisory_hybrid"
     if "hard-gate" in ml or ("extreme" in ml and "advisory" not in ml):
@@ -150,6 +160,8 @@ def _profile_posture_descriptor(profile_id: str, maturity: str) -> str:
 def _profile_live_signal_posture(profile_id: str, posture_descriptor: str) -> str:
     if posture_descriptor == "multi_platform_advisory_hybrid":
         return "clone_visible_github_plus_platform_ci_signals_advisory"
+    if posture_descriptor == "framework_aligned_advisory":
+        return "regulatory_mapping_no_release_gate"
     if posture_descriptor == "hard_gate_or_extreme":
         return "evidence_heavy_or_high_assurance_expectations"
     if "release-hardening" in profile_id:
@@ -166,6 +178,7 @@ def _profile_recommended_gate(posture_descriptor: str) -> str:
         "hard_gate_or_extreme": "--fail-on fail",
         "release_track": "--fail-on fail",
         "multi_platform_advisory_hybrid": "--fail-on none",
+        "framework_aligned_advisory": "--fail-on degraded",
         "legacy_alias": "(migrate)",
     }.get(posture_descriptor, "--fail-on none")
 
@@ -178,9 +191,9 @@ def _filter_profile_display_rows(
     advisory_only: bool,
 ) -> list[_ProfileDisplayRow]:
     fam = family.strip().lower() if family else None
-    if fam and fam not in {"github", "azure", "aws"}:
-        raise InvalidInputError("--family must be one of: github, azure, aws.")
-    want_platform = {"github": "GitHub", "azure": "Azure", "aws": "AWS"}.get(fam) if fam else None
+    if fam and fam not in {"github", "azure", "aws", "multi"}:
+        raise InvalidInputError("--family must be one of: github, azure, aws, multi.")
+    want_platform = {"github": "GitHub", "azure": "Azure", "aws": "AWS", "multi": "Multi"}.get(fam) if fam else None
     out: list[_ProfileDisplayRow] = []
     for row in rows:
         if want_platform is not None and row.platform != want_platform:
@@ -213,6 +226,8 @@ def _profile_assurance_mix(control_ids: tuple[str, ...], catalog: dict[str, Cont
 def _profile_platform(profile_id: str) -> str:
     """Return the platform family for a profile id."""
 
+    if profile_id in _REGULATORY_PROFILE_IDS:
+        return "Multi"
     if profile_id.startswith("github-"):
         return "GitHub"
     if profile_id.startswith("azure-"):
@@ -330,7 +345,7 @@ def _iter_bundled_profiles() -> list[_ProfileDisplayRow]:
                 is_legacy_alias=True,
             )
         )
-    plat_order = {"GitHub": 0, "Azure": 1, "AWS": 2, "Custom": 3}
+    plat_order = {"GitHub": 0, "Azure": 1, "AWS": 2, "Multi": 3, "Custom": 4}
     rows.sort(key=lambda r: (plat_order.get(r.platform, 9), int(r.is_legacy_alias), r.profile_id))
     return rows
 
@@ -343,7 +358,7 @@ def _print_profiles_table(
 ) -> None:
     """Render bundled profiles as a compact or detailed table on stdout."""
 
-    plat_order = {"GitHub": 0, "Azure": 1, "AWS": 2, "Custom": 3}
+    plat_order = {"GitHub": 0, "Azure": 1, "AWS": 2, "Multi": 3, "Custom": 4}
     if rows is None:
         rows = _iter_bundled_profiles()
     rows = sorted(

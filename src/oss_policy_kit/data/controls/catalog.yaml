@@ -484,3 +484,17 @@ controls:
     lifecycle: experimental
     assurance: evidence-backed
     weight: 3
+  - id: GH-RUNNER-062
+    title: Self-hosted runners are ephemeral and restricted from PR-triggered workflows
+    category: ci_cd
+    automation: partially_observable
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: RELEASE-ARCHIVE-063
+    title: Release artifacts have an explicit archival/retention policy
+    category: release
+    automation: partially_observable
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
