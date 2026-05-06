@@ -15,5 +15,14 @@
     "attestation_digest_recorded": true,
     "artifact_digest_recorded": true
   },
+  "verification": {
+    "method": "cosign-verify-bundle",
+    "verified_at": "2026-05-01T12:00:00Z",
+    "transparency_log_inclusion": true,
+    "issuer": "https://vstoken.dev.azure.com/example-org",
+    "subject_alternative_name": "synthetic-fixture://example/repo:ref:refs/heads/master",
+    "bundle_digest": "c8e9d2f1a4b7c0d3e6f9a2b5c8d1e4f7a0b3c6d9e2f5a8b1c4d7e0f3a6b9c2d5",
+    "tool_version": "cosign 2.4.0"
+  },
   "notes": "Synthetic Azure DevOps provenance attestation record for fixture evaluation."
 }

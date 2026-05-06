@@ -48,6 +48,21 @@
         "mode": { "type": "string", "enum": ["api"] }
       }
     },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "verified_at", "transparency_log_inclusion"],
+      "description": "Optional. Records that the attestation bundle was independently verified. Consumed by PROV-VERIFY-061.",
+      "properties": {
+        "method": { "type": "string", "enum": ["gh-attestation-verify", "cosign-verify-bundle", "cosign-verify-attestation", "in-toto-verify", "other"] },
+        "verified_at": { "type": "string", "format": "date-time" },
+        "transparency_log_inclusion": { "type": "boolean" },
+        "issuer": { "type": "string" },
+        "subject_alternative_name": { "type": "string" },
+        "bundle_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "tool_version": { "type": "string" }
+      }
+    },
     "notes": { "type": "string" }
   }
 }

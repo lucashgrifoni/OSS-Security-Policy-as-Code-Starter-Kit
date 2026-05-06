@@ -100,12 +100,12 @@ already listed under Scorecard above.
 | CICD-SEC-6: Insufficient Credential Hygiene | `GH-PLAT-025`, `AZ-SEC-031`, `AWS-SECRET-038`, `SEC-SECRETS-050` | YES | Secret scanning + plaintext-secret avoidance. |
 | CICD-SEC-7: Insecure System Configuration | `GH-WF-019` | PARTIAL | We discourage self-hosted runners on PR-triggered workflows but do not deeply analyze runner posture. |
 | CICD-SEC-8: Ungoverned Use of 3rd-Party Services | `CI-PIN-008`, `CI-WFCALLSHA-055` | YES | Third-party action SHA pinning + reusable workflow SHA pinning. |
-| CICD-SEC-9: Improper Artifact Integrity Validation | `GH-PROV-023`, `AZ-ARTSBOM-058`, `AZ-ARTPRV-059`, `AWS-SBOMART-058`, `AWS-PROVART-059`, `BUILD-SBOM-QUAL-003` | YES | SBOM + provenance attestation against artifact digest. |
-| CICD-SEC-10: Insufficient Logging and Visibility | (none) | GAP | Audit log retention / SIEM integration is not modeled. Registered as conceptual future work. |
+| CICD-SEC-9: Improper Artifact Integrity Validation | `GH-PROV-023`, `AZ-ARTSBOM-058`, `AZ-ARTPRV-059`, `AWS-SBOMART-058`, `AWS-PROVART-059`, `BUILD-SBOM-QUAL-003`, `PROV-VERIFY-061` | YES | SBOM + provenance attestation against artifact digest; v5.1.0 adds independent verification (sigstore / `gh attestation verify`). |
+| CICD-SEC-10: Insufficient Logging and Visibility | `AUDIT-STREAM-060` | YES | v5.1.0 closes this with audit log streaming evidence (signal fallback + evidence-backed). |
 
-**Coverage**: 8 YES, 1 PARTIAL, 1 GAP (CICD-SEC-10). The CICD-SEC-10 gap requires platform-level
-audit log evidence that is not retrievable without org-scope tokens; deliberately not added in
-v5.0.0 to avoid scope creep.
+**Coverage**: 9 YES, 1 PARTIAL, 0 GAP (since v5.1.0 — `AUDIT-STREAM-060` closes CICD-SEC-10).
+Older releases (v5.0.0) had this as a GAP; the v5.1.0 control closes the audit-log-streaming
+expectation honestly via an evidence schema, with a signal-grade fallback for clone-only repos.
 
 ## SLSA v1.0 — Build track
 
@@ -114,14 +114,24 @@ v5.0.0 to avoid scope creep.
 | Build L1: Build process | `CI-WF-005`, `AZ-PIPE-027`, `AWS-CI-037`, `AWS-PIPE-042` | YES | Build files exist in supported paths. |
 | Build L1: Provenance generated (basic) | `GH-PROV-023`, `AWS-PROV-043` | PARTIAL | We detect provenance signal in CI YAML; verifying the provenance document is signed is not done. |
 | Build L2: Hosted build platform | `GH-WF-019` | PARTIAL | We discourage self-hosted runners on PR-triggered workflows but do not enumerate the platform's hosted/managed posture. |
-| Build L2: Provenance signed | `AZ-ARTPRV-059`, `AWS-PROVART-059` | PARTIAL | We require an artifact-bound provenance evidence file; signature verification (cosign / sigstore) is out of scope. |
+| Build L2: Provenance signed | `AZ-ARTPRV-059`, `AWS-PROVART-059`, `PROV-VERIFY-061` | YES (since v5.1.0) | v5.0.0 had this as PARTIAL because we required an artifact-bound provenance evidence file but did not verify the signature. v5.1.0 adds `PROV-VERIFY-061` which consumes a `verification:` block with sigstore / `gh attestation verify` results (issuer, transparency-log inclusion, freshness). |
 | Build L3: Hardened build platform (isolation) | `GH-DEPLOY-022`, `AZ-WIFEV-057`, `AZ-IDENT-036`, `AWS-CBIDENT-057` | PARTIAL | OIDC / federated identity controls cover identity hardening; runtime build isolation is platform-side. |
 | Build L3: Parameterized builds | `GH-PLAT-024`, `PLAT-BRPROT-015` | PARTIAL | Branch protection enforces review; parameter-injection prevention at the build layer is platform-specific. |
 
-**Coverage**: 1 YES, 5 PARTIAL, 0 GAP. SLSA expectations are met directionally; full SLSA L3
-attestation requires runtime build platform telemetry that this kit does not collect. The kit's
-`*-release-hardening-3` profiles are aligned with **SLSA L2 evidence expectations** when their
-evidence files are filled.
+**Coverage** (v5.1.0): **2 YES, 4 PARTIAL, 0 GAP**. Build L2 "Provenance signed" upgrades to YES via `PROV-VERIFY-061`. Full SLSA L3 attestation still requires runtime build platform telemetry that this kit does not collect. The kit's `*-release-hardening-3` profiles are aligned with **SLSA Build L2 evidence expectations** when their evidence files are filled, and now include the verification step.
+
+## SLSA v1.2 — Source Track (RC2 active May 2026)
+
+SLSA v1.2 reintroduces a **Source Track** alongside the Build Track. It defines four levels for source-side integrity. Coverage in this kit:
+
+| SLSA Source level | Kit control(s) | Coverage | Notes |
+|---|---|---|---|
+| Source L1: Version control in use | `CI-WF-005`, `AZ-PIPE-027`, `AWS-CI-037` (presence implies VCS) | YES | A repo with CI files inherently has VCS. |
+| Source L2: History & provenance (branch protection, signed commits, complete history) | `PLAT-BRPROT-015`, `GH-PLAT-024`, `AZ-PLAT-034` | PARTIAL | Branch protection covered; signed-commit policy is enforceable via GitHub rulesets but the kit only confirms ruleset presence, not commit-signature posture per merged PR. |
+| Source L3: Source provenance attestations | (none) | GAP | Verifiable source-history attestations are not yet emitted by mainstream SCMs at scale. Tracked as future work in `docs/profiles/deferred-followups.md`. |
+| Source L4: Two-party review on every merged PR | `PLAT-BRPROT-015` (with `required_approving_review_count >= 2`), `GH-PLAT-024` | PARTIAL | Existing branch-protection evidence accepts an optional `required_approving_review_count` field. When set to ≥2, the result `extra` records L4 alignment; otherwise the `evidence.limitations` array notes "single-reviewer policy; SLSA Source L4 not satisfied." |
+
+**Coverage** (v5.1.0): 1 YES, 2 PARTIAL, 1 GAP. This is the first iteration of Source Track mapping; ranking the remaining items in the post-v5.x backlog.
 
 ## NIST SSDF SP 800-218 (Rev 1.1)
 
@@ -143,7 +153,7 @@ The four practice groups in the SSDF (PO, PS, PW, RV) align as follows:
 | PW.7 Review and/or analyze human-readable code | `GH-PLAT-024` (rulesets) | PARTIAL | Required-review enforcement; automated review is process. |
 | PW.8 Test executable code | `CI-WF-005` | PARTIAL | We confirm CI presence; not test outcomes. |
 | PW.9 Configure the software to have secure settings by default | OUT | OUT | Application-runtime concern. |
-| RV.1 Identify and confirm vulnerabilities on an ongoing basis | `OSS-SCORECARD-001`, `SEC-CODEQL-010`, `SEC-SECRETS-050`, `GH-PLAT-026`, `CONT-IMAGE-003` | YES | SAST + secret scanning + container scanning. |
+| RV.1 Identify and confirm vulnerabilities on an ongoing basis | `OSS-SCORECARD-001`, `SEC-CODEQL-010`, `SEC-SECRETS-050`, `GH-PLAT-026`, `CONT-IMAGE-003`, `AUDIT-STREAM-060` | YES | SAST + secret scanning + container scanning + audit-log streaming for incident detection (v5.1.0). |
 | RV.2 Assess, prioritize, and remediate vulnerabilities | `DEP-UPDATE-001` | PARTIAL | Auto-update tooling; prioritization is process. |
 | RV.3 Analyze vulnerabilities to identify root causes | OUT | OUT | Process, not artifact. |
 
@@ -188,7 +198,7 @@ out of scope for this kit (Terraform / Bicep IaC scanning belongs in dedicated t
 | Use IAM federation, avoid long-lived credentials | `AWS-CBIDENT-057`, `AWS-PIPEIAM-056`, `GH-DEPLOY-022` | YES | OIDC + federated identity controls. |
 | Encrypt data at rest and in transit | OUT | OUT | Application/infra concern. |
 | Implement strong identity foundation | `ORG-MFA-001`, `AWS-PIPEIAM-056` | YES | Org-MFA evidence + pipeline IAM boundary. |
-| Enable traceability | (none) | GAP | CloudTrail integration is account-side. |
+| Enable traceability | `AUDIT-STREAM-060` | PARTIAL | v5.1.0 records audit-log streaming destinations (CloudTrail forwarding) via evidence; deeper account-side telemetry is still out of scope. |
 | Apply security at all layers | mixed | PARTIAL | Multiple kit controls touch this; full coverage requires runtime tooling. |
 | Automate security best practices | `CI-WF-005`, `AWS-CI-037`, `AWS-PIPE-042` | YES | CI/build pipeline presence. |
 | Protect data in transit / at rest | OUT | OUT | Application concern. |
@@ -204,7 +214,31 @@ out of scope for this kit (Terraform / Bicep IaC scanning belongs in dedicated t
 | Secret management (Variable Groups, Key Vault) | `AZ-SEC-031`, `SEC-SECRETS-050` | PARTIAL | Signal-grade detection of scanning; deep variable-group ACL is org-side. |
 | YAML pipeline structure (extends, restricted templates) | `AZ-PIPE-030` | YES | Deterministic. |
 | Avoid persistCredentials true | `AZ-PIPE-029` | YES | Deterministic. |
-| Audit logs / SIEM | (none) | GAP | Org-level Audit log API is not collected today. |
+| Audit logs / SIEM | `AUDIT-STREAM-060` | YES (since v5.1.0) | Audit-log streaming evidence (Azure DevOps `auditstreams` API) closes this. Older releases had this as a GAP. |
+
+## EU Cyber Resilience Act (CRA)
+
+Regulatory pressure with concrete artifact requirements. Key dates:
+
+- **2026-09-11**: vulnerability/incident reporting obligations begin (enforceable).
+- **2027-12-11**: full obligations apply.
+
+| CRA expectation | Kit control(s) | Coverage | Notes |
+|---|---|---|---|
+| SBOM in machine-readable format (CycloneDX or SPDX) | `BUILD-SBOM-QUAL-003`, `AZ-ARTSBOM-058`, `AWS-SBOMART-058`, `AZ-SBOM-033`, `AWS-SBOM-041` | YES | The kit emits a CycloneDX SBOM at build time and evaluates SBOM-quality controls. |
+| SBOM lists at least top-level dependencies | `BUILD-SBOM-QUAL-003` | YES | Bundled SBOM-quality control flags incomplete CycloneDX/SPDX shapes. |
+| SBOM and security documentation retained 10 years | `RELEASE-ARCHIVE-063` (planned in v5.2.0) | (planned) | A retention/archival policy control will be added in v5.2.0. Until then, retention is process, not artifact. |
+| Documented vulnerability handling | `GOV-SEC-001`, `GOV-DISC-013`, `SEC-DEPREV-011`, `DEP-UPDATE-001` | YES | SECURITY.md + responsible disclosure + dependency review/auto-update. |
+| Centralized incident reporting / audit trail | `AUDIT-STREAM-060` | YES (since v5.1.0) | Audit-log streaming evidence is the trail an incident report needs. |
+| Build provenance for shipped artifacts | `GH-PROV-023`, `AZ-ARTPRV-059`, `AWS-PROVART-059`, `PROV-VERIFY-061` | YES (since v5.1.0) | Provenance attestation independently verified. |
+
+> **Honesty contract**: this kit does **not** certify CRA compliance. The legal side (notified bodies, market-placement timing, retention storage destinations) is out of scope. A future advisory profile (`cra-eu-ready-1`, planned for v5.2.0) bundles the technical-readiness controls into a single discovery surface.
+
+## NIST SP 800-218A — AI / Generative AI (out of scope for v5.x)
+
+NIST finalized SP 800-218A as an SSDF *Community Profile* augmenting SP 800-218 with practices specific to generative AI / dual-use foundation model development (model cards, training-data provenance, prompt-injection / jailbreak testing, dual-use risk).
+
+**Coverage in this kit**: out of scope for the v5.x line. AI-specific evaluators (model card detection from clone, training-data provenance evidence schema, prompt-injection guardrail signal) are real new product surface, not a re-grouping of existing controls. Tracked for v6.0.0 in `docs/profiles/deferred-followups.md`.
 
 ## Decisions taken on this iteration
 

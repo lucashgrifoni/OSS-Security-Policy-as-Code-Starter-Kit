@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/schema/evidence-aws-provenance-artifact.schema.json",
-  "title": "AWS provenance / attestation bound to a release artifact",
+  "$id": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/schema/evidence-github-provenance-artifact.schema.json",
+  "title": "GitHub provenance / Artifact Attestation bound to a release artifact",
+  "description": "Per-artifact provenance evidence consumed by PROV-VERIFY-061. Place at .oss-policy-kit/evidence/github-provenance-artifact.json. The verification block records that the bundle was independently verified (e.g. `gh attestation verify`).",
   "type": "object",
   "required": ["schema_version", "attested_at", "attested_by", "artifact", "attestation", "posture"],
   "additionalProperties": false,
   "properties": {
-    "schema_version": { "type": "string", "const": "aws-provenance-artifact/v1" },
+    "schema_version": { "type": "string", "const": "github-provenance-artifact/v1" },
     "attested_at": { "type": "string", "format": "date" },
     "attested_by": { "type": "string" },
     "artifact": {
@@ -23,7 +24,7 @@
       "additionalProperties": false,
       "required": ["kind", "digest_sha256"],
       "properties": {
-        "kind": { "type": "string", "enum": ["cosign", "sigstore", "in-toto", "other"] },
+        "kind": { "type": "string", "enum": ["sigstore-bundle", "github-artifact-attestation", "cosign", "in-toto", "other"] },
         "digest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
       }
     },

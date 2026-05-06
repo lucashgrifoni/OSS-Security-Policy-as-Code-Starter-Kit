@@ -159,6 +159,18 @@ def _aws_provenance_artifact_schema() -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(raw))
 
 
+def _github_provenance_artifact_schema() -> dict[str, Any]:
+    raw = (
+        ir.files("oss_policy_kit.data.schema").joinpath("evidence-github-provenance-artifact.schema.json").read_bytes()
+    )
+    return cast(dict[str, Any], json.loads(raw))
+
+
+def _audit_log_streaming_schema() -> dict[str, Any]:
+    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-audit-log-streaming.schema.json").read_bytes()
+    return cast(dict[str, Any], json.loads(raw))
+
+
 def _evidence_is_api_backed(data: dict[str, Any]) -> bool:
     """True when JSON was produced by ``collect-evidence`` / cloud API collection (not manual scaffold)."""
 
@@ -4099,6 +4111,276 @@ def eval_build_sbom_qual_003(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+_AUDIT_STREAM_SIGNAL_PATHS: tuple[str, ...] = (
+    ".github/audit-log-streaming.yml",
+    ".github/audit-log-streaming.yaml",
+    "RELEASE_OPERATIONS.md",
+    "docs/release-readiness.md",
+)
+
+_AUDIT_STREAM_SIGNAL_KEYWORDS: tuple[str, ...] = (
+    "audit_log_streaming",
+    "audit-log-streaming",
+    "audit log streaming",
+)
+
+
+def _audit_stream_signal_match(repo: Path) -> Path | None:
+    """Return a clone-visible path that signals audit log streaming, or None."""
+
+    for rel in _AUDIT_STREAM_SIGNAL_PATHS:
+        p = repo / rel
+        if not p.is_file():
+            continue
+        # Configuration YAMLs imply intent on their own; doc files require a keyword match
+        # so a generic release-readiness.md without an audit-streaming section does not pass.
+        if rel.endswith((".yml", ".yaml")):
+            return p
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+        except OSError:
+            continue
+        if any(kw in text for kw in _AUDIT_STREAM_SIGNAL_KEYWORDS):
+            return p
+    return None
+
+
+def eval_audit_stream_060(ctx: EvalContext) -> EvalOutcome:
+    """AUDIT-STREAM-060: Audit log streaming to centralized SIEM/object store."""
+    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "audit-log-streaming.json"
+    if not evidence.is_file():
+        signal = _audit_stream_signal_match(ctx.repo_root)
+        if signal is not None:
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason=(
+                    f"Audit log streaming intent detected via clone signal ({signal.name}). "
+                    "Heuristic only — promote to evidence-backed by adding "
+                    ".oss-policy-kit/evidence/audit-log-streaming.json with destinations."
+                ),
+                remediation=(
+                    "Document streaming destinations in .oss-policy-kit/evidence/audit-log-streaming.json "
+                    "per evidence-audit-log-streaming.schema.json so trust projects to verified."
+                ),
+                evidence_sources=[str(signal.resolve())],
+                confidence="low",
+                operational_warnings=(_KEYWORD_CI_SIGNAL_WARN,),
+            )
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "Centralized audit log streaming cannot be observed from a local clone. "
+                "Add .oss-policy-kit/evidence/audit-log-streaming.json after configuring "
+                "GitHub/Azure/AWS audit log streaming to a SIEM or object store (closes OWASP CICD-SEC-10)."
+            ),
+            remediation=(
+                "Configure org-level audit log streaming (GitHub Enterprise audit-log streaming, "
+                "Azure DevOps auditstreams, AWS CloudTrail) and record the destinations in evidence."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    data, error, ph = _validate_json_evidence(
+        evidence,
+        schema_loader=_audit_log_streaming_schema,
+        evidence_name="Audit log streaming",
+    )
+    if error:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=error,
+            remediation="Regenerate evidence using reports/schema/evidence-audit-log-streaming.schema.json.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    blocked = _evidence_placeholder_outcome(evidence, ph)
+    if blocked is not None:
+        return blocked
+    assert data is not None
+    streaming_enabled = bool(data.get("streaming_enabled"))
+    destinations = data.get("destinations") or []
+    if not streaming_enabled or not destinations:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                "Audit log streaming evidence reports streaming_enabled=false or empty destinations[]. "
+                "Centralized log forwarding is the OWASP CICD-SEC-10 mitigation."
+            ),
+            remediation="Enable audit log streaming for the platform org and register at least one destination.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+        )
+    method = EvidenceCollectionMethod.STATIC
+    coll = data.get("collection")
+    if isinstance(coll, dict) and str(coll.get("evidence_collection_method", "")).strip().lower() == "live":
+        method = EvidenceCollectionMethod.LIVE
+    elif isinstance(coll, dict) and str(coll.get("evidence_collection_method", "")).strip().lower() == "manual":
+        method = EvidenceCollectionMethod.MANUAL
+    dest_kinds = ", ".join(sorted({str(d.get("kind", "?")) for d in destinations if isinstance(d, dict)}))
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=(
+            f"Audit log streaming evidence is valid: {len(destinations)} destination(s) configured ({dest_kinds})."
+        ),
+        remediation="Re-attest evidence within freshness window when streaming destinations change.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="high",
+        evidence_collection_method=method,
+    )
+
+
+_PROV_VERIFY_FILES: tuple[tuple[str, Callable[[], dict[str, Any]]], ...] = (
+    ("github-provenance-artifact.json", _github_provenance_artifact_schema),
+    ("azure-provenance-artifact.json", _azure_provenance_artifact_schema),
+    ("aws-provenance-artifact.json", _aws_provenance_artifact_schema),
+)
+
+
+def _prov_verify_lookup_order(profile_id: str) -> tuple[tuple[str, Callable[[], dict[str, Any]]], ...]:
+    """Order provenance evidence files to prefer the family that matches *profile_id*."""
+
+    pid = profile_id.lower()
+    if pid.startswith("github-"):
+        return _PROV_VERIFY_FILES
+    if pid.startswith("azure-"):
+        return tuple(sorted(_PROV_VERIFY_FILES, key=lambda x: 0 if "azure" in x[0] else 1))
+    if pid.startswith("aws-"):
+        return tuple(sorted(_PROV_VERIFY_FILES, key=lambda x: 0 if "aws" in x[0] else 1))
+    return _PROV_VERIFY_FILES
+
+
+def _verification_freshness_status(verified_at: str, *, max_age_days: int) -> str:
+    try:
+        dt = datetime.fromisoformat(verified_at.replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return "unparseable"
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    now = datetime.now(UTC)
+    age = (now - dt).days
+    if age < 0:
+        return "future"
+    if age <= max_age_days:
+        return "fresh"
+    return "stale"
+
+
+def eval_prov_verify_061(ctx: EvalContext) -> EvalOutcome:
+    """PROV-VERIFY-061: Build provenance attestation is verifiable (sigstore / Artifact Attestations)."""
+    evidence_dir = ctx.repo_root / ".oss-policy-kit" / "evidence"
+    candidate: Path | None = None
+    schema_loader: Callable[[], dict[str, Any]] | None = None
+    for filename, loader in _prov_verify_lookup_order(ctx.profile_id):
+        p = evidence_dir / filename
+        if p.is_file():
+            candidate = p
+            schema_loader = loader
+            break
+    if candidate is None or schema_loader is None:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No provenance-artifact evidence file found. PROV-VERIFY-061 requires a "
+                "{github,azure,aws}-provenance-artifact.json with a populated verification block."
+            ),
+            remediation=(
+                "Run `gh attestation verify` (or `cosign verify-bundle`) against the release artifact "
+                "and record the result in .oss-policy-kit/evidence/<platform>-provenance-artifact.json "
+                "under the verification field."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    data, error, ph = _validate_json_evidence(
+        candidate,
+        schema_loader=schema_loader,
+        evidence_name=f"{candidate.stem.replace('-', ' ')} verification",
+    )
+    if error:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=error,
+            remediation=f"Fix the evidence file or regenerate it with `gh attestation verify`. ({candidate.name})",
+            evidence_sources=[str(candidate.resolve())],
+            confidence="low",
+        )
+    blocked = _evidence_placeholder_outcome(candidate, ph)
+    if blocked is not None:
+        return blocked
+    assert data is not None
+    verification = data.get("verification")
+    if not isinstance(verification, dict):
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"Evidence file {candidate.name} has no verification block. "
+                "Provenance presence alone is signal-grade; PROV-VERIFY-061 requires "
+                "an independent verification result (issuer, transparency-log inclusion, verified_at)."
+            ),
+            remediation=(
+                "Run `gh attestation verify <artifact> --repo owner/name` (public repos use the sigstore "
+                "public-good instance) and write the result into the verification block of this file."
+            ),
+            evidence_sources=[str(candidate.resolve())],
+            confidence="medium",
+        )
+    transparency = bool(verification.get("transparency_log_inclusion"))
+    if not transparency:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"Verification block in {candidate.name} reports transparency_log_inclusion=false. "
+                "Without transparency-log inclusion, the attestation cannot be retroactively audited."
+            ),
+            remediation=(
+                "Re-issue the attestation through a builder that records inclusion in the Rekor transparency log."
+            ),
+            evidence_sources=[str(candidate.resolve())],
+            confidence="high",
+        )
+    verified_at_raw = verification.get("verified_at")
+    if not isinstance(verified_at_raw, str) or not verified_at_raw.strip():
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=f"verification.verified_at is missing or empty in {candidate.name}.",
+            remediation="Record the ISO8601 UTC timestamp at which the attestation was verified.",
+            evidence_sources=[str(candidate.resolve())],
+            confidence="low",
+        )
+    fresh = _verification_freshness_status(verified_at_raw, max_age_days=ctx.evidence_max_age_days)
+    if fresh == "stale":
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"Verification record in {candidate.name} is older than {ctx.evidence_max_age_days} days "
+                f"(verified_at={verified_at_raw}). Re-verify the attestation before relying on this control."
+            ),
+            remediation="Re-run `gh attestation verify` (or cosign verify-bundle) and update verified_at.",
+            evidence_sources=[str(candidate.resolve())],
+            confidence="high",
+        )
+    if fresh in ("future", "unparseable"):
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=f"verification.verified_at is unparseable or in the future ({verified_at_raw}).",
+            remediation="Use a real ISO8601 UTC timestamp.",
+            evidence_sources=[str(candidate.resolve())],
+            confidence="low",
+        )
+    method = str(verification.get("method", "unknown"))
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=(
+            f"Provenance attestation verified ({method}); transparency-log inclusion confirmed; "
+            f"verified_at={verified_at_raw} within {ctx.evidence_max_age_days}-day freshness window."
+        ),
+        remediation="Re-verify on every release artifact emission to keep verified_at within the freshness window.",
+        evidence_sources=[str(candidate.resolve())],
+        confidence="high",
+        evidence_collection_method=EvidenceCollectionMethod.LIVE,
+    )
+
+
 EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "GOV-SEC-001": eval_gov_sec_001,
     "GOV-CON-002": eval_gov_con_002,
@@ -4165,6 +4447,8 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "CONT-IMAGE-003": eval_cont_image_003,
     "ORG-MFA-001": eval_org_mfa_001,
     "BUILD-SBOM-QUAL-003": eval_build_sbom_qual_003,
+    "AUDIT-STREAM-060": eval_audit_stream_060,
+    "PROV-VERIFY-061": eval_prov_verify_061,
 }
 
 

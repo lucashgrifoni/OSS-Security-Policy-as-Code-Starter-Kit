@@ -1,0 +1,28 @@
+{
+  "schema_version": "github-provenance-artifact/v1",
+  "attested_at": "2026-04-21",
+  "attested_by": "example-maintainer",
+  "artifact": {
+    "uri": "https://github.com/example-org/example-repo/releases/download/v0.0.0/example.tgz",
+    "digest_sha256": "e7c2a4d8f1b6c9d2e5a8b1c4d7e0f3a6b9c2d5e8f1a4b7c0d3e6f9a2b5c8d1e4"
+  },
+  "attestation": {
+    "kind": "github-artifact-attestation",
+    "digest_sha256": "b3a6c9d2e5f8a1b4c7d0e3f6a9b2c5d8e1f4a7b0c3d6e9f2a5b8c1d4e7f0a3b6"
+  },
+  "posture": {
+    "attestation_covers_release_artifact": true,
+    "attestation_digest_recorded": true,
+    "artifact_digest_recorded": true
+  },
+  "verification": {
+    "method": "gh-attestation-verify",
+    "verified_at": "2026-05-01T12:00:00Z",
+    "transparency_log_inclusion": true,
+    "issuer": "https://token.actions.githubusercontent.com",
+    "subject_alternative_name": "synthetic-fixture://example-org/example-repo:ref:refs/heads/master",
+    "bundle_digest": "9a2b5c8d1e4f7a0b3c6d9e2f5a8b1c4d7e0f3a6b9c2d5e8f1a4b7c0d3e6f9a2b",
+    "tool_version": "gh 2.62.0"
+  },
+  "notes": "Synthetic GitHub Artifact Attestation record for fixture evaluation."
+}

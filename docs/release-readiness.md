@@ -4,6 +4,17 @@ This is the maintainer checklist for patch releases, public launch, and routine 
 
 Keep detailed launch evidence, private planning notes, and internal traceability packs outside the public repository. This page is the public operational checklist.
 
+## EU CRA awareness — 2026-09-11 reporting deadline
+
+The EU **Cyber Resilience Act** sets a regulatory clock that affects any maintainer placing software products on the EU market:
+
+- **2026-09-11**: vulnerability/incident reporting obligations begin (enforceable).
+- **2027-12-11**: full obligations apply.
+- **SBOM**: must be machine-readable (CycloneDX or SPDX), include at least top-level dependencies, and be retained for **10 years** after a product is placed on market.
+- **Vulnerability handling**: documented and kept current.
+
+This kit helps with the **technical readiness** side: it generates a CycloneDX SBOM at build time (`artifacts/sbom.cyclonedx.json`), evaluates SBOM-quality controls (`BUILD-SBOM-QUAL-003`, `*-ARTSBOM-058`), enforces governance docs that ground vulnerability handling (`GOV-SEC-001`, `GOV-DISC-013`), and starting in v5.1.0 evaluates audit log streaming (`AUDIT-STREAM-060`) for centralized incident reporting. The **legal** side (notified bodies, market-placement timing, retention storage) is out of scope; this kit does **not** certify CRA compliance. See `docs/framework-alignment.md` (EU CRA section) for the per-control mapping.
+
 ## v5.0.0 release gate (additive to the routine checklist below)
 
 The v5.0.0 release introduces `reports/1.0` (default), Evidence Model v2, SARIF 2.1.0 output, and removes the legacy profile alias `github-release-hardening`. Before tagging:

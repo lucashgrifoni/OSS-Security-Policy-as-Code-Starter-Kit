@@ -15,5 +15,14 @@
     "attestation_digest_recorded": true,
     "artifact_digest_recorded": true
   },
+  "verification": {
+    "method": "cosign-verify-bundle",
+    "verified_at": "2026-05-01T12:00:00Z",
+    "transparency_log_inclusion": true,
+    "issuer": "https://token.actions.githubusercontent.com",
+    "subject_alternative_name": "synthetic-fixture://example/repo:ref:refs/heads/master",
+    "bundle_digest": "f4b3aa1c2e08f7d2a9b5e7c1d4f8e2a0b6c9d3e7f1a5b8c2d6e9f3a7b0c4d8e1",
+    "tool_version": "cosign 2.4.0"
+  },
   "notes": "Synthetic provenance attestation record for fixture evaluation."
 }

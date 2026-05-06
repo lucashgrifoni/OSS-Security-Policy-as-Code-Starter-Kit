@@ -6,6 +6,55 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## OSS Security Policy as Code Starter Kit v5.1.0
+
+This minor release closes two long-standing framework-alignment gaps in the bundled catalog without breaking any existing contract: **OWASP CICD-SEC-10 (logging/visibility)** and **SLSA Build L2 "Provenance signed"** both move from PARTIAL/GAP to YES via two new evidence-backed controls.
+
+---
+
+### Highlights
+
+- Added control **`AUDIT-STREAM-060`** (lifecycle: `experimental`, assurance: `evidence-backed`) — verifies organization-level audit log streaming to a centralized SIEM / object store. Closes OWASP CICD-SEC-10, AWS Well-Architected "Enable Traceability" (PARTIAL), and Azure DevOps "Audit logs / SIEM" (GAP→YES). Signal-grade fallback when no evidence file is present.
+- Added control **`PROV-VERIFY-061`** (lifecycle: `experimental`, assurance: `evidence-backed`) — verifies that the build provenance attestation is independently verifiable (sigstore / `gh attestation verify`). Closes SLSA Build L2 PARTIAL → YES. Reads a new optional `verification:` block on `*-provenance-artifact.json` files.
+- Both new controls are wired into all 6 hard-gate profiles (`*-level-3`, `*-release-hardening-3`).
+- Refreshed `docs/framework-alignment.md` with SLSA v1.2 Source Track section, EU CRA section (with honesty contract), and a "NIST SP 800-218A AI" out-of-scope acknowledgement.
+- Added `docs/v5.1.0-migration-guide.md` documenting the additive changes.
+
+---
+
+### Improvements
+
+- New JSON Schema `evidence-audit-log-streaming.schema.json` (v1) for the `audit-log-streaming.json` evidence file.
+- New JSON Schema `evidence-github-provenance-artifact.schema.json` (v1), mirroring the Azure/AWS shape.
+- Existing `evidence-azure-provenance-artifact.schema.json` and `evidence-aws-provenance-artifact.schema.json` gain an optional `verification:` block (additive; old files still validate).
+- `docs/release-readiness.md` adds an explicit **EU CRA awareness — 2026-09-11 reporting deadline** block calling out SBOM, retention, and vulnerability-handling requirements that the kit's existing controls support technically (without claiming legal compliance).
+- The bundled hardened fixture grew three synthetic evidence files (`audit-log-streaming.json`, `github-provenance-artifact.json`, plus `verification:` blocks added to the existing Azure/AWS provenance files) so the 6 hard-gate profiles still reach `summary_by_status.fail == 0` end-to-end.
+
+---
+
+### Breaking changes
+
+None. v5.1.0 is fully backwards-compatible with v5.0.0:
+
+- `reports/1.0`, `reports/0.3`, `reports/0.2` shapes are byte-stable.
+- The 20 existing profile IDs and 65 v5.0.0 control IDs are unchanged.
+- v5.0.0 evidence files continue to validate.
+
+The two new control IDs (`AUDIT-STREAM-060`, `PROV-VERIFY-061`) appear as new rows in `results[]` only when a profile that includes them is selected (i.e. one of the 6 hard-gate profiles).
+
+---
+
+### Notes
+
+- This is a minor release in the `5.x` line.
+- The two new controls are marked `lifecycle: experimental` — they will be promoted to `stable` after one minor cycle of operator feedback.
+- The kit does **not** claim CRA certification; the framework-alignment table is mapping documentation, not a compliance attestation.
+- Review `docs/v5.1.0-migration-guide.md` for the verification recipe.
+
+**License:** Apache-2.0.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.0.0
 
 This major release graduates the evaluation report to a stable wire contract (`reports/1.0`), introduces the Evidence Model v2 with explicit trust semantics, adds SARIF 2.1.0 output for direct ingestion by code-scanning systems, removes the legacy profile alias `github-release-hardening`, and tightens the public-hygiene posture of the repository. Older report contracts remain selectable for the entire `5.x` line so downstream parsers can migrate at their own pace.

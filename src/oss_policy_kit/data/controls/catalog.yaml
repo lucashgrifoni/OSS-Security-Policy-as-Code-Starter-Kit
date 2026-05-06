@@ -470,3 +470,17 @@ controls:
     lifecycle: stable
     assurance: signal
     weight: 2
+  - id: AUDIT-STREAM-060
+    title: Audit log streaming to centralized SIEM/object store
+    category: governance
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: PROV-VERIFY-061
+    title: Build provenance attestation is verifiable (sigstore / Artifact Attestations)
+    category: supply_chain
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3

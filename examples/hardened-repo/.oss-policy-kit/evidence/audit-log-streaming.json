@@ -1,0 +1,20 @@
+{
+  "schema_version": "audit-log-streaming/v1",
+  "attested_at": "2026-04-21",
+  "attested_by": "example-maintainer",
+  "platform": "github",
+  "streaming_enabled": true,
+  "destinations": [
+    { "kind": "s3", "uri": "s3://example-org-audit-logs" },
+    { "kind": "splunk", "uri": "https://splunk.example.internal:8088" }
+  ],
+  "retention_days": 365,
+  "events_streamed": [
+    "workflow_run",
+    "repo",
+    "secret_scanning_alert",
+    "audit_log",
+    "advisory_credit"
+  ],
+  "notes": "Synthetic audit log streaming attestation for fixture evaluation."
+}

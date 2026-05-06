@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/schema/evidence-audit-log-streaming.schema.json",
+  "title": "Audit log streaming evidence",
+  "description": "Self-attested or API-collected configuration record showing that organization-level audit logs are streamed to at least one centralized destination (SIEM, object store, log aggregator). Used by AUDIT-STREAM-060 to close OWASP CICD-SEC-10. Place at .oss-policy-kit/evidence/audit-log-streaming.json. Trust level: evidence-backed when collection.evidence_collection_method=live; otherwise self-attested.",
+  "type": "object",
+  "required": ["schema_version", "attested_at", "attested_by", "platform", "streaming_enabled", "destinations"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "audit-log-streaming/v1"
+    },
+    "attested_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO-8601 date (YYYY-MM-DD) when the configuration was last verified."
+    },
+    "attested_by": {
+      "type": "string",
+      "description": "Username, service principal, or identifier of the attester."
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["github", "azure-devops", "aws", "other"],
+      "description": "Platform whose audit logs are being streamed."
+    },
+    "streaming_enabled": {
+      "type": "boolean",
+      "description": "Whether organization-level audit log streaming is currently enabled."
+    },
+    "destinations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "uri"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["s3", "azure-blob", "gcs", "splunk", "datadog", "syslog", "other"]
+          },
+          "uri": {
+            "type": "string",
+            "description": "Destination identifier. Redact bucket-internal paths if sensitive."
+          }
+        }
+      },
+      "description": "List of configured streaming destinations. Empty list means streaming is not actually shipping anywhere even if streaming_enabled is true."
+    },
+    "retention_days": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Optional. Retention window applied to the streamed logs at the destination."
+    },
+    "events_streamed": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional. Event categories included in the stream (e.g. workflow_run, repo, secret_scanning_alert)."
+    },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_collection_method", "collected_at"],
+      "properties": {
+        "evidence_collection_method": {
+          "type": "string",
+          "enum": ["live", "manual"]
+        },
+        "collected_at": { "type": "string" },
+        "source_url": { "type": "string" },
+        "mode": { "type": "string", "enum": ["api"] }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional free-text notes (e.g. exceptions, partial coverage, planned migrations)."
+    }
+  }
+}
