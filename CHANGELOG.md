@@ -6,6 +6,47 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## OSS Security Policy as Code Starter Kit v5.3.0
+
+This minor release is a **maturity / metadata** release: it promotes the four `experimental` controls introduced in v5.1.0 / v5.2.0 to `stable`, sharpens the **CRA boundary** of the two hybrid profiles, and documents the concrete plan for the next collector parity expansion.
+
+---
+
+### Highlights
+
+- **Lifecycle promotion**: `AUDIT-STREAM-060`, `PROV-VERIFY-061`, `GH-RUNNER-062`, `RELEASE-ARCHIVE-063` move from `experimental` → `stable`. After a full minor cycle (v5.1.0 + v5.2.0) of maintainer validation against the bundled hardened fixture, the contracts are solid enough to commit to `5.x` wire stability.
+- **Hybrid profile sharpening**: `github-aws-level-2` and `github-azure-level-2` `description:` fields gain an explicit **CRA caveat**: "this hybrid does not satisfy EU Cyber Resilience Act single-product evidence; CRA expects per-product SBOM and provenance bound to one shipping pipeline. Run `cra-eu-ready-1` or one of the platform-specific `*-release-hardening-3` profiles for CRA-aligned posture." This matches the existing `posture: multi_platform_advisory_hybrid` honesty contract.
+- **Collector parity plan**: `docs/collector-parity.md` documents the next collector expansion targets (audit-log streaming on GitHub / Azure / AWS, runner-groups on GitHub, provenance verification via `gh attestation verify`).
+
+---
+
+### Improvements
+
+- Catalog `lifecycle` for the four v5.1.0 / v5.2.0 controls is now `stable`. `profiles --format json` continues to expose `lifecycle` per control as before.
+- `docs/collector-parity.md` "Planned collector additions (post-v5.2.0)" section makes the operator expectation explicit until the next collector implementation lands.
+
+---
+
+### Breaking changes
+
+None. v5.3.0 is fully backwards-compatible with v5.2.0:
+
+- `reports/1.0`, `reports/0.3`, `reports/0.2` shapes are byte-stable.
+- All v5.2.0 profile IDs and control IDs remain.
+- Lifecycle change from `experimental` → `stable` is a tightening of the maintainer commitment, not a behavioral change.
+
+---
+
+### Notes
+
+- This is a minor release in the `5.x` line.
+- Collector implementations for the new endpoints are tracked for v5.3.x or v5.4.x (separate work; not in this release).
+- No new tests were added for v5.3.0 — the existing 539 pass with the lifecycle metadata change.
+
+**License:** Apache-2.0.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.2.0
 
 This minor release introduces the **first non-platform-prefixed profile** (`cra-eu-ready-1`), adds two evidence-collectable controls, and matures the loader / `profiles --format json` to surface multi-platform regulatory profiles. EU CRA reporting deadline (2026-09-11) is the driver.

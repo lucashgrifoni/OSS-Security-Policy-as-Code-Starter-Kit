@@ -119,6 +119,27 @@ Consult [reports-contract-v1.0.md](reports-contract-v1.0.md) for the complete pr
 rules and [signal-controls-audit.md](signal-controls-audit.md) for the rule that `signal`
 controls cannot project to `verified` regardless of the collector path.
 
+## Planned collector additions (post-v5.2.0)
+
+The v5.1.0 / v5.2.0 controls `AUDIT-STREAM-060` and `RELEASE-ARCHIVE-063` are evidence-collectable from API endpoints that the bundled collectors do not yet call. The plan tracked for the next collector parity push:
+
+| evidence_key | Platform | Source endpoint (planned) | Notes |
+|---|---|---|---|
+| `audit-log-streaming` | GitHub | `GET /orgs/{org}/audit-log/stream-key` | Org-scope token (`admin:org` read). Optional; collector will degrade gracefully when permissions are insufficient. |
+| `audit-log-streaming` | Azure DevOps | `GET https://auditservice.dev.azure.com/{org}/_apis/audit/streams?api-version=7.1-preview.1` | Project Collection Administrator scope. |
+| `audit-log-streaming` | AWS | `cloudtrail.describe-trails` (boto3) | Account-scope IAM role with `cloudtrail:DescribeTrails`. |
+| `runner-groups` (GH-RUNNER-062 evidence path) | GitHub | `GET /orgs/{org}/actions/runner-groups` | Already a real endpoint; not in the v5.2.0 GitHub collector but trivial to add. Org-scope token. |
+| `provenance verification` (PROV-VERIFY-061) | All | `gh attestation verify <artifact>` / `cosign verify-bundle` | The verification step itself is offline against the sigstore bundle; collector will emit the `verification:` block by invoking the CLI when present. |
+
+Until the bundled collectors call these endpoints, the v5.1.0 / v5.2.0 controls behave as documented in their evaluators:
+
+- `AUDIT-STREAM-060`: signal-grade fallback (clone marker file or doc keyword) → PASS at low confidence; evidence-backed → PASS at high confidence when JSON is API-collected.
+- `PROV-VERIFY-061`: requires the operator to run `gh attestation verify` (or `cosign verify-bundle`) and write the `verification:` block into the existing `*-provenance-artifact.json`. The kit accepts the verification result; it does not run cosign itself.
+- `GH-RUNNER-062`: signal-grade detection from workflow YAML; evidence-backed via hand-filled `runner-groups.json`.
+- `RELEASE-ARCHIVE-063`: signal-grade detection of policy file; evidence-backed via hand-filled `release-archival-policy.json`.
+
+The collector additions are tracked in `melhorias/ativos/post-v5.0.0-profile-maturity-2026-05-06/03-execution-roadmap.md` (Phase C1).
+
 ## See also
 
 - [release-hardening-workflow.md](release-hardening-workflow.md) — when and how to wire

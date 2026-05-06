@@ -57,7 +57,8 @@ def test_recommend_profile_does_not_suggest_cra_eu_ready(tmp_path) -> None:
     workflow_dir = tmp_path / ".github" / "workflows"
     workflow_dir.mkdir(parents=True)
     (workflow_dir / "ci.yml").write_text(
-        "name: ci\non: push\nperms: read-all\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps: [{run: echo ok}]\n",
+        "name: ci\non: push\nperms: read-all\n"
+        "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps: [{run: echo ok}]\n",
         encoding="utf-8",
     )
     proc = subprocess.run(

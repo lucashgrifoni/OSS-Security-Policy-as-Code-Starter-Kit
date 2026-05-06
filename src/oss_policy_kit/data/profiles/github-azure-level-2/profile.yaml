@@ -12,6 +12,9 @@ description: >
   Explicit positioning: this profile is **advisory**, not a hard gate. For strict gates, use
   `github-level-3` / `github-release-hardening-3` or the `azure-*-3` profiles, depending on which
   CI/CD platform should serve as the source of truth.
+  **CRA caveat:** this hybrid does **not** satisfy EU Cyber Resilience Act single-product evidence.
+  CRA expects per-product SBOM and provenance bound to one shipping pipeline. Run `cra-eu-ready-1`
+  or one of the platform-specific `*-release-hardening-3` profiles for CRA-aligned posture.
   **Natural next step:** adopt `azure-level-3` or `github-level-3` separately when you need a true hard-gate on one platform.
 audience: >
   Teams that host source on GitHub but build and deploy through Azure Pipelines, seeking a unified
