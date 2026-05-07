@@ -8,7 +8,7 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 
 ## Quick Links
 
-- [What's new in v5.0.0](#whats-new-in-v500)
+- [What's new in v5.1.0](#whats-new-in-v510)
 - [Current Release State](#current-release-state)
 - [Recommended First Command](#recommended-first-command)
 - [Quickstart](#quickstart)
@@ -22,13 +22,14 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 - [Results guide](docs/results-guide.md)
 - [Bundled profiles overview](docs/profiles/overview.md)
 - [Release hard-gate playbook](docs/release-playbook-hardgate.md)
+- [v5.1.0 migration guide](docs/v5.1.0-migration-guide.md)
 - [v5.0.0 migration guide](docs/v5.0.0-migration-guide.md)
 
 ## At A Glance
 
 | Area | What you get |
 | --- | --- |
-| Current release | `v5.0.0` / Python package `oss-policy-kit==5.0.0` |
+| Current release | `v5.1.0` / Python package `oss-policy-kit==5.1.0` |
 | Input | A local repository clone |
 | Output | `evaluation-report.json` and `evaluation-report.md` (optional SARIF 2.1.0 via `--sarif-output`) |
 | Core scope | Clone-visible governance and GitHub/Azure/AWS CI/CD signals |
@@ -49,12 +50,12 @@ This confirms the CLI, bundled profile data, example repository, and report gene
 
 ## Current Release State
 
-`v5.0.0` is the current public release line. It graduates the JSON report contract to the new default `reports/1.0`, introduces the Evidence Model v2 plus optional SARIF 2.1.0 output via `--sarif-output`, removes the legacy bundled profile alias `github-release-hardening` (use `github-release-hardening-1`), and tightens public-hygiene posture. The control catalog and profile control IDs are unchanged.
+`v5.1.0` is the current public release line. It is an additive minor release on top of `v5.0.0`: the JSON report contract remains `reports/1.0`, legacy `0.3` and `0.2` report shapes remain selectable, and the existing profile IDs stay stable. The release adds evidence-backed audit-log streaming and signed-provenance verification controls for hard-gate profiles, and it reports malformed `--scorecard-json` input as a user error (`exit 2`) instead of an internal failure.
 
 | Surface | Current state |
 | --- | --- |
-| Package | `oss-policy-kit==5.0.0` |
-| GitHub Release | `v5.0.0` is the release target for wheel and sdist assets; `v4.0.4` remains available as an immutable predecessor |
+| Package | `oss-policy-kit==5.1.0` |
+| GitHub Release | `v5.1.0` is the current release target; `v5.0.0` and `v4.0.4` remain available as predecessors |
 | Default branch | `master` |
 | License | Apache-2.0 (`LICENSE` + `NOTICE`) |
 | Report contract | `reports/1.0` by default; `0.3` and `0.2` remain selectable via `--report-json-contract`. `0.1` was removed in v5.0.0 |
@@ -62,18 +63,18 @@ This confirms the CLI, bundled profile data, example repository, and report gene
 
 The repository is designed to be reproducible from a clean clone: install the package, run the built-in examples, and compare the generated JSON/Markdown reports.
 
-## What's new in v5.0.0
+## What's new in v5.1.0
 
-Highlights only — full detail in [`CHANGELOG.md`](CHANGELOG.md) and the migration steps in [`docs/v5.0.0-migration-guide.md`](docs/v5.0.0-migration-guide.md).
+Highlights only — full detail in [`CHANGELOG.md`](CHANGELOG.md) and the additive migration notes in [`docs/v5.1.0-migration-guide.md`](docs/v5.1.0-migration-guide.md). For the major v4 → v5 transition, see [`docs/v5.0.0-migration-guide.md`](docs/v5.0.0-migration-guide.md).
 
-- **Default JSON report contract is now `reports/1.0`.** The new shape decouples wire stability from the package version. `--report-json-contract 0.3` keeps the v4 shape byte-for-byte; `0.2` remains selectable; `0.1` was removed.
-- **Evidence Model v2.** Each result in `reports/1.0` carries a structured `evidence` object with `source_type`, `collection_method`, `trust_level`, `attestation_status`, `freshness_status`, `evidence_required`, and `limitations`. See [`docs/reports-contract-v1.0.md`](docs/reports-contract-v1.0.md).
-- **SARIF 2.1.0 output.** New `--sarif-output PATH` flag on `evaluate`. One SARIF result per `fail` or `manual-review-required` finding.
-- **Legacy profile alias removed.** `github-release-hardening` (no numeric suffix) returns exit `2` with a migration error. Use `github-release-hardening-1` (same control set).
-- **UTF-8 schema hygiene.** The bundled `evaluation-report-v3.schema.json` is now UTF-8 without BOM (was UTF-16 in v4).
-- **Public-hygiene gate.** `scripts/check_public_hygiene.py` is part of the release validation flow.
+- **Audit-log streaming evidence.** New experimental control `AUDIT-STREAM-060` checks centralized audit log streaming evidence for hard-gate profiles, closing OWASP CICD-SEC-10 and improving AWS/Azure traceability alignment.
+- **Signed-provenance verification.** New experimental control `PROV-VERIFY-061` reads optional `verification:` evidence for signed build provenance and moves the SLSA Build L2 "Provenance signed" mapping to YES.
+- **Hard-gate coverage expanded without breaking contracts.** Both new controls are wired into the 6 `*-level-3` and `*-release-hardening-3` profiles. `reports/1.0`, `0.3`, and `0.2` remain stable.
+- **Evidence schemas are additive.** New audit-log streaming and GitHub provenance schemas were added, while Azure/AWS provenance schemas only gained optional verification fields. Existing `v5.0.0` evidence files continue to validate.
+- **Framework alignment refreshed.** The docs now include SLSA v1.2 Source Track notes, an EU CRA mapping with an explicit no-certification honesty contract, and a NIST SP 800-218A AI out-of-scope note.
+- **Friendlier Scorecard input errors.** Malformed `--scorecard-json` files now return `exit 2` with a clear parse message instead of surfacing as `Unexpected error`.
 
-Breaking changes are limited to the items above. The `--fail-on` semantics, the bundled control catalog, profile control IDs, the Markdown report layout, and the surfaces of `evaluate-many` / `recommend-profile` / `scaffold-evidence` / `collect-evidence` / `diff-reports` are unchanged.
+There are no breaking changes in `v5.1.0`. The `--fail-on` semantics, JSON report contracts, Markdown report layout, and the surfaces of `evaluate-many` / `recommend-profile` / `scaffold-evidence` / `collect-evidence` / `diff-reports` are unchanged.
 
 ## What This Kit Does
 
@@ -100,7 +101,7 @@ Requires Python 3.12+.
    python -m oss_policy_kit --version
    ```
 
-2. **From GitHub Release artifacts** — download `oss_policy_kit-*.whl` or `oss_policy_kit-*.tar.gz` from the [Releases](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/releases) page, then `pip install /path/to/wheel`.
+2. **From GitHub Release artifacts** — when wheel or sdist assets are attached to a release, download `oss_policy_kit-*.whl` or `oss_policy_kit-*.tar.gz` from the [Releases](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/releases) page, then `pip install /path/to/wheel`. PyPI remains the primary install channel.
 
 3. **From source** (contributors):
 
@@ -142,7 +143,7 @@ python -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on 
 
 **Exit codes** in pipelines: `0` evaluation finished and the `--fail-on` threshold was not violated; `1` the gate tripped; `2` is usage or load errors. Keep the output directory as an artifact with `if: always()` so reviewers can inspect reports after a blocked run.
 
-GitHub Releases for this kit include **wheel** and **sdist** distribution assets. The publish workflow also generates a CycloneDX SBOM as a CI artifact for release evidence.
+GitHub Release assets are the intended alternate install path when wheel or sdist artifacts are attached. PyPI remains the primary install channel, and the publish workflow generates both distribution artifacts and a CycloneDX SBOM as workflow artifacts for release evidence.
 
 ## Outputs
 
