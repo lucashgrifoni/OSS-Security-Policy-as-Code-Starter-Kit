@@ -227,12 +227,12 @@ Regulatory pressure with concrete artifact requirements. Key dates:
 |---|---|---|---|
 | SBOM in machine-readable format (CycloneDX or SPDX) | `BUILD-SBOM-QUAL-003`, `AZ-ARTSBOM-058`, `AWS-SBOMART-058`, `AZ-SBOM-033`, `AWS-SBOM-041` | YES | The kit emits a CycloneDX SBOM at build time and evaluates SBOM-quality controls. |
 | SBOM lists at least top-level dependencies | `BUILD-SBOM-QUAL-003` | YES | Bundled SBOM-quality control flags incomplete CycloneDX/SPDX shapes. |
-| SBOM and security documentation retained 10 years | `RELEASE-ARCHIVE-063` (planned in v5.2.0) | (planned) | A retention/archival policy control will be added in v5.2.0. Until then, retention is process, not artifact. |
+| SBOM and security documentation retained 10 years | `RELEASE-ARCHIVE-063` | YES (since v5.2.0) | Retention/archival policy evidence is evaluated through `.oss-policy-kit/evidence/release-archival-policy.json`. |
 | Documented vulnerability handling | `GOV-SEC-001`, `GOV-DISC-013`, `SEC-DEPREV-011`, `DEP-UPDATE-001` | YES | SECURITY.md + responsible disclosure + dependency review/auto-update. |
 | Centralized incident reporting / audit trail | `AUDIT-STREAM-060` | YES (since v5.1.0) | Audit-log streaming evidence is the trail an incident report needs. |
 | Build provenance for shipped artifacts | `GH-PROV-023`, `AZ-ARTPRV-059`, `AWS-PROVART-059`, `PROV-VERIFY-061` | YES (since v5.1.0) | Provenance attestation independently verified. |
 
-> **Honesty contract**: this kit does **not** certify CRA compliance. The legal side (notified bodies, market-placement timing, retention storage destinations) is out of scope. A future advisory profile (`cra-eu-ready-1`, planned for v5.2.0) bundles the technical-readiness controls into a single discovery surface.
+> **Honesty contract**: this kit does **not** certify CRA compliance. The legal side (notified bodies, market-placement timing, retention storage destinations) is out of scope. The advisory profile `cra-eu-ready-1`, introduced in v5.2.0, bundles the technical-readiness controls into a single discovery surface.
 
 ## NIST SP 800-218A — AI / Generative AI (out of scope for v5.x)
 

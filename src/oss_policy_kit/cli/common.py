@@ -259,7 +259,14 @@ def execute_evaluate(
             sp = Path(scorecard_json)
             if not sp.is_file():
                 raise InvalidInputError(f"Scorecard file not found: {sp}")
-            scorecard = load_scorecard_auto(sp)
+            try:
+                scorecard = load_scorecard_auto(sp)
+            except json.JSONDecodeError as exc:
+                raise InvalidInputError(
+                    f"Scorecard JSON could not be parsed: {sp}: {exc.msg} "
+                    f"(line {exc.lineno}, column {exc.colno}). "
+                    "Provide a valid OpenSSF Scorecard JSON export."
+                ) from exc
 
         ext_waiver = str(Path(waivers).resolve()) if waivers is not None else None
         emit: Callable[[str], None] | None
