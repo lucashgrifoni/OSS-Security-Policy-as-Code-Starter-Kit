@@ -35,7 +35,7 @@ function PolicyCube() {
   const [paused, setPaused] = useState(false);
   const stageRef = useRef(null);
   const stateColors = {
-    pass: "text-signal",
+    success: "text-signal",
     fail: "text-red-300",
     review: "text-amber-200",
     waived: "text-violet-300",
@@ -104,10 +104,10 @@ function PolicyCube() {
             <span className="font-mono text-[11px] tracking-wide">github-level-1</span>
           </div>
           <div className="mt-3 space-y-1.5 font-mono text-[10px] leading-relaxed text-mist/85">
-            <div className={`flex justify-between ${stateColors.pass}`}>
+            <div className={`flex justify-between ${stateColors.success}`}>
               <span>GH-GOV-001</span><span>pass</span>
             </div>
-            <div className={`flex justify-between ${stateColors.pass}`}>
+            <div className={`flex justify-between ${stateColors.success}`}>
               <span>GH-GOV-002</span><span>pass</span>
             </div>
             <div className={`flex justify-between ${stateColors.fail}`}>
