@@ -6,6 +6,20 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## OSS Security Policy as Code Starter Kit v5.6.0 (Unreleased)
+
+Planned scope (subject to change — see `melhorias/v5.6-kubernetes-container-fuzzing.md`):
+
+- **Kubernetes manifest coverage** — new `scan-k8s` subcommand and ~16 `K8S-PSS-*` / `K8S-RBAC-*` / `K8S-NETPOL-*` experimental rules consumed by a new advisory bundled profile `kubernetes-baseline-1`.
+- **Container runtime hardening** — ~7 `CONT-RUNTIME-*` rules + `CONT-SIGN-001` (cosign / GitHub Artifact Attestations) consumed by a new advisory bundled profile `container-baseline-1`.
+- **Fuzzing alignment** — new `SEC-FUZZ-001` mapping OpenSSF Scorecard's `Fuzzing` check, added to `*-level-3` and `*-release-hardening-3` profiles.
+- **`AWS-CC-046` removed** (deprecated in v5.4.0; AWS CodeCommit upstream maintenance mode since 2024-07).
+- **Internal `evaluators.py` refactor** — extract shared `_common.py` helpers as the first incremental step toward the category-based `application/evaluators/` package (see `melhorias/refactor-evaluators-package-v5.5.md`).
+
+`reports/1.0`, `reports/0.3`, `reports/0.2` shapes remain byte-stable. No new hard dependencies.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.5.0
 
 This minor release adds **native Terraform / OpenTofu IaC posture coverage** as the headline feature. The kit now ships an in-process HCL parser, a 12-rule pack covering the highest-leverage clone-visible IaC risks, a new `scan-iac` subcommand, and an advisory bundled profile (`iac-terraform-baseline-1`). Mirrors the v5.4.0 SAST integration shape exactly: same evidence contract, same honesty when the parser library is missing.
