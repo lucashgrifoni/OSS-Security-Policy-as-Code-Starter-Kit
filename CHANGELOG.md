@@ -8,7 +8,46 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ## OSS Security Policy as Code Starter Kit v5.5.0 (Unreleased)
 
-Open dev cycle. Planned scope: native Terraform / OpenTofu IaC parser with new `IAC-TF-*` controls (12 evaluators), an `iac-terraform-baseline-1` advisory bundled profile, and an internal refactor splitting `application/evaluators.py` into a category-based package without changing semantics or the public registry. Removal of `AWS-CC-046` (deprecated in v5.4.0) is scheduled for v5.6.0.
+This minor release adds **native Terraform / OpenTofu IaC posture coverage** as the headline feature. The kit now ships an in-process HCL parser, a 12-rule pack covering the highest-leverage clone-visible IaC risks, a new `scan-iac` subcommand, and an advisory bundled profile (`iac-terraform-baseline-1`). Mirrors the v5.4.0 SAST integration shape exactly: same evidence contract, same honesty when the parser library is missing.
+
+---
+
+### Highlights
+
+- **New `scan-iac` subcommand + 12 `IAC-TF-*` controls.** `scan-iac` walks `*.tf` files (skipping `.terraform`, `node_modules`, `.git`, `.venv`, `__pycache__`, `dist`, `build`, `.oss-policy-kit`), parses HCL via `python-hcl2`, runs the bundled rule pack, and writes evidence under `.oss-policy-kit/evidence/iac-terraform.json` (schema `oss-policy-kit/evidence/iac-terraform/v1`). Each `IAC-TF-*` control is a thin reader of that evidence file. The 12 rules cover: object storage public access (`IAC-TF-001`), open management ports (`IAC-TF-002`), IAM AdministratorAccess / wildcard Action+Resource (`IAC-TF-003`), missing encryption-at-rest (`IAC-TF-004`), audit/logging gaps (`IAC-TF-005`), default-VPC reliance (`IAC-TF-006`), accidental public IPs (`IAC-TF-007`), missing owner/cost_center tags (`IAC-TF-008`), unpinned providers (`IAC-TF-009`), local backend state (`IAC-TF-010`), production data stores missing `lifecycle.prevent_destroy` (`IAC-TF-011`), and `data.aws_iam_policy_document` wildcard principals (`IAC-TF-012`). All 12 ship as `lifecycle: experimental`, `assurance: evidence-backed`. `python-hcl2` is **not** a hard dependency; install the iac extra (`pip install 'oss-policy-kit[iac]'`) when you want real findings, otherwise evidence is written with `status: not_available` and evaluators report `manual-review-required`.
+
+- **New bundled profile `iac-terraform-baseline-1`** (15 controls = 12 IAC-TF-* + 3 sustaining governance). Multi-platform, advisory by design. Recommended `--fail-on degraded` only. The `[advisory profile]` banner fires when this profile is selected. Total bundled profiles: **29 → 30**.
+
+- **Documentation:** new `docs/iac-terraform.md` with the full adoption playbook (rule reference, CLI flags, honesty contract, composition patterns with existing platform ladders, waiver guidance, roadmap).
+
+---
+
+### Improvements
+
+- `pyproject.toml` adds the `iac` extra (`python-hcl2>=6.1`) and rolls it into `all` and `dev`.
+- `EvalContext`-shaped evaluators are wired via a separate `_load_iac_evaluators()` loader so the existing import-time registry stays small and the package boundary is clean (preview of the v5.6 evaluators-package refactor).
+- `oss-policy-kit/evidence/iac-terraform.schema.json` ships under `data/schema/` for downstream consumers that want to validate the evidence shape.
+
+---
+
+### Breaking changes
+
+None. v5.5.0 is fully backwards-compatible with v5.4.0:
+
+- `reports/1.0`, `reports/0.3`, `reports/0.2` shapes are byte-stable.
+- All v5.4.0 profile IDs and control IDs remain.
+- `IAC-TF-*` controls are `experimental` and only fire when included in a profile (the bundled `iac-terraform-baseline-1` is the only profile that includes them today).
+- `python-hcl2` is an optional extra. Existing installs continue to work without it; the IaC controls degrade to `manual-review-required`.
+
+---
+
+### Notes
+
+- Removal of `AWS-CC-046` (deprecated in v5.4.0) is still scheduled for v5.6.0.
+- The internal refactor of `application/evaluators.py` into a category-based package is staged for v5.6 alongside additional cloud-platform IaC parsers (Pulumi / CloudFormation / Bicep).
+- New tests: 23 invariants in `tests/application/test_evaluators_iac.py` (including parametrized vulnerable+hardened pairs for every rule) and 4 CLI smoke cases in `tests/cli/test_scan_iac.py`. Suite total: **689 → 720 passed**.
+
+**License:** Apache-2.0.
 
 ---
 

@@ -1,0 +1,170 @@
+"""Evaluators for the ``IAC-TF-*`` controls (Terraform / OpenTofu posture).
+
+Each evaluator is a thin reader of ``.oss-policy-kit/evidence/iac-terraform.json``
+(written by ``oss-policy-kit scan-iac``). The kit deliberately keeps the
+evaluator side small: detection logic lives in
+``infrastructure/iac/scanner.py``, the evidence schema is
+``oss-policy-kit/evidence/iac-terraform/v1``, and the contract mirrors the
+SAST adapter exactly:
+
+- evidence file missing -> ``manual-review-required`` (cannot prove from a
+  clone alone);
+- ``status: not_available`` -> ``manual-review-required`` (parser missing);
+- ``status: error`` / ``timeout`` -> ``manual-review-required`` with the
+  diagnostic;
+- ``status: ok`` and the rule has ``>= 1`` finding -> ``fail``;
+- ``status: ok`` and zero findings for the rule -> ``pass``.
+
+The evaluators are wired into ``EVALUATOR_REGISTRY`` via
+``register_iac_evaluators()`` so the existing import-time registry stays
+small and the package boundary is clean.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
+
+_EVIDENCE_FILENAME = "iac-terraform.json"
+_SCHEMA_PREFIX = "oss-policy-kit/evidence/iac-terraform/"
+
+
+def _evidence_path(repo_root: Path) -> Path:
+    return repo_root / ".oss-policy-kit" / "evidence" / _EVIDENCE_FILENAME
+
+
+def _load_evidence(repo_root: Path) -> tuple[dict[str, Any] | None, EvalOutcome | None]:
+    """Return ``(payload, None)`` on success or ``(None, gating_outcome)`` on issue."""
+
+    evidence = _evidence_path(repo_root)
+    if not evidence.is_file():
+        return None, EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=("No Terraform IaC evidence file found. IaC posture cannot be verified from a clone alone."),
+            remediation=(
+                "Run `oss-policy-kit scan-iac --target .` (install the iac extra: `pip install 'oss-policy-kit[iac]'`)."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    try:
+        data = json.loads(evidence.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return None, EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=f"Could not parse Terraform IaC evidence file: {exc}",
+            remediation="Re-run `oss-policy-kit scan-iac` to regenerate the evidence file.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    schema = str(data.get("schema_version", ""))
+    if not schema.startswith(_SCHEMA_PREFIX):
+        return None, EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(f"Unexpected schema_version in {evidence.name}: {schema!r}. Expected prefix {_SCHEMA_PREFIX!r}."),
+            remediation="Regenerate via `oss-policy-kit scan-iac` to align with the current contract.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    status = str(data.get("status", "unknown")).lower()
+    if status == "not_available":
+        return None, EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "python-hcl2 was not available when scan-iac ran; the evidence is a presence stub, not a real IaC scan."
+            ),
+            remediation=(
+                "Install the iac extra (`pip install 'oss-policy-kit[iac]'`) on the runner "
+                "that executes `oss-policy-kit scan-iac` and re-run it."
+            ),
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    if status in {"timeout", "error"}:
+        return None, EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=f"Terraform IaC evidence reports status={status!r}; results are inconclusive.",
+            remediation="Investigate diagnostics in the evidence file and re-run scan-iac.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    return data, None
+
+
+def _make_iac_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOutcome]:
+    """Build an evaluator function for one ``IAC-TF-*`` rule.
+
+    The closure captures the rule id and the human-readable summary so each
+    of the 12 evaluators differs only by data, not by code.
+    """
+
+    def _eval(ctx: Any) -> EvalOutcome:
+        evidence_path = _evidence_path(ctx.repo_root)
+        data, gate = _load_evidence(ctx.repo_root)
+        if gate is not None:
+            return gate
+        assert data is not None
+        by_rule = data.get("findings_by_rule") or {}
+        if not isinstance(by_rule, dict):
+            by_rule = {}
+        count = int(by_rule.get(rule_id, 0) or 0)
+        sources = [str(evidence_path.resolve())]
+        if count == 0:
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason=f"No {rule_id} findings detected in scanned Terraform sources.",
+                remediation="Re-scan after Terraform changes to keep evidence fresh.",
+                evidence_sources=sources,
+                confidence="high",
+            )
+        sample_files: list[str] = []
+        for f in data.get("findings", []) or []:
+            if isinstance(f, dict) and f.get("rule_id") == rule_id:
+                file_ = f.get("file")
+                if isinstance(file_, str) and file_ and file_ not in sample_files:
+                    sample_files.append(file_)
+            if len(sample_files) >= 3:
+                break
+        files_hint = f" Sources: {', '.join(sample_files)}." if sample_files else ""
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(f"{rule_id} ({summary}) raised {count} finding(s) on the scanned Terraform sources.{files_hint}"),
+            remediation=(
+                "Review evaluation-report.md for details and remediate the listed resources, "
+                "or document an explicit waiver in waivers.yaml with owner, reason, and expires_on."
+            ),
+            evidence_sources=sources,
+            confidence="high",
+        )
+
+    _eval.__name__ = f"eval_iac_tf_{rule_id.split('-')[-1].lower()}"
+    _eval.__doc__ = f"{rule_id}: {summary} (reads iac-terraform.json evidence)."
+    return _eval
+
+
+# Stable list of (rule_id, one-line summary) used both for evaluator
+# generation and for the catalog title -- single source of truth.
+IAC_TF_RULES: tuple[tuple[str, str], ...] = (
+    ("IAC-TF-001", "Object storage configured for public access"),
+    ("IAC-TF-002", "Security group exposes management port to 0.0.0.0/0"),
+    ("IAC-TF-003", "IAM grants AdministratorAccess or Action=* + Resource=*"),
+    ("IAC-TF-004", "Storage / RDS / EBS resource without encryption-at-rest"),
+    ("IAC-TF-005", "Audit / access logging disabled on sensitive resources"),
+    ("IAC-TF-006", "Default VPC / subnet / security group used in declarations"),
+    ("IAC-TF-007", "Workload assigned a public IP without explicit intent"),
+    ("IAC-TF-008", "AWS resources without owner/cost_center tags"),
+    ("IAC-TF-009", "Terraform provider versions not pinned"),
+    ("IAC-TF-010", "Terraform local backend used (no remote + encryption + locking)"),
+    ("IAC-TF-011", "Production-naming data store missing lifecycle.prevent_destroy"),
+    ("IAC-TF-012", "data.aws_iam_policy_document statement uses wildcard principal"),
+)
+
+
+def build_iac_evaluators() -> dict[str, Callable[[Any], EvalOutcome]]:
+    """Return ``{control_id: evaluator}`` for every IAC-TF rule."""
+
+    return {rule_id: _make_iac_evaluator(rule_id, summary) for rule_id, summary in IAC_TF_RULES}

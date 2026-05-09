@@ -1,6 +1,6 @@
 # Profiles overview
 
-This page summarizes the **29 bundled profiles** in this kit build: deterministic ladder profiles per platform (`github-*`, `azure-*`, `aws-*`), two **advisory-only hybrid** profiles, one **regulatory mapping** profile for the CRA reporting deadline (`cra-eu-ready-1`, EU Cyber Resilience Act, advisory), one **regulatory hard-gate-capable** profile for full CRA obligations (`cra-eu-strict-1`), six **framework alignment** profiles introduced in v5.4.0 (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`), and the **AppSec native bundle** `appsec-sast-sca-1` (hard-gate-capable when paired with `scan-sast`). The legacy bundled id `github-release-hardening` was **removed in v5.0.0**; passing it now returns a migration error pointing to the canonical `github-release-hardening-1`. See [docs/v5.0.0-migration-guide.md](../v5.0.0-migration-guide.md).
+This page summarizes the **30 bundled profiles** in this kit build: deterministic ladder profiles per platform (`github-*`, `azure-*`, `aws-*`), two **advisory-only hybrid** profiles, one **regulatory mapping** profile for the CRA reporting deadline (`cra-eu-ready-1`, EU Cyber Resilience Act, advisory), one **regulatory hard-gate-capable** profile for full CRA obligations (`cra-eu-strict-1`), six **framework alignment** profiles introduced in v5.4.0 (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`), the **AppSec native bundle** `appsec-sast-sca-1` (hard-gate-capable when paired with `scan-sast`), and the v5.5.0 **Terraform / OpenTofu IaC baseline** `iac-terraform-baseline-1` (advisory, paired with `scan-iac`). The legacy bundled id `github-release-hardening` was **removed in v5.0.0**; passing it now returns a migration error pointing to the canonical `github-release-hardening-1`. See [docs/v5.0.0-migration-guide.md](../v5.0.0-migration-guide.md).
 
 > **Hybrid profiles are advisory-only.** `github-aws-level-2` and `github-azure-level-2` combine GitHub SCM signals with AWS or Azure CI signals. They emit JSON `posture: multi_platform_advisory_hybrid`. **Do not use these profiles as a release or PR gate** — use the platform-specific `*-level-3` or `*-release-hardening-3` ladders instead.
 >
@@ -95,7 +95,7 @@ If `evaluation-batch.md` shows several targets failing the same set — typicall
 
 ## Profile maturity tier (read before choosing a hard gate)
 
-The 29 bundled profiles are not equally mature in **operational fit**. The catalog itself is uniformly `lifecycle: stable` (no controls remain `experimental` after `SAST-SEMGREP-064` was promoted to `stable`), but two practical things differ between profiles:
+The 30 bundled profiles are not equally mature in **operational fit**. Most of the catalog is `lifecycle: stable`; the 12 v5.5.0 `IAC-TF-*` controls (Terraform / OpenTofu rule pack) and `AWS-CC-046` (deprecated, removed in v5.6.0) are the only non-stable entries. Two practical things differ between profiles:
 
 1. how much **evidence-template work** the operator must do up front, and
 2. how complete the **collector** is for the platform.
@@ -158,6 +158,7 @@ Starting in v5.4.0 the kit also ships **bundled framework alignment profiles** (
 | owasp-cicd-top10-1 | 23 | framework alignment (advisory) | no | see JSON |
 | s2c2f-l1-1 | 9 | framework alignment (advisory, OSS consumption) | no | see JSON |
 | appsec-sast-sca-1 | 11 | AppSec native bundle (hard-gate-capable with scan-sast) | **yes (with scan-sast)** | 7 / 2 / 2 |
+| iac-terraform-baseline-1 | 15 | IaC Terraform / OpenTofu baseline (advisory) | no | see JSON |
 
 > **Source for counts**: `python -m oss_policy_kit profiles --format json` (`controls` and `assurance_mix`) against the bundled catalog in this revision. Counts evolve as new controls are folded into existing profiles; the JSON output is the canonical source of truth for any given build.
 

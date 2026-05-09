@@ -1,0 +1,41 @@
+id: iac-terraform-baseline-1
+title: Terraform / OpenTofu IaC baseline (clone-side advisory)
+description: >
+  **Advisory profile (advisory only). Do not use as a hard release gate.**
+  Multi-platform Terraform / OpenTofu posture profile. Bundles the 12
+  ``IAC-TF-*`` rules introduced in v5.5.0 plus three sustaining governance
+  controls. Designed to surface the most common clone-visible IaC posture
+  gaps (public storage, open management ports, IAM wildcards, missing
+  encryption, audit logging, default networks, accidental public IPs,
+  missing tags, unpinned providers, local backend, missing
+  ``prevent_destroy`` on production data stores, wildcard IAM principals).
+  This profile is **not** a CSPM verdict and **not** a Trivy / Checkov
+  replacement; it is a kit-managed evidence shape on top of a pragmatic
+  rule pack so adopters can compose IaC posture into existing OSS policy
+  evaluation. **Posture:** advisory. **Recommended `--fail-on`:**
+  ``degraded`` only. Pair with ``oss-policy-kit scan-iac --target .`` so
+  the IAC-TF-* controls have evidence to read; without it they all return
+  ``manual-review-required`` (honest gap, never a crash).
+audience: >
+  Platform teams owning Terraform / OpenTofu modules who want a clone-side
+  posture scorecard alongside the existing OSS governance controls.
+  Combine with ``slsa-build-l2-1`` or a ``*-release-hardening-3`` profile
+  when the IaC modules are part of a release pipeline.
+controls:
+  # Terraform / OpenTofu rule pack (v5.5.0)
+  - IAC-TF-001
+  - IAC-TF-002
+  - IAC-TF-003
+  - IAC-TF-004
+  - IAC-TF-005
+  - IAC-TF-006
+  - IAC-TF-007
+  - IAC-TF-008
+  - IAC-TF-009
+  - IAC-TF-010
+  - IAC-TF-011
+  - IAC-TF-012
+  # Governance (sustaining)
+  - GOV-SEC-001
+  - GOV-WAIV-014
+  - REL-CHANGE-012

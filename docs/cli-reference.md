@@ -65,14 +65,27 @@ python -m oss_policy_kit evaluate --target . --profile my-sast   # consumes evid
 
 Semgrep is **not** a hard dependency. When the binary is missing, `scan-sast` still writes an evidence file with `status: not_available` and exits 0; `evaluate` then reports `SAST-SEMGREP-064` as `manual-review-required` with remediation pointing to `pip install semgrep`. This keeps the kit honest about gaps without crashing pipelines that have not adopted SAST yet.
 
-`SAST-SEMGREP-064` is **not included in any bundled profile by design** (it is `lifecycle: experimental`). To opt in, use an external profile YAML. A starting template is shipped at `templates/profiles/external-with-sast.yaml.example`:
+As of v5.4.0 `SAST-SEMGREP-064` is `lifecycle: stable` and is bundled in the **`appsec-sast-sca-1`** profile. The shortest opt-in path is:
 
 ```bash
-cp templates/profiles/external-with-sast.yaml.example ./my-sast-profile.yaml
-# edit controls: as needed
+pip install semgrep
 python -m oss_policy_kit scan-sast --target .
-python -m oss_policy_kit evaluate --target . --profile ./my-sast-profile.yaml
+python -m oss_policy_kit evaluate --target . --profile appsec-sast-sca-1 --fail-on fail
 ```
+
+A starting template for fully custom profiles still ships at `templates/profiles/external-with-sast.yaml.example`.
+
+## IaC evidence (Terraform / OpenTofu)
+
+`scan-iac` runs the bundled Terraform / OpenTofu rule pack against the target and writes evidence consumed by every `IAC-TF-*` control (12 rules introduced in v5.5.0). Pair it with the bundled `iac-terraform-baseline-1` advisory profile:
+
+```bash
+pip install 'oss-policy-kit[iac]'                                # one-time, brings python-hcl2
+python -m oss_policy_kit scan-iac --target .                     # writes .oss-policy-kit/evidence/iac-terraform.json
+python -m oss_policy_kit evaluate --target . --profile iac-terraform-baseline-1 --fail-on degraded
+```
+
+`python-hcl2` is **not** a hard dependency. When the parser is missing `scan-iac` exits 0 and writes an evidence stub with `status: not_available`; `evaluate` then reports every `IAC-TF-*` control as `manual-review-required` with remediation pointing to the iac extra. The 12 rules cover: public storage (S3/GCS), open management ports, IAM `AdministratorAccess` / wildcard `Action+Resource`, missing encryption-at-rest, audit/access logging gaps, default-VPC reliance, accidental public IPs, missing `owner`/`cost_center` tags, unpinned providers, local backend state, missing `prevent_destroy` on production data stores, and wildcard IAM principals. The rule pack is **deliberately pragmatic** — the kit's value here is the stable evidence shape and profile composition, not a Trivy/Checkov replacement. See [iac-terraform.md](iac-terraform.md) for the full adoption playbook.
 
 ## Day-to-day usage
 
@@ -251,6 +264,7 @@ After a successful evaluation:
 | `recommend-profile` | `--target/-t` | `--format/-f` (`human` default, `json`) | Heuristic — never a compliance verdict. |
 | `init` | — (defaults `--target .`) | `--profile/-p`, `--platform`, `--fail-on`, `--output-dir/-o`, `--with-waivers`, `--with-evidence`, `--with-workflow`, `--force/-f`, `--dry-run`, `--format` (`human`/`json`) | Writes `oss-policy-kit.yaml` and optional artifacts. Idempotent without `--force`. |
 | `scan-sast` | — (defaults `--target .`) | `--rulesets` (csv, default `auto`), `--timeout`, `--format` (`human`/`json`) | Runs Semgrep when available and writes `.oss-policy-kit/evidence/sast-semgrep.json`. Status `not_available` is recorded honestly when Semgrep is missing. |
+| `scan-iac` | — (defaults `--target .`) | `--include` (csv glob, default `**/*.tf`), `--exclude` (csv glob), `--timeout`, `--format` (`human`/`json`) | Runs the bundled Terraform / OpenTofu rule pack and writes `.oss-policy-kit/evidence/iac-terraform.json` (schema `oss-policy-kit/evidence/iac-terraform/v1`). Status `not_available` is recorded honestly when `python-hcl2` is missing (`pip install 'oss-policy-kit[iac]'`). |
 | `scaffold-evidence` | `--target/-t`, `--platform` (`github`/`azure`/`aws`) | `--force` | Creates `.oss-policy-kit/evidence/` and template JSON files. `--target` must already exist. |
 | `collect-evidence` | `--target/-t`, `--platform` (`github`/`azure`/`aws`) | `--repo`, `--output-dir/-o`, `--dry-run` | `--dry-run` reports presence/absence of credential env vars without printing values. |
 | `diff-reports` | `--before`, `--after` | `--format/-f` (`table` default, `json`, `markdown`), `--fail-on-regression` / `--no-fail-on-regression` | Default is to exit `1` on regression; opt out with `--no-fail-on-regression`. |

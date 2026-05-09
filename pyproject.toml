@@ -30,7 +30,8 @@ dependencies = [
 github = ["httpx>=0.27"]
 azure = ["httpx>=0.27"]
 aws = ["boto3>=1.34", "botocore>=1.34"]
-all = ["httpx>=0.27", "boto3>=1.34", "botocore>=1.34"]
+iac = ["python-hcl2>=6.1"]
+all = ["httpx>=0.27", "boto3>=1.34", "botocore>=1.34", "python-hcl2>=6.1"]
 dev = [
   "pytest>=8.0",
   "pytest-cov>=4.1",
@@ -47,6 +48,7 @@ dev = [
   "boto3>=1.34",
   "botocore>=1.34",
   "moto>=5.0.26",
+  "python-hcl2>=6.1",
 ]
 
 # Third-party evaluator plugins can register custom controls via:

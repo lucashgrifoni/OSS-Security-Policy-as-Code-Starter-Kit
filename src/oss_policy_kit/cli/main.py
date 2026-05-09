@@ -21,6 +21,7 @@ from oss_policy_kit.cli import (  # noqa: F401  (import side-effects: command re
     profiles,
     recommend,
     reports,
+    scan_iac,
     scan_sast,
 )
 from oss_policy_kit.cli.common import app, prepare_cli_args

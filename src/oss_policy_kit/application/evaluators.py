@@ -4896,6 +4896,23 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
 }
 
 
+def _load_iac_evaluators() -> None:
+    """Register the 12 IAC-TF-* evaluators built dynamically in ``evaluators_iac``.
+
+    Kept as a separate loader so the in-package boundary stays clean: the
+    Terraform rule pack lives in its own module and this file only owns the
+    final registration step (mirrors the external-evaluator loader below).
+    """
+
+    from oss_policy_kit.application.evaluators_iac import build_iac_evaluators
+
+    for control_id, fn in build_iac_evaluators().items():
+        EVALUATOR_REGISTRY.setdefault(control_id, fn)
+
+
+_load_iac_evaluators()
+
+
 def _load_external_evaluators() -> None:
     """Load evaluators registered via ``oss_policy_kit.evaluators`` entry-point group.
 

@@ -207,6 +207,7 @@ def prepare_cli_args(args: list[str]) -> list[str]:
         "recommend-profile",
         "init",
         "scan-sast",
+        "scan-iac",
     }:
         return args
     if first in ("--help", "-h", "--version", "-V"):

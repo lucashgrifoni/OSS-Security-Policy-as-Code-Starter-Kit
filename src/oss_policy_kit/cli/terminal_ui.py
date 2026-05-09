@@ -580,6 +580,7 @@ _ADVISORY_ONLY_PROFILE_IDS: frozenset[str] = frozenset(
         "cra-eu-ready-1",
         "github-aws-level-2",
         "github-azure-level-2",
+        "iac-terraform-baseline-1",
     }
 )
 

@@ -511,3 +511,87 @@ controls:
     lifecycle: stable
     assurance: evidence-backed
     weight: 3
+  - id: IAC-TF-001
+    title: Terraform - object storage configured for public access
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: IAC-TF-002
+    title: Terraform - security group exposes management port to 0.0.0.0/0
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: IAC-TF-003
+    title: Terraform - IAM grants AdministratorAccess or Action=* + Resource=*
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: IAC-TF-004
+    title: Terraform - storage / RDS / EBS resource without encryption-at-rest
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: IAC-TF-005
+    title: Terraform - audit / access logging disabled on sensitive resources
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: IAC-TF-006
+    title: Terraform - default VPC / subnet / security group used in declarations
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: IAC-TF-007
+    title: Terraform - workload assigned a public IP without explicit intent
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: IAC-TF-008
+    title: Terraform - AWS resources without owner / cost_center tags
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 1
+  - id: IAC-TF-009
+    title: Terraform - provider versions not pinned in required_providers
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 1
+  - id: IAC-TF-010
+    title: Terraform - local backend used (no remote + encryption + locking)
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 1
+  - id: IAC-TF-011
+    title: Terraform - production-naming data store missing lifecycle.prevent_destroy
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: IAC-TF-012
+    title: Terraform - data.aws_iam_policy_document uses wildcard principal '*'
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 1
