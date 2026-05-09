@@ -6,6 +6,12 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## OSS Security Policy as Code Starter Kit v5.5.0 (Unreleased)
+
+Open dev cycle. Planned scope: native Terraform / OpenTofu IaC parser with new `IAC-TF-*` controls (12 evaluators), an `iac-terraform-baseline-1` advisory bundled profile, and an internal refactor splitting `application/evaluators.py` into a category-based package without changing semantics or the public registry. Removal of `AWS-CC-046` (deprecated in v5.4.0) is scheduled for v5.6.0.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.4.0
 
 This minor release moves the kit from "evaluator only" to "starter kit you can actually adopt": it adds the `init` wizard, makes `evaluate` config-aware, ships an official **GitHub Action** for the Marketplace, and introduces the first **real SAST integration** (Semgrep) with a stable evidence contract. Existing contracts (`reports/1.0`, profile IDs, control IDs, evidence schemas) are unchanged.
