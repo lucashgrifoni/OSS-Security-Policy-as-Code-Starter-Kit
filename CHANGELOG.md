@@ -6,7 +6,7 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
-## OSS Security Policy as Code Starter Kit v5.5.0 (Unreleased)
+## OSS Security Policy as Code Starter Kit v5.5.0
 
 This minor release adds **native Terraform / OpenTofu IaC posture coverage** as the headline feature. The kit now ships an in-process HCL parser, a 12-rule pack covering the highest-leverage clone-visible IaC risks, a new `scan-iac` subcommand, and an advisory bundled profile (`iac-terraform-baseline-1`). Mirrors the v5.4.0 SAST integration shape exactly: same evidence contract, same honesty when the parser library is missing.
 
