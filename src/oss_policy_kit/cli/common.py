@@ -262,8 +262,7 @@ def execute_evaluate(
                 )
             resolved_profile = project_config.profile
             stderr_console().print(
-                f"[dim]Using profile from {project_config.path.name}: "
-                f"{resolved_profile}[/dim]",
+                f"[dim]Using profile from {project_config.path.name}: {resolved_profile}[/dim]",
             )
 
         root = merge_kit_root(kit_root)

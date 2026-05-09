@@ -51,10 +51,7 @@ def scan_sast_cmd(
     rulesets: str = typer.Option(
         ",".join(DEFAULT_RULESETS),
         "--rulesets",
-        help=(
-            "Comma-separated list of Semgrep rulesets (e.g. auto, p/owasp-top-ten). "
-            "Defaults to 'auto'."
-        ),
+        help=("Comma-separated list of Semgrep rulesets (e.g. auto, p/owasp-top-ten). Defaults to 'auto'."),
     ),
     timeout: int = typer.Option(
         DEFAULT_TIMEOUT_SECONDS,

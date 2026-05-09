@@ -176,9 +176,7 @@ def test_init_platform_flag_picks_platform_default(tmp_path: Path) -> None:
 
     result = runner.invoke(
         app,
-        prepare_cli_args(
-            ["init", "--target", str(repo), "--platform", "azure"]
-        ),
+        prepare_cli_args(["init", "--target", str(repo), "--platform", "azure"]),
     )
 
     assert result.exit_code == 0, result.output
@@ -217,9 +215,7 @@ def test_init_json_format_payload_is_stable(tmp_path: Path) -> None:
 
     result = runner.invoke(
         app,
-        prepare_cli_args(
-            ["init", "--target", str(repo), "--format", "json"]
-        ),
+        prepare_cli_args(["init", "--target", str(repo), "--format", "json"]),
     )
 
     assert result.exit_code == 0, result.output

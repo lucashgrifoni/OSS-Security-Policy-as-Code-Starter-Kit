@@ -89,9 +89,7 @@ def test_profile_controls_exist_in_catalog(profile_path: Path, catalog_ids: set[
     data = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
     controls = data["controls"]
     missing = [c for c in controls if c not in catalog_ids]
-    assert not missing, (
-        f"{profile_path.parent.name}: control IDs not present in catalog.yaml: {missing}"
-    )
+    assert not missing, f"{profile_path.parent.name}: control IDs not present in catalog.yaml: {missing}"
 
 
 @pytest.mark.parametrize("profile_path", _profile_files(), ids=lambda p: p.parent.name)
@@ -101,9 +99,7 @@ def test_profile_has_no_duplicate_controls(profile_path: Path) -> None:
     data = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
     counts = Counter(data["controls"])
     duplicates = [cid for cid, n in counts.items() if n > 1]
-    assert not duplicates, (
-        f"{profile_path.parent.name}: duplicate control IDs in 'controls:': {duplicates}"
-    )
+    assert not duplicates, f"{profile_path.parent.name}: duplicate control IDs in 'controls:': {duplicates}"
 
 
 def test_at_least_21_bundled_profiles_exist() -> None:

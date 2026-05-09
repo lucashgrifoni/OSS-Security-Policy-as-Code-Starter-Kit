@@ -141,8 +141,7 @@ def load_project_config(path: Path) -> ProjectConfig:
     fail_on = _require_str(payload, "fail_on", where=path).lower()
     if fail_on not in SUPPORTED_FAIL_ON:
         raise InvalidInputError(
-            f"{path.name}: fail_on must be one of: none, fail, degraded "
-            f"(got {fail_on!r}).",
+            f"{path.name}: fail_on must be one of: none, fail, degraded (got {fail_on!r}).",
         )
 
     output_dir = _require_str(payload, "output_dir", where=path)

@@ -150,8 +150,7 @@ def _resolve_workflow_template(dest_filename: str) -> tuple[str, str]:
     source = _WORKFLOW_SOURCE_BY_DEST.get(dest_filename)
     if source is None:
         raise InvalidInputError(
-            f"Unknown workflow template: {dest_filename}. "
-            f"Supported: {', '.join(sorted(_WORKFLOW_SOURCE_BY_DEST))}.",
+            f"Unknown workflow template: {dest_filename}. Supported: {', '.join(sorted(_WORKFLOW_SOURCE_BY_DEST))}.",
         )
 
     try:
@@ -166,8 +165,7 @@ def _resolve_workflow_template(dest_filename: str) -> tuple[str, str]:
         return source, repo_local.read_text(encoding="utf-8")
 
     raise InvalidInputError(
-        f"Workflow template not found: {source}. "
-        f"Expected under packaged data or {_WORKFLOW_TEMPLATE_REPO_PATH}/.",
+        f"Workflow template not found: {source}. Expected under packaged data or {_WORKFLOW_TEMPLATE_REPO_PATH}/.",
     )
 
 

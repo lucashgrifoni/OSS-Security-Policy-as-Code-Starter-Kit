@@ -4732,10 +4732,7 @@ def eval_sast_semgrep_064(ctx: EvalContext) -> EvalOutcome:
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=(
-                "No Semgrep evidence file found. "
-                "SAST findings cannot be verified from a clone alone."
-            ),
+            reason=("No Semgrep evidence file found. SAST findings cannot be verified from a clone alone."),
             remediation=(
                 "Run `oss-policy-kit scan-sast --target .` (requires Semgrep installed) "
                 "to populate .oss-policy-kit/evidence/sast-semgrep.json."
@@ -4773,8 +4770,7 @@ def eval_sast_semgrep_064(ctx: EvalContext) -> EvalOutcome:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
             reason=(
-                "Semgrep was not installed when scan-sast ran; the evidence is a presence "
-                "stub, not a real SAST result."
+                "Semgrep was not installed when scan-sast ran; the evidence is a presence stub, not a real SAST result."
             ),
             remediation=(
                 "Install Semgrep (`pip install semgrep`) on the runner that executes "

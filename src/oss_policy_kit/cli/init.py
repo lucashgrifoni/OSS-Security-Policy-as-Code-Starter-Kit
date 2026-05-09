@@ -169,10 +169,7 @@ def init_cmd(
         None,
         "--profile",
         "-p",
-        help=(
-            "Force a specific profile (e.g. github-level-2). "
-            "When omitted, init recommends one from repo signals."
-        ),
+        help=("Force a specific profile (e.g. github-level-2). When omitted, init recommends one from repo signals."),
     ),
     platform: str | None = typer.Option(
         None,
