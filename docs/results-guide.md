@@ -69,6 +69,16 @@ Examples:
 3. Re-run `recommend-profile --target .` (the rationale is unchanged, but you can now act on the suggestion confidently).
 4. `evaluate` with the suggested profile.
 
+### SAST evidence (`scan-sast` + `SAST-SEMGREP-064`)
+
+The same pattern applies to SAST evidence introduced in v5.4.0. `scan-sast` writes `.oss-policy-kit/evidence/sast-semgrep.json` with a status of `ok`, `not_available`, `timeout`, or `error`. The `SAST-SEMGREP-064` evaluator (experimental, evidence-backed, opt-in via external profile) consumes this file and:
+
+- reports `pass` when Semgrep ran cleanly with no `HIGH`/`CRITICAL` findings;
+- reports `fail` when there is at least one `HIGH` or `CRITICAL`;
+- reports `manual-review-required` when the evidence file is missing, when Semgrep was not installed (`status: not_available`), or when the run timed out / errored.
+
+Missing Semgrep is handled as a documented gap, not a crash. To populate real findings, install Semgrep (`pip install semgrep`, requires Python 3.12+) and re-run `scan-sast`. See `docs/cli-reference.md` for the opt-in profile template and end-to-end flow.
+
 ## Automation Limits
 
 Local evaluation can inspect only what exists in the working tree. It cannot reliably prove:

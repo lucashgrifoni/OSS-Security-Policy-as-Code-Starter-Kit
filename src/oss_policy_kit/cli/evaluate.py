@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import typer
 from typer import Context
 
 from oss_policy_kit import __version__ as kit_version
-from oss_policy_kit.cli import terminal_ui
 from oss_policy_kit.cli.common import (
     app,
     execute_evaluate,
@@ -147,17 +145,9 @@ def cli_root(
         raise typer.Exit(0)
     if ctx.invoked_subcommand is not None:
         return
-    if profile is None:
-        err = (
-            "--profile is required when running without the `evaluate` subcommand "
-            "(for example: `python -m oss_policy_kit --target . --profile github-level-1`)."
-        )
-        wrapped = terminal_ui.human_wrap_lines(err, stream=sys.stderr, subtract=10)
-        wlines = wrapped.split("\n")
-        stderr_console().print(f"[red]Error:[/red] {wlines[0]}")
-        for ln in wlines[1:]:
-            stderr_console().print(ln)
-        raise typer.Exit(code=2)
+    # ``profile`` may be ``None`` here: ``execute_evaluate`` will look for
+    # ``oss-policy-kit.yaml`` under the resolved target and either use its
+    # profile or raise a clean InvalidInputError when neither is present.
     execute_evaluate(
         target_pos=None,
         target_opt=target_opt,
@@ -182,13 +172,14 @@ def evaluate_cmd(
         default=None,
         help="Repository root. Prefer --target/-t if the path contains spaces.",
     ),
-    profile: str = typer.Option(
-        ...,
+    profile: str | None = typer.Option(
+        None,
         "--profile",
         "-p",
         help=(
-            "Profile ID (e.g. github-level-1) or path to an external YAML profile (e.g. ./my-profile.yaml). "
-            "External YAML required fields: id, title, controls (list of control IDs). "
+            "Profile ID (e.g. github-level-1) or path to an external YAML profile. "
+            "When omitted, evaluate looks for oss-policy-kit.yaml under --target and uses "
+            "the profile recorded there (run `oss-policy-kit init` to create it). "
             "Use the 'profiles' subcommand to list built-in options."
         ),
     ),

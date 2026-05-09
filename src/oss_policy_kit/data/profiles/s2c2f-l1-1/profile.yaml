@@ -1,0 +1,29 @@
+id: s2c2f-l1-1
+title: Microsoft S2C2F Level 1 alignment (Secure OSS consumption baseline)
+description: >
+  **Advisory mapping (advisory only). Do not use as a release gate.**
+  Multi-platform profile aligned with Microsoft Secure Supply Chain Consumption
+  Framework (S2C2F) Level 1. Covers Ingest, Inventory, Update, and Audit areas at
+  the lowest maturity tier. Bundles 9 existing controls - small and focused, this
+  profile complements the platform ladders by emphasizing the *consumer* side of
+  OSS supply chain (rather than the producer side).
+  **Posture:** advisory mapping. **Recommended `--fail-on`:** `degraded` only.
+  **Framework alignment:** see `docs/framework-alignment.md` (Microsoft S2C2F section).
+audience: >
+  Teams that consume OSS at scale and want a baseline for secure intake. Pair with
+  a platform-specific profile (`*-level-1` or `*-level-2`) for full coverage.
+controls:
+  # Ingest
+  - SEC-PINLOCK-052
+  - CI-PIN-008
+  # Inventory
+  - BUILD-SBOM-QUAL-003
+  # Update
+  - DEP-UPDATE-001
+  # Audit
+  - SEC-DEPREV-011
+  - OSS-SCORECARD-001
+  # Govern (sustaining; not a level-1 area but required for accountability)
+  - GOV-WAIV-014
+  - GOV-DISC-013
+  - GOV-SEC-001

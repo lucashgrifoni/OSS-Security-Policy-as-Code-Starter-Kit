@@ -1,7 +1,8 @@
 id: cra-eu-ready-1
 title: EU Cyber Resilience Act preparation (advisory)
 description: >
-  **Advisory profile for EU CRA preparation** (regulatory mapping, not certification).
+  **Regulatory mapping (advisory only). Do not use as a release gate. Not a compliance certification.**
+  Advisory profile for EU CRA preparation (regulatory mapping, not certification).
   Multi-platform (no platform prefix): the bundled controls cut across GitHub, Azure DevOps,
   and AWS CodePipeline projects. Bundles existing CycloneDX SBOM controls, vulnerability
   handling controls (SECURITY.md, responsible disclosure, dependency review, auto-update),

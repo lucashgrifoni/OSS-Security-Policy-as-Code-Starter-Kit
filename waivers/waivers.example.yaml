@@ -9,3 +9,33 @@ waivers:
     expires_at: "2026-12-31"
     applies_to:
       - ".github/workflows/special.yml"
+
+  # Common false-positive patterns for keyword-only signal controls.
+  # Uncomment and adjust before relying on these in CI.
+
+  # - control_id: SEC-CODEQL-010
+  #   justification: >
+  #     CodeQL keyword absence is acceptable: an external SAST scanner
+  #     (e.g. Semgrep via scan-sast) is the source of truth here.
+  #     SAST coverage is asserted via SAST-SEMGREP-064 evidence file.
+  #   owner: appsec-team
+  #   status: approved
+  #   expires_at: "2027-01-31"
+
+  # - control_id: SEC-SECRETS-050
+  #   justification: >
+  #     Secret scanning runs via the platform-managed scanner (GitHub
+  #     secret scanning / Azure DevOps Credential Scanner) and does not
+  #     leave a keyword in the workflow YAML. Verified in PLAT evidence.
+  #   owner: appsec-team
+  #   status: approved
+  #   expires_at: "2027-01-31"
+
+  # - control_id: AWS-SCA-040
+  #   justification: >
+  #     SCA runs out-of-band via the central pipeline orchestrator;
+  #     the buildspec does not call pip-audit/snyk directly. Coverage
+  #     is asserted by the central scanner audit log.
+  #   owner: platform-security
+  #   status: approved
+  #   expires_at: "2027-01-31"

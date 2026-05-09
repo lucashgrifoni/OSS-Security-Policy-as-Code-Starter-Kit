@@ -1,0 +1,43 @@
+id: ssdf-baseline-1
+title: NIST SSDF (SP 800-218) baseline alignment
+description: >
+  **Advisory mapping (advisory only). Do not use as a release gate.**
+  Multi-platform profile aligned with NIST SP 800-218 (Secure Software Development
+  Framework). Covers four practice groups: Prepare Organization (PO), Protect Software
+  (PS), Produce Well-Secured Software (PW), and Respond to Vulnerabilities (RV).
+  Bundles 22 existing controls.
+  **Posture:** advisory mapping. **Recommended `--fail-on`:** `degraded` only.
+  Federal suppliers under M-22-18 / EO 14028 should treat this as discovery-grade
+  evidence, not as the formal SSDF self-attestation form.
+  **Framework alignment:** see `docs/framework-alignment.md` (NIST SSDF section).
+audience: >
+  Federal/regulated suppliers and enterprises that need to declare SSDF alignment
+  for supply chain transparency. Use for self-assessment; the formal SSDF attestation
+  remains a manual process outside the kit's scope.
+controls:
+  # PO - Prepare Organization
+  - GOV-SEC-001
+  - GOV-CON-002
+  - GOV-COWN-003
+  - GOV-LIC-004
+  - GOV-DISC-013
+  - GOV-WAIV-014
+  # PS - Protect Software
+  - PLAT-BRPROT-015
+  - GH-PLAT-024
+  - GH-PLAT-025
+  - GH-PLAT-026
+  - ORG-MFA-001
+  # PW - Produce Well-Secured Software
+  - SEC-CODEQL-010
+  - SEC-DEPREV-011
+  - SEC-SECRETS-050
+  - CI-PIN-008
+  - CI-WFCALLSHA-055
+  - BUILD-SBOM-QUAL-003
+  - GH-PROV-023
+  - PROV-VERIFY-061
+  # RV - Respond to Vulnerabilities
+  - DEP-UPDATE-001
+  - GOV-EVIDFRESH-054
+  - AUDIT-STREAM-060

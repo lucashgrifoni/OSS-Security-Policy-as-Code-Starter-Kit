@@ -572,6 +572,43 @@ def _print_health_strip(
     c.print(line)
 
 
+#: Profiles that are advisory-only by design. They surface posture but must
+#: not be wired as release gates. The banner below makes that constraint
+#: visible at the top of every interactive evaluate run.
+_ADVISORY_ONLY_PROFILE_IDS: frozenset[str] = frozenset(
+    {
+        "cra-eu-ready-1",
+        "github-aws-level-2",
+        "github-azure-level-2",
+    }
+)
+
+
+def _print_advisory_profile_banner(
+    console: Console,
+    *,
+    profile_id: str,
+    width: int,
+) -> None:
+    """Print a yellow banner above the executive panel for advisory-only profiles."""
+
+    pw = primary_panel_width(width)
+    msg = Text()
+    msg.append("[advisory profile] ", style="bold yellow")
+    msg.append(
+        "This profile is advisory-only by design. Do not use as a release gate. "
+        "Recommended --fail-on degraded; --fail-on fail defeats the design.",
+        style="yellow",
+    )
+    panel = Panel(
+        msg,
+        border_style="yellow",
+        box=box.ROUNDED,
+        width=pw,
+    )
+    console.print(Align(panel, align="left"))
+
+
 def print_evaluate_executive_preface(
     report: ExecutionReport,
     *,
@@ -582,6 +619,8 @@ def print_evaluate_executive_preface(
 
     c = console or build_stdout_console()
     w = c.width
+    if report.profile_id in _ADVISORY_ONLY_PROFILE_IDS:
+        _print_advisory_profile_banner(c, profile_id=report.profile_id, width=w)
     target_name = Path(report.target_path).name
     summary = report.summary_by_status
     pass_n = int(summary.get("pass", 0)) + int(summary.get("self-attested", 0))
@@ -639,6 +678,8 @@ def print_interactive_stdout_summary(
     c = console or build_stdout_console()
     unicode_icons = stream_supports_unicode(sys.stdout)
     w = c.width
+    if getattr(report, "profile_id", None) in _ADVISORY_ONLY_PROFILE_IDS:
+        _print_advisory_profile_banner(c, profile_id=report.profile_id, width=w)
     target_name = Path(report.target_path).name
     ordered_summary = {k: report.summary_by_status[k] for k in report.summary_by_status}
     pass_n = int(ordered_summary.get("pass", 0)) + int(ordered_summary.get("self-attested", 0))

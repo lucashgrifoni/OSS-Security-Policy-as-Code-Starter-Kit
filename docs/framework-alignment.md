@@ -357,6 +357,42 @@ area an ASVS / 800-53 audit needs to cover), but it does not claim to **prove** 
 - [profiles/deferred-followups.md](profiles/deferred-followups.md) — conceptual future work.
 - [results-guide.md](results-guide.md) — how to interpret report statuses.
 
+## v5.4.0 framework alignment profiles
+
+Seven multi-platform profiles introduced in v5.4.0 bundle existing controls into framework-specific mappings, plus one **AppSec native bundle** (`appsec-sast-sca-1`) that combines SAST + SCA + secret scanning + dependency hygiene. None of them adds new controls; they reuse the existing 70-control catalog. Below is a one-paragraph mapping per profile. Detailed per-control rationale lives inside the corresponding `profile.yaml` `description:` and `audience:` fields.
+
+### `osps-baseline-1` — OpenSSF OSPS Baseline
+
+Maps the kit's controls to the four areas of the OpenSSF Open Source Project Security Baseline (Linux Foundation, 2025): Access Control, Build & Release, Documentation, and Quality & Security Assessment. 18 controls, advisory mapping. Not a compliance certification. Recommended `--fail-on degraded` only. Typical audience: OSS maintainers and small-to-medium projects declaring OSPS Baseline alignment in README, RFP responses, or grant applications.
+
+### `slsa-build-l2-1` — SLSA v1.1 Build Track Level 2
+
+Maps the kit's controls to SLSA v1.1 Build Track Level 2 expectations: build automation + provenance signed. 14 controls, hard-gate-capable when `PROV-VERIFY-061` evidence is present (sigstore / GitHub Artifact Attestations) and verifiable. Recommended `--fail-on fail` paired with a real attestation; without evidence, expect `manual-review-required` on `PROV-VERIFY-061` (this is by design — SLSA L2 cannot be claimed without verifiable provenance). Typical audience: maintainers publishing artifacts (wheels, containers, binaries) who must declare "SLSA Build L2" to downstream consumers. Note: the kit does **not** verify the actual cryptographic signature; the verification expectation is that the build pipeline runs `cosign verify` / `gh attestation verify` and writes the result into the evidence file.
+
+### `ssdf-baseline-1` — NIST SP 800-218 (Secure Software Development Framework)
+
+Maps the kit's controls to the four practice groups of NIST SSDF SP 800-218: Prepare Organization (PO), Protect Software (PS), Produce Well-Secured Software (PW), Respond to Vulnerabilities (RV). 22 controls, advisory mapping. Federal suppliers under OMB M-22-18 / EO 14028 should treat this as discovery-grade evidence, **not** as the formal SSDF self-attestation form (which remains a manual process outside the kit's scope). Recommended `--fail-on degraded` only. Coverage is deepest in PS and PW (the kit's natural strengths); PO and RV are shallower because they cover organizational and incident-response practices that go beyond what a clone-side tool can verify.
+
+### `cis-supply-chain-1` — CIS Software Supply Chain Security Benchmark v1.0
+
+Maps the kit's controls to the five areas of the CIS Software Supply Chain Security Benchmark v1.0: Source Code, Build Pipelines, Dependencies, Artifacts, and Deployment. 24 controls, advisory mapping. Recommended `--fail-on degraded` only. Typical audience: enterprise teams adopting CIS guidance. Use as a scorecard before or alongside the platform-specific `*-release-hardening-3` profiles; do not use as the only gate for a release because CIS benchmark items related to runtime, network, and observability are out of the kit's clone-side scope.
+
+### `owasp-cicd-top10-1` — OWASP Top 10 CI/CD Security Risks (2022)
+
+Maps the kit's controls to all 10 OWASP CI/CD security risks: each risk has at least one control mapped. 23 controls, advisory mapping. Recommended `--fail-on degraded` only. The strongest coverage is on CICD-SEC-1 (Insufficient Flow Control), CICD-SEC-3 (Dependency Chain Abuse), CICD-SEC-4 (Poisoned Pipeline Execution), and CICD-SEC-5 (Insufficient PBAC) — all directly addressable from clone-visible artifacts. CICD-SEC-2 (Inadequate Identity), CICD-SEC-7 (Insecure System Configuration), and CICD-SEC-10 (Insufficient Logging and Visibility) lean on evidence files because they require platform truth.
+
+### `s2c2f-l1-1` — Microsoft S2C2F Level 1 (Secure Supply Chain Consumption Framework)
+
+Maps the kit's controls to Microsoft S2C2F Level 1, focusing on Ingest, Inventory, Update, and Audit areas (the four lowest-maturity areas of the eight-area framework). 9 controls (deliberately small), advisory mapping. Recommended `--fail-on degraded` only. Typical audience: teams that **consume** OSS at scale and need a baseline for secure intake. Pair with a platform-specific profile (`*-level-1` or `*-level-2`) for full producer-side coverage. This profile complements the kit's existing producer-focused emphasis by surfacing consumption discipline.
+
+### `cra-eu-strict-1` — EU Cyber Resilience Act, full-obligations track (2027-12-11)
+
+Stricter version of `cra-eu-ready-1`, aimed at the EU CRA full-obligations deadline (2027-12-11) when CE marking is required. 19 controls (12 from `cra-eu-ready-1` + 7 strict-track additions: `GH-PROV-023`, `GH-PLAT-024`, `GH-PLAT-025`, `GH-PLAT-026`, `ORG-MFA-001`, `CI-PIN-008`, `SEC-SECRETS-050`). Hard-gate-capable when evidence files are filled; recommended `--fail-on fail` paired with `collect-evidence --platform github` and artifact-bound SBOM/provenance evidence. Without evidence, expect `manual-review-required` (honest gap, not a crash). **Critical caveat:** this profile is **not** a CRA conformity assessment. Conformity assessment requires a competent authority and is outside the kit's scope. Use this as a clone-side posture indicator; the formal CE-marking process is external.
+
+### `appsec-sast-sca-1` — AppSec native bundle (SAST + SCA + secret scanning + dependency hygiene)
+
+Multi-platform profile aimed at AppSec teams using the kit as part of pipeline AppSec, not just as OSS governance. 11 controls grouped in four areas: **SAST** (`SEC-CODEQL-010`, `SAST-SEMGREP-064`), **SCA** (`SEC-DEPREV-011`, `DEP-UPDATE-001`, `SEC-PINLOCK-052`), **secret scanning** (`SEC-SECRETS-050`, `SEC-GITIGNORE-051`, `GH-PLAT-026`), and **dependency integrity** (`CI-PIN-008`, `CI-WFCALLSHA-055`), plus governance sustaining (`GOV-WAIV-014`). Hard-gate-capable when paired with `oss-policy-kit scan-sast`: that command produces the Semgrep evidence file consumed by `SAST-SEMGREP-064`. Without that evidence, the SAST control returns `manual-review-required` (does not trip `--fail-on fail`); with it, the profile reaches deterministic + evidence-backed posture suitable for `--fail-on fail`. Recommended workflow: `oss-policy-kit scan-sast --target . && oss-policy-kit evaluate --target . --profile appsec-sast-sca-1 --fail-on fail`. This is the first bundled profile to consume `SAST-SEMGREP-064` (promoted from `experimental` to `stable` alongside this profile).
+
 ## Versioning of this doc
 
 This page is regenerated manually when the catalog or profiles change. The training cutoff

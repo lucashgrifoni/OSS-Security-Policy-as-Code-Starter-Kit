@@ -1,0 +1,63 @@
+# Example workflow consuming the OSS Security Policy as Code Starter Kit
+# Marketplace action.
+#
+# Drop this file under .github/workflows/ in any repository where you want
+# to evaluate the bundled baseline on every pull request. Replace the
+# `@vX.Y.Z` pin with the latest release tag (or pin by SHA for stricter
+# supply-chain guarantees).
+
+name: oss-policy-kit baseline
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run oss-policy-kit baseline
+        id: oss-policy
+        # Replace with a tagged release once published, e.g.:
+        # uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v5.4.0
+        uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v5
+        with:
+          target: '.'
+          # Omit `profile` to read it from oss-policy-kit.yaml at the repo root.
+          profile: github-level-1
+          fail-on: fail
+          output-dir: oss-policy-reports
+          # Uncomment to emit SARIF (still requires upload step below).
+          # sarif-output: results.sarif
+
+      - name: Upload reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: oss-policy-kit-reports
+          path: |
+            oss-policy-reports/evaluation-report.json
+            oss-policy-reports/evaluation-report.md
+            oss-policy-reports/results.sarif
+          if-no-files-found: ignore
+
+      # Optional: forward SARIF to GitHub Code Scanning. Requires the
+      # repository to have Code Scanning enabled (Advanced Security on
+      # private repos; free on public repos).
+      #
+      # - name: Upload SARIF
+      #   if: ${{ always() && steps.oss-policy.outputs.sarif != '' }}
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: ${{ steps.oss-policy.outputs.sarif }}
+      #     category: oss-policy-kit

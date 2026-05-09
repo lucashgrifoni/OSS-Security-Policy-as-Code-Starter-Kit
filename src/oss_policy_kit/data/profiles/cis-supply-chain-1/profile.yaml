@@ -1,0 +1,43 @@
+id: cis-supply-chain-1
+title: CIS Software Supply Chain Security Benchmark alignment
+description: >
+  **Advisory mapping (advisory only). Do not use as a release gate.**
+  Multi-platform profile aligned with the CIS Software Supply Chain Security Benchmark
+  v1.0. Covers five areas: Source Code, Build Pipelines, Dependencies, Artifacts,
+  and Deployment. Bundles 24 existing controls.
+  **Posture:** advisory mapping. **Recommended `--fail-on`:** `degraded` only.
+  **Framework alignment:** see `docs/framework-alignment.md` (CIS Software Supply Chain section).
+audience: >
+  Enterprise teams aligning their OSS publication with CIS guidance. Use as a
+  scorecard before or alongside the platform-specific `*-release-hardening-3`
+  profiles; do not use as the only gate for a release.
+controls:
+  # Source Code
+  - PLAT-BRPROT-015
+  - GH-PLAT-024
+  - GH-PLAT-026
+  - GOV-COWN-003
+  - ORG-MFA-001
+  # Build Pipelines
+  - CI-WF-005
+  - CI-PERM-006
+  - CI-DANGER-007
+  - CI-PIN-008
+  - CI-WFCALLSHA-055
+  - GH-WF-018
+  - GH-WF-019
+  - GH-RUNNER-062
+  # Dependencies
+  - SEC-DEPREV-011
+  - DEP-UPDATE-001
+  - SEC-PINLOCK-052
+  - CI-LEAST-009
+  # Artifacts
+  - GH-PROV-023
+  - PROV-VERIFY-061
+  - BUILD-SBOM-QUAL-003
+  - GH-REL-021
+  - RELEASE-ARCHIVE-063
+  # Deployment
+  - GH-DEPLOY-022
+  - GH-PLAT-025

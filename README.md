@@ -8,7 +8,7 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 
 ## Quick Links
 
-- [What's new in v5.1.0](#whats-new-in-v510)
+- [What's new in v5.4.0](#whats-new-in-v540)
 - [Current Release State](#current-release-state)
 - [Recommended First Command](#recommended-first-command)
 - [Quickstart](#quickstart)
@@ -29,7 +29,7 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 
 | Area | What you get |
 | --- | --- |
-| Current release | `v5.1.0` / Python package `oss-policy-kit==5.1.0` |
+| Current release | `v5.4.0` / Python package `oss-policy-kit==5.4.0` |
 | Input | A local repository clone |
 | Output | `evaluation-report.json` and `evaluation-report.md` (optional SARIF 2.1.0 via `--sarif-output`) |
 | Core scope | Clone-visible governance and GitHub/Azure/AWS CI/CD signals |
@@ -48,14 +48,38 @@ python -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile gi
 
 This confirms the CLI, bundled profile data, example repository, and report generation path before you evaluate your own repository.
 
+### Two-line bootstrap (v5.4.0+)
+
+For brand new adopters, `init` collapses the first run into two commands:
+
+```bash
+python -m oss_policy_kit init --target . --with-evidence --with-workflow
+python -m oss_policy_kit evaluate --target .
+```
+
+`init` writes a persisted `oss-policy-kit.yaml`; `evaluate` reads the profile from it when `--profile` is omitted. See [docs/cli-reference.md](docs/cli-reference.md#project-initialization) for all flags.
+
+### Use as a GitHub Action
+
+The kit ships a composite GitHub Action so adopters can evaluate the bundled baseline on every pull request without managing Python in their build images:
+
+```yaml
+- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v5
+  with:
+    profile: github-level-1
+    fail-on: fail
+```
+
+Inputs map 1:1 to CLI flags. Full reference and SARIF forwarding example in [docs/github-action.md](docs/github-action.md).
+
 ## Current Release State
 
-`v5.1.0` is the current public release line. It is an additive minor release on top of `v5.0.0`: the JSON report contract remains `reports/1.0`, legacy `0.3` and `0.2` report shapes remain selectable, and the existing profile IDs stay stable. The release adds evidence-backed audit-log streaming and signed-provenance verification controls for hard-gate profiles, and it reports malformed `--scorecard-json` input as a user error (`exit 2`) instead of an internal failure.
+`v5.4.0` is the current public release line. It is an additive minor release on top of `v5.3.0`: the JSON report contract remains `reports/1.0`, legacy `0.3` and `0.2` report shapes remain selectable, and the existing profile IDs stay stable. The release adds the `init` wizard, makes `evaluate` config-aware via `oss-policy-kit.yaml`, ships an official GitHub Marketplace action (`action.yml`), introduces the first native SAST integration (`scan-sast` + Semgrep adapter + `SAST-SEMGREP-064` experimental control), and consolidates documentation. See `CHANGELOG.md` for full details.
 
 | Surface | Current state |
 | --- | --- |
-| Package | `oss-policy-kit==5.1.0` |
-| GitHub Release | `v5.1.0` is the current release target; `v5.0.0` and `v4.0.4` remain available as predecessors |
+| Package | `oss-policy-kit==5.4.0` |
+| GitHub Release | `v5.4.0` is the current release target; `v5.3.0`, `v5.2.0`, and `v5.1.0` remain available as predecessors |
 | Default branch | `master` |
 | License | Apache-2.0 (`LICENSE` + `NOTICE`) |
 | Report contract | `reports/1.0` by default; `0.3` and `0.2` remain selectable via `--report-json-contract`. `0.1` was removed in v5.0.0 |

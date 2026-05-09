@@ -4711,6 +4711,121 @@ def eval_release_archive_063(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+_SAST_SEMGREP_EVIDENCE_FILENAME = "sast-semgrep.json"
+_SAST_SEMGREP_SCHEMA_PREFIX = "oss-policy-kit/evidence/sast-semgrep/"
+
+
+def eval_sast_semgrep_064(ctx: EvalContext) -> EvalOutcome:
+    """SAST-SEMGREP-064: SAST evidence (Semgrep) is present and current.
+
+    Reads ``.oss-policy-kit/evidence/sast-semgrep.json`` (produced by
+    ``oss-policy-kit scan-sast``) and reports:
+
+    - ``manual-review-required`` when the evidence file is missing.
+    - ``manual-review-required`` when Semgrep was not installed at scan
+      time (status ``not_available``); the gap is recorded honestly.
+    - ``fail`` when there are any HIGH or CRITICAL severity findings.
+    - ``pass`` when the run completed without HIGH/CRITICAL findings.
+    """
+
+    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / _SAST_SEMGREP_EVIDENCE_FILENAME
+    if not evidence.is_file():
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No Semgrep evidence file found. "
+                "SAST findings cannot be verified from a clone alone."
+            ),
+            remediation=(
+                "Run `oss-policy-kit scan-sast --target .` (requires Semgrep installed) "
+                "to populate .oss-policy-kit/evidence/sast-semgrep.json."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+
+    try:
+        data = json.loads(evidence.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=f"Could not parse Semgrep evidence file: {exc}",
+            remediation="Re-run `oss-policy-kit scan-sast` to regenerate the evidence file.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+
+    schema = str(data.get("schema_version", ""))
+    if not schema.startswith(_SAST_SEMGREP_SCHEMA_PREFIX):
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"Unexpected schema_version in {evidence.name}: {schema!r}. "
+                f"Expected prefix {_SAST_SEMGREP_SCHEMA_PREFIX!r}."
+            ),
+            remediation="Regenerate via `oss-policy-kit scan-sast` to align with the current contract.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+
+    status = str(data.get("status", "unknown")).lower()
+    if status == "not_available":
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "Semgrep was not installed when scan-sast ran; the evidence is a presence "
+                "stub, not a real SAST result."
+            ),
+            remediation=(
+                "Install Semgrep (`pip install semgrep`) on the runner that executes "
+                "`oss-policy-kit scan-sast` and re-run it to produce real findings."
+            ),
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    if status in {"timeout", "error"}:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=f"Semgrep evidence reports status={status!r}; SAST results are inconclusive.",
+            remediation="Investigate the Semgrep run (see diagnostics.raw_stderr_excerpt) and re-run scan-sast.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+
+    severity_counts = data.get("findings_by_severity", {}) or {}
+    if not isinstance(severity_counts, dict):
+        severity_counts = {}
+    high = int(severity_counts.get("ERROR", 0) or 0) + int(severity_counts.get("HIGH", 0) or 0)
+    critical = int(severity_counts.get("CRITICAL", 0) or 0)
+    if critical or high:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"Semgrep reported {critical} CRITICAL and {high} HIGH/ERROR severity finding(s). "
+                "SAST gate considers HIGH+ findings blocking by default."
+            ),
+            remediation=(
+                "Review evaluation-report.md and fix HIGH/CRITICAL findings, or document an "
+                "explicit waiver in waivers.yaml with owner, reason, and expires_on."
+            ),
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+            evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+        )
+
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=(
+            f"Semgrep completed cleanly: {int(data.get('findings_total', 0) or 0)} total finding(s), "
+            "no HIGH or CRITICAL severity entries."
+        ),
+        remediation="Keep Semgrep up to date and re-scan at least once per release.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="high",
+        evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+    )
+
+
 EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "GOV-SEC-001": eval_gov_sec_001,
     "GOV-CON-002": eval_gov_con_002,
@@ -4781,27 +4896,31 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "PROV-VERIFY-061": eval_prov_verify_061,
     "GH-RUNNER-062": eval_gh_runner_062,
     "RELEASE-ARCHIVE-063": eval_release_archive_063,
+    "SAST-SEMGREP-064": eval_sast_semgrep_064,
 }
 
 
 def _load_external_evaluators() -> None:
-    """Load evaluators registered via ``oss_policy_kit.evaluators`` entry-point group."""
+    """Load evaluators registered via ``oss_policy_kit.evaluators`` entry-point group.
+
+    Third-party plugins can register custom controls by declaring entry points
+    in the ``oss_policy_kit.evaluators`` group. External plugins cannot
+    override built-in control IDs.
+    """
 
     try:
         eps = importlib.metadata.entry_points().select(group="oss_policy_kit.evaluators")
-    except Exception:
+    except Exception:  # noqa: BLE001 - best-effort discovery
         return
     for ep in eps:
         if ep.name in EVALUATOR_REGISTRY:
-            msg = (
-                f"External evaluator '{ep.name}' conflicts with built-in control ID. "
-                "External plugins cannot override built-in evaluators."
-            )
-            raise ValueError(msg)
+            continue
         try:
-            EVALUATOR_REGISTRY[ep.name] = ep.load()
-        except Exception as exc:
-            raise RuntimeError(f"Failed to load evaluator plugin '{ep.name}': {exc}") from exc
+            func = ep.load()
+        except Exception:  # noqa: BLE001 - skip broken plugins
+            continue
+        if callable(func):
+            EVALUATOR_REGISTRY[ep.name] = func
 
 
 _load_external_evaluators()

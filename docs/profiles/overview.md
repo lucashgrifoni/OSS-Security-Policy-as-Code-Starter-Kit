@@ -1,6 +1,6 @@
 # Profiles overview
 
-This page summarizes the **20 bundled profiles** in this kit build: deterministic ladder profiles per platform (`github-*`, `azure-*`, `aws-*`) plus two **advisory-only hybrid** profiles. The legacy bundled id `github-release-hardening` was **removed in v5.0.0**; passing it now returns a migration error pointing to the canonical `github-release-hardening-1`. See [docs/v5.0.0-migration-guide.md](../v5.0.0-migration-guide.md).
+This page summarizes the **29 bundled profiles** in this kit build: deterministic ladder profiles per platform (`github-*`, `azure-*`, `aws-*`), two **advisory-only hybrid** profiles, one **regulatory mapping** profile for the CRA reporting deadline (`cra-eu-ready-1`, EU Cyber Resilience Act, advisory), one **regulatory hard-gate-capable** profile for full CRA obligations (`cra-eu-strict-1`), six **framework alignment** profiles introduced in v5.4.0 (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`), and the **AppSec native bundle** `appsec-sast-sca-1` (hard-gate-capable when paired with `scan-sast`). The legacy bundled id `github-release-hardening` was **removed in v5.0.0**; passing it now returns a migration error pointing to the canonical `github-release-hardening-1`. See [docs/v5.0.0-migration-guide.md](../v5.0.0-migration-guide.md).
 
 > **Hybrid profiles are advisory-only.** `github-aws-level-2` and `github-azure-level-2` combine GitHub SCM signals with AWS or Azure CI signals. They emit JSON `posture: multi_platform_advisory_hybrid`. **Do not use these profiles as a release or PR gate** — use the platform-specific `*-level-3` or `*-release-hardening-3` ladders instead.
 >
@@ -95,7 +95,7 @@ If `evaluation-batch.md` shows several targets failing the same set — typicall
 
 ## Profile maturity tier (read before choosing a hard gate)
 
-The 20 bundled profiles are not equally mature in **operational fit**. The catalog itself is uniformly `lifecycle: stable`, but two practical things differ between profiles:
+The 29 bundled profiles are not equally mature in **operational fit**. The catalog itself is uniformly `lifecycle: stable` (no controls remain `experimental` after `SAST-SEMGREP-064` was promoted to `stable`), but two practical things differ between profiles:
 
 1. how much **evidence-template work** the operator must do up front, and
 2. how complete the **collector** is for the platform.
@@ -121,7 +121,9 @@ These tiers are **not** evidence of catalog immaturity — they reflect the limi
 
 ### Framework alignment
 
-Each bundled profile description (`profiles --format detailed`) now ends with a **Framework alignment** sentence pointing operators at [framework-alignment.md](../framework-alignment.md), which maps the 65 catalog controls to OpenSSF Scorecard, OSPS Baseline, OWASP CI/CD Top 10, SLSA v1.0, NIST SSDF SP 800-218, Microsoft S2C2F, CIS Software Supply Chain Security Benchmark, AWS Well-Architected (Security Pillar), and Azure DevOps Security Best Practices. The page documents YES / PARTIAL / OUT / GAP coverage per framework requirement and explains why no framework-aligned profile (e.g., a hypothetical `slsa-l2-aligned` or `scorecard-baseline-aligned`) was added: subsets of the existing catalog serve operators better as **mapping documentation** than as additional profiles.
+Each bundled profile description (`profiles --format detailed`) now ends with a **Framework alignment** sentence pointing operators at [framework-alignment.md](../framework-alignment.md), which maps the 70 catalog controls to OpenSSF Scorecard, OSPS Baseline, OWASP CI/CD Top 10, SLSA v1.1, NIST SSDF SP 800-218, Microsoft S2C2F, CIS Software Supply Chain Security Benchmark, AWS Well-Architected (Security Pillar), Azure DevOps Security Best Practices, and EU Cyber Resilience Act. The page documents YES / PARTIAL / OUT / GAP coverage per framework requirement.
+
+Starting in v5.4.0 the kit also ships **bundled framework alignment profiles** (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `cra-eu-strict-1`). They are multi-platform mappings that combine existing controls into framework-specific bundles - operators who used to rely on the mapping documentation alone can now also `evaluate --profile <id>` to get a framework-shaped report. None of these profiles introduces a new control; they reuse the existing 70-control catalog. See the per-profile mapping in [framework-alignment.md](../framework-alignment.md).
 
 ## Matrix (derived from bundled YAML + catalog assurance mix)
 
@@ -147,8 +149,29 @@ Each bundled profile description (`profiles --format detailed`) now ends with a 
 | aws-release-hardening-1 | 16 | release ladder | no | 10 / 4 / 2 |
 | aws-release-hardening-2 | 22 | release ladder | no | 14 / 6 / 2 |
 | aws-release-hardening-3 | 29 | release hard-gate (extreme) | **yes** | 15 / 7 / 7 |
+| cra-eu-ready-1 | 12 | regulatory mapping (advisory) | no | 5 / 4 / 3 |
+| cra-eu-strict-1 | 19 | regulatory hard-gate (advisory until evidence) | **yes (with evidence)** | see JSON |
+| osps-baseline-1 | 18 | framework alignment (advisory) | no | see JSON |
+| slsa-build-l2-1 | 14 | framework alignment (hard-gate-capable) | **yes (with evidence)** | see JSON |
+| ssdf-baseline-1 | 22 | framework alignment (advisory) | no | see JSON |
+| cis-supply-chain-1 | 24 | framework alignment (advisory) | no | see JSON |
+| owasp-cicd-top10-1 | 23 | framework alignment (advisory) | no | see JSON |
+| s2c2f-l1-1 | 9 | framework alignment (advisory, OSS consumption) | no | see JSON |
+| appsec-sast-sca-1 | 11 | AppSec native bundle (hard-gate-capable with scan-sast) | **yes (with scan-sast)** | 7 / 2 / 2 |
 
-> **Source for counts**: `python -m oss_policy_kit profiles --format json` (`controls` and `assurance_mix`) against the bundled catalog in this revision.
+> **Source for counts**: `python -m oss_policy_kit profiles --format json` (`controls` and `assurance_mix`) against the bundled catalog in this revision. Counts evolve as new controls are folded into existing profiles; the JSON output is the canonical source of truth for any given build.
+
+### Framework alignment profiles (v5.4.0)
+
+The seven profiles introduced in v5.4.0 (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `cra-eu-strict-1`) are **multi-platform mappings**: they have no platform prefix and combine controls from the existing 70-control catalog into framework-aligned bundles. They complement (not replace) the platform ladders. Detailed per-framework mapping is documented in [framework-alignment.md](../framework-alignment.md).
+
+Two of the seven are hard-gate-capable when evidence is present (`slsa-build-l2-1`, `cra-eu-strict-1`); the other five are advisory mappings (`--fail-on degraded` recommended). All seven trigger the `[advisory profile]` banner only when explicitly listed there; consult `src/oss_policy_kit/cli/terminal_ui.py:_ADVISORY_ONLY_PROFILE_IDS` for the live list.
+
+The `recommend-profile` heuristic does not auto-suggest these seven framework profiles - they are deliberate operator choices, not heuristic recommendations (same pattern as `cra-eu-ready-1`).
+
+### AppSec native bundle (v5.4.0+)
+
+`appsec-sast-sca-1` (11 controls) is a separate multi-platform profile aimed at AppSec teams using the kit as part of pipeline AppSec, not just OSS governance. It bundles SAST (Semgrep evidence + CodeQL/equivalent signals), SCA (dependency review, auto-update, lockfile pinning), secret scanning, and dependency integrity controls. The profile is **hard-gate-capable when paired with `oss-policy-kit scan-sast`**: without the SAST evidence file, `SAST-SEMGREP-064` returns `manual-review-required` and does not trip `--fail-on fail`. With evidence, the profile reaches deterministic + evidence-backed posture and is suitable for `--fail-on fail`. See [framework-alignment.md](../framework-alignment.md) (AppSec native section) for the per-control mapping.
 
 ## ASCII decision tree (choose a profile)
 

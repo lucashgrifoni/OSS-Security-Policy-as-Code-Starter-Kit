@@ -1,7 +1,8 @@
 id: github-aws-level-2
 title: GitHub SCM + AWS CI/CD — advisory (level 2)
 description: >
-  **Advisory-only** multi-platform profile for repositories that use **GitHub** as the SCM layer and
+  **Advisory-only hybrid profile. Do not use as a release gate. Recommended `--fail-on degraded`.**
+  Multi-platform profile for repositories that use **GitHub** as the SCM layer and
   **AWS CodeBuild / CodePipeline** as the CI/CD layer. Combines the full GitHub workflow hardening
   signal bundle (reusable workflows, runner trust, job permissions, release safety, merge queue)
   with the AWS advisory control set (pipeline export, buildspec provenance, managed secrets).

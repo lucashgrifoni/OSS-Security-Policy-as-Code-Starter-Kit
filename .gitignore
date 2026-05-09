@@ -55,3 +55,7 @@ secrets/sonar.token
 /Secrets*.txt
 /*.private.md
 /*.private.txt
+
+# Local-only planning workspace; private to the maintainer. Mirrors the
+# .git/info/exclude entry but is portable across clones.
+melhorias/

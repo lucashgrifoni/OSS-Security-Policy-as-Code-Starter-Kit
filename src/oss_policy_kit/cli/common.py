@@ -17,6 +17,7 @@ from typer.core import HAS_RICH, TyperGroup
 from oss_policy_kit.adapters.local_paths import resolve_existing_dir
 from oss_policy_kit.adapters.scorecard_json import load_scorecard_auto
 from oss_policy_kit.application.cli_output import FailOnPolicy, fail_on_violated, print_stdout_summary
+from oss_policy_kit.application.config_loader import load_project_config_for_target
 from oss_policy_kit.application.engine import evaluate_repository
 from oss_policy_kit.application.loader import (
     load_catalog,
@@ -204,6 +205,8 @@ def prepare_cli_args(args: list[str]) -> list[str]:
         "collect-evidence",
         "diff-reports",
         "recommend-profile",
+        "init",
+        "scan-sast",
     }:
         return args
     if first in ("--help", "-h", "--version", "-V"):
@@ -216,7 +219,7 @@ def prepare_cli_args(args: list[str]) -> list[str]:
 def execute_evaluate(
     target_pos: str | None,
     target_opt: str | None,
-    profile: str,
+    profile: str | None,
     output_dir: Path,
     waivers: Path | None,
     scorecard_json: Path | None,
@@ -230,7 +233,13 @@ def execute_evaluate(
     report_json_contract: str = "1.0",
     sarif_output: Path | None = None,
 ) -> None:
-    """Shared implementation for root-level and `evaluate` subcommand invocations."""
+    """Shared implementation for root-level and `evaluate` subcommand invocations.
+
+    When ``profile`` is ``None``, this function attempts to load the
+    project config (``oss-policy-kit.yaml``) from the resolved target and
+    use the profile recorded there. The fallback is logged on stderr so
+    operators can see exactly which profile is being applied and why.
+    """
 
     try:
         fmt = normalize_evaluate_format(output_format)
@@ -242,10 +251,25 @@ def execute_evaluate(
         if not chosen:
             raise InvalidInputError("Provide a repository path as TARGET or via --target/-t.")
         repo_root = resolve_existing_dir(chosen)
+
+        resolved_profile = profile
+        if resolved_profile is None:
+            project_config = load_project_config_for_target(repo_root)
+            if project_config is None:
+                raise InvalidInputError(
+                    "--profile is required, and no oss-policy-kit.yaml was found under the target. "
+                    "Either pass --profile <id> or run `oss-policy-kit init` first.",
+                )
+            resolved_profile = project_config.profile
+            stderr_console().print(
+                f"[dim]Using profile from {project_config.path.name}: "
+                f"{resolved_profile}[/dim]",
+            )
+
         root = merge_kit_root(kit_root)
         catalog_path = root / "controls" / "catalog.yaml"
         catalog = load_catalog(catalog_path)
-        prof = load_profile_by_id(root, profile)
+        prof = load_profile_by_id(root, resolved_profile)
 
         waiver_outcome = None
         if waivers is not None:

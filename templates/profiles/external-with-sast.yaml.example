@@ -1,0 +1,43 @@
+# Example external profile that includes SAST-SEMGREP-064.
+#
+# How to use:
+#   1) Run: oss-policy-kit scan-sast --target .
+#      This produces .oss-policy-kit/evidence/sast-semgrep.json. When Semgrep
+#      is not installed locally, the evidence file is still written with
+#      status: not_available; SAST-SEMGREP-064 will then report
+#      manual-review-required (honest gap, not a crash).
+#   2) Copy this file into your repository (or anywhere on disk) and edit it.
+#   3) Run: oss-policy-kit evaluate --target . --profile ./external-with-sast.yaml
+#
+# This file is NOT a bundled profile. It exists as a starting template.
+# Edit `controls:` freely. External profiles cannot override built-in evaluators.
+# See docs/cli-reference.md and src/oss_policy_kit/data/profiles/github-level-2/profile.yaml
+# for the bundled controls you may want to copy here.
+
+id: external-with-sast
+title: External profile combining github-level-2 with Semgrep SAST evidence
+description: >
+  External profile example that augments a typical clone-side baseline with
+  SAST-SEMGREP-064 evidence-backed coverage. Run scan-sast before evaluate
+  so the evidence file exists; missing or `not_available` evidence will
+  surface as manual-review-required by design.
+audience: Teams that want SAST evidence as part of their evaluate run.
+controls:
+  # Governance + CI baseline (copied from github-level-2 as a starting point).
+  - GOV-SEC-001
+  - GOV-CON-002
+  - GOV-COWN-003
+  - GOV-LIC-004
+  - CI-WF-005
+  - CI-PERM-006
+  - CI-DANGER-007
+  - CI-PIN-008
+  - CI-LEAST-009
+  - SEC-CODEQL-010
+  - SEC-DEPREV-011
+  - REL-CHANGE-012
+  - GOV-DISC-013
+  - GOV-WAIV-014
+
+  # SAST evidence layer.
+  - SAST-SEMGREP-064

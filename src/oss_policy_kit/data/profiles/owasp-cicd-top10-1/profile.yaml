@@ -1,0 +1,46 @@
+id: owasp-cicd-top10-1
+title: OWASP Top 10 CI/CD Security Risks (2022) alignment
+description: >
+  **Advisory mapping (advisory only). Do not use as a release gate.**
+  Multi-platform profile aligned with the OWASP Top 10 CI/CD Security Risks (2022).
+  Each of the 10 risks is mapped to at least one existing kit control. Bundles 23
+  existing controls.
+  **Posture:** advisory mapping. **Recommended `--fail-on`:** `degraded` only.
+  **Framework alignment:** see `docs/framework-alignment.md` (OWASP CICD-SEC section).
+audience: >
+  AppSec and DevSecOps teams using the OWASP framework as their reference. Use for
+  self-assessment of CI/CD posture against the OWASP Top 10 CI/CD risks.
+controls:
+  # CICD-SEC-1 (Insufficient Flow Control)
+  - PLAT-BRPROT-015
+  - GH-PLAT-024
+  - GH-MERGEQ-053
+  - GOV-COWN-003
+  # CICD-SEC-2 (Inadequate Identity)
+  - ORG-MFA-001
+  - GH-PLAT-025
+  # CICD-SEC-3 (Dependency Chain Abuse)
+  - CI-PIN-008
+  - SEC-PINLOCK-052
+  - SEC-DEPREV-011
+  # CICD-SEC-4 (Poisoned Pipeline Execution)
+  - CI-DANGER-007
+  - GH-WF-019
+  - CI-WFCALLSHA-055
+  # CICD-SEC-5 (Insufficient PBAC)
+  - CI-PERM-006
+  - CI-LEAST-009
+  - GH-WF-020
+  # CICD-SEC-6 (Insufficient Credential Hygiene)
+  - SEC-SECRETS-050
+  - GH-WF-018
+  - GH-PLAT-026
+  # CICD-SEC-7 (Insecure System Configuration)
+  - GH-RUNNER-062
+  # CICD-SEC-8 (Ungoverned Usage of 3rd Party Services)
+  - GH-PROV-023
+  # CICD-SEC-9 (Improper Artifact Integrity)
+  - PROV-VERIFY-061
+  - BUILD-SBOM-QUAL-003
+  # CICD-SEC-10 (Insufficient Logging and Visibility)
+  - AUDIT-STREAM-060

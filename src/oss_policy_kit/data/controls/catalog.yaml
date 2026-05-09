@@ -347,7 +347,13 @@ controls:
     title: CodeCommit approval-rule review posture evidenced (optional)
     category: platform
     automation: not_observable_locally
-    lifecycle: stable
+    lifecycle: deprecated
+    deprecation_note: >-
+      Scheduled for removal in v5.6.0. AWS CodeCommit entered maintenance mode
+      in 2024-07 and is closed to new customers; the kit's other AWS controls
+      (CodePipeline, CodeBuild, IAM) remain the primary AWS coverage. External
+      profiles depending on AWS-CC-046 should pin to v5.5.x or migrate to a
+      different SCM signal before the v5.6.0 release.
     assurance: evidence-backed
     weight: 1
   - id: AWS-PIPEIAM-056
@@ -498,3 +504,10 @@ controls:
     lifecycle: stable
     assurance: signal
     weight: 2
+  - id: SAST-SEMGREP-064
+    title: SAST scan evidence (Semgrep) is present and current
+    category: ci_cd
+    automation: not_observable_locally
+    lifecycle: stable
+    assurance: evidence-backed
+    weight: 3

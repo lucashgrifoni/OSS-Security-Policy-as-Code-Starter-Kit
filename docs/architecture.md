@@ -9,6 +9,25 @@ This document describes the runtime structure of the OSS Security Policy as Code
 - stay honest about what can and cannot be proven from a local clone
 - prefer explicit degradation over optimistic false passes
 
+## Control ID convention
+
+Each control in `data/controls/catalog.yaml` has a globally unique `id` of the form `<PREFIX>-<TOKEN>-<NUMBER>`:
+
+- `<PREFIX>` is one of `GOV`, `CI`, `SEC`, `REL`, `PLAT`, `GH`, `AZ`, `AWS`, `DEP`, `OSS`, `CONT`, `BUILD`, `ORG`, `AUDIT`, `PROV`, `SAST`, `RELEASE`. The prefix encodes either a category (governance, ci_cd, supply_chain, etc.) or a platform (`GH`, `AZ`, `AWS`).
+- `<TOKEN>` is a short mnemonic (e.g. `WF`, `PIN`, `PIPE`, `SECRET`, `SBOM`).
+- `<NUMBER>` is a 3-digit serial.
+
+The combination is unique. **The serial number alone is not unique across families**: parallel controls for different platforms intentionally share the same serial. For example:
+
+- `AZ-SCONN-056` (Azure DevOps service connection auth) and `AWS-PIPEIAM-056` (AWS CodePipeline IAM) both use serial `056`.
+- `AZ-WIFEV-057` and `AWS-CBIDENT-057` both use `057`.
+- `AZ-ARTSBOM-058` and `AWS-SBOMART-058` both use `058`.
+- `AZ-ARTPRV-059` and `AWS-PROVART-059` both use `059`.
+
+This is by design. The full ID is what is consumed by profiles, the registry, the evaluator dispatch, the reports schema, and external tooling. Reading two such IDs as if they were the same control is a reviewer mistake; the prefix differentiates them.
+
+When proposing a new control, pick a prefix that already exists when the new control fits the same family; otherwise introduce a new prefix and document it here.
+
 ## Package layout
 
 ### Domain (`oss_policy_kit.domain`)

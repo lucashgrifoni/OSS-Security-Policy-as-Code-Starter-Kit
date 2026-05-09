@@ -124,7 +124,9 @@ def test_subprocess_profiles_command() -> None:
     assert "Starter" in proc.stdout and "clone-visible" in proc.stdout.replace("\n", "")
     assert "repositories: governance files, safe workflow" not in proc.stdout
     assert "Details" not in proc.stdout
-    assert "Track" not in proc.stdout
+    # Note: "Track" is now legitimate vocabulary in profile titles
+    # ("SLSA v1.1 Build Track Level 2", "EU CRA strict track" etc.)
+    # introduced in v5.4.0. The old guard was against an obsolete column label.
     assert "Summary" not in proc.stdout
 
 
@@ -198,7 +200,9 @@ def test_subprocess_show_profiles_flag() -> None:
     assert "Starter GitHub baseline for clone-visible checks." not in normalized_stdout
     assert "governance" in proc.stdout and "workflow" in proc.stdout
     assert "Details" not in proc.stdout
-    assert "Track" not in proc.stdout
+    # Note: "Track" is now legitimate vocabulary in profile titles
+    # ("SLSA v1.1 Build Track Level 2", "EU CRA strict track" etc.)
+    # introduced in v5.4.0. The old guard was against an obsolete column label.
     assert "Summary" not in proc.stdout
 
 

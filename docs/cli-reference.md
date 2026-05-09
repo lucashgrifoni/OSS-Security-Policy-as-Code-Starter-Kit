@@ -12,6 +12,68 @@ The supported CLI forms are:
 
 The explicit `evaluate` subcommand is the clearest form and should be preferred in docs, scripts, and examples.
 
+## Project Initialization
+
+For new adopters, `init` is the fastest path from "fresh clone" to a working baseline. It detects the CI platform and primary language stack, picks a recommended profile, and writes a persisted `oss-policy-kit.yaml` config plus any optional artifacts you ask for.
+
+```bash
+# Minimum: detect platform, pick a profile, write oss-policy-kit.yaml
+python -m oss_policy_kit init --target .
+
+# Full bootstrap in one shot (config + waivers stub + evidence skeleton + workflow)
+python -m oss_policy_kit init --target . \
+  --with-waivers --with-evidence --with-workflow
+
+# Preview without touching the filesystem
+python -m oss_policy_kit init --target . --dry-run
+
+# Force a profile and platform when you already know what you want
+python -m oss_policy_kit init --target . --profile github-level-2 --platform github
+
+# Stable JSON output for automation / CI
+python -m oss_policy_kit init --target . --format json
+```
+
+The command is idempotent: re-running without `--force` preserves any file you have edited and reports it as `skipped`. Pass `--force` only when you want to replace generated files with the latest defaults.
+
+> **Honesty contract.** `oss-policy-kit.yaml` is reserved for future kit versions to consume when `--profile` is omitted from `evaluate`. Today the file documents intent and powers reproducibility, but `evaluate` still reads its inputs from explicit flags. The file uses a stable `schema_version` (`oss-policy-kit/config/v1`) so the upcoming consumer can migrate safely.
+
+The JSON output uses `schema_version: oss-policy-kit/init-result/v1` and is additive across releases.
+
+## Config-aware evaluate
+
+Starting in v5.4.0, `evaluate` reads `oss-policy-kit.yaml` (written by `init`) when `--profile` is omitted:
+
+```bash
+python -m oss_policy_kit init --target .          # writes oss-policy-kit.yaml
+python -m oss_policy_kit evaluate --target .      # uses the profile from the file
+```
+
+When the fallback is used, evaluate logs `Using profile from oss-policy-kit.yaml: <profile-id>` on stderr. Explicit `--profile <id>` always wins over the file. Missing both flag **and** config produces exit code 2 with a clear message.
+
+The config schema (`oss-policy-kit/config/v1`) records: `profile`, `profile_source`, `fail_on`, `output_dir`, `report_json_contract`, and detected metadata. `fail_on` and `output_dir` are still consumed via flags only in this release; future versions will expand the fallback surface.
+
+## SAST evidence
+
+`scan-sast` runs Semgrep against the target and writes evidence consumed by the `SAST-SEMGREP-064` control:
+
+```bash
+pip install semgrep                                              # one-time
+python -m oss_policy_kit scan-sast --target .                    # writes evidence
+python -m oss_policy_kit evaluate --target . --profile my-sast   # consumes evidence
+```
+
+Semgrep is **not** a hard dependency. When the binary is missing, `scan-sast` still writes an evidence file with `status: not_available` and exits 0; `evaluate` then reports `SAST-SEMGREP-064` as `manual-review-required` with remediation pointing to `pip install semgrep`. This keeps the kit honest about gaps without crashing pipelines that have not adopted SAST yet.
+
+`SAST-SEMGREP-064` is **not included in any bundled profile by design** (it is `lifecycle: experimental`). To opt in, use an external profile YAML. A starting template is shipped at `templates/profiles/external-with-sast.yaml.example`:
+
+```bash
+cp templates/profiles/external-with-sast.yaml.example ./my-sast-profile.yaml
+# edit controls: as needed
+python -m oss_policy_kit scan-sast --target .
+python -m oss_policy_kit evaluate --target . --profile ./my-sast-profile.yaml
+```
+
 ## Day-to-day usage
 
 1. **First run**: install the package, then `python -m oss_policy_kit profiles` (or `--show-profiles`) to pick a ladder, and `python -m oss_policy_kit recommend-profile --target .` for a quick hint.
@@ -187,6 +249,8 @@ After a successful evaluation:
 | `evaluate` | `--profile/-p` (or positional target) | `--target/-t`, `--output-dir/-o`, `--format/-f`, `--summary-only/-so`, `--fail-on/-fo` (`none`/`fail`/`degraded`), `--waivers/-w`, `--scorecard-json/-sj`, `--report-json-contract` (`1.0`/`0.3`/`0.2`), `--sarif-output`, `--verbose/-v`, `--quiet/-q`, `--kit-root/-k` | Default contract is `1.0`; `0.3` and `0.2` remain selectable. SARIF only emitted when `--sarif-output` is set. |
 | `evaluate-many` | `--target-root`, `--profiles/-p` (comma-separated) | `--output-dir/-o`, `--include`, `--exclude` (fnmatch on child names), `--fail-on/-fo`, `--skip-non-repos`, `--quiet/-q`, `--kit-root/-k` | Iterates immediate children of `--target-root`. `--profiles` is plural. |
 | `recommend-profile` | `--target/-t` | `--format/-f` (`human` default, `json`) | Heuristic — never a compliance verdict. |
+| `init` | — (defaults `--target .`) | `--profile/-p`, `--platform`, `--fail-on`, `--output-dir/-o`, `--with-waivers`, `--with-evidence`, `--with-workflow`, `--force/-f`, `--dry-run`, `--format` (`human`/`json`) | Writes `oss-policy-kit.yaml` and optional artifacts. Idempotent without `--force`. |
+| `scan-sast` | — (defaults `--target .`) | `--rulesets` (csv, default `auto`), `--timeout`, `--format` (`human`/`json`) | Runs Semgrep when available and writes `.oss-policy-kit/evidence/sast-semgrep.json`. Status `not_available` is recorded honestly when Semgrep is missing. |
 | `scaffold-evidence` | `--target/-t`, `--platform` (`github`/`azure`/`aws`) | `--force` | Creates `.oss-policy-kit/evidence/` and template JSON files. `--target` must already exist. |
 | `collect-evidence` | `--target/-t`, `--platform` (`github`/`azure`/`aws`) | `--repo`, `--output-dir/-o`, `--dry-run` | `--dry-run` reports presence/absence of credential env vars without printing values. |
 | `diff-reports` | `--before`, `--after` | `--format/-f` (`table` default, `json`, `markdown`), `--fail-on-regression` / `--no-fail-on-regression` | Default is to exit `1` on regression; opt out with `--no-fail-on-regression`. |

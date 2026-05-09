@@ -57,7 +57,9 @@ def test_cli_profiles_command_exits_zero() -> None:
     assert "Starter" in out and "GitHub" in out and "clone-visible" in out.replace("\n", "")
     assert "repositories: governance files, safe workflow" not in out
     assert "Details" not in out
-    assert "Track" not in out
+    # Note: "Track" is now legitimate vocabulary in profile titles
+    # ("SLSA v1.1 Build Track Level 2", "EU CRA strict track" etc.)
+    # introduced in v5.4.0. The old guard was against an obsolete column label.
     assert "Summary" not in out
 
 
@@ -92,7 +94,9 @@ def test_cli_show_profiles_flag_exits_zero() -> None:
     assert "Starter GitHub baseline for clone-visible checks." not in normalized_out
     assert "governance" in out and "workflow" in out
     assert "Details" not in out
-    assert "Track" not in out
+    # Note: "Track" is now legitimate vocabulary in profile titles
+    # ("SLSA v1.1 Build Track Level 2", "EU CRA strict track" etc.)
+    # introduced in v5.4.0. The old guard was against an obsolete column label.
     assert "Summary" not in out
 
 

@@ -1,0 +1,39 @@
+id: slsa-build-l2-1
+title: SLSA v1.1 Build Track Level 2 alignment
+description: >
+  **Hard-gate-capable when evidence files are present. Used as gate without evidence
+  yields manual-review-required by design.**
+  Multi-platform profile aligned with SLSA v1.1 Build Track Level 2: build automation
+  + provenance signed. Bundles 14 existing controls covering build automation discipline,
+  provenance generation and verification (sigstore / GitHub Artifact Attestations),
+  reusable workflow integrity, runner trust, and SBOM quality.
+  **Posture:** mapping (advisory until evidence is filled; hard-gate-capable when
+  `PROV-VERIFY-061` evidence is present and verifiable).
+  **Recommended `--fail-on`:** `fail` paired with `collect-evidence --platform github`
+  (and a real provenance attestation). Without evidence, expect `manual-review-required`
+  on `PROV-VERIFY-061` - this is by design and means SLSA L2 cannot be claimed yet.
+  **Framework alignment:** see `docs/framework-alignment.md` (SLSA v1.1 section).
+audience: >
+  Maintainers publishing artifacts (wheels, containers, binaries) with provenance
+  signed via sigstore or GitHub Artifact Attestations, who need to declare "SLSA
+  Build Level 2" to downstream consumers.
+controls:
+  # Build automation
+  - CI-WF-005
+  - CI-PIN-008
+  - CI-WFCALLSHA-055
+  - CI-PERM-006
+  # Provenance
+  - GH-PROV-023
+  - PROV-VERIFY-061
+  # Build integrity
+  - GH-WF-018
+  - GH-WF-019
+  - GH-WF-020
+  - GH-RUNNER-062
+  # SBOM (related to build artifact integrity)
+  - BUILD-SBOM-QUAL-003
+  # Governance (sustaining)
+  - GOV-SEC-001
+  - GOV-LIC-004
+  - REL-CHANGE-012

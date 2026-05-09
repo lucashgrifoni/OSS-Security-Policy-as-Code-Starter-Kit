@@ -1,0 +1,33 @@
+id: appsec-sast-sca-1
+title: AppSec native bundle (SAST + SCA + secret scanning + dependency hygiene)
+description: >
+  **Hard-gate-capable when paired with `scan-sast`.**
+  Multi-platform profile that combines SAST (Semgrep evidence + CodeQL/equivalent
+  signals), SCA (dependency review, auto-update, lockfile), secret scanning, and
+  dependency integrity controls. Designed for AppSec teams using the kit as part
+  of their pipeline AppSec, not just as OSS governance.
+  **Posture:** hard-gate-capable. **Recommended `--fail-on`:** `fail` paired with
+  `oss-policy-kit scan-sast --target .` before evaluate. Without scan-sast,
+  `SAST-SEMGREP-064` returns `manual-review-required` (does not trip `--fail-on fail`).
+  **Framework alignment:** see `docs/framework-alignment.md` (AppSec native section).
+audience: >
+  AppSec engineers and DevSecOps teams using the kit as part of their pipeline
+  security gate, not just for OSS governance. Combines clone-side discipline with
+  scanner-backed evidence.
+controls:
+  # SAST
+  - SEC-CODEQL-010
+  - SAST-SEMGREP-064
+  # SCA
+  - SEC-DEPREV-011
+  - DEP-UPDATE-001
+  - SEC-PINLOCK-052
+  # Secret scanning
+  - SEC-SECRETS-050
+  - SEC-GITIGNORE-051
+  - GH-PLAT-026
+  # Dependency integrity
+  - CI-PIN-008
+  - CI-WFCALLSHA-055
+  # Governance (sustaining)
+  - GOV-WAIV-014

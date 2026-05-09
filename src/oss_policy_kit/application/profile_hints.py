@@ -549,6 +549,10 @@ def build_profile_recommendation(repo_root: Path) -> ProfileRecommendation:
             f"Multiple CI platforms detected in this clone (primary ranked: {pretty}; also: {tail}). "
             "Profile suggestions prioritize the strongest platform signals first.",
         )
+        notes.append(
+            "Pass --platform github | azure | aws (on `init`) or --profile <id> (on `evaluate`) "
+            "to override and fix the platform family yourself.",
+        )
     tech_ids = {s["id"] for s in tech_signals}
     if tech_notes:
         notes.extend(tech_notes)

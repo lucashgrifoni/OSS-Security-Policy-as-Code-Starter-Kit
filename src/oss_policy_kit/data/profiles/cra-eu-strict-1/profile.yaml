@@ -1,0 +1,42 @@
+id: cra-eu-strict-1
+title: EU Cyber Resilience Act - strict track (2027-12-11 obligations)
+description: >
+  **Hard-gate-capable when evidence files are filled. Without evidence, results in
+  manual-review-required (honest gap, not a crash).**
+  Stricter version of `cra-eu-ready-1` aimed at the EU CRA full-obligations deadline
+  of 2027-12-11. Adds 7 controls beyond `cra-eu-ready-1` to cover GitHub platform
+  governance evidence (rulesets, environments, secret scanning), org-wide MFA, action
+  pinning, and secret scanning posture. Bundles 19 existing controls total.
+  **Posture:** hard-gate-capable mapping. **Recommended `--fail-on`:** `fail` paired
+  with `collect-evidence` and filled artifact-bound SBOM/provenance. Without evidence,
+  expect `manual-review-required` on platform/SBOM/provenance controls.
+  **Important:** this profile is **not** a CRA conformity assessment. Conformity
+  assessment requires a competent authority and is outside the kit's scope.
+  **Framework alignment:** see `docs/framework-alignment.md` (EU Cyber Resilience Act section).
+audience: >
+  Manufacturers placing software products on the EU market who need to prepare for
+  the full CRA obligations deadline (2027-12-11), including conformity assessment
+  documentation. Use as a clone-side posture indicator; the formal CE-marking and
+  conformity assessment are external to the kit.
+controls:
+  # CRA Article 13 - security requirements (existing 12 from cra-eu-ready-1)
+  - GOV-SEC-001
+  - GOV-DISC-013
+  - GOV-WAIV-014
+  - REL-CHANGE-012
+  - BUILD-SBOM-QUAL-003
+  - PROV-VERIFY-061
+  - AUDIT-STREAM-060
+  - RELEASE-ARCHIVE-063
+  - SEC-DEPREV-011
+  - DEP-UPDATE-001
+  - PLAT-BRPROT-015
+  - GOV-EVIDFRESH-054
+  # Strict-track additions for 2027-12-11 obligations (7 new)
+  - GH-PROV-023
+  - GH-PLAT-024
+  - GH-PLAT-025
+  - GH-PLAT-026
+  - ORG-MFA-001
+  - CI-PIN-008
+  - SEC-SECRETS-050

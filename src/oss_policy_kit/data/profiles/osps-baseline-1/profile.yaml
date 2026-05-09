@@ -1,0 +1,38 @@
+id: osps-baseline-1
+title: OSPS Baseline alignment (Open Source Project Security Baseline)
+description: >
+  **Advisory mapping (advisory only). Do not use as a release gate. Not a compliance certification.**
+  Multi-platform profile mapping the kit's existing controls to the OpenSSF Open Source
+  Project Security Baseline (OSPS Baseline). Covers four areas: Access Control,
+  Build & Release, Documentation, and Quality & Security Assessment. Bundles 18 existing
+  controls; this profile is a mapping between the kit's evidence and OSPS Baseline
+  expectations - it does not certify compliance with the framework.
+  **Posture:** advisory. **Recommended `--fail-on`:** `degraded` only.
+  **Framework alignment:** see `docs/framework-alignment.md` (OSPS Baseline section).
+audience: >
+  OSS maintainers and small-to-medium projects who want to declare alignment with
+  the OpenSSF OSPS Baseline. Use for self-assessment and discovery; not for hard
+  release gating.
+controls:
+  # Access Control
+  - GOV-COWN-003
+  - PLAT-BRPROT-015
+  - ORG-MFA-001
+  - GH-PLAT-024
+  # Build & Release
+  - CI-WF-005
+  - CI-PIN-008
+  - CI-PERM-006
+  - REL-CHANGE-012
+  - BUILD-SBOM-QUAL-003
+  - GH-PROV-023
+  # Documentation
+  - GOV-SEC-001
+  - GOV-CON-002
+  - GOV-LIC-004
+  - GOV-DISC-013
+  # Quality & Security Assessment
+  - SEC-CODEQL-010
+  - SEC-DEPREV-011
+  - SEC-SECRETS-050
+  - DEP-UPDATE-001

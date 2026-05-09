@@ -6,6 +6,71 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## OSS Security Policy as Code Starter Kit v5.4.0
+
+This minor release moves the kit from "evaluator only" to "starter kit you can actually adopt": it adds the `init` wizard, makes `evaluate` config-aware, ships an official **GitHub Action** for the Marketplace, and introduces the first **real SAST integration** (Semgrep) with a stable evidence contract. Existing contracts (`reports/1.0`, profile IDs, control IDs, evidence schemas) are unchanged.
+
+---
+
+### Highlights
+
+- **Seven new bundled framework-alignment profiles** (multi-platform, no platform prefix): `osps-baseline-1` (OpenSSF OSPS Baseline), `slsa-build-l2-1` (SLSA v1.1 Build L2), `ssdf-baseline-1` (NIST SP 800-218), `cis-supply-chain-1` (CIS Software Supply Chain Security Benchmark v1.0), `owasp-cicd-top10-1` (OWASP CI/CD Top 10 2022), `s2c2f-l1-1` (Microsoft S2C2F Level 1, OSS consumption baseline), and `cra-eu-strict-1` (EU CRA full-obligations track for 2027-12-11). All seven combine existing controls from the 70-control catalog into framework-specific bundles; **no new control IDs were added**. Two profiles are hard-gate-capable when evidence is present (`slsa-build-l2-1`, `cra-eu-strict-1`); the other five are advisory mappings (`--fail-on degraded` recommended). Detailed mapping per framework documented in `docs/framework-alignment.md`. The `recommend-profile` heuristic does not auto-suggest these profiles - they are deliberate operator choices, mirroring the existing pattern for `cra-eu-ready-1`.
+
+- **`SAST-SEMGREP-064` promoted to `lifecycle: stable`** and new bundled profile **`appsec-sast-sca-1`** (11 controls) introduced as the first profile to consume it. The AppSec native bundle combines SAST (`SEC-CODEQL-010`, `SAST-SEMGREP-064`), SCA (`SEC-DEPREV-011`, `DEP-UPDATE-001`, `SEC-PINLOCK-052`), secret scanning (`SEC-SECRETS-050`, `SEC-GITIGNORE-051`, `GH-PLAT-026`), and dependency integrity controls (`CI-PIN-008`, `CI-WFCALLSHA-055`), plus governance sustaining (`GOV-WAIV-014`). It is **hard-gate-capable when paired with `oss-policy-kit scan-sast`**; without the SAST evidence file, `SAST-SEMGREP-064` returns `manual-review-required` (does not trip `--fail-on fail`). Total bundled profiles: **21 → 29**.
+
+- **New `init` subcommand**: zero-friction project bootstrap.
+  - Detects the CI platform (GitHub / Azure / AWS) and primary language stack from the repository layout, reusing the same heuristic that powers `recommend-profile`.
+  - Writes a persisted `oss-policy-kit.yaml` config (schema `oss-policy-kit/config/v1`) capturing the chosen profile, fail-on policy, output directory, detected signals, and generator metadata.
+  - Optional flags compose into a single run: `--with-waivers`, `--with-evidence`, `--with-workflow`.
+  - Idempotent by default; `--dry-run` previews every action; `--format json` emits a stable JSON shape (`oss-policy-kit/init-result/v1`).
+
+- **`evaluate` is now config-aware**. When `--profile` is omitted, `evaluate` looks for `oss-policy-kit.yaml` under `--target` and uses the recorded profile. The fallback is logged on stderr (`Using profile from oss-policy-kit.yaml: ...`) so operators always know which profile is being applied. Explicit `--profile` always wins.
+
+- **GitHub Action published as a composite action** (`action.yml` at repository root). Inputs map 1:1 to CLI flags; outputs expose absolute paths to the generated reports and the captured exit code. SARIF is opt-in. Pinning by tag (`@v5.4.0`), branch (`@v5`), or commit SHA all work.
+
+- **New `scan-sast` subcommand + `SAST-SEMGREP-064` control**. `scan-sast` runs Semgrep (when installed) against the target and writes a normalized evidence file (`.oss-policy-kit/evidence/sast-semgrep.json`, schema `oss-policy-kit/evidence/sast-semgrep/v1`). `SAST-SEMGREP-064` (lifecycle: `stable`, assurance: `evidence-backed`) consumes that evidence: HIGH/CRITICAL findings → `fail`; missing or `not_available` evidence → `manual-review-required` with explicit remediation. Semgrep is **not** a hard dependency: `pip install semgrep` is documented but optional.
+
+- **`AWS-CC-046` deprecated; scheduled for removal in v5.6.0.** AWS CodeCommit entered maintenance mode upstream in 2024-07 and is closed to new customers. The control is not bundled into any profile, so default flows are unaffected. The catalog entry now carries `lifecycle: deprecated` and a `deprecation_note` pointing to v5.6.0 removal. External profiles that reference `AWS-CC-046` should pin to v5.5.x or migrate to a different SCM signal before v5.6.0. The other AWS controls (`AWS-CP-044`, `AWS-CB-045`, `AWS-PIPEIAM-056`, `AWS-CBIDENT-057`) remain stable and continue to cover the dominant AWS CI/CD path.
+
+---
+
+### Improvements
+
+- `prepare_cli_args` allowlists `init` and `scan-sast` so positional invocations dispatch correctly.
+- `docs/cli-reference.md` gains a "Project Initialization" section and updated quick-reference table.
+- `docs/github-action.md` documents the Marketplace action with inputs, outputs, permissions, and SARIF forwarding.
+- `templates/workflows/oss-policy-kit-marketplace-action.yml` is a copy/paste reusable workflow that consumes the published action.
+- Plugin entry-point loader for external evaluators is preserved unchanged; built-in IDs cannot be overridden.
+
+---
+
+### Breaking changes
+
+None. v5.4.0 is fully backwards-compatible with v5.3.0:
+
+- `reports/1.0`, `reports/0.3`, `reports/0.2` shapes are byte-stable.
+- All v5.3.0 profile IDs and control IDs remain.
+- The new `oss-policy-kit.yaml` config is **optional**: existing pipelines that pass `--profile` explicitly behave identically.
+- `SAST-SEMGREP-064` is `stable` and is bundled into `appsec-sast-sca-1`. Profiles that omit the control retain v5.3.0 behavior; existing reports do not change shape.
+
+---
+
+### Notes
+
+- This is a minor release in the `5.x` line.
+- New tests:
+  - `tests/cli/test_init.py` — 12 cases for `init`.
+  - `tests/application/test_config_loader.py` — config parsing happy/sad paths.
+  - `tests/cli/test_evaluate_with_config.py` — integration tests for `evaluate` reading `oss-policy-kit.yaml`.
+  - `tests/application/test_profile_schemas.py` — 5 parametrized invariants validating every bundled profile (required fields, id matches directory, controls exist in catalog, no duplicates, floor of 21 profiles).
+- Roadmap for v5.5 (native Terraform / OpenTofu IaC coverage) is documented under `melhorias/v5.5-terraform-parser.md`.
+- `appsec-sast-sca-1` is shipped in this release alongside the promotion of `SAST-SEMGREP-064` to `stable`; both items are documented above under Highlights and `docs/profiles/overview.md` / `docs/framework-alignment.md`.
+- New tests covering the AppSec native bundle: `tests/application/test_appsec_sast_sca_1.py` (profile invariants and honest-gap behavior when SAST evidence is absent).
+
+**License:** Apache-2.0.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.3.0
 
 This minor release is a **maturity / metadata** release: it promotes the four `experimental` controls introduced in v5.1.0 / v5.2.0 to `stable`, sharpens the **CRA boundary** of the two hybrid profiles, and documents the concrete plan for the next collector parity expansion.

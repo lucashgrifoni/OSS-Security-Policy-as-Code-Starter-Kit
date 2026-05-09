@@ -1,0 +1,169 @@
+# OSS Security Policy as Code Starter Kit -- GitHub Action wrapper.
+#
+# Composite action that installs the published `oss-policy-kit` PyPI
+# distribution in a hermetic virtualenv and runs `evaluate` against the
+# repository. SARIF output is optional and never enabled by default so the
+# action remains safe to use in private repositories without a Code
+# Scanning license.
+#
+# Inputs map 1:1 to the CLI flags so existing local invocations translate
+# directly. The action never modifies files in the repository: it only
+# reads them and writes reports under `output-dir`.
+#
+# Versioning: this file is published from the same tag as the PyPI wheel.
+# Pin a tag (e.g. `@v5.4.0`) for reproducibility, or `@v5` for tracking
+# the latest 5.x line. Pinning by SHA is also supported and recommended
+# for production workflows.
+
+name: 'OSS Security Policy as Code'
+description: 'Evaluate a repository against bundled OSS security baselines (governance, CI/CD, supply chain).'
+author: 'Lucas Henrique Grifoni'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  target:
+    description: 'Path to the repository root to evaluate. Defaults to the workspace.'
+    required: false
+    default: '.'
+  profile:
+    description: |
+      Profile ID (e.g. github-level-1, github-release-hardening-2) or path
+      to an external YAML profile. Omit to read the profile from
+      oss-policy-kit.yaml at the target.
+    required: false
+    default: ''
+  fail-on:
+    description: 'CI gate mode: none, fail, or degraded. Defaults to fail.'
+    required: false
+    default: 'fail'
+  output-dir:
+    description: 'Directory where evaluation-report.json / .md will be written.'
+    required: false
+    default: 'oss-policy-reports'
+  waivers:
+    description: 'Optional path to a waivers YAML file (kept under version control).'
+    required: false
+    default: ''
+  scorecard-json:
+    description: 'Optional OpenSSF Scorecard JSON export used as supplemental evidence.'
+    required: false
+    default: ''
+  sarif-output:
+    description: |
+      Optional SARIF 2.1.0 file path (relative paths resolve under output-dir).
+      When set, the action emits SARIF; uploading it to Code Scanning is the
+      caller's responsibility (e.g. via github/codeql-action/upload-sarif).
+    required: false
+    default: ''
+  kit-version:
+    description: |
+      Pin a specific oss-policy-kit version on PyPI. Defaults to the version
+      that matches this action tag. Use `latest` to track the newest 5.x.
+    required: false
+    default: ''
+  python-version:
+    description: 'Python version used to run the kit. 3.12+ is required.'
+    required: false
+    default: '3.12'
+
+outputs:
+  report-json:
+    description: 'Absolute path to evaluation-report.json'
+    value: ${{ steps.run.outputs.report_json }}
+  report-markdown:
+    description: 'Absolute path to evaluation-report.md'
+    value: ${{ steps.run.outputs.report_md }}
+  sarif:
+    description: 'Absolute path to the SARIF file (only set when sarif-output was provided).'
+    value: ${{ steps.run.outputs.sarif }}
+  exit-code:
+    description: 'Exit code returned by `oss-policy-kit evaluate` (0 / 1 / 2 / 3).'
+    value: ${{ steps.run.outputs.exit_code }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve kit version
+      id: resolve
+      shell: bash
+      env:
+        INPUT_KIT_VERSION: ${{ inputs.kit-version }}
+        ACTION_REF: ${{ github.action_ref }}
+      run: |
+        set -euo pipefail
+        if [ -n "${INPUT_KIT_VERSION}" ]; then
+          echo "kit_version=${INPUT_KIT_VERSION}" >> "${GITHUB_OUTPUT}"
+        elif [[ "${ACTION_REF}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+          # Action pinned to a release tag: install the matching wheel.
+          echo "kit_version=${ACTION_REF#v}" >> "${GITHUB_OUTPUT}"
+        else
+          # Action pinned to a branch / SHA: track latest 5.x.
+          echo "kit_version=" >> "${GITHUB_OUTPUT}"
+        fi
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install oss-policy-kit
+      shell: bash
+      env:
+        KIT_VERSION: ${{ steps.resolve.outputs.kit_version }}
+      run: |
+        set -euo pipefail
+        python -m pip install --upgrade pip
+        if [ -n "${KIT_VERSION}" ]; then
+          python -m pip install "oss-policy-kit==${KIT_VERSION}"
+        else
+          python -m pip install "oss-policy-kit"
+        fi
+        python -m oss_policy_kit --version
+
+    - name: Run evaluate
+      id: run
+      shell: bash
+      env:
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_PROFILE: ${{ inputs.profile }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_OUTPUT_DIR: ${{ inputs.output-dir }}
+        INPUT_WAIVERS: ${{ inputs.waivers }}
+        INPUT_SCORECARD_JSON: ${{ inputs.scorecard-json }}
+        INPUT_SARIF_OUTPUT: ${{ inputs.sarif-output }}
+      run: |
+        set -uo pipefail
+        args=(evaluate --target "${INPUT_TARGET}" --output-dir "${INPUT_OUTPUT_DIR}" --fail-on "${INPUT_FAIL_ON}")
+        if [ -n "${INPUT_PROFILE}" ]; then
+          args+=(--profile "${INPUT_PROFILE}")
+        fi
+        if [ -n "${INPUT_WAIVERS}" ]; then
+          args+=(--waivers "${INPUT_WAIVERS}")
+        fi
+        if [ -n "${INPUT_SCORECARD_JSON}" ]; then
+          args+=(--scorecard-json "${INPUT_SCORECARD_JSON}")
+        fi
+        if [ -n "${INPUT_SARIF_OUTPUT}" ]; then
+          args+=(--sarif-output "${INPUT_SARIF_OUTPUT}")
+        fi
+        python -m oss_policy_kit "${args[@]}"
+        rc=$?
+        out_dir="${INPUT_OUTPUT_DIR}"
+        report_json="${GITHUB_WORKSPACE}/${out_dir}/evaluation-report.json"
+        report_md="${GITHUB_WORKSPACE}/${out_dir}/evaluation-report.md"
+        echo "exit_code=${rc}" >> "${GITHUB_OUTPUT}"
+        echo "report_json=${report_json}" >> "${GITHUB_OUTPUT}"
+        echo "report_md=${report_md}" >> "${GITHUB_OUTPUT}"
+        if [ -n "${INPUT_SARIF_OUTPUT}" ]; then
+          if [[ "${INPUT_SARIF_OUTPUT}" = /* ]]; then
+            sarif_path="${INPUT_SARIF_OUTPUT}"
+          else
+            sarif_path="${GITHUB_WORKSPACE}/${out_dir}/${INPUT_SARIF_OUTPUT}"
+          fi
+          echo "sarif=${sarif_path}" >> "${GITHUB_OUTPUT}"
+        fi
+        # Forward the kit's exit code so branch protection and required-check
+        # gates behave the way operators expect (1 when --fail-on is tripped).
+        exit "${rc}"

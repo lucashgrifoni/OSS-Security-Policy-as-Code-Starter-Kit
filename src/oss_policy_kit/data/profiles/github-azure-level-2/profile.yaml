@@ -1,7 +1,8 @@
 id: github-azure-level-2
 title: GitHub SCM + Azure Pipelines — advisory (level 2)
 description: >
-  **Advisory-only** multi-platform profile for repositories that use **GitHub** as the SCM layer and
+  **Advisory-only hybrid profile. Do not use as a release gate. Recommended `--fail-on degraded`.**
+  Multi-platform profile for repositories that use **GitHub** as the SCM layer and
   **Azure Pipelines** as the CI/CD layer. Combines the full GitHub workflow hardening signal bundle
   (reusable workflows, runner trust, job permissions, release safety, merge queue) with the Azure
   advisory control set (pipeline structure, template security, credential persistence, deployment
