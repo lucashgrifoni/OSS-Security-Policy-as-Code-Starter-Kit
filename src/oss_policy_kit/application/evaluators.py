@@ -17,6 +17,24 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
 from oss_policy_kit.adapters.scorecard_json import ScorecardBundle, checks_as_map
+from oss_policy_kit.application.evaluators_common import (
+    DIGEST_PLACEHOLDER_REASON as _DIGEST_PLACEHOLDER_REASON,
+)
+from oss_policy_kit.application.evaluators_common import (
+    INVALID_DIGEST_REASON as _INVALID_DIGEST_REASON,
+)
+from oss_policy_kit.application.evaluators_common import (
+    evidence_is_api_backed as _evidence_is_api_backed,
+)
+from oss_policy_kit.application.evaluators_common import (
+    evidence_placeholder_outcome as _evidence_placeholder_outcome,
+)
+from oss_policy_kit.application.evaluators_common import (
+    is_valid_sha256_digest as _is_valid_sha256_digest,
+)
+from oss_policy_kit.application.evaluators_common import (
+    validate_json_evidence as _validate_json_evidence,
+)
 from oss_policy_kit.application.evidence_placeholders import has_placeholder_values, is_placeholder_digest
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome, EvidenceCollectionMethod
 from oss_policy_kit.infrastructure.aws_ci_parser import AwsCiAnalysis
@@ -170,21 +188,6 @@ def _runner_groups_schema() -> dict[str, Any]:
 def _release_archival_policy_schema() -> dict[str, Any]:
     raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-release-archival-policy.schema.json").read_bytes()
     return cast(dict[str, Any], json.loads(raw))
-
-
-def _evidence_is_api_backed(data: dict[str, Any]) -> bool:
-    """True when JSON was produced by ``collect-evidence`` / cloud API collection (not manual scaffold)."""
-
-    att = str(data.get("attested_by", "")).strip().lower()
-    if att in ("aws-api-collection", "azure-devops-api-collection", "github-api-collection"):
-        return True
-    coll = data.get("collection")
-    if isinstance(coll, dict):
-        if str(coll.get("evidence_collection_method", "")).strip().lower() == "live":
-            return True
-        if str(coll.get("mode", "")).strip().lower() == "api":
-            return True
-    return False
 
 
 @dataclass(slots=True)
@@ -1635,82 +1638,6 @@ def eval_gh_prov_023(ctx: EvalContext) -> EvalOutcome:
         evidence_sources=[],
         confidence="medium",
     )
-
-
-def _evidence_placeholder_outcome(evidence: Path, placeholders: list[str]) -> EvalOutcome | None:
-    """Return a :class:`EvalOutcome` when scaffold-style placeholders remain in evidence JSON."""
-
-    if not placeholders:
-        return None
-    preview = ", ".join(placeholders[:5])
-    return EvalOutcome(
-        status=ControlStatus.NOT_EVALUATED,
-        reason=(
-            f"Evidence file {evidence.name} contains unfilled placeholder tokens ({preview}). "
-            "Replace template values before relying on this control."
-        ),
-        remediation="Edit the evidence JSON and remove REPLACE_ME-style placeholders and template dates.",
-        evidence_sources=[str(evidence.resolve())],
-        confidence="low",
-        operational_warnings=(f"Evidence {evidence.name}: placeholder tokens ({preview}).",),
-    )
-
-
-def _validate_json_evidence(
-    evidence: Path,
-    *,
-    schema_loader: Callable[[], dict[str, Any]],
-    evidence_name: str,
-) -> tuple[dict[str, Any] | None, str | None, list[str]]:
-    try:
-        data = json.loads(evidence.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return None, f"{evidence_name} evidence is unreadable or invalid JSON: {exc}", []
-    if not isinstance(data, dict):
-        return None, f"{evidence_name} evidence root must be a JSON object.", []
-    try:
-        Draft202012Validator(schema_loader()).validate(data)
-    except ValidationError as exc:
-        loc = "/".join(str(p) for p in exc.absolute_path) if exc.absolute_path else "root"
-        return None, f"{evidence_name} evidence does not match schema: {exc.message} (at {loc})", []
-    return data, None, has_placeholder_values(data)
-
-
-_DIGEST_PLACEHOLDER_REASON = (
-    "Evidence file digest fields contain template/placeholder values. Replace with real SHA256 digests "
-    "from the actual release artifacts."
-)
-
-
-_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
-_WEAK_DIGEST_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"^(.)\1{63}$"),
-    re.compile(r"^(..)\1{31}$"),
-    re.compile(r"^0{64}$"),
-)
-
-
-def _is_valid_sha256_digest(value: object) -> bool:
-    """Return True only when *value* is a plausible, non-placeholder SHA-256 hex digest.
-
-    A digest is rejected when any of the following is true:
-
-    - value is not a string
-    - value is not 64 lowercase hexadecimal characters
-    - value matches a low-entropy placeholder pattern (``0..0``, ``aa..aa``, ``ab ab ...``)
-    """
-
-    if not isinstance(value, str):
-        return False
-    normalized = value.strip().lower()
-    if not _SHA256_PATTERN.match(normalized):
-        return False
-    return not any(pat.match(normalized) for pat in _WEAK_DIGEST_PATTERNS)
-
-
-_INVALID_DIGEST_REASON = (
-    "Artifact digest is a placeholder or invalid SHA-256 value. Replace with the actual artifact digest."
-)
 
 
 def _digest_invalid_not_evaluated(evidence: Path) -> EvalOutcome:
