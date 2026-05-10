@@ -49,3 +49,4 @@ controls:
   - AUDIT-STREAM-060
   - PROV-VERIFY-061
   - GH-RUNNER-062
+  - SEC-FUZZ-001

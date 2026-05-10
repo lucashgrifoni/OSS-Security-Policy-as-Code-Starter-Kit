@@ -4837,7 +4837,17 @@ def _load_iac_evaluators() -> None:
         EVALUATOR_REGISTRY.setdefault(control_id, fn)
 
 
+def _load_fuzzing_evaluators() -> None:
+    """Register the SEC-FUZZ-* evaluators built in ``evaluators_fuzzing``."""
+
+    from oss_policy_kit.application.evaluators_fuzzing import build_fuzzing_evaluators
+
+    for control_id, fn in build_fuzzing_evaluators().items():
+        EVALUATOR_REGISTRY.setdefault(control_id, fn)
+
+
 _load_iac_evaluators()
+_load_fuzzing_evaluators()
 
 
 def _load_external_evaluators() -> None:

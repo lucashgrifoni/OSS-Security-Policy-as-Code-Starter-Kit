@@ -12,8 +12,11 @@ Planned scope (subject to change — see `melhorias/v5.6-kubernetes-container-fu
 
 - **Kubernetes manifest coverage** — new `scan-k8s` subcommand and ~16 `K8S-PSS-*` / `K8S-RBAC-*` / `K8S-NETPOL-*` experimental rules consumed by a new advisory bundled profile `kubernetes-baseline-1`.
 - **Container runtime hardening** — ~7 `CONT-RUNTIME-*` rules + `CONT-SIGN-001` (cosign / GitHub Artifact Attestations) consumed by a new advisory bundled profile `container-baseline-1`.
-- **Fuzzing alignment** — new `SEC-FUZZ-001` mapping OpenSSF Scorecard's `Fuzzing` check, added to `*-level-3` and `*-release-hardening-3` profiles.
 - **Internal `evaluators.py` refactor** — extract shared `_common.py` helpers as the first incremental step toward the category-based `application/evaluators/` package (see `melhorias/refactor-evaluators-package-v5.5.md`).
+
+### Added (already landed in this dev cycle)
+
+- **`SEC-FUZZ-001` — fuzzing presence signal.** New experimental control under the `vulnerability_management` category that PASSes when any of the following clone-visible signals is detected: a populated `fuzz/` / `fuzzing/` / `fuzzers/` / `tests/fuzz/` directory; a fuzz-target filename (`fuzz_target*`, `_fuzz.py`, `_fuzz.go`, `fuzz.cc`, …); a known fuzzing-runner reference inside the first 4 KiB of code/config files (`atheris`, `libfuzzer`, `honggfuzz`, `cifuzz`, `go-fuzz`, `oss-fuzz`, `cargo-fuzz`, `clusterfuzzlite`); or an OpenSSF Scorecard `Fuzzing` check with `score >= 7` from the optional Scorecard JSON evidence already wired through `EvalContext.scorecard`. Without any of those, the control returns `manual-review-required` with remediation pointing to OSS-Fuzz / ClusterFuzzLite / cifuzz / atheris. Lifecycle `experimental`, assurance `signal`, weight `2`. Bundled into `github-level-3`, `azure-level-3`, `aws-level-3`, `github-release-hardening-3`, `azure-release-hardening-3`, and `aws-release-hardening-3`. Lives in its own module (`application/evaluators_fuzzing.py`) and is wired via `_load_fuzzing_evaluators()` so the import-time registry stays small.
 
 ### Removed (already landed in this dev cycle)
 

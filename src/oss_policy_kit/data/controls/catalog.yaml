@@ -582,3 +582,10 @@ controls:
     lifecycle: experimental
     assurance: evidence-backed
     weight: 1
+  - id: SEC-FUZZ-001
+    title: Fuzzing presence (OSS-Fuzz / cifuzz / atheris / Scorecard Fuzzing)
+    category: vulnerability_management
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
