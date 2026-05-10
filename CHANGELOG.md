@@ -6,7 +6,7 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
-## OSS Security Policy as Code Starter Kit v5.6.0 (Unreleased)
+## OSS Security Policy as Code Starter Kit v5.6.0
 
 ### Added (already landed in this dev cycle)
 
