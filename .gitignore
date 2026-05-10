@@ -59,3 +59,10 @@ secrets/sonar.token
 # Local-only planning workspace; private to the maintainer. Mirrors the
 # .git/info/exclude entry but is portable across clones.
 melhorias/
+melhorias/
+
+.venv-v5-baseline/
+
+.venv/
+
+venv/
