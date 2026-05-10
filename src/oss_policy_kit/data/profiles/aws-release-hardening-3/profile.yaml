@@ -6,8 +6,7 @@ description: >
   buildspec **signal** bundle as level 2 for release hygiene visibility. Adds GOV-EVIDFRESH-054,
   AWS-PIPEIAM-056, AWS-CBIDENT-057, AWS-SBOMART-058, and AWS-PROVART-059 over level 2. Also includes
   dependency auto-update detection, container image security posture (digest pinning, non-root user,
-  image scanning), org-level MFA enforcement evidence, and SBOM quality signals. Optional CodeCommit
-  evidence (`AWS-CC-046`) is intentionally omitted so the gate does not depend on CodeCommit.
+  image scanning), org-level MFA enforcement evidence, and SBOM quality signals.
   Maturity note: this is the strictest bundled AWS release gate, but the buildspec **signal** bundle
   stays `assurance: signal` — treat their PASS as directional release-time visibility, not proof.
   Inside this kit GitHub remains the most mature path; use `github-release-hardening-3` as the

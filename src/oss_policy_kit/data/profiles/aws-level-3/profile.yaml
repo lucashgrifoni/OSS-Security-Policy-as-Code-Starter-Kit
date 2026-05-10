@@ -11,8 +11,6 @@ description: >
   Maturity note: this is the strictest bundled AWS gate, but it still depends more on evidence
   discipline than the GitHub hard-gate family. Treat `github-level-3` / `github-release-hardening-3`
   as the most mature reference inside this kit until AWS evidence collection reaches parity.
-  Optional `AWS-CC-046` (CodeCommit review posture) is intentionally **not** bundled here; add it
-  only when CodeCommit is your SCM.
   **Natural next step:** `aws-release-hardening-3` when release-time signal visibility should sit on top of this hard-gate.
   **Framework alignment:** see `docs/framework-alignment.md` (AWS Well-Architected Security Pillar covers IAM federation, identity, automation; Enable-Traceability is GAP; SLSA Build L2 directional; OWASP CICD Top 10 covers 8/10).
 audience: Security-focused AWS maintainers who need defensible gates beyond clone-only heuristics.

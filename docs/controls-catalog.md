@@ -77,7 +77,6 @@ Profile counts in the **Profiles** column reflect how many bundled profiles incl
 | `AWS-PROV-043` | supply_chain | signal | 1 | 4 | Provenance or attestation signal in CodeBuild buildspec |
 | `AWS-CP-044` | platform | evidence-backed | 3 | 4 | CodePipeline promotion and artifact governance evidenced |
 | `AWS-CB-045` | platform | evidence-backed | 3 | 4 | CodeBuild project posture evidenced |
-| `AWS-CC-046` | platform | evidence-backed | 1 | 0 | CodeCommit approval-rule review posture evidenced (optional) |
 | `AWS-PIPEIAM-056` | platform | evidence-backed | 3 | 2 | CodePipeline service role / IAM execution boundary evidenced |
 | `AWS-CBIDENT-057` | platform | evidence-backed | 3 | 2 | CodeBuild project identity and credential boundary evidenced |
 | `AWS-SBOMART-058` | supply_chain | evidence-backed | 2 | 2 | SBOM attested against a concrete release artifact digest |

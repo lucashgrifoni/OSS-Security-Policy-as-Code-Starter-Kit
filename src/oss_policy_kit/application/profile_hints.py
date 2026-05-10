@@ -26,7 +26,6 @@ AWS_EVIDENCE_FILENAMES: frozenset[str] = frozenset(
     {
         "aws-codebuild-project.json",
         "aws-codepipeline.json",
-        "aws-codecommit-review-posture.json",
         "aws-sbom-artifact.json",
         "aws-provenance-artifact.json",
     }

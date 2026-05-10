@@ -140,15 +140,6 @@ def _aws_codepipeline_schema() -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(raw))
 
 
-def _aws_codecommit_review_schema() -> dict[str, Any]:
-    raw = (
-        ir.files("oss_policy_kit.data.schema")
-        .joinpath("evidence-aws-codecommit-review-posture.schema.json")
-        .read_bytes()
-    )
-    return cast(dict[str, Any], json.loads(raw))
-
-
 def _aws_sbom_artifact_schema() -> dict[str, Any]:
     raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-aws-sbom-artifact.schema.json").read_bytes()
     return cast(dict[str, Any], json.loads(raw))
@@ -3236,69 +3227,6 @@ def eval_aws_cb_045(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_aws_cc_046(ctx: EvalContext) -> EvalOutcome:
-    """AWS-CC-046: optional CodeCommit approval-rule posture from evidence (CodeCommit sources only)."""
-
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "aws-codecommit-review-posture.json"
-    if not evidence.is_file():
-        return EvalOutcome(
-            status=ControlStatus.NOT_APPLICABLE,
-            reason="No CodeCommit review posture evidence supplied (optional for non-CodeCommit sources).",
-            remediation="If the default branch uses CodeCommit, add aws-codecommit-review-posture.json when needed.",
-            evidence_sources=[],
-            confidence="high",
-        )
-    data, error, ph = _validate_json_evidence(
-        evidence,
-        schema_loader=_aws_codecommit_review_schema,
-        evidence_name="AWS CodeCommit review posture",
-    )
-    if error:
-        return EvalOutcome(
-            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=error,
-            remediation="Regenerate evidence using reports/schema/evidence-aws-codecommit-review-posture.schema.json.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="low",
-        )
-    blocked = _evidence_placeholder_outcome(evidence, ph)
-    if blocked is not None:
-        return blocked
-    assert data is not None
-    posture = data["posture"]
-    assert isinstance(posture, dict)
-    required = ("approval_rule_templates_enabled", "minimum_approvals_enforced")
-    missing = [k for k in required if posture.get(k) is not True]
-    if missing:
-        return EvalOutcome(
-            status=ControlStatus.SELF_ATTESTED,
-            reason=f"CodeCommit evidence present but required review control(s) not enabled: {', '.join(missing)}.",
-            remediation="Configure approval rule templates and minimum approvals per AWS CodeCommit guidance.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="low",
-            evidence_collection_method=(
-                EvidenceCollectionMethod.LIVE if _evidence_is_api_backed(data) else EvidenceCollectionMethod.MANUAL
-            ),
-        )
-    if _evidence_is_api_backed(data):
-        return EvalOutcome(
-            status=ControlStatus.PASS,
-            reason="CodeCommit review posture confirmed via live AWS API collection evidence.",
-            remediation="Refresh evidence after approval rule template changes.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="high",
-            evidence_collection_method=EvidenceCollectionMethod.LIVE,
-        )
-    return EvalOutcome(
-        status=ControlStatus.SELF_ATTESTED,
-        reason="CodeCommit review posture evidence present and self-attested as enabled.",
-        remediation="Refresh evidence after approval rule template changes.",
-        evidence_sources=[str(evidence.resolve())],
-        confidence="low",
-        evidence_collection_method=EvidenceCollectionMethod.MANUAL,
-    )
-
-
 def eval_aws_pipeiam_056(ctx: EvalContext) -> EvalOutcome:
     """AWS-PIPEIAM-056: CodePipeline service role / IAM execution boundary for the pipeline."""
 
@@ -4873,7 +4801,6 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "AWS-PROV-043": eval_aws_prov_043,
     "AWS-CP-044": eval_aws_cp_044,
     "AWS-CB-045": eval_aws_cb_045,
-    "AWS-CC-046": eval_aws_cc_046,
     "AWS-PIPEIAM-056": eval_aws_pipeiam_056,
     "AWS-CBIDENT-057": eval_aws_cbident_057,
     "AWS-SBOMART-058": eval_aws_sbomart_058,

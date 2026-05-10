@@ -59,13 +59,11 @@ metadata is rich enough; otherwise some rows fall back to `self-attested`.
 |---|---|---|
 | `aws-codebuild-project` | `codebuild.batch_get_projects` (when `AWS_CODEBUILD_PROJECT` is set) | AWS platform/IAM controls |
 | `aws-codepipeline` | `codepipeline.get_pipeline` (when `AWS_CODEPIPELINE_NAME` is set) | AWS pipeline posture controls |
-| `aws-codecommit-review-posture` | `codecommit.listAssociatedApprovalRuleTemplates` (when `--repo` is a CodeCommit repository name) | `AWS-CC-046` (opt-in only) |
 
-AWS today retrieves up to **3 endpoints**, but only when the right environment variables
-are set. The collector is optional-by-design: AWS_CODEBUILD_PROJECT, AWS_CODEPIPELINE_NAME,
-and the `--repo` slug each gate one collection path. If a customer uses CodeStar Connections,
-AWS Signer, or another path the kit does not know about today, that posture stays
-self-attested.
+AWS today retrieves up to **2 endpoints**, but only when the right environment variables
+are set. The collector is optional-by-design: AWS_CODEBUILD_PROJECT and AWS_CODEPIPELINE_NAME
+each gate one collection path. If a customer uses CodeStar Connections, AWS Signer, or
+another path the kit does not know about today, that posture stays self-attested.
 
 ## What is **not** API-collected today
 

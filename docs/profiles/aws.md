@@ -102,8 +102,9 @@ collector help. A typical sequence:
 
 ```bash
 # only with valid credentials; verify minimum permissions first
-python -m oss_policy_kit collect-evidence \
-  --target . --platform aws --repo my-codecommit-repo
+export AWS_CODEBUILD_PROJECT=<project>
+export AWS_CODEPIPELINE_NAME=<pipeline>
+python -m oss_policy_kit collect-evidence --target . --platform aws
 
 python -m oss_policy_kit evaluate \
   --target . --profile aws-release-hardening-3 \

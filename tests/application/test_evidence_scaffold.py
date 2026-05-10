@@ -27,7 +27,6 @@ _SCHEMA_BY_FILENAME = {
     "azure-provenance-artifact.json": "evidence-azure-provenance-artifact.schema.json",
     "aws-codebuild-project.json": "evidence-aws-codebuild-project.schema.json",
     "aws-codepipeline.json": "evidence-aws-codepipeline.schema.json",
-    "aws-codecommit-review-posture.json": "evidence-aws-codecommit-review-posture.schema.json",
     "aws-sbom-artifact.json": "evidence-aws-sbom-artifact.schema.json",
     "aws-provenance-artifact.json": "evidence-aws-provenance-artifact.schema.json",
     "org-mfa-posture.json": "evidence-org-mfa-posture.schema.json",

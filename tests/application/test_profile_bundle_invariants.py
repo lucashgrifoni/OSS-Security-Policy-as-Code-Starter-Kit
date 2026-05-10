@@ -26,17 +26,6 @@ def test_bundled_profiles_exclude_deprecated_audit_and_sbom_controls() -> None:
         assert not bad, f"{spec.id} must not list {bad}"
 
 
-def test_aws_cc_046_not_bundled_in_default_profiles() -> None:
-    for path in sorted((bundled_kit_root() / "profiles").iterdir()):
-        if not path.is_dir():
-            continue
-        pfile = path / "profile.yaml"
-        if not pfile.is_file():
-            continue
-        spec = load_profile(pfile)
-        assert "AWS-CC-046" not in spec.control_ids, f"{spec.id} must stay CodeCommit-opt-in"
-
-
 def test_build_sbom_qual_catalog_stable() -> None:
     catalog = load_catalog(bundled_kit_root() / "controls" / "catalog.yaml")
     assert catalog["BUILD-SBOM-QUAL-003"].lifecycle == "stable"

@@ -95,7 +95,7 @@ If `evaluation-batch.md` shows several targets failing the same set — typicall
 
 ## Profile maturity tier (read before choosing a hard gate)
 
-The 30 bundled profiles are not equally mature in **operational fit**. Most of the catalog is `lifecycle: stable`; the 12 v5.5.0 `IAC-TF-*` controls (Terraform / OpenTofu rule pack) and `AWS-CC-046` (deprecated, removed in v5.6.0) are the only non-stable entries. Two practical things differ between profiles:
+The 30 bundled profiles are not equally mature in **operational fit**. Most of the catalog is `lifecycle: stable`; the 12 v5.5.0 `IAC-TF-*` controls (Terraform / OpenTofu rule pack) are the only non-stable entries. Two practical things differ between profiles:
 
 1. how much **evidence-template work** the operator must do up front, and
 2. how complete the **collector** is for the platform.

@@ -101,9 +101,7 @@ AWS CodeBuild and CodePipeline ladder:
 - **`aws-level-3` (hard-gate)**: deterministic checks plus **evidence-backed** controls (`AWS-CP-044`, `AWS-CB-045`, `AWS-CBIDENT-057`, `AWS-PIPEIAM-056`, `AWS-SBOMART-058`, `AWS-PROVART-059`) and `GOV-EVIDFRESH-054`. Buildspec-only signals such as `AWS-SEC-039` / `AWS-SBOM-041` are intentionally **not** in this profile so the gate is not “green” from heuristics alone.
 - **`aws-release-hardening-1`**: starter profile plus `AWS-CP-044` / `AWS-CB-045` evidence (or manual review).
 - **`aws-release-hardening-2`**: advisory (`aws-level-2`) plus the same pipeline/build evidence files.
-- **`aws-release-hardening-3`**: **hard-gate core** (same family as `aws-level-3`) **plus** the level-2 signal bundle for release visibility, evidence freshness, IAM/identity, and artifact-bound SBOM/provenance JSON. Optional CodeCommit evidence (`AWS-CC-046`) is **not** required in this bundle.
-
-> **`AWS-CC-046` positioning (explicit decision):** `AWS-CC-046` covers CodeCommit review posture and is intentionally **optional**. It is **not** bundled into any default AWS profile because CodeCommit is not the default SCM for most users of this kit, and bundling it would penalise teams using GitHub or Azure Repos as their SCM. Enable `AWS-CC-046` only by composing it explicitly — via a custom profile or a dedicated evidence file — when CodeCommit is your actual source of truth. Keeping it optional preserves honesty about what the default AWS gate actually verifies.
+- **`aws-release-hardening-3`**: **hard-gate core** (same family as `aws-level-3`) **plus** the level-2 signal bundle for release visibility, evidence freshness, IAM/identity, and artifact-bound SBOM/provenance JSON.
 
 **Manual vs API-backed evidence**: JSON produced by `collect-evidence` includes `collection` metadata and `attested_by: aws-api-collection`; evaluators may upgrade outcomes to **PASS** with `evidence_collection_method: live`. Hand-filled scaffold JSON remains **self-attested** until refreshed with API collection.
 
@@ -119,7 +117,6 @@ Supported AWS evidence files:
 
 - `.oss-policy-kit/evidence/aws-codebuild-project.json`
 - `.oss-policy-kit/evidence/aws-codepipeline.json`
-- `.oss-policy-kit/evidence/aws-codecommit-review-posture.json` (optional; CodeCommit-sourced repos only)
 - `.oss-policy-kit/evidence/aws-sbom-artifact.json` (artifact-digest SBOM attestation)
 - `.oss-policy-kit/evidence/aws-provenance-artifact.json` (artifact-digest provenance attestation)
 

@@ -26,13 +26,13 @@ python -m oss_policy_kit collect-evidence --target . --platform azure --repo MyP
 ## AWS (`collect-evidence --platform aws`)
 
 Install **`oss-policy-kit[aws]`** (or **`boto3`**). Use default AWS credentials and region
-(**`AWS_REGION`** / **`AWS_DEFAULT_REGION`**). Optionally set **`AWS_CODEBUILD_PROJECT`** and/or
-**`AWS_CODEPIPELINE_NAME`**. Use **`--repo`** with a **CodeCommit** repository name when you need
-the **`aws-codecommit-review-posture.json`** file; omit **`--repo`** when collecting only CodeBuild
-and/or CodePipeline evidence via environment variables.
+(**`AWS_REGION`** / **`AWS_DEFAULT_REGION`**). Set **`AWS_CODEBUILD_PROJECT`** and/or
+**`AWS_CODEPIPELINE_NAME`** to drive collection. **`--repo`** is not required for AWS.
 
 ```powershell
-python -m oss_policy_kit collect-evidence --target . --platform aws --repo my-codecommit-repo
+$env:AWS_CODEBUILD_PROJECT = "my-build"
+$env:AWS_CODEPIPELINE_NAME = "my-pipe"
+python -m oss_policy_kit collect-evidence --target . --platform aws
 ```
 
 ## Token scopes (summary)
@@ -41,13 +41,13 @@ python -m oss_policy_kit collect-evidence --target . --platform aws --repo my-co
 |------------|-----------|------------------------|-------------------------------------|
 | **GitHub** | `GITHUB_TOKEN` required for `collect-evidence --platform github` | Repository metadata read plus branch protection/rulesets read (often requires administration-read scope or classic PAT `repo`). **ORG-MFA-001** is not collected here: it requires organization-level API access (for example `admin:org` read) or manual evidence. | **403** -> permission error; **404** on optional endpoints -> empty or conservative payload with log warnings. |
 | **Azure DevOps** | `AZURE_DEVOPS_ORG`, `AZURE_DEVOPS_TOKEN` | PAT: **Code (read)** (`vso.code`), **Build (read)** (`vso.build`), **Service Endpoints (read)** (`vso.serviceendpoint`); **Release (read)** optional. | **401/403** -> `CollectionPermissionError`; unavailable APIs -> conservative notes and `posture_support` fields in JSON. |
-| **AWS** | Default AWS account credentials; optional `AWS_CODEBUILD_PROJECT`, `AWS_CODEPIPELINE_NAME`, `AWS_REGION` | `codebuild:BatchGetProjects`, `codepipeline:GetPipeline`, CodeCommit read permissions when `--repo` is used for CodeCommit; additional IAM only if evidence collection needs calls like `iam:GetRole` / `iam:SimulatePrincipalPolicy`. | boto3 errors are mapped to `CollectionPermissionError` or `CollectionNetworkError`. |
+| **AWS** | Default AWS account credentials; optional `AWS_CODEBUILD_PROJECT`, `AWS_CODEPIPELINE_NAME`, `AWS_REGION` | `codebuild:BatchGetProjects`, `codepipeline:GetPipeline`; additional IAM only if evidence collection needs calls like `iam:GetRole` / `iam:SimulatePrincipalPolicy`. | boto3 errors are mapped to `CollectionPermissionError` or `CollectionNetworkError`. |
 
 ## Artifact SBOM and provenance (Azure / AWS)
 
 Controls **AZ-ARTSBOM-058**, **AZ-ARTPRV-059**, **AWS-SBOMART-058**, and **AWS-PROVART-059**
 use JSON with SHA-256 digests bound to release artifacts. The APIs currently used by this kit
-(**Azure DevOps** REST limited to policies/pipelines; **AWS** CodeBuild/CodePipeline/CodeCommit)
+(**Azure DevOps** REST limited to policies/pipelines; **AWS** CodeBuild/CodePipeline)
 do **not** expose a single canonical document aligned with
 `evidence-azure-sbom-artifact`, `evidence-azure-provenance-artifact`,
 `evidence-aws-sbom-artifact`, and `evidence-aws-provenance-artifact`.

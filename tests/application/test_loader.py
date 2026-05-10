@@ -66,7 +66,6 @@ def test_load_catalog_and_profiles() -> None:
     assert "AWS-CBIDENT-057" in p14.control_ids
     assert "AWS-SBOMART-058" in p14.control_ids
     assert "AWS-PROVART-059" in p14.control_ids
-    assert "AWS-CC-046" not in p14.control_ids
     assert "AWS-CP-044" in p14.control_ids
     assert "AWS-CB-045" in p14.control_ids
     p15 = load_profile_by_id(root, "aws-release-hardening-1")
@@ -77,7 +76,6 @@ def test_load_catalog_and_profiles() -> None:
     assert "AWS-PIPEIAM-056" in p16.control_ids
     assert "AWS-SBOMART-058" in p16.control_ids
     assert "AWS-PROVART-059" in p16.control_ids
-    assert "AWS-CC-046" not in p16.control_ids
     gh_aws = load_profile_by_id(root, "github-aws-level-2")
     assert gh_aws.id == "github-aws-level-2"
     assert "AWS-PIPE-042" in gh_aws.control_ids

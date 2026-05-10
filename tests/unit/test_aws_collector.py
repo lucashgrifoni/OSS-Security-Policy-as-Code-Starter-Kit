@@ -78,49 +78,6 @@ def test_collect_codebuild_project_via_env() -> None:
             os.environ[_ENV_CODEBUILD] = old
 
 
-def test_collect_codecommit_parses_template_content(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Moto does not implement CodeCommit approval-rule templates; stub boto3.Session instead."""
-
-    rule = {
-        "Version": "2018-11-08",
-        "DestinationReferences": ["refs/heads/main"],
-        "Statements": [
-            {
-                "Type": "Approvers",
-                "NumberOfApprovalsNeeded": 1,
-                "ApprovalPool": {"allUsers": True},
-            }
-        ],
-    }
-    cc_client = MagicMock()
-    cc_client.get_repository.return_value = {"repositoryMetadata": {"repositoryName": "kit-repo"}}
-    cc_client.list_associated_approval_rule_templates_for_repository.return_value = {
-        "associatedApprovalRuleTemplateNames": ["kit-template"]
-    }
-    cc_client.get_approval_rule_template.return_value = {
-        "approvalRuleTemplate": {"approvalRuleTemplateContent": json.dumps(rule)}
-    }
-
-    class _FakeSession:
-        def __init__(self, region_name: str | None = None) -> None:
-            self._region = region_name
-
-        def client(self, name: str, **kwargs: Any) -> Any:
-            if name == "codecommit":
-                return cc_client
-            raise AssertionError(f"unexpected client {name}")
-
-    monkeypatch.setattr("boto3.Session", _FakeSession)
-
-    rows = AWSEvidenceCollector(region_name="us-east-1").collect("kit-repo")
-    assert {r.evidence_key for r in rows} == {"aws-codecommit-review-posture"}
-    posture = cast(dict[str, Any], rows[0].data["posture"])
-    assert posture["approval_rule_templates_enabled"] is True
-    assert posture["minimum_approvals_enforced"] is True
-    assert rows[0].data["collection"]["evidence_collection_method"] == "live"
-    assert rows[0].data["collection"]["mode"] == "api"
-
-
 @mock_aws
 def test_collect_codepipeline_encryption_and_approval() -> None:
     region = "us-east-1"
@@ -213,29 +170,17 @@ def test_collect_codepipeline_encryption_and_approval() -> None:
             os.environ[_ENV_CODEPIPELINE] = old
 
 
-def test_collect_raises_value_error_when_no_repo_and_no_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Without a CodeCommit repo AND without CodeBuild/CodePipeline env, the collector must abort early."""
+def test_collect_raises_value_error_when_no_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without CodeBuild/CodePipeline env, the collector must abort early with actionable guidance."""
 
     monkeypatch.delenv(_ENV_CODEBUILD, raising=False)
     monkeypatch.delenv(_ENV_CODEPIPELINE, raising=False)
     with pytest.raises(ValueError) as excinfo:
         AWSEvidenceCollector(region_name="us-east-1").collect("")
-    # Message must point the user to the three actionable inputs and the dry-run preview.
     msg = str(excinfo.value)
-    assert "--repo" in msg
     assert _ENV_CODEBUILD in msg
     assert _ENV_CODEPIPELINE in msg
     assert "--dry-run" in msg
-
-
-def test_collect_rejects_codecommit_slug_with_slash(monkeypatch: pytest.MonkeyPatch) -> None:
-    """CodeCommit repo names are single-segment; a ``owner/repo`` value must fail fast."""
-
-    monkeypatch.delenv(_ENV_CODEBUILD, raising=False)
-    monkeypatch.delenv(_ENV_CODEPIPELINE, raising=False)
-    with pytest.raises(ValueError) as excinfo:
-        AWSEvidenceCollector(region_name="us-east-1").collect("org/repo")
-    assert "CodeCommit" in str(excinfo.value)
 
 
 def test_access_denied_on_codebuild_is_permission_error(monkeypatch: pytest.MonkeyPatch) -> None:

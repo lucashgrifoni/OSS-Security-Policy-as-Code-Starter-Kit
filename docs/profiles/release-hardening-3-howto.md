@@ -94,7 +94,6 @@ The Azure collector reaches fewer endpoints than the GitHub one. Several artifac
 
 - `.oss-policy-kit/evidence/aws-codebuild-project.json` — feeds `AWS-CB-045`.
 - `.oss-policy-kit/evidence/aws-codepipeline.json` — feeds `AWS-CP-044`.
-- `.oss-policy-kit/evidence/aws-codecommit-review-posture.json` — feeds `AWS-CC-046` (only when CodeCommit is in scope; this control is in catalog but not in this profile by default — see `melhorias/AWS-CC-046-decision-pending.md`).
 - `.oss-policy-kit/evidence/aws-sbom-artifact.json` — feeds `AWS-SBOMART-058`.
 - `.oss-policy-kit/evidence/aws-provenance-artifact.json` — feeds `AWS-PROVART-059`.
 - `.oss-policy-kit/evidence/audit-log-streaming.json` — feeds `AUDIT-STREAM-060`.
@@ -111,7 +110,7 @@ export AWS_REGION=us-east-1
 export AWS_PROFILE=<profile>
 export AWS_CODEBUILD_PROJECT=<project>
 export AWS_CODEPIPELINE_NAME=<pipeline>
-python -m oss_policy_kit collect-evidence --target . --platform aws --repo "<codecommit-repo-or-empty>"
+python -m oss_policy_kit collect-evidence --target . --platform aws
 
 python -m oss_policy_kit evaluate \
   --target . \

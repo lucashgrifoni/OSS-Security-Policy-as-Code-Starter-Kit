@@ -171,7 +171,6 @@ def test_aws_schema_copies_match_reports_schema() -> None:
     names = (
         "evidence-aws-codebuild-project.schema.json",
         "evidence-aws-codepipeline.schema.json",
-        "evidence-aws-codecommit-review-posture.schema.json",
         "evidence-aws-sbom-artifact.schema.json",
         "evidence-aws-provenance-artifact.schema.json",
     )

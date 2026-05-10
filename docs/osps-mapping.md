@@ -50,7 +50,7 @@ controls so operators can navigate from a baseline expectation to a concrete pas
 | GitHub rulesets / env protection / secret scanning | `GH-PLAT-024`, `GH-PLAT-025`, `GH-PLAT-026` | evidence-backed |
 | Azure branch policies / pipeline governance | `AZ-PLAT-034`, `AZ-PLAT-035`, `AZ-IDENT-036`, `AZ-SCONN-056`, `AZ-WIFEV-057` | evidence-backed |
 | Azure artifact-bound SBOM / provenance | `AZ-ARTSBOM-058`, `AZ-ARTPRV-059` | evidence-backed |
-| AWS CodePipeline / CodeBuild platform evidence | `AWS-CP-044`, `AWS-CB-045`, `AWS-CC-046`, `AWS-PIPEIAM-056`, `AWS-CBIDENT-057` | evidence-backed |
+| AWS CodePipeline / CodeBuild platform evidence | `AWS-CP-044`, `AWS-CB-045`, `AWS-PIPEIAM-056`, `AWS-CBIDENT-057` | evidence-backed |
 | AWS artifact-bound SBOM / provenance | `AWS-SBOMART-058`, `AWS-PROVART-059` | evidence-backed |
 | OIDC federation (deployment identity) | `GH-DEPLOY-022` | signal |
 | Org-level MFA enforcement | `ORG-MFA-001` | evidence-backed |

@@ -29,7 +29,6 @@ The AWS collector uses standard AWS SDK credential resolution (env vars, profile
 | `codepipeline:ListPipelines` | `*` | Discovery. |
 | `codebuild:BatchGetProjects` | `arn:aws:codebuild:*:*:project/*` | Read CodeBuild project posture. |
 | `codebuild:ListProjects` | `*` | Discovery. |
-| `codecommit:GetRepository` | `arn:aws:codecommit:*:*:*` | (optional) Repository review posture. |
 | `iam:GetRole` | the specific service role ARN | Only required for IAM-aware evaluators; can be omitted. |
 
 The collector never calls write actions. There is no IAM permission required to *update* anything.

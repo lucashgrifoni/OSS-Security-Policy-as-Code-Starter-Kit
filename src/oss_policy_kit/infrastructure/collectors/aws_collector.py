@@ -1,11 +1,9 @@
-"""Collect AWS CodeBuild / CodePipeline / CodeCommit evidence via boto3."""
+"""Collect AWS CodeBuild / CodePipeline evidence via boto3."""
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-import re
 from datetime import UTC, datetime
 from typing import Any, NoReturn, cast
 
@@ -26,19 +24,6 @@ def _utc_iso_timestamp() -> str:
 
 def _iso_date_prefix(ts: str) -> str:
     return ts[:10] if len(ts) >= 10 else ts
-
-
-def _normalize_codecommit_name(name: str) -> str:
-    n = name.strip()
-    if not n:
-        return ""
-    if "/" in n:
-        msg = (
-            f"Invalid CodeCommit repository name {name!r}; expected a single repository name "
-            f"(no slashes). Use {_ENV_CODEBUILD} / {_ENV_CODEPIPELINE} for other resources."
-        )
-        raise ValueError(msg)
-    return n
 
 
 def _client_error_code(exc: Any) -> str:
@@ -62,7 +47,7 @@ def _map_client_error(exc: Any, *, operation: str) -> NoReturn:
     if code in ("AccessDeniedException", "UnauthorizedOperation", "InvalidClientTokenId", "AuthFailure"):
         raise CollectionPermissionError(
             f"AWS API denied access during {operation} ({code}). "
-            "Verify IAM credentials and that the principal can read CodeBuild, CodePipeline, and/or CodeCommit."
+            "Verify IAM credentials and that the principal can read CodeBuild and/or CodePipeline."
         ) from exc
     if code in ("ThrottlingException", "TooManyRequestsException", "RequestLimitExceeded"):
         raise RateLimitError(f"AWS API rate limit during {operation} ({code}). Retry after a short wait.") from exc
@@ -129,43 +114,8 @@ def _codebuild_posture(project: dict[str, Any]) -> dict[str, bool]:
     }
 
 
-def _minimum_approvals_from_templates(cc: Any, template_names: list[str]) -> bool:
-    for tname in template_names:
-        try:
-            resp = cc.get_approval_rule_template(approvalRuleTemplateName=tname)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Could not load approval rule template %r: %s", tname, exc)
-            continue
-        tmpl = cast(dict[str, Any], resp.get("approvalRuleTemplate") or {})
-        content = str(tmpl.get("approvalRuleTemplateContent") or "")
-        if _rule_content_requires_approvals(content):
-            return True
-    return False
-
-
-def _rule_content_requires_approvals(content: str) -> bool:
-    if not content.strip():
-        return False
-    try:
-        data = json.loads(content)
-    except json.JSONDecodeError:
-        return bool(re.search(r'"NumberOfApprovalsNeeded"\s*:\s*([1-9]\d*)', content))
-    statements = data.get("Statements") or data.get("statements") or []
-    if not isinstance(statements, list):
-        return False
-    for stmt in statements:
-        if not isinstance(stmt, dict):
-            continue
-        n = stmt.get("NumberOfApprovalsNeeded") or stmt.get("numberOfApprovalsNeeded")
-        if isinstance(n, int) and n >= 1:
-            return True
-        if isinstance(n, str) and n.isdigit() and int(n) >= 1:
-            return True
-    return False
-
-
 class AWSEvidenceCollector(EvidenceCollector):
-    """Collect AWS evidence JSON files using boto3 (CodeBuild, CodePipeline, CodeCommit)."""
+    """Collect AWS evidence JSON files using boto3 (CodeBuild, CodePipeline)."""
 
     def __init__(self, *, region_name: str | None = None) -> None:
         self._region = (region_name or "").strip() or None
@@ -201,7 +151,7 @@ class AWSEvidenceCollector(EvidenceCollector):
         return []
 
     def collect(self, repo_slug: str) -> list[CollectionResult]:
-        """Collect evidence for optional CodeCommit *repo_slug* and/or env-configured build and pipeline.
+        """Collect evidence for env-configured CodeBuild project and/or CodePipeline.
 
         **Environment variables**
 
@@ -209,15 +159,14 @@ class AWSEvidenceCollector(EvidenceCollector):
         * ``AWS_CODEPIPELINE_NAME`` — CodePipeline name (optional).
         * ``AWS_REGION`` / ``AWS_DEFAULT_REGION`` — passed to boto3 when ``region_name`` was not set on init.
 
-        *repo_slug* is the CodeCommit repository name when that evidence file is required; it may be empty
-        when only CodeBuild and/or CodePipeline names are set via environment variables.
+        *repo_slug* is currently unused for AWS but kept for the
+        :class:`~oss_policy_kit.infrastructure.collectors.base.EvidenceCollector` contract; it is forwarded
+        to the optional artifact hooks for traceability only.
 
         **IAM (typical read-only policy fragments)**
 
         * ``codebuild:BatchGetProjects`` on the evaluated project(s).
         * ``codepipeline:GetPipeline`` on the evaluated pipeline(s).
-        * ``codecommit:GetRepository``, ``codecommit:ListAssociatedApprovalRuleTemplatesForRepository``, and
-          ``codecommit:GetApprovalRuleTemplate`` when collecting CodeCommit review posture.
         * Optional posture helpers used by evaluators (not always invoked here): ``iam:GetRole``,
           ``iam:SimulatePrincipalPolicy`` for pipeline/CodeBuild role checks — grant only when you collect those
           evidence files.
@@ -236,14 +185,12 @@ class AWSEvidenceCollector(EvidenceCollector):
             msg = "AWS evidence collection requires boto3. Install with: pip install 'oss-policy-kit[aws]'"
             raise RuntimeError(msg) from exc
 
-        codecommit_repo = _normalize_codecommit_name(repo_slug)
         build_name = os.environ.get(_ENV_CODEBUILD, "").strip()
         pipeline_name = os.environ.get(_ENV_CODEPIPELINE, "").strip()
 
-        if not codecommit_repo and not build_name and not pipeline_name:
+        if not build_name and not pipeline_name:
             raise ValueError(
-                "Nothing to collect for AWS: pass --repo with your CodeCommit repository name "
-                f"and/or set {_ENV_CODEBUILD} and/or {_ENV_CODEPIPELINE}. "
+                f"Nothing to collect for AWS: set {_ENV_CODEBUILD} and/or {_ENV_CODEPIPELINE}. "
                 "Run 'oss-policy-kit collect-evidence --platform aws --dry-run' to preview the files "
                 "that would be written once inputs are provided."
             )
@@ -275,16 +222,6 @@ class AWSEvidenceCollector(EvidenceCollector):
                         collected_at=collected_at,
                     )
                 )
-            if codecommit_repo:
-                results.append(
-                    self._collect_codecommit(
-                        session,
-                        codecommit_repo,
-                        attested_date=attested_date,
-                        attested_by=attested_by,
-                        collected_at=collected_at,
-                    )
-                )
         except (CollectionPermissionError, RateLimitError, ValueError, RuntimeError):
             raise
         except BotoCoreError as exc:
@@ -292,8 +229,8 @@ class AWSEvidenceCollector(EvidenceCollector):
         except Exception as exc:  # noqa: BLE001
             raise CollectionNetworkError(f"AWS evidence collection failed: {exc}") from exc
 
-        results.extend(self.collect_sbom_artifact(codecommit_repo))
-        results.extend(self.collect_provenance_artifact(codecommit_repo))
+        results.extend(self.collect_sbom_artifact(repo_slug))
+        results.extend(self.collect_provenance_artifact(repo_slug))
         return results
 
     def _collect_codebuild(
@@ -408,63 +345,5 @@ class AWSEvidenceCollector(EvidenceCollector):
             evidence_key="aws-codepipeline",
             data=data,
             source_url=f"aws:codepipeline:GetPipeline?name={name}",
-            collected_at=collected_at,
-        )
-
-    def _collect_codecommit(
-        self,
-        session: Any,
-        repository_name: str,
-        *,
-        attested_date: str,
-        attested_by: str,
-        collected_at: str,
-    ) -> CollectionResult:
-        from botocore.exceptions import BotoCoreError, ClientError
-
-        cc = session.client("codecommit")
-        try:
-            cc.get_repository(repositoryName=repository_name)
-        except ClientError as exc:
-            if _client_error_code(exc) in ("RepositoryDoesNotExistException", "ResourceNotFoundException"):
-                raise ValueError(f"CodeCommit repository {repository_name!r} not found.") from exc
-            _map_client_error(exc, operation="codecommit:GetRepository")
-        except BotoCoreError as exc:
-            raise CollectionNetworkError(f"CodeCommit transport error: {exc}") from exc
-
-        try:
-            assoc = cc.list_associated_approval_rule_templates_for_repository(repositoryName=repository_name)
-        except ClientError as exc:
-            _map_client_error(exc, operation="codecommit:ListAssociatedApprovalRuleTemplatesForRepository")
-
-        names_raw = cast(list[Any], assoc.get("associatedApprovalRuleTemplateNames") or [])
-        template_names = [str(n) for n in names_raw if n]
-        templates_enabled = len(template_names) > 0
-        min_enforced = _minimum_approvals_from_templates(cc, template_names) if templates_enabled else False
-
-        data: dict[str, Any] = {
-            "schema_version": "aws-codecommit-review/v1",
-            "attested_at": attested_date,
-            "attested_by": attested_by,
-            "repository": repository_name,
-            "posture": {
-                "approval_rule_templates_enabled": templates_enabled,
-                "minimum_approvals_enforced": min_enforced,
-            },
-            "collection": {
-                "evidence_collection_method": "live",
-                "collected_at": collected_at,
-                "source_url": (f"aws:codecommit:listAssociatedApprovalRuleTemplates?repositoryName={repository_name}"),
-                "mode": "api",
-            },
-            "notes": (
-                "Derived from CodeCommit associated approval rule templates and template content "
-                "(NumberOfApprovalsNeeded)."
-            ),
-        }
-        return CollectionResult(
-            evidence_key="aws-codecommit-review-posture",
-            data=data,
-            source_url=f"aws:codecommit:listAssociatedApprovalRuleTemplates?repositoryName={repository_name}",
             collected_at=collected_at,
         )

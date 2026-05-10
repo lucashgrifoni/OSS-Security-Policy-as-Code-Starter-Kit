@@ -206,17 +206,6 @@ def _aws_templates(attested_at: str) -> dict[str, dict[str, Any]]:
                 "prefer collect-evidence for live metadata."
             ),
         },
-        "aws-codecommit-review-posture.json": {
-            "schema_version": "aws-codecommit-review/v1",
-            "attested_at": attested_at,
-            "attested_by": "REPLACE_ME_AWS_PRINCIPAL",
-            "repository": "REPLACE_ME_REPO",
-            "posture": {
-                "approval_rule_templates_enabled": True,
-                "minimum_approvals_enforced": True,
-            },
-            "notes": "Adjust repository and confirm approval rules in AWS.",
-        },
         "aws-sbom-artifact.json": {
             "schema_version": "aws-sbom-artifact/v1",
             "attested_at": attested_at,

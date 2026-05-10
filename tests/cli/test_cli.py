@@ -343,8 +343,6 @@ def test_cli_collect_evidence_aws_dry_run_lists_three_files(tmp_path: Path, monk
     assert "platform:aws" in flat
     assert "aws-codebuild-project.json" in flat
     assert "aws-codepipeline.json" in flat
-    assert "aws-codecommit-review-posture.json" in flat
-    assert "codecommitAPIs" in flat
     # Env probes are reported for the AWS-relevant variables with presence markers only.
     assert "AWS_REGION:set" in flat
     assert "AWS_ACCESS_KEY_ID:notset" in flat

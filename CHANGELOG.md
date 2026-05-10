@@ -13,8 +13,20 @@ Planned scope (subject to change — see `melhorias/v5.6-kubernetes-container-fu
 - **Kubernetes manifest coverage** — new `scan-k8s` subcommand and ~16 `K8S-PSS-*` / `K8S-RBAC-*` / `K8S-NETPOL-*` experimental rules consumed by a new advisory bundled profile `kubernetes-baseline-1`.
 - **Container runtime hardening** — ~7 `CONT-RUNTIME-*` rules + `CONT-SIGN-001` (cosign / GitHub Artifact Attestations) consumed by a new advisory bundled profile `container-baseline-1`.
 - **Fuzzing alignment** — new `SEC-FUZZ-001` mapping OpenSSF Scorecard's `Fuzzing` check, added to `*-level-3` and `*-release-hardening-3` profiles.
-- **`AWS-CC-046` removed** (deprecated in v5.4.0; AWS CodeCommit upstream maintenance mode since 2024-07).
 - **Internal `evaluators.py` refactor** — extract shared `_common.py` helpers as the first incremental step toward the category-based `application/evaluators/` package (see `melhorias/refactor-evaluators-package-v5.5.md`).
+
+### Removed (already landed in this dev cycle)
+
+- **`AWS-CC-046` deleted (and the entire CodeCommit collector path that fed it).** Deprecated in v5.4.0; AWS CodeCommit upstream entered maintenance mode in 2024-07 and is closed to new customers. This release removes:
+  - The `AWS-CC-046` catalog entry, its evaluator (`eval_aws_cc_046`), the schema-loader helper (`_aws_codecommit_review_schema`), and its `EVALUATOR_REGISTRY` slot.
+  - The `evidence-aws-codecommit-review-posture.schema.json` schema (both the packaged copy and the `reports/schema/` mirror).
+  - The CodeCommit branch of `AWSEvidenceCollector` (`_collect_codecommit`, `_normalize_codecommit_name`, the approval-rule template helpers, and the integration in `collect()`).
+  - The CodeCommit entry in `evidence_scaffold.py` (`aws-codecommit-review-posture.json` template) and the matching member of `AWS_EVIDENCE_FILENAMES` in `profile_hints.py`.
+  - The CodeCommit row in `collect-evidence --platform aws --dry-run` and the `--repo` requirement on the AWS path. `--repo` is still accepted on the CLI for GitHub / Azure DevOps; AWS now drives only off `AWS_CODEBUILD_PROJECT` and `AWS_CODEPIPELINE_NAME`.
+  - All AWS-CC-046 references from `docs/controls-catalog.md`, `docs/architecture.md`, `docs/adoption-guide.md`, `docs/collector-parity.md`, `docs/osps-mapping.md`, `docs/profiles/overview.md`, `docs/profiles/release-hardening-3-howto.md`, `docs/profiles/aws.md`, `docs/azure-aws-collector-privacy.md`, and `docs/evidence-pack.md`, plus the descriptive prose in `aws-level-3` / `aws-release-hardening-3` profile YAMLs.
+  - Suite total: **720 → 717** (3 CodeCommit-specific tests removed; no test failures introduced).
+
+  External profiles still referencing `AWS-CC-046` should pin to v5.5.x or migrate to a different SCM signal. The other AWS controls (`AWS-CP-044`, `AWS-CB-045`, `AWS-PIPEIAM-056`, `AWS-CBIDENT-057`) continue to cover the dominant AWS CI/CD path.
 
 `reports/1.0`, `reports/0.3`, `reports/0.2` shapes remain byte-stable. No new hard dependencies.
 

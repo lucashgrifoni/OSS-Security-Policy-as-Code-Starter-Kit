@@ -94,7 +94,6 @@ Runtime policy assets are packaged from:
 - `src/oss_policy_kit/data/schema/evidence-azure-pipeline-governance.schema.json`
 - `src/oss_policy_kit/data/schema/evidence-aws-codebuild-project.schema.json`
 - `src/oss_policy_kit/data/schema/evidence-aws-codepipeline.schema.json`
-- `src/oss_policy_kit/data/schema/evidence-aws-codecommit-review-posture.schema.json`
 
 The public report schema remains under:
 
@@ -107,7 +106,6 @@ The public report schema remains under:
 - `reports/schema/evidence-azure-pipeline-governance.schema.json`
 - `reports/schema/evidence-aws-codebuild-project.schema.json`
 - `reports/schema/evidence-aws-codepipeline.schema.json`
-- `reports/schema/evidence-aws-codecommit-review-posture.schema.json`
 
 ## Evidence and trust model
 
@@ -143,7 +141,6 @@ Current structured evidence supported by the kit:
 | `AZ-PLAT-035` | `.oss-policy-kit/evidence/azure-pipeline-governance.json` | `reports/schema/evidence-azure-pipeline-governance.schema.json` |
 | `AWS-CP-044` | `.oss-policy-kit/evidence/aws-codepipeline.json` | `reports/schema/evidence-aws-codepipeline.schema.json` |
 | `AWS-CB-045` | `.oss-policy-kit/evidence/aws-codebuild-project.json` | `reports/schema/evidence-aws-codebuild-project.schema.json` |
-| `AWS-CC-046` | `.oss-policy-kit/evidence/aws-codecommit-review-posture.json` | `reports/schema/evidence-aws-codecommit-review-posture.schema.json` |
 | `AWS-SBOMART-058` | `.oss-policy-kit/evidence/aws-sbom-artifact.json` | `reports/schema/evidence-aws-sbom-artifact.schema.json` |
 | `AWS-PROVART-059` | `.oss-policy-kit/evidence/aws-provenance-artifact.json` | `reports/schema/evidence-aws-provenance-artifact.schema.json` |
 

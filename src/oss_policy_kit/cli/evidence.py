@@ -38,7 +38,6 @@ _COLLECT_PREVIEW: dict[str, list[tuple[str, str]]] = {
     "aws": [
         ("aws-codebuild-project.json", "codebuild.batch_get_projects (when AWS_CODEBUILD_PROJECT is set)"),
         ("aws-codepipeline.json", "codepipeline.get_pipeline (when AWS_CODEPIPELINE_NAME is set)"),
-        ("aws-codecommit-review-posture.json", "codecommit APIs (when --repo is a CodeCommit repository name)"),
     ],
 }
 
@@ -197,8 +196,8 @@ def collect_evidence_cmd(
         None,
         "--repo",
         help=(
-            "Repository slug: GitHub ``org/repo``; Azure DevOps ``ProjectName/repoName``; "
-            "AWS CodeCommit repository name (optional if only AWS_CODEBUILD_PROJECT / AWS_CODEPIPELINE_NAME are set)."
+            "Repository slug: GitHub ``org/repo`` or Azure DevOps ``ProjectName/repoName``. "
+            "Not required for AWS (set AWS_CODEBUILD_PROJECT and/or AWS_CODEPIPELINE_NAME instead)."
         ),
     ),
     dry_run: bool = typer.Option(
@@ -260,10 +259,9 @@ def collect_evidence_cmd(
             build_n = os.environ.get("AWS_CODEBUILD_PROJECT", "").strip()
             pipe_n = os.environ.get("AWS_CODEPIPELINE_NAME", "").strip()
             slug = (repo_slug or "").strip()
-            if not slug and not build_n and not pipe_n:
+            if not build_n and not pipe_n:
                 raise InvalidInputError(
-                    "For AWS, pass --repo with your CodeCommit repository name and/or set "
-                    "AWS_CODEBUILD_PROJECT and/or AWS_CODEPIPELINE_NAME in the environment."
+                    "For AWS, set AWS_CODEBUILD_PROJECT and/or AWS_CODEPIPELINE_NAME in the environment."
                 )
             collector = AWSEvidenceCollector()
         else:
