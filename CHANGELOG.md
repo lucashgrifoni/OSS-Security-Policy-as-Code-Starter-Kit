@@ -6,6 +6,20 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## OSS Security Policy as Code Starter Kit v5.7.0 (Unreleased)
+
+Planned scope (subject to change):
+
+- **Additional cloud-platform IaC parsers** — Pulumi / CloudFormation / Bicep coverage on top of the v5.5 Terraform pack, sharing the same evidence contract (`oss-policy-kit/evidence/iac-*/v1`).
+- **Helm chart rendering** — opt-in `helm template` pre-pass for `scan-k8s` so charts stop being silently skipped.
+- **Webhook security** — `SEC-WEBHOOK-001..002` covering signature validation and replay defenses.
+- **Active runtime probes** — explicitly **out of scope**; the kit stays clone-visible by design.
+- **Continued `evaluators.py` decomposition** — extract `governance.py` / `ci_cd.py` / `supply_chain.py` packs (refactor steps 2-N) without breaking `EVALUATOR_REGISTRY` byte-equivalence.
+
+`reports/1.0`, `reports/0.3`, `reports/0.2` shapes remain byte-stable. No new hard dependencies planned.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.6.0
 
 ### Added (already landed in this dev cycle)
