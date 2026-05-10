@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/schema/evidence-k8s-baseline.schema.json",
+  "title": "OSS Policy Kit - Kubernetes manifest evidence",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "tool",
+    "status",
+    "scanned_at",
+    "files_scanned",
+    "findings_total",
+    "findings_by_rule",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "oss-policy-kit/evidence/k8s-baseline/v1"
+    },
+    "tool": {
+      "type": "string",
+      "const": "oss-policy-kit-k8s-parser"
+    },
+    "tool_version": {
+      "type": ["string", "null"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ok", "error", "timeout"]
+    },
+    "target": {
+      "type": "string"
+    },
+    "scanned_at": {
+      "type": "string"
+    },
+    "attested_at": {
+      "type": "string"
+    },
+    "attested_by": {
+      "type": "string"
+    },
+    "files_scanned": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "files_failed": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "helm_templates_skipped": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "findings_total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "findings_by_rule": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "findings_by_severity": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "severity", "message", "file", "kind", "name"],
+        "properties": {
+          "rule_id": { "type": "string" },
+          "severity": { "type": "string" },
+          "message": { "type": "string" },
+          "file": { "type": "string" },
+          "kind": { "type": "string" },
+          "namespace": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object"
+    }
+  }
+}

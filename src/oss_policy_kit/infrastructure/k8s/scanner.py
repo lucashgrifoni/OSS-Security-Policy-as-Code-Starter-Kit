@@ -1,0 +1,662 @@
+"""Kubernetes manifest rule pack and evidence writer.
+
+Mirrors the design of ``infrastructure/iac/scanner.py``:
+
+- discover ``*.yaml`` / ``*.yml`` files under the clone (skipping noisy
+  dirs and Helm templates that contain ``{{ ... }}`` markers);
+- parse every YAML document via PyYAML's ``safe_load_all`` (PyYAML is a
+  hard dependency of the kit, so no ``status: not_available`` path is
+  needed here, unlike the IaC scanner);
+- run the 16 bundled rules and aggregate findings;
+- write evidence under ``.oss-policy-kit/evidence/k8s-baseline.json``
+  (schema ``oss-policy-kit/evidence/k8s-baseline/v1``).
+
+Each ``K8S-*`` evaluator is a thin reader of that JSON.
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Callable, Iterable
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+EVIDENCE_SCHEMA_VERSION = "oss-policy-kit/evidence/k8s-baseline/v1"
+EVIDENCE_FILENAME = "k8s-baseline.json"
+DEFAULT_TIMEOUT_SECONDS = 120
+DEFAULT_INCLUDE_GLOBS: tuple[str, ...] = ("**/*.yaml", "**/*.yml")
+
+_SKIP_DIRS: frozenset[str] = frozenset(
+    {".git", ".terraform", "node_modules", ".venv", "venv", "__pycache__", "dist", "build", ".oss-policy-kit"}
+)
+
+_HELM_TEMPLATE_MARKER = re.compile(r"\{\{[^}]+\}\}")
+_LATEST_TAG_RE = re.compile(r":(latest)?$|^[A-Za-z0-9./-]+(?<!\.)$")
+_K8S_KINDS_WORKLOAD: frozenset[str] = frozenset(
+    {"Pod", "Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "ReplicaSet"}
+)
+_K8S_KINDS_RBAC_BIND: frozenset[str] = frozenset({"RoleBinding", "ClusterRoleBinding"})
+_K8S_KINDS_RBAC_RULE: frozenset[str] = frozenset({"Role", "ClusterRole"})
+
+
+@dataclass(slots=True)
+class K8sFinding:
+    """One normalized Kubernetes finding embedded in the evidence JSON."""
+
+    rule_id: str
+    severity: str
+    message: str
+    file: str
+    kind: str
+    namespace: str
+    name: str
+
+
+@dataclass(slots=True)
+class K8sManifest:
+    """One parsed YAML document treated as a Kubernetes manifest."""
+
+    file: Path
+    api_version: str
+    kind: str
+    namespace: str
+    name: str
+    body: dict[str, Any]
+
+
+@dataclass(slots=True)
+class K8sScanOutcome:
+    """Structured outcome of one ``scan-k8s`` run."""
+
+    status: str
+    tool_version: str | None
+    files_scanned: list[str] = field(default_factory=list)
+    helm_templates_skipped: list[str] = field(default_factory=list)
+    parse_errors: list[dict[str, str]] = field(default_factory=list)
+    findings: list[K8sFinding] = field(default_factory=list)
+    scanned_at: str = ""
+    diagnostics: str = ""
+
+
+def _kit_version() -> str:
+    try:
+        return _pkg_version("oss-policy-kit")
+    except PackageNotFoundError:  # pragma: no cover - dev-only fallback
+        return "0.0.0+local"
+
+
+def _utc_iso() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _normalize_target(repo_root: Path, p: Path) -> str:
+    try:
+        return p.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return p.resolve().as_posix()
+
+
+def _walk_yaml_files(
+    repo_root: Path,
+    include_globs: Iterable[str],
+    exclude_globs: Iterable[str] | None,
+) -> list[Path]:
+    seen: set[Path] = set()
+    out: list[Path] = []
+    for pat in include_globs:
+        for p in repo_root.glob(pat):
+            if not p.is_file():
+                continue
+            try:
+                rel = p.resolve().relative_to(repo_root.resolve())
+            except ValueError:
+                continue
+            if any(part in _SKIP_DIRS for part in rel.parts):
+                continue
+            if exclude_globs and any(p.match(eg) for eg in exclude_globs):
+                continue
+            r = p.resolve()
+            if r in seen:
+                continue
+            seen.add(r)
+            out.append(p)
+    return out
+
+
+def _looks_like_kubernetes(doc: Any) -> bool:
+    return isinstance(doc, dict) and "apiVersion" in doc and "kind" in doc
+
+
+def _index_manifests(
+    repo_root: Path,
+    files: list[Path],
+) -> tuple[list[K8sManifest], list[str], list[dict[str, str]]]:
+    """Return ``(manifests, helm_templates_skipped, parse_errors)``."""
+
+    manifests: list[K8sManifest] = []
+    helm_skipped: list[str] = []
+    parse_errors: list[dict[str, str]] = []
+    for path in files:
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            parse_errors.append({"file": _normalize_target(repo_root, path), "error": str(exc)})
+            continue
+        if _HELM_TEMPLATE_MARKER.search(text):
+            helm_skipped.append(_normalize_target(repo_root, path))
+            continue
+        try:
+            docs = list(yaml.safe_load_all(text))
+        except yaml.YAMLError as exc:
+            parse_errors.append({"file": _normalize_target(repo_root, path), "error": str(exc)})
+            continue
+        for doc in docs:
+            if not _looks_like_kubernetes(doc):
+                continue
+            api_version = str(doc.get("apiVersion", ""))
+            kind = str(doc.get("kind", ""))
+            metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+            namespace = str((metadata or {}).get("namespace", "default") or "default")
+            name = str((metadata or {}).get("name", ""))
+            manifests.append(
+                K8sManifest(
+                    file=path,
+                    api_version=api_version,
+                    kind=kind,
+                    namespace=namespace,
+                    name=name,
+                    body=doc,
+                )
+            )
+    return manifests, helm_skipped, parse_errors
+
+
+# ---------------------------------------------------------------------------
+# Per-rule helpers
+# ---------------------------------------------------------------------------
+
+
+def _pod_specs(m: K8sManifest) -> list[dict[str, Any]]:
+    """Return the list of pod-spec dicts inside a workload manifest."""
+
+    if m.kind == "Pod":
+        return [m.body.get("spec", {}) if isinstance(m.body.get("spec"), dict) else {}]
+    if m.kind == "CronJob":
+        spec = m.body.get("spec", {})
+        if isinstance(spec, dict):
+            jt = spec.get("jobTemplate", {})
+            if isinstance(jt, dict):
+                jspec = jt.get("spec", {})
+                if isinstance(jspec, dict):
+                    tmpl = jspec.get("template", {})
+                    if isinstance(tmpl, dict):
+                        ps = tmpl.get("spec", {})
+                        if isinstance(ps, dict):
+                            return [ps]
+        return []
+    spec = m.body.get("spec", {})
+    if isinstance(spec, dict):
+        tmpl = spec.get("template", {})
+        if isinstance(tmpl, dict):
+            ps = tmpl.get("spec", {})
+            if isinstance(ps, dict):
+                return [ps]
+    return []
+
+
+def _all_containers(pod_spec: dict[str, Any]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for key in ("containers", "initContainers", "ephemeralContainers"):
+        seq = pod_spec.get(key)
+        if isinstance(seq, list):
+            for c in seq:
+                if isinstance(c, dict):
+                    out.append(c)
+    return out
+
+
+def _finding(rule_id: str, severity: str, message: str, m: K8sManifest, repo_root: Path) -> K8sFinding:
+    return K8sFinding(
+        rule_id=rule_id,
+        severity=severity,
+        message=message,
+        file=_normalize_target(repo_root, m.file),
+        kind=m.kind,
+        namespace=m.namespace,
+        name=m.name,
+    )
+
+
+def _rule_pss_001_privileged(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    """K8S-PSS-001 privileged container."""
+
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_WORKLOAD:
+            continue
+        for ps in _pod_specs(m):
+            for c in _all_containers(ps):
+                sc = c.get("securityContext", {})
+                if isinstance(sc, dict) and sc.get("privileged") is True:
+                    out.append(
+                        _finding("K8S-PSS-001", "HIGH", f"container '{c.get('name', '?')}' is privileged", m, repo_root)
+                    )
+    return out
+
+
+def _rule_pss_002_host_pid(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_WORKLOAD:
+            continue
+        for ps in _pod_specs(m):
+            if ps.get("hostPID") is True:
+                out.append(_finding("K8S-PSS-002", "HIGH", "podSpec.hostPID=true", m, repo_root))
+    return out
+
+
+def _rule_pss_003_host_network(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_WORKLOAD:
+            continue
+        for ps in _pod_specs(m):
+            if ps.get("hostNetwork") is True:
+                out.append(_finding("K8S-PSS-003", "HIGH", "podSpec.hostNetwork=true", m, repo_root))
+    return out
+
+
+def _rule_pss_004_host_path(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_WORKLOAD:
+            continue
+        for ps in _pod_specs(m):
+            for v in ps.get("volumes", []) or []:
+                if isinstance(v, dict) and isinstance(v.get("hostPath"), dict):
+                    out.append(
+                        _finding("K8S-PSS-004", "HIGH", f"hostPath volume '{v.get('name', '?')}' mounted", m, repo_root)
+                    )
+    return out
+
+
+def _rule_pss_005_capabilities_add(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_WORKLOAD:
+            continue
+        for ps in _pod_specs(m):
+            for c in _all_containers(ps):
+                sc = c.get("securityContext", {})
+                caps = sc.get("capabilities", {}) if isinstance(sc, dict) else {}
+                added = caps.get("add", []) if isinstance(caps, dict) else []
+                if isinstance(added, list) and added:
+                    out.append(
+                        _finding(
+                            "K8S-PSS-005",
+                            "MEDIUM",
+                            f"container '{c.get('name', '?')}' adds capabilities {added}",
+                            m,
+                            repo_root,
+                        )
+                    )
+    return out
+
+
+def _rule_pss_006_run_as_root(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_WORKLOAD:
+            continue
+        for ps in _pod_specs(m):
+            pod_sc = ps.get("securityContext", {}) if isinstance(ps.get("securityContext"), dict) else {}
+            for c in _all_containers(ps):
+                sc = c.get("securityContext", {}) if isinstance(c.get("securityContext"), dict) else {}
+                run_non_root = sc.get("runAsNonRoot")
+                if run_non_root is None:
+                    run_non_root = pod_sc.get("runAsNonRoot")
+                run_as_user = sc.get("runAsUser")
+                if run_as_user is None:
+                    run_as_user = pod_sc.get("runAsUser")
+                if run_non_root is True:
+                    continue
+                if isinstance(run_as_user, int) and run_as_user != 0:
+                    continue
+                msg = (
+                    f"container '{c.get('name', '?')}' may run as root (runAsNonRoot not true; runAsUser not non-zero)"
+                )
+                out.append(_finding("K8S-PSS-006", "HIGH", msg, m, repo_root))
+    return out
+
+
+def _rule_pss_007_priv_escalation(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_WORKLOAD:
+            continue
+        for ps in _pod_specs(m):
+            for c in _all_containers(ps):
+                sc = c.get("securityContext", {}) if isinstance(c.get("securityContext"), dict) else {}
+                if sc.get("allowPrivilegeEscalation") is not False:
+                    out.append(
+                        _finding(
+                            "K8S-PSS-007",
+                            "MEDIUM",
+                            f"container '{c.get('name', '?')}' allowPrivilegeEscalation not set to false",
+                            m,
+                            repo_root,
+                        )
+                    )
+    return out
+
+
+def _rule_pss_008_readonly_rootfs(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_WORKLOAD:
+            continue
+        for ps in _pod_specs(m):
+            for c in _all_containers(ps):
+                sc = c.get("securityContext", {}) if isinstance(c.get("securityContext"), dict) else {}
+                if sc.get("readOnlyRootFilesystem") is not True:
+                    out.append(
+                        _finding(
+                            "K8S-PSS-008",
+                            "MEDIUM",
+                            f"container '{c.get('name', '?')}' readOnlyRootFilesystem not true",
+                            m,
+                            repo_root,
+                        )
+                    )
+    return out
+
+
+def _rule_pss_009_automount_sa(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_WORKLOAD:
+            continue
+        for ps in _pod_specs(m):
+            if ps.get("automountServiceAccountToken") is None:
+                out.append(
+                    _finding(
+                        "K8S-PSS-009",
+                        "LOW",
+                        "podSpec.automountServiceAccountToken not pinned (defaults to true)",
+                        m,
+                        repo_root,
+                    )
+                )
+    return out
+
+
+def _rule_pss_010_image_tag_latest(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_WORKLOAD:
+            continue
+        for ps in _pod_specs(m):
+            for c in _all_containers(ps):
+                image = str(c.get("image", ""))
+                if not image:
+                    continue
+                if "@sha256:" in image:
+                    continue
+                # Treat 'latest' or any image without an explicit tag as drift.
+                tag = image.split(":", 1)[1] if ":" in image else "latest"
+                if tag in ("", "latest"):
+                    out.append(
+                        _finding(
+                            "K8S-PSS-010",
+                            "MEDIUM",
+                            f"container '{c.get('name', '?')}' uses floating tag '{image}'",
+                            m,
+                            repo_root,
+                        )
+                    )
+    return out
+
+
+def _rule_rbac_001_wildcard_verbs(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_RBAC_RULE:
+            continue
+        for r in m.body.get("rules", []) or []:
+            if not isinstance(r, dict):
+                continue
+            verbs = r.get("verbs", [])
+            if isinstance(verbs, list) and "*" in verbs:
+                out.append(_finding("K8S-RBAC-001", "HIGH", f"{m.kind} grants wildcard verb '*'", m, repo_root))
+                break
+    return out
+
+
+def _rule_rbac_002_cluster_admin(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_RBAC_BIND:
+            continue
+        role_ref = m.body.get("roleRef", {})
+        if not isinstance(role_ref, dict):
+            continue
+        if str(role_ref.get("name", "")) == "cluster-admin":
+            out.append(_finding("K8S-RBAC-002", "HIGH", f"{m.kind} binds to cluster-admin", m, repo_root))
+    return out
+
+
+def _rule_rbac_003_default_sa(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_WORKLOAD:
+            continue
+        for ps in _pod_specs(m):
+            sa = ps.get("serviceAccountName")
+            if sa in (None, "default") and m.namespace == "default":
+                out.append(
+                    _finding(
+                        "K8S-RBAC-003",
+                        "LOW",
+                        "workload runs in 'default' namespace with the default ServiceAccount",
+                        m,
+                        repo_root,
+                    )
+                )
+    return out
+
+
+def _rule_rbac_004_cluster_role_no_namespace(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    """ClusterRoleBinding granting a ClusterRole with broad `*` resources."""
+
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind != "ClusterRole":
+            continue
+        for r in m.body.get("rules", []) or []:
+            if not isinstance(r, dict):
+                continue
+            resources = r.get("resources", [])
+            if isinstance(resources, list) and "*" in resources:
+                out.append(
+                    _finding(
+                        "K8S-RBAC-004",
+                        "MEDIUM",
+                        "ClusterRole grants wildcard resource '*' (cluster-scoped, no namespace boundary)",
+                        m,
+                        repo_root,
+                    )
+                )
+                break
+    return out
+
+
+def _rule_rbac_005_secrets_all_read(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    out: list[K8sFinding] = []
+    for m in manifests:
+        if m.kind not in _K8S_KINDS_RBAC_RULE:
+            continue
+        for r in m.body.get("rules", []) or []:
+            if not isinstance(r, dict):
+                continue
+            resources = r.get("resources", []) or []
+            verbs = r.get("verbs", []) or []
+            if not isinstance(resources, list) or not isinstance(verbs, list):
+                continue
+            if "secrets" not in resources and "*" not in resources:
+                continue
+            broad = any(v in {"get", "list", "watch", "*"} for v in verbs)
+            if broad:
+                out.append(
+                    _finding(
+                        "K8S-RBAC-005",
+                        "HIGH",
+                        f"{m.kind} grants broad read on secrets (verbs={verbs})",
+                        m,
+                        repo_root,
+                    )
+                )
+                break
+    return out
+
+
+def _rule_netpol_001_no_netpol(repo_root: Path, manifests: list[K8sManifest]) -> list[K8sFinding]:
+    """Namespace has no NetworkPolicy at all."""
+
+    workload_namespaces: set[str] = set()
+    netpol_namespaces: set[str] = set()
+    sample_workload: dict[str, K8sManifest] = {}
+    for m in manifests:
+        if m.kind == "NetworkPolicy":
+            netpol_namespaces.add(m.namespace)
+        elif m.kind in _K8S_KINDS_WORKLOAD:
+            workload_namespaces.add(m.namespace)
+            sample_workload.setdefault(m.namespace, m)
+    out: list[K8sFinding] = []
+    for ns in sorted(workload_namespaces - netpol_namespaces):
+        anchor = sample_workload.get(ns)
+        if anchor is None:
+            continue
+        out.append(
+            _finding(
+                "K8S-NETPOL-001",
+                "MEDIUM",
+                f"namespace '{ns}' has workloads but no NetworkPolicy declared",
+                anchor,
+                repo_root,
+            )
+        )
+    return out
+
+
+_RuleFn = Callable[[Path, list[K8sManifest]], list[K8sFinding]]
+
+_RULES: tuple[tuple[str, _RuleFn], ...] = (
+    ("K8S-PSS-001", _rule_pss_001_privileged),
+    ("K8S-PSS-002", _rule_pss_002_host_pid),
+    ("K8S-PSS-003", _rule_pss_003_host_network),
+    ("K8S-PSS-004", _rule_pss_004_host_path),
+    ("K8S-PSS-005", _rule_pss_005_capabilities_add),
+    ("K8S-PSS-006", _rule_pss_006_run_as_root),
+    ("K8S-PSS-007", _rule_pss_007_priv_escalation),
+    ("K8S-PSS-008", _rule_pss_008_readonly_rootfs),
+    ("K8S-PSS-009", _rule_pss_009_automount_sa),
+    ("K8S-PSS-010", _rule_pss_010_image_tag_latest),
+    ("K8S-RBAC-001", _rule_rbac_001_wildcard_verbs),
+    ("K8S-RBAC-002", _rule_rbac_002_cluster_admin),
+    ("K8S-RBAC-003", _rule_rbac_003_default_sa),
+    ("K8S-RBAC-004", _rule_rbac_004_cluster_role_no_namespace),
+    ("K8S-RBAC-005", _rule_rbac_005_secrets_all_read),
+    ("K8S-NETPOL-001", _rule_netpol_001_no_netpol),
+)
+
+
+def all_rule_ids() -> tuple[str, ...]:
+    return tuple(rid for rid, _ in _RULES)
+
+
+def run_scan(
+    repo_root: Path,
+    *,
+    include_globs: Iterable[str] = DEFAULT_INCLUDE_GLOBS,
+    exclude_globs: Iterable[str] | None = None,
+    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+) -> K8sScanOutcome:
+    """Discover Kubernetes manifests, run every bundled rule, return a structured outcome."""
+
+    _ = timeout_seconds
+    files = _walk_yaml_files(repo_root, include_globs, exclude_globs)
+    manifests, helm_skipped, parse_errors = _index_manifests(repo_root, files)
+    findings: list[K8sFinding] = []
+    try:
+        for _rid, fn in _RULES:
+            findings.extend(fn(repo_root, manifests))
+    except Exception as exc:  # noqa: BLE001 - one bad rule should not crash the scan
+        return K8sScanOutcome(
+            status="error",
+            tool_version=_kit_version(),
+            files_scanned=[_normalize_target(repo_root, p) for p in files],
+            helm_templates_skipped=helm_skipped,
+            parse_errors=parse_errors,
+            findings=[],
+            scanned_at=_utc_iso(),
+            diagnostics=f"rule engine raised {type(exc).__name__}: {exc}",
+        )
+    return K8sScanOutcome(
+        status="ok",
+        tool_version=_kit_version(),
+        files_scanned=[_normalize_target(repo_root, p) for p in files],
+        helm_templates_skipped=helm_skipped,
+        parse_errors=parse_errors,
+        findings=findings,
+        scanned_at=_utc_iso(),
+    )
+
+
+def render_evidence_payload(outcome: K8sScanOutcome, *, target: Path) -> dict[str, Any]:
+    """Build the on-disk evidence dict consumed by every ``K8S-*`` evaluator."""
+
+    by_rule: dict[str, int] = {rid: 0 for rid in all_rule_ids()}
+    by_severity: dict[str, int] = {}
+    for f in outcome.findings:
+        by_rule[f.rule_id] = by_rule.get(f.rule_id, 0) + 1
+        by_severity[f.severity] = by_severity.get(f.severity, 0) + 1
+    return {
+        "schema_version": EVIDENCE_SCHEMA_VERSION,
+        "tool": "oss-policy-kit-k8s-parser",
+        "tool_version": outcome.tool_version,
+        "status": outcome.status,
+        "target": str(target.resolve()),
+        "scanned_at": outcome.scanned_at,
+        "attested_at": outcome.scanned_at,
+        "attested_by": "oss-policy-kit scan-k8s",
+        "files_scanned": outcome.files_scanned,
+        "files_failed": [pe["file"] for pe in outcome.parse_errors],
+        "helm_templates_skipped": outcome.helm_templates_skipped,
+        "findings_total": len(outcome.findings),
+        "findings_by_rule": by_rule,
+        "findings_by_severity": by_severity,
+        "findings": [asdict(f) for f in outcome.findings],
+        "diagnostics": {
+            "parse_errors": outcome.parse_errors,
+            "raw_message": outcome.diagnostics,
+        },
+    }
+
+
+def write_evidence(payload: dict[str, Any], *, repo_root: Path, filename: str = EVIDENCE_FILENAME) -> Path:
+    import json
+
+    target_dir = repo_root / ".oss-policy-kit" / "evidence"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    out = target_dir / filename
+    out.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=False) + "\n",
+        encoding="utf-8",
+    )
+    return out.resolve()

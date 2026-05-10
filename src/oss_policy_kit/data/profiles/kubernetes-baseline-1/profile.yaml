@@ -1,0 +1,40 @@
+id: kubernetes-baseline-1
+title: Kubernetes hardening baseline (advisory)
+description: >
+  **Advisory** profile bundling the v5.6 Kubernetes manifest pack: 10 Pod
+  Security Standards rules (`K8S-PSS-001..010` covering privileged containers,
+  hostPID/hostNetwork/hostPath usage, capability adds, runAsRoot, privilege
+  escalation, read-only root FS, automountServiceAccountToken pinning, and
+  floating image tags), 5 RBAC rules (`K8S-RBAC-001..005` covering wildcard
+  verbs, cluster-admin bindings, default ServiceAccount in the default
+  namespace, wildcard resources on ClusterRoles, and broad secrets reads),
+  and 1 NetworkPolicy presence rule (`K8S-NETPOL-001`).
+  All `K8S-*` controls ship as `lifecycle: experimental`,
+  `assurance: evidence-backed`. Use with `--fail-on degraded` to surface
+  posture drift without blocking releases.
+  **Honesty contract:** rules act on **clone-visible YAML only**. Helm
+  charts that contain `{{ ... }}` template markers are skipped with a
+  diagnostic — render them with `helm template` before scanning. Live
+  cluster posture (admission webhooks, runtime CIS scans) is
+  intentionally out of scope.
+audience: Platform / AppSec teams hardening Kubernetes manifests at PR time.
+controls:
+  - GOV-WAIV-014
+  - GOV-DISC-013
+  - GOV-EVIDFRESH-054
+  - K8S-PSS-001
+  - K8S-PSS-002
+  - K8S-PSS-003
+  - K8S-PSS-004
+  - K8S-PSS-005
+  - K8S-PSS-006
+  - K8S-PSS-007
+  - K8S-PSS-008
+  - K8S-PSS-009
+  - K8S-PSS-010
+  - K8S-RBAC-001
+  - K8S-RBAC-002
+  - K8S-RBAC-003
+  - K8S-RBAC-004
+  - K8S-RBAC-005
+  - K8S-NETPOL-001

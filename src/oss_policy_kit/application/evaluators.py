@@ -4782,9 +4782,19 @@ def _load_container_evaluators() -> None:
         EVALUATOR_REGISTRY.setdefault(control_id, fn)
 
 
+def _load_k8s_evaluators() -> None:
+    """Register the K8S-* evaluators built in ``evaluators_k8s``."""
+
+    from oss_policy_kit.application.evaluators_k8s import build_k8s_evaluators
+
+    for control_id, fn in build_k8s_evaluators().items():
+        EVALUATOR_REGISTRY.setdefault(control_id, fn)
+
+
 _load_iac_evaluators()
 _load_fuzzing_evaluators()
 _load_container_evaluators()
+_load_k8s_evaluators()
 
 
 def _load_external_evaluators() -> None:

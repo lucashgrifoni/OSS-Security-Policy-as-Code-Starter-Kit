@@ -208,6 +208,7 @@ def prepare_cli_args(args: list[str]) -> list[str]:
         "init",
         "scan-sast",
         "scan-iac",
+        "scan-k8s",
     }:
         return args
     if first in ("--help", "-h", "--version", "-V"):

@@ -638,3 +638,115 @@ controls:
     lifecycle: experimental
     assurance: signal
     weight: 3
+  - id: K8S-PSS-001
+    title: Kubernetes - privileged container detected
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: K8S-PSS-002
+    title: Kubernetes - pod uses hostPID=true
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: K8S-PSS-003
+    title: Kubernetes - pod uses hostNetwork=true
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: K8S-PSS-004
+    title: Kubernetes - pod mounts hostPath volume
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: K8S-PSS-005
+    title: Kubernetes - container adds Linux capabilities
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: K8S-PSS-006
+    title: Kubernetes - container may run as root (runAsNonRoot/runAsUser not pinned)
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: K8S-PSS-007
+    title: Kubernetes - allowPrivilegeEscalation not set to false
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: K8S-PSS-008
+    title: Kubernetes - readOnlyRootFilesystem not true
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: K8S-PSS-009
+    title: Kubernetes - automountServiceAccountToken not pinned
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 1
+  - id: K8S-PSS-010
+    title: Kubernetes - container image uses latest / unpinned tag
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: K8S-RBAC-001
+    title: Kubernetes - Role / ClusterRole grants wildcard verb '*'
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: K8S-RBAC-002
+    title: Kubernetes - RoleBinding / ClusterRoleBinding binds to cluster-admin
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: K8S-RBAC-003
+    title: Kubernetes - workload uses default ServiceAccount in default namespace
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 1
+  - id: K8S-RBAC-004
+    title: Kubernetes - ClusterRole grants wildcard resource '*'
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: K8S-RBAC-005
+    title: Kubernetes - Role / ClusterRole grants broad read on secrets
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: K8S-NETPOL-001
+    title: Kubernetes - namespace with workloads but no NetworkPolicy
+    category: kubernetes
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
