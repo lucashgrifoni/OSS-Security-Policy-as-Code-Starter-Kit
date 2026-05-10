@@ -1,0 +1,210 @@
+"""Tests for the v5.6 CONT-RUNTIME-* and CONT-SIGN-001 evaluators."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+
+from oss_policy_kit.application.evaluators import EVALUATOR_REGISTRY
+from oss_policy_kit.application.evaluators_containers import (
+    CONT_RULES,
+    build_container_evaluators,
+    eval_cont_runtime_001,
+    eval_cont_runtime_002,
+    eval_cont_runtime_003,
+    eval_cont_runtime_004,
+    eval_cont_runtime_005,
+    eval_cont_runtime_006,
+    eval_cont_sign_001,
+)
+from oss_policy_kit.application.loader import bundled_kit_root, load_catalog, load_profile_by_id
+from oss_policy_kit.domain.models import ControlStatus
+
+
+def _ctx(repo_root: Path) -> SimpleNamespace:
+    return SimpleNamespace(repo_root=repo_root)
+
+
+# ---------------------------------------------------------------------------
+# Catalog + registry + profile wiring
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("rule_id,_summary,_fn", list(CONT_RULES))
+def test_cont_rule_in_catalog(rule_id: str, _summary: str, _fn: Any) -> None:
+    catalog = load_catalog(bundled_kit_root() / "controls" / "catalog.yaml")
+    assert rule_id in catalog
+    spec = catalog[rule_id]
+    assert spec.lifecycle == "experimental"
+    assert spec.assurance == "signal"
+
+
+@pytest.mark.parametrize("rule_id,_summary,_fn", list(CONT_RULES))
+def test_cont_rule_registered(rule_id: str, _summary: str, _fn: Any) -> None:
+    assert rule_id in EVALUATOR_REGISTRY
+
+
+def test_container_baseline_1_loads_with_full_pack() -> None:
+    spec = load_profile_by_id(bundled_kit_root(), "container-baseline-1")
+    assert spec.id == "container-baseline-1"
+    pack_ids = {rid for rid, _, _ in CONT_RULES}
+    bundled_pack = pack_ids & set(spec.control_ids)
+    assert bundled_pack == pack_ids, "container-baseline-1 must include every CONT-RUNTIME-* + CONT-SIGN-001"
+
+
+def test_build_container_evaluators_returns_full_pack() -> None:
+    built = build_container_evaluators()
+    assert set(built.keys()) == {rid for rid, _, _ in CONT_RULES}
+
+
+# ---------------------------------------------------------------------------
+# Per-rule unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_runtime_001_multi_stage_pass(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text(
+        "FROM python:3.12 AS builder\n"
+        "RUN pip install requests\n\n"
+        "FROM python:3.12-slim\n"
+        "COPY --from=builder /app /app\n",
+        encoding="utf-8",
+    )
+    out = eval_cont_runtime_001(_ctx(tmp_path))
+    assert out.status is ControlStatus.PASS
+
+
+def test_runtime_001_single_stage_fails(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text('FROM python:3.12\nCMD ["python"]\n', encoding="utf-8")
+    out = eval_cont_runtime_001(_ctx(tmp_path))
+    assert out.status is ControlStatus.FAIL
+
+
+def test_runtime_001_no_dockerfile_is_not_applicable(tmp_path: Path) -> None:
+    out = eval_cont_runtime_001(_ctx(tmp_path))
+    assert out.status is ControlStatus.NOT_APPLICABLE
+
+
+def test_runtime_002_healthcheck_pass(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text(
+        "FROM nginx:1.27\nHEALTHCHECK --interval=30s CMD curl -f http://localhost/ || exit 1\n",
+        encoding="utf-8",
+    )
+    out = eval_cont_runtime_002(_ctx(tmp_path))
+    assert out.status is ControlStatus.PASS
+
+
+def test_runtime_002_no_healthcheck_fail(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text("FROM nginx:1.27\nCMD nginx -g 'daemon off;'\n", encoding="utf-8")
+    out = eval_cont_runtime_002(_ctx(tmp_path))
+    assert out.status is ControlStatus.FAIL
+
+
+def test_runtime_003_curl_bash_fails(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text(
+        "FROM ubuntu:22.04\nRUN curl -fsSL https://example.com/install.sh | bash\n",
+        encoding="utf-8",
+    )
+    out = eval_cont_runtime_003(_ctx(tmp_path))
+    assert out.status is ControlStatus.FAIL
+
+
+def test_runtime_003_safe_install_passes(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text(
+        "FROM ubuntu:22.04\nRUN apt-get update && apt-get install -y curl\n",
+        encoding="utf-8",
+    )
+    out = eval_cont_runtime_003(_ctx(tmp_path))
+    assert out.status is ControlStatus.PASS
+
+
+def test_runtime_004_dockerignore_present_passes(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text("FROM alpine:3.19\n", encoding="utf-8")
+    (tmp_path / ".dockerignore").write_text(".git\nnode_modules\n", encoding="utf-8")
+    out = eval_cont_runtime_004(_ctx(tmp_path))
+    assert out.status is ControlStatus.PASS
+
+
+def test_runtime_004_missing_dockerignore_fails(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text("FROM alpine:3.19\n", encoding="utf-8")
+    out = eval_cont_runtime_004(_ctx(tmp_path))
+    assert out.status is ControlStatus.FAIL
+
+
+def test_runtime_005_apt_with_no_recommends_passes(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text(
+        "FROM ubuntu:22.04\nRUN apt-get update && apt-get install -y --no-install-recommends curl\n",
+        encoding="utf-8",
+    )
+    out = eval_cont_runtime_005(_ctx(tmp_path))
+    assert out.status is ControlStatus.PASS
+
+
+def test_runtime_005_apt_without_cleanup_fails(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text(
+        "FROM ubuntu:22.04\nRUN apt-get update && apt-get install -y curl\n",
+        encoding="utf-8",
+    )
+    out = eval_cont_runtime_005(_ctx(tmp_path))
+    assert out.status is ControlStatus.FAIL
+
+
+def test_runtime_005_no_apt_is_not_applicable(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text("FROM alpine:3.19\nRUN apk add --no-cache curl\n", encoding="utf-8")
+    out = eval_cont_runtime_005(_ctx(tmp_path))
+    assert out.status is ControlStatus.NOT_APPLICABLE
+
+
+def test_runtime_006_pinned_versions_pass(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text(
+        "FROM ubuntu:22.04\nRUN apt-get install -y curl=7.81.0-1ubuntu1.20\n",
+        encoding="utf-8",
+    )
+    out = eval_cont_runtime_006(_ctx(tmp_path))
+    assert out.status is ControlStatus.PASS
+
+
+def test_runtime_006_unpinned_fails(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text(
+        "FROM ubuntu:22.04\nRUN apt-get install -y curl ca-certificates\n", encoding="utf-8"
+    )
+    out = eval_cont_runtime_006(_ctx(tmp_path))
+    assert out.status is ControlStatus.FAIL
+
+
+def test_sign_001_cosign_in_workflow_passes(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text("FROM alpine:3.19\n", encoding="utf-8")
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "release.yml").write_text(
+        "jobs:\n  build:\n    steps:\n"
+        "      - uses: sigstore/cosign-installer@v3\n"
+        "      - run: cosign sign --yes ghcr.io/x@sha256:abc\n",
+        encoding="utf-8",
+    )
+    out = eval_cont_sign_001(_ctx(tmp_path))
+    assert out.status is ControlStatus.PASS
+
+
+def test_sign_001_attest_build_provenance_passes(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text("FROM alpine:3.19\n", encoding="utf-8")
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "release.yml").write_text(
+        "jobs:\n  attest:\n    steps:\n      - uses: actions/attest-build-provenance@v1\n",
+        encoding="utf-8",
+    )
+    out = eval_cont_sign_001(_ctx(tmp_path))
+    assert out.status is ControlStatus.PASS
+
+
+def test_sign_001_no_signing_returns_manual_review(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text("FROM alpine:3.19\n", encoding="utf-8")
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "ci.yml").write_text("jobs:\n  test:\n    steps:\n      - run: pytest\n", encoding="utf-8")
+    out = eval_cont_sign_001(_ctx(tmp_path))
+    assert out.status is ControlStatus.MANUAL_REVIEW_REQUIRED

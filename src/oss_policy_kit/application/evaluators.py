@@ -4773,8 +4773,18 @@ def _load_fuzzing_evaluators() -> None:
         EVALUATOR_REGISTRY.setdefault(control_id, fn)
 
 
+def _load_container_evaluators() -> None:
+    """Register the CONT-RUNTIME-* + CONT-SIGN-001 evaluators built in ``evaluators_containers``."""
+
+    from oss_policy_kit.application.evaluators_containers import build_container_evaluators
+
+    for control_id, fn in build_container_evaluators().items():
+        EVALUATOR_REGISTRY.setdefault(control_id, fn)
+
+
 _load_iac_evaluators()
 _load_fuzzing_evaluators()
+_load_container_evaluators()
 
 
 def _load_external_evaluators() -> None:

@@ -589,3 +589,52 @@ controls:
     lifecycle: experimental
     assurance: signal
     weight: 2
+  - id: CONT-RUNTIME-001
+    title: Container - multi-stage Dockerfile build
+    category: container
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: CONT-RUNTIME-002
+    title: Container - Dockerfile HEALTHCHECK declared
+    category: container
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  - id: CONT-RUNTIME-003
+    title: Container - no curl|bash / wget|sh patterns in Dockerfile RUN
+    category: container
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: CONT-RUNTIME-004
+    title: Container - .dockerignore present
+    category: container
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  - id: CONT-RUNTIME-005
+    title: Container - apt-get hygiene (--no-install-recommends or cache cleanup)
+    category: container
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: CONT-RUNTIME-006
+    title: Container - OS package versions pinned in apt/apk install
+    category: container
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  - id: CONT-SIGN-001
+    title: Container - image signed via cosign or GitHub artifact attestations
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3

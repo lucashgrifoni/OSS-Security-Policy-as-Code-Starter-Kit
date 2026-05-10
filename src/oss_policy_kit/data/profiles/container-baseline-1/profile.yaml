@@ -1,0 +1,31 @@
+id: container-baseline-1
+title: Container hardening baseline (advisory)
+description: >
+  **Advisory** profile bundling the v5.6 container hardening pack:
+  digest-pinned base images, non-root USER, image scanning signal,
+  multi-stage Dockerfile, HEALTHCHECK, no curl|bash patterns, .dockerignore,
+  apt-get hygiene, OS package version pinning, and container image signing
+  via cosign / GitHub artifact attestations.
+  All `CONT-RUNTIME-*` and `CONT-SIGN-001` controls ship as
+  `lifecycle: experimental`, `assurance: signal`. Use with `--fail-on degraded`
+  to surface container-runtime drift without blocking releases.
+  **Composition note:** combine with `github-level-2` / `azure-level-2` /
+  `aws-level-2` (or their `*-level-3` hard-gate variants) for the full
+  release picture. The kit's clone-visible signals do **not** replace
+  Kubernetes / runtime posture checks; for those, use the bundled
+  `kubernetes-baseline-1` profile.
+audience: Platform / AppSec teams hardening container builds at PR time.
+controls:
+  - GOV-WAIV-014
+  - GOV-DISC-013
+  - GOV-EVIDFRESH-054
+  - CONT-IMAGE-001
+  - CONT-IMAGE-002
+  - CONT-IMAGE-003
+  - CONT-RUNTIME-001
+  - CONT-RUNTIME-002
+  - CONT-RUNTIME-003
+  - CONT-RUNTIME-004
+  - CONT-RUNTIME-005
+  - CONT-RUNTIME-006
+  - CONT-SIGN-001
