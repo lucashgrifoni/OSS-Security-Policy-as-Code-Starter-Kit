@@ -107,6 +107,37 @@ The public report schema remains under:
 - `reports/schema/evidence-aws-codebuild-project.schema.json`
 - `reports/schema/evidence-aws-codepipeline.schema.json`
 
+### Catalog and profile invariants
+
+The bundled catalog and profiles are guarded by four invariant suites so
+adding a new control, adding a new profile, or editing an existing entry
+cannot silently break the public contract. All four run as part of
+`python -m pytest`:
+
+- `tests/application/test_profile_schemas.py` -- every `profile.yaml`
+  declares the required fields (`id`, `title`, `description`,
+  `audience`, `controls`), the profile `id` matches its directory name,
+  every `control_id` it lists exists in `catalog.yaml`, and no
+  `control_id` appears twice in the same profile.
+- `tests/application/test_profile_maturity_drift.py` -- profiles
+  classified as extreme hard-gate (`-level-3`, `release-hardening-3`)
+  must keep at least 15% evidence-backed weight; framework-aligned
+  hard-gate-capable profiles need at least 5%; advisory profiles must
+  surface their disposition in title or description.
+- `tests/data/test_catalog_consistency.py` -- every control in
+  `catalog.yaml` exposes the required fields with values from the
+  documented enum sets (`category`, `lifecycle`, `assurance`,
+  `automation`, `weight`); no duplicate ids.
+- `tests/data/test_evidence_schemas_versioned.py` -- every
+  `*.schema.json` under `src/oss_policy_kit/data/schema/` parses as a
+  JSON object, declares the JSON Schema 2020-12 draft, exposes a
+  well-formed `$id` ending in the file's basename, and is UTF-8 without
+  BOM (release-readiness contract).
+
+A standalone CLI mirror of these checks ships at
+`scripts/validate-bundled-profiles.py` for lightweight pre-commit / CI
+use without the full pytest harness.
+
 ## Evidence and trust model
 
 The kit evaluates a **local repository clone**. Not all controls are equally observable from local files.
