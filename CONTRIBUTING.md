@@ -120,6 +120,10 @@ Then verify:
 
 See [docs/packaging-and-release.md](docs/packaging-and-release.md) and [docs/release-readiness.md](docs/release-readiness.md) for the maintainer and release-readiness contract.
 
+## Governance
+
+See [GOVERNANCE.md](GOVERNANCE.md) for the maintainer set, decision-making process, release authority, and the path to becoming a maintainer.
+
 ## Security issues
 
 Do not open public issues for undisclosed vulnerabilities.

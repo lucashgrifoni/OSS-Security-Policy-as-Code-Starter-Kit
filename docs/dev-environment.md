@@ -90,6 +90,3 @@ Recommended `git config` for Windows contributors:
 git config --global core.autocrlf input
 ```
 
-## Local-only planning workspace
-
-The `melhorias/` directory holds maintainer-private planning documents (validation reports, plans, prompts for agent execution). It is excluded from version control via `.gitignore` and `.git/info/exclude`. Do not commit anything from this directory to the public mirror.

@@ -8,7 +8,7 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 
 ## Quick Links
 
-- [What's new in v5.4.0](#whats-new-in-v540)
+- [What's new in v5.6.0](#whats-new-in-v560)
 - [Current Release State](#current-release-state)
 - [Recommended First Command](#recommended-first-command)
 - [Quickstart](#quickstart)
@@ -29,11 +29,11 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 
 | Area | What you get |
 | --- | --- |
-| Current release | `v5.4.0` / Python package `oss-policy-kit==5.4.0` |
+| Current release | `v5.6.0` / Python package `oss-policy-kit==5.6.0` |
 | Input | A local repository clone |
 | Output | `evaluation-report.json` and `evaluation-report.md` (optional SARIF 2.1.0 via `--sarif-output`) |
 | Core scope | Clone-visible governance and GitHub/Azure/AWS CI/CD signals |
-| Profiles | `github-*`, `azure-*`, `aws-*` ladders (`level-1..3`, `release-hardening-*`) — list with `python -m oss_policy_kit profiles`; optional bundled hybrids `github-aws-level-2` / `github-azure-level-2` are **advisory-only; not for use as release gates** |
+| Profiles | **32 bundled profiles** — platform ladders (`github-*`, `azure-*`, `aws-*` levels 1-3 and release-hardening 1-3), advisory hybrids (`github-aws-level-2`, `github-azure-level-2`), regulatory (`cra-eu-ready-1`, `cra-eu-strict-1`), framework alignment (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`), AppSec native bundle (`appsec-sast-sca-1`), and posture profiles (`iac-terraform-baseline-1`, `kubernetes-baseline-1`, `container-baseline-1`). List with `python -m oss_policy_kit profiles`; full matrix in [`docs/profiles/overview.md`](docs/profiles/overview.md). |
 | Exceptions | Waiver registry with owner, reason, and expiry |
 | Examples | Hardened and vulnerable sample repositories |
 | Assurance model | Each control is labelled `deterministic`, `signal`, or `evidence-backed`; the value flows into `reports/1.0` JSON and Markdown so consumers can reason about proof strength. See [docs/profiles/overview.md](docs/profiles/overview.md). |
@@ -48,7 +48,7 @@ python -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile gi
 
 This confirms the CLI, bundled profile data, example repository, and report generation path before you evaluate your own repository.
 
-### Two-line bootstrap (v5.4.0+)
+### Two-line bootstrap (v5.4.0+; available in current v5.6.0)
 
 For brand new adopters, `init` collapses the first run into two commands:
 
@@ -74,12 +74,12 @@ Inputs map 1:1 to CLI flags. Full reference and SARIF forwarding example in [doc
 
 ## Current Release State
 
-`v5.4.0` is the current public release line. It is an additive minor release on top of `v5.3.0`: the JSON report contract remains `reports/1.0`, legacy `0.3` and `0.2` report shapes remain selectable, and the existing profile IDs stay stable. The release adds the `init` wizard, makes `evaluate` config-aware via `oss-policy-kit.yaml`, ships an official GitHub Marketplace action (`action.yml`), introduces the first native SAST integration (`scan-sast` + Semgrep adapter + `SAST-SEMGREP-064` experimental control), and consolidates documentation. See `CHANGELOG.md` for full details.
+`v5.6.0` is the current public release line. It is an additive minor release on top of `v5.5.0`: the JSON report contract remains `reports/1.0`, legacy `0.3` and `0.2` report shapes remain selectable, and the existing profile IDs stay stable. The release adds native Kubernetes manifest coverage (`scan-k8s` + 16 `K8S-*` controls + `kubernetes-baseline-1` profile), a container hardening pack (7 new `CONT-RUNTIME-*` / `CONT-SIGN-*` controls + `container-baseline-1` profile), a fuzzing presence signal (`SEC-FUZZ-001`), and an internal `evaluators_common.py` extraction. v5.5.0 (Terraform / OpenTofu IaC posture, `scan-iac` + 12 `IAC-TF-*` controls + `iac-terraform-baseline-1` profile) and v5.4.0 (`init` wizard + `scan-sast` + Semgrep adapter + `SAST-SEMGREP-064`) remain part of the catalog. See `CHANGELOG.md` for full details.
 
 | Surface | Current state |
 | --- | --- |
-| Package | `oss-policy-kit==5.4.0` |
-| GitHub Release | `v5.4.0` is the current release target; `v5.3.0`, `v5.2.0`, and `v5.1.0` remain available as predecessors |
+| Package | `oss-policy-kit==5.6.0` |
+| GitHub Release | `v5.6.0` is the current release target; `v5.5.0`, `v5.4.0`, `v5.3.0`, and earlier versions remain available as predecessors |
 | Default branch | `master` |
 | License | Apache-2.0 (`LICENSE` + `NOTICE`) |
 | Report contract | `reports/1.0` by default; `0.3` and `0.2` remain selectable via `--report-json-contract`. `0.1` was removed in v5.0.0 |
@@ -87,18 +87,17 @@ Inputs map 1:1 to CLI flags. Full reference and SARIF forwarding example in [doc
 
 The repository is designed to be reproducible from a clean clone: install the package, run the built-in examples, and compare the generated JSON/Markdown reports.
 
-## What's new in v5.1.0
+## What's new in v5.6.0
 
-Highlights only — full detail in [`CHANGELOG.md`](CHANGELOG.md) and the additive migration notes in [`docs/v5.1.0-migration-guide.md`](docs/v5.1.0-migration-guide.md). For the major v4 → v5 transition, see [`docs/v5.0.0-migration-guide.md`](docs/v5.0.0-migration-guide.md).
+Highlights only — full detail in [`CHANGELOG.md`](CHANGELOG.md). For migration notes from earlier releases, see [`docs/v5.1.0-migration-guide.md`](docs/v5.1.0-migration-guide.md) and [`docs/v5.0.0-migration-guide.md`](docs/v5.0.0-migration-guide.md).
 
-- **Audit-log streaming evidence.** New experimental control `AUDIT-STREAM-060` checks centralized audit log streaming evidence for hard-gate profiles, closing OWASP CICD-SEC-10 and improving AWS/Azure traceability alignment.
-- **Signed-provenance verification.** New experimental control `PROV-VERIFY-061` reads optional `verification:` evidence for signed build provenance and moves the SLSA Build L2 "Provenance signed" mapping to YES.
-- **Hard-gate coverage expanded without breaking contracts.** Both new controls are wired into the 6 `*-level-3` and `*-release-hardening-3` profiles. `reports/1.0`, `0.3`, and `0.2` remain stable.
-- **Evidence schemas are additive.** New audit-log streaming and GitHub provenance schemas were added, while Azure/AWS provenance schemas only gained optional verification fields. Existing `v5.0.0` evidence files continue to validate.
-- **Framework alignment refreshed.** The docs now include SLSA v1.2 Source Track notes, an EU CRA mapping with an explicit no-certification honesty contract, and a NIST SP 800-218A AI out-of-scope note.
-- **Friendlier Scorecard input errors.** Malformed `--scorecard-json` files now return `exit 2` with a clear parse message instead of surfacing as `Unexpected error`.
+- **Native Kubernetes manifest coverage.** New `scan-k8s` subcommand walks `*.yaml` / `*.yml` files (skipping `.terraform`, `node_modules`, `.git`, Helm templates, etc.), parses every multi-doc YAML, and writes evidence under `.oss-policy-kit/evidence/k8s-baseline.json`. Sixteen new `K8S-*` controls: 10 Pod Security Standards (`K8S-PSS-001..010`), 5 RBAC rules (`K8S-RBAC-001..005`), and 1 NetworkPolicy presence rule (`K8S-NETPOL-001`). New advisory bundled profile `kubernetes-baseline-1`.
+- **Container hardening pack.** Seven new experimental controls extending the existing `CONT-IMAGE-*` family: multi-stage build, HEALTHCHECK, curl|bash absence, `.dockerignore` presence, apt-get hygiene, OS package pinning, and image signing via cosign / GitHub attestations. New advisory bundled profile `container-baseline-1`. Total bundled profiles: **30 → 32**.
+- **Fuzzing presence signal.** New experimental control `SEC-FUZZ-001` (vulnerability_management category) PASSes when fuzz directories, fuzz-target filenames, runner references (atheris, libfuzzer, oss-fuzz, etc.), or a Scorecard `Fuzzing` check ≥ 7 are detected. Bundled into the 6 `*-level-3` and `*-release-hardening-3` profiles.
+- **AWS CodeCommit deprecation completed.** `AWS-CC-046` and the entire CodeCommit collector path were removed; AWS CI/CD coverage continues via `AWS-CP-044`, `AWS-CB-045`, `AWS-PIPEIAM-056`, and `AWS-CBIDENT-057`.
+- **Internal refactor (step 1).** `evaluators_common.py` extracted from the historic `evaluators.py` megafile so new evaluator packs (`evaluators_iac`, `evaluators_fuzzing`, `evaluators_containers`, `evaluators_k8s`) share helpers without breaking `EVALUATOR_REGISTRY` byte-equivalence.
 
-There are no breaking changes in `v5.1.0`. The `--fail-on` semantics, JSON report contracts, Markdown report layout, and the surfaces of `evaluate-many` / `recommend-profile` / `scaffold-evidence` / `collect-evidence` / `diff-reports` are unchanged.
+There are no breaking changes in `v5.6.0` other than the deliberate removal of `AWS-CC-046` (notice given in `v5.4.0`). The `--fail-on` semantics, JSON report contracts (`reports/1.0`, `0.3`, `0.2` byte-stable), Markdown report layout, and the surfaces of `evaluate` / `evaluate-many` / `recommend-profile` / `scaffold-evidence` / `collect-evidence` / `diff-reports` / `init` / `scan-sast` / `scan-iac` are unchanged.
 
 ## What This Kit Does
 
@@ -217,6 +216,10 @@ Optional maintainer scripts under [`scripts/`](./scripts/):
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Governance
+
+See [GOVERNANCE.md](GOVERNANCE.md) for maintainers, decision-making, release process, and the path to becoming a maintainer.
 
 ## Security
 

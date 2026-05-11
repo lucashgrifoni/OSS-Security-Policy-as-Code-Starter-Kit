@@ -151,7 +151,6 @@ None. v5.4.0 is fully backwards-compatible with v5.3.0:
   - `tests/application/test_config_loader.py` — config parsing happy/sad paths.
   - `tests/cli/test_evaluate_with_config.py` — integration tests for `evaluate` reading `oss-policy-kit.yaml`.
   - `tests/application/test_profile_schemas.py` — 5 parametrized invariants validating every bundled profile (required fields, id matches directory, controls exist in catalog, no duplicates, floor of 21 profiles).
-- Roadmap for v5.5 (native Terraform / OpenTofu IaC coverage) is documented under `melhorias/v5.5-terraform-parser.md`.
 - `appsec-sast-sca-1` is shipped in this release alongside the promotion of `SAST-SEMGREP-064` to `stable`; both items are documented above under Highlights and `docs/profiles/overview.md` / `docs/framework-alignment.md`.
 - New tests covering the AppSec native bundle: `tests/application/test_appsec_sast_sca_1.py` (profile invariants and honest-gap behavior when SAST evidence is absent).
 
