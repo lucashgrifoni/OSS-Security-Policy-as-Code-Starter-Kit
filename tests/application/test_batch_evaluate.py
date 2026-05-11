@@ -160,6 +160,69 @@ def test_github_workflows_yaml_extension_is_a_repository_signal(tmp_path: Path) 
     assert sig == ".github/workflows/*.yaml"
 
 
+def test_monorepo_fallback_detects_dockerfile_at_depth_1(tmp_path: Path) -> None:
+    """Layout ``infra/Dockerfile`` (depth-1 signal) must mark the root as a repository.
+
+    Closes the v5.7.0 monorepo gap where cloud-native repos hold their primary
+    build files one level deep under ``infra/`` or ``targets/``.
+    """
+
+    (tmp_path / "infra").mkdir()
+    (tmp_path / "infra" / "Dockerfile").write_text("FROM alpine\n", encoding="utf-8")
+    ok, sig = is_likely_repository(tmp_path)
+    assert ok is True
+    assert sig == "*/Dockerfile"
+
+
+def test_monorepo_fallback_detects_dockerfile_at_depth_2(tmp_path: Path) -> None:
+    """Layout ``targets/svc/Dockerfile`` (depth-2 signal) must mark the root as a repository."""
+
+    nested = tmp_path / "targets" / "svc"
+    nested.mkdir(parents=True)
+    (nested / "Dockerfile").write_text("FROM alpine\n", encoding="utf-8")
+    ok, sig = is_likely_repository(tmp_path)
+    assert ok is True
+    assert sig == "*/*/Dockerfile"
+
+
+def test_monorepo_fallback_detects_k8s_manifests_pattern(tmp_path: Path) -> None:
+    """Layout ``infra/k8s-manifests/*.yaml`` must be recognized as a repo signal."""
+
+    manifests = tmp_path / "infra" / "k8s-manifests"
+    manifests.mkdir(parents=True)
+    (manifests / "deployment.yaml").write_text("kind: Deployment\n", encoding="utf-8")
+    ok, sig = is_likely_repository(tmp_path)
+    assert ok is True
+    assert sig == "*/k8s-manifests/*.yaml"
+
+
+def test_monorepo_fallback_detects_package_json_at_depth_1(tmp_path: Path) -> None:
+    """Layout ``app/package.json`` (frontend-only monorepo subdir) must qualify."""
+
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "package.json").write_text('{"name": "app"}', encoding="utf-8")
+    ok, sig = is_likely_repository(tmp_path)
+    assert ok is True
+    assert sig == "*/package.json"
+
+
+def test_monorepo_fallback_does_not_trip_on_nested_readmes(tmp_path: Path) -> None:
+    """Nested ``README.md`` files alone never make a directory look repo-like.
+
+    The fallback only triggers on primary signals (build manifests, ``.git``,
+    Dockerfile, CI files). This keeps utility / docs subdirectories filtered out
+    of ``evaluate-many`` discovery.
+    """
+
+    docs = tmp_path / "docs" / "section"
+    docs.mkdir(parents=True)
+    (docs / "README.md").write_text("# docs", encoding="utf-8")
+    (tmp_path / "README.md").write_text("# root docs", encoding="utf-8")
+    ok, sig = is_likely_repository(tmp_path)
+    assert ok is False
+    assert sig == ""
+
+
 def test_empty_github_workflows_directory_is_not_a_repository(tmp_path: Path) -> None:
     """A bare ``.github/workflows/`` (no YAML files) must NOT count as a repo signal.
 

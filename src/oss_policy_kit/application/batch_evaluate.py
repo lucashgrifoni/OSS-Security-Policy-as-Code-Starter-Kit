@@ -7,12 +7,12 @@ import json
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
 import oss_policy_kit
 from oss_policy_kit.adapters.local_paths import resolve_existing_dir
+from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.cli_output import FailOnPolicy, fail_on_violated
 from oss_policy_kit.application.engine import evaluate_repository
 from oss_policy_kit.application.loader import load_catalog, load_profile_by_id, merge_kit_root
@@ -63,7 +63,9 @@ def is_likely_repository(path: Path) -> tuple[bool, str]:
 
     Requires at least one primary signal (build manifest, CI file, Dockerfile, or ``.git``).
     ``README.md`` alone is not sufficient to avoid false positives from utility subdirectories
-    in monorepos.
+    in monorepos. As a fallback for monorepo-style layouts where signals live one or two
+    directories deep (e.g. ``infra/k8s-manifests/*.yaml``, ``targets/*/Dockerfile``),
+    also accept signals at depth 1 or 2 from the candidate root.
     """
 
     for signal in _REPO_PRIMARY_SIGNALS:
@@ -72,6 +74,22 @@ def is_likely_repository(path: Path) -> tuple[bool, str]:
     for pattern in _REPO_GLOB_PRIMARY:
         if list(path.glob(pattern)):
             return True, pattern
+    # Monorepo fallback: look for primary signals at depth 1 or 2.
+    for depth_pattern in ("*", "*/*"):
+        for signal in _REPO_PRIMARY_SIGNALS:
+            try:
+                if next(iter(path.glob(f"{depth_pattern}/{signal}")), None) is not None:
+                    return True, f"{depth_pattern}/{signal}"
+            except OSError:
+                continue
+    # Also accept Kubernetes manifests one or two levels deep — common for cloud-native
+    # repositories that hold manifests under ``infra/``, ``deploy/``, ``manifests/``.
+    for k8s_pattern in ("*/k8s-manifests/*.yaml", "*/*/k8s-manifests/*.yaml", "*/manifests/*.yaml"):
+        try:
+            if next(iter(path.glob(k8s_pattern)), None) is not None:
+                return True, k8s_pattern
+        except OSError:
+            continue
     return False, ""
 
 
@@ -242,7 +260,7 @@ def run_batch_evaluation(
                 run_payload["likely_not_a_repository"] = True
             consolidated_reports.append(run_payload)
 
-    generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
+    generated_at = report_generated_at()
     gate_violated = _gate_violated_for_batch(policy, summaries_for_gate)
 
     totals: dict[str, int] = defaultdict(int)

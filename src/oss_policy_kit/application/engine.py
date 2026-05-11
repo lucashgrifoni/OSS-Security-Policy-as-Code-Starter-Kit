@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import oss_policy_kit
 from oss_policy_kit.adapters.scorecard_json import ScorecardBundle
+from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.evaluators import EVALUATOR_REGISTRY, EvalContext
 from oss_policy_kit.application.evidence_placeholders import has_placeholder_values
 from oss_policy_kit.application.loader import ControlSpec, ProfileSpec
@@ -289,7 +289,7 @@ def evaluate_repository(
             )
         )
 
-    generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
+    generated_at = report_generated_at()
 
     supplemental, scorecard_warnings = _build_scorecard_supplemental(scorecard, results)
     operational_warnings.extend(scorecard_warnings)
