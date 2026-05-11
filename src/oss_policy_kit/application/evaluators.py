@@ -3575,18 +3575,9 @@ _DOCKER_FROM_RE = re.compile(r"^FROM\s+(\S+)", re.MULTILINE)
 
 
 def _find_dockerfiles(repo: Path) -> list[Path]:
-    results: list[Path] = []
-    for name in ("Dockerfile", "dockerfile"):
-        p = repo / name
-        if p.is_file():
-            results.append(p)
-    for p in repo.rglob("Dockerfile"):
-        if p not in results and p.is_file():
-            results.append(p)
-    for p in repo.rglob("*.dockerfile"):
-        if p.is_file():
-            results.append(p)
-    return results[:20]
+    from oss_policy_kit.application.evaluators_common import find_dockerfiles
+
+    return find_dockerfiles(repo)
 
 
 def eval_cont_image_001(ctx: EvalContext) -> EvalOutcome:

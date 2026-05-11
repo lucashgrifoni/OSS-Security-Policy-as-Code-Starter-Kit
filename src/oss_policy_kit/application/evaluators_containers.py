@@ -48,29 +48,11 @@ _APK_PIN_RE = re.compile(r"\b[A-Za-z0-9.+\-]+=[A-Za-z0-9:.~+\-]+", re.IGNORECASE
 
 
 def _find_dockerfiles(repo: Path) -> list[Path]:
-    """Return up to 20 Dockerfile candidates (mirrors the legacy CONT-IMAGE-* helper)."""
+    """Return up to 20 Dockerfile candidates (delegates to the shared helper)."""
 
-    results: list[Path] = []
-    seen: set[Path] = set()
-    for name in ("Dockerfile", "dockerfile"):
-        p = repo / name
-        if p.is_file():
-            results.append(p)
-            seen.add(p.resolve())
-    try:
-        for p in repo.rglob("Dockerfile"):
-            r = p.resolve()
-            if r not in seen and p.is_file():
-                results.append(p)
-                seen.add(r)
-        for p in repo.rglob("*.dockerfile"):
-            r = p.resolve()
-            if r not in seen and p.is_file():
-                results.append(p)
-                seen.add(r)
-    except OSError:
-        pass
-    return results[:20]
+    from oss_policy_kit.application.evaluators_common import find_dockerfiles
+
+    return find_dockerfiles(repo)
 
 
 def _read_text(path: Path) -> str:
@@ -238,13 +220,15 @@ def eval_cont_runtime_004(ctx: Any) -> EvalOutcome:
 def eval_cont_runtime_005(ctx: Any) -> EvalOutcome:
     """CONT-RUNTIME-005: apt-based Dockerfiles either skip recommends or clean caches."""
 
+    from oss_policy_kit.application.evaluators_common import strip_dockerfile_comments
+
     dockerfiles = _find_dockerfiles(ctx.repo_root)
     if not dockerfiles:
         return _na_no_dockerfile()
     offenders: list[Path] = []
     apt_used = False
     for df in dockerfiles:
-        text = _read_text(df)
+        text = strip_dockerfile_comments(_read_text(df))
         if not _APT_INSTALL_RE.search(text):
             continue
         apt_used = True

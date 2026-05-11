@@ -135,3 +135,93 @@ def load_packaged_schema(filename: str) -> dict[str, Any]:
 
     raw = ir.files("oss_policy_kit.data.schema").joinpath(filename).read_bytes()
     return cast(dict[str, Any], json.loads(raw))
+
+
+_DOCKERFILE_NAME_RE = re.compile(
+    r"^(?:[Dd]ockerfile)(?:[.\-][\w.\-]+)?$|^[\w.\-]+\.[Dd]ockerfile$"
+)
+_DOCKERFILE_NON_DOCKER_EXTS = frozenset(
+    {
+        "bak",
+        "disabled",
+        "example",
+        "json",
+        "log",
+        "md",
+        "rst",
+        "sample",
+        "swp",
+        "template",
+        "tmp",
+        "tpl",
+        "txt",
+        "yaml",
+        "yml",
+    }
+)
+
+
+def _looks_like_dockerfile(name: str) -> bool:
+    """Return True when *name* matches a Dockerfile variant we should evaluate.
+
+    Accepts ``Dockerfile``, ``dockerfile``, ``Dockerfile.<suffix>``,
+    ``Dockerfile-<suffix>``, ``<name>.Dockerfile`` and ``<name>.dockerfile``
+    while excluding obvious docs/lockfile siblings such as ``Dockerfile.md``
+    or ``Dockerfile.example`` to avoid false negatives caused by parsing
+    non-Docker content.
+    """
+
+    if not _DOCKERFILE_NAME_RE.match(name):
+        return False
+    if "." in name:
+        tail = name.rsplit(".", 1)[1].lower()
+        if tail in _DOCKERFILE_NON_DOCKER_EXTS:
+            return False
+    return True
+
+
+def strip_dockerfile_comments(text: str) -> str:
+    """Drop full-line ``#`` comments from a Dockerfile.
+
+    Dockerfile comments are line-only — Docker treats ``#`` in the middle of a
+    RUN argument as a literal character — so removing lines whose first
+    non-whitespace char is ``#`` is safe and avoids regex matches against
+    documentation-style notes such as ``# uses --no-install-recommends``.
+    Used by evaluators that pattern-match against RUN content to prevent
+    false-positive PASS or false-positive FAIL outcomes.
+    """
+
+    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+
+
+def find_dockerfiles(repo: Path, *, limit: int = 20) -> list[Path]:
+    """Return up to *limit* Dockerfile candidates under *repo*.
+
+    Covers canonical and variant naming patterns (``Dockerfile``,
+    ``Dockerfile.dev``, ``Dockerfile-prod``, ``app.Dockerfile``) and
+    deduplicates by ``Path.resolve()`` so case-insensitive filesystems
+    (Windows, macOS) do not count the same file twice.
+    """
+
+    results: list[Path] = []
+    seen: set[Path] = set()
+    try:
+        for pattern in ("Dockerfile*", "dockerfile*", "*.Dockerfile", "*.dockerfile"):
+            for candidate in repo.rglob(pattern):
+                if not candidate.is_file():
+                    continue
+                if not _looks_like_dockerfile(candidate.name):
+                    continue
+                try:
+                    resolved = candidate.resolve()
+                except OSError:
+                    continue
+                if resolved in seen:
+                    continue
+                seen.add(resolved)
+                results.append(candidate)
+                if len(results) >= limit:
+                    return results
+    except OSError:
+        pass
+    return results
