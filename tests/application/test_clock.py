@@ -39,9 +39,7 @@ def test_report_generated_at_strips_microseconds(
 
 
 @pytest.mark.parametrize("bad_value", ["", "not-a-number", "-1", "abc123"])
-def test_report_generated_at_falls_back_on_bad_input(
-    monkeypatch: pytest.MonkeyPatch, bad_value: str
-) -> None:
+def test_report_generated_at_falls_back_on_bad_input(monkeypatch: pytest.MonkeyPatch, bad_value: str) -> None:
     monkeypatch.setenv("SOURCE_DATE_EPOCH", bad_value)
     out = report_generated_at()
     assert _ISO_UTC_RE.match(out), (bad_value, out)

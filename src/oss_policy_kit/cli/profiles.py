@@ -145,11 +145,7 @@ def _profile_row_is_extreme(row: _ProfileDisplayRow) -> bool:
 
     m = _profile_maturity_label(row.profile_id, is_legacy_alias=row.is_legacy_alias).lower()
     pid = row.profile_id
-    return (
-        "(extreme)" in m
-        or ("-level-3" in pid and "release-hardening" not in pid)
-        or ("release-hardening-3" in pid)
-    )
+    return "(extreme)" in m or ("-level-3" in pid and "release-hardening" not in pid) or ("release-hardening-3" in pid)
 
 
 def _profile_row_is_advisory(row: _ProfileDisplayRow) -> bool:

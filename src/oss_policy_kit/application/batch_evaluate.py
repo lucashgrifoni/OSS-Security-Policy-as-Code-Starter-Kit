@@ -12,8 +12,8 @@ from typing import Any, cast
 
 import oss_policy_kit
 from oss_policy_kit.adapters.local_paths import resolve_existing_dir
-from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.cli_output import FailOnPolicy, fail_on_violated
+from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.engine import evaluate_repository
 from oss_policy_kit.application.loader import load_catalog, load_profile_by_id, merge_kit_root
 from oss_policy_kit.application.reporting import compute_priority_insights, report_to_dict, write_markdown_report

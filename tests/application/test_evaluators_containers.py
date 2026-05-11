@@ -305,8 +305,7 @@ def test_runtime_006_flags_weak_variant_alongside_main(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (tmp_path / "Dockerfile.weak").write_text(
-        "FROM ubuntu:22.04\n"
-        "RUN apt-get update && apt-get install -y curl python3 python3-pip\n",
+        "FROM ubuntu:22.04\nRUN apt-get update && apt-get install -y curl python3 python3-pip\n",
         encoding="utf-8",
     )
     out = eval_cont_runtime_006(_ctx(tmp_path))

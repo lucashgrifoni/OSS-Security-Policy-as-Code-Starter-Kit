@@ -750,3 +750,143 @@ controls:
     lifecycle: experimental
     assurance: evidence-backed
     weight: 2
+  - id: IAC-CFN-001
+    title: CloudFormation - S3 bucket configured for public access
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: IAC-CFN-002
+    title: CloudFormation - security group exposes management port to 0.0.0.0/0
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: IAC-CFN-003
+    title: CloudFormation - IAM grants AdministratorAccess or Action=* + Resource=*
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: IAC-CFN-004
+    title: CloudFormation - storage / RDS / EBS resource without encryption-at-rest
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: IAC-CFN-005
+    title: CloudFormation - audit / access logging disabled on sensitive resources
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: IAC-CFN-006
+    title: CloudFormation - workload assigned a public IP without explicit intent
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: IAC-PUL-001
+    title: Pulumi - object storage configured for public access
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: IAC-PUL-002
+    title: Pulumi - security group exposes management port to 0.0.0.0/0
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: IAC-PUL-003
+    title: Pulumi - IAM grants AdministratorAccess or Action=* + Resource=*
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: IAC-PUL-004
+    title: Pulumi - storage / RDS / EBS resource without encryption-at-rest
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: IAC-PUL-005
+    title: Pulumi - default VPC / subnet / security group used in declarations
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: IAC-PUL-006
+    title: Pulumi - workload assigned a public IP without explicit intent
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: IAC-BICEP-001
+    title: Bicep - storage account configured for public access
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: IAC-BICEP-002
+    title: Bicep - NSG rule allows management port inbound from '*'
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: IAC-BICEP-003
+    title: Bicep - role assignment grants Owner / Contributor / User Access Admin
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: IAC-BICEP-004
+    title: Bicep - storage / SQL / disk resource without encryption-at-rest
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: IAC-BICEP-005
+    title: Bicep - sensitive resource has no diagnosticSettings paired
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 1
+  - id: IAC-BICEP-006
+    title: Bicep - direct public IP declared without documented intent
+    category: iac
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: SEC-WEBHOOK-001
+    title: Webhook receiver verifies inbound signature
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: SEC-WEBHOOK-002
+    title: Webhook receiver implements replay defense (timestamp / nonce / idempotency)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2

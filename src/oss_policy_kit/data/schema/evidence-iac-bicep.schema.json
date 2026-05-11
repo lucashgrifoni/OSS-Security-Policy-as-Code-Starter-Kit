@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oss-policy-kit/schemas/evidence-iac-bicep.schema.json",
+  "title": "Bicep IaC scan evidence",
+  "description": "Versioned shape of .oss-policy-kit/evidence/iac-bicep.json written by `oss-policy-kit scan-bicep` and consumed by every IAC-BICEP-* evaluator.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "tool",
+    "status",
+    "target",
+    "scanned_at",
+    "attested_at",
+    "attested_by",
+    "files_scanned",
+    "findings_total",
+    "findings_by_rule",
+    "findings"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^oss-policy-kit/evidence/iac-bicep/v\\d+$"
+    },
+    "tool": { "type": "string", "const": "oss-policy-kit-bicep-parser" },
+    "tool_version": { "type": ["string", "null"] },
+    "status": {
+      "type": "string",
+      "enum": ["ok", "not_available", "error", "timeout"]
+    },
+    "target": { "type": "string", "minLength": 1 },
+    "scanned_at": { "type": "string", "minLength": 1 },
+    "attested_at": { "type": "string", "minLength": 1 },
+    "attested_by": { "type": "string", "minLength": 1 },
+    "files_scanned": { "type": "array", "items": { "type": "string" } },
+    "files_failed": { "type": "array", "items": { "type": "string" } },
+    "findings_total": { "type": "integer", "minimum": 0 },
+    "findings_by_rule": {
+      "type": "object",
+      "patternProperties": {
+        "^IAC-BICEP-[0-9]{3}$": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "findings_by_severity": {
+      "type": "object",
+      "patternProperties": {
+        "^(LOW|MEDIUM|HIGH|CRITICAL)$": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "severity", "message", "file", "resource_type", "resource_name"],
+        "additionalProperties": false,
+        "properties": {
+          "rule_id": { "type": "string", "pattern": "^IAC-BICEP-[0-9]{3}$" },
+          "severity": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+          "message": { "type": "string", "minLength": 1 },
+          "file": { "type": "string" },
+          "resource_type": { "type": "string" },
+          "resource_name": { "type": "string" }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "parse_errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["file", "error"],
+            "properties": {
+              "file": { "type": "string" },
+              "error": { "type": "string" }
+            }
+          }
+        },
+        "raw_message": { "type": "string" }
+      }
+    }
+  }
+}

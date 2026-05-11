@@ -74,12 +74,12 @@ Inputs map 1:1 to CLI flags. Full reference and SARIF forwarding example in [doc
 
 ## Current Release State
 
-`v5.6.0` is the current public release line. It is an additive minor release on top of `v5.5.0`: the JSON report contract remains `reports/1.0`, legacy `0.3` and `0.2` report shapes remain selectable, and the existing profile IDs stay stable. The release adds native Kubernetes manifest coverage (`scan-k8s` + 16 `K8S-*` controls + `kubernetes-baseline-1` profile), a container hardening pack (7 new `CONT-RUNTIME-*` / `CONT-SIGN-*` controls + `container-baseline-1` profile), a fuzzing presence signal (`SEC-FUZZ-001`), and an internal `evaluators_common.py` extraction. v5.5.0 (Terraform / OpenTofu IaC posture, `scan-iac` + 12 `IAC-TF-*` controls + `iac-terraform-baseline-1` profile) and v5.4.0 (`init` wizard + `scan-sast` + Semgrep adapter + `SAST-SEMGREP-064`) remain part of the catalog. See `CHANGELOG.md` for full details.
+`v5.7.0` is the current public release line. It is an additive minor release on top of `v5.6.0`: the JSON report contract remains `reports/1.0`, legacy `0.3` and `0.2` report shapes remain selectable, and the existing profile IDs stay stable. The release adds three new cloud-platform IaC parsers (CloudFormation, Pulumi Python, Bicep), an opt-in Helm template pre-pass for `scan-k8s`, two webhook-security signal controls (`SEC-WEBHOOK-001..002`), and continues the internal `evaluators.py` decomposition (governance + supply-chain shims, byte-equivalent registry). v5.6.0 (Kubernetes manifest coverage + container hardening), v5.5.0 (Terraform IaC posture), and v5.4.0 (`init` wizard + `scan-sast` + Semgrep adapter) remain part of the catalog. See `CHANGELOG.md` for full details.
 
 | Surface | Current state |
 | --- | --- |
-| Package | `oss-policy-kit==5.6.0` |
-| GitHub Release | `v5.6.0` is the current release target; `v5.5.0`, `v5.4.0`, `v5.3.0`, and earlier versions remain available as predecessors |
+| Package | `oss-policy-kit==5.7.0` |
+| GitHub Release | `v5.7.0` is the current release target; `v5.6.0`, `v5.5.0`, `v5.4.0`, and earlier versions remain available as predecessors |
 | Default branch | `master` |
 | License | Apache-2.0 (`LICENSE` + `NOTICE`) |
 | Report contract | `reports/1.0` by default; `0.3` and `0.2` remain selectable via `--report-json-contract`. `0.1` was removed in v5.0.0 |
@@ -87,17 +87,16 @@ Inputs map 1:1 to CLI flags. Full reference and SARIF forwarding example in [doc
 
 The repository is designed to be reproducible from a clean clone: install the package, run the built-in examples, and compare the generated JSON/Markdown reports.
 
-## What's new in v5.6.0
+## What's new in v5.7.0
 
 Highlights only — full detail in [`CHANGELOG.md`](CHANGELOG.md). For migration notes from earlier releases, see [`docs/v5.1.0-migration-guide.md`](docs/v5.1.0-migration-guide.md) and [`docs/v5.0.0-migration-guide.md`](docs/v5.0.0-migration-guide.md).
 
-- **Native Kubernetes manifest coverage.** New `scan-k8s` subcommand walks `*.yaml` / `*.yml` files (skipping `.terraform`, `node_modules`, `.git`, Helm templates, etc.), parses every multi-doc YAML, and writes evidence under `.oss-policy-kit/evidence/k8s-baseline.json`. Sixteen new `K8S-*` controls: 10 Pod Security Standards (`K8S-PSS-001..010`), 5 RBAC rules (`K8S-RBAC-001..005`), and 1 NetworkPolicy presence rule (`K8S-NETPOL-001`). New advisory bundled profile `kubernetes-baseline-1`.
-- **Container hardening pack.** Seven new experimental controls extending the existing `CONT-IMAGE-*` family: multi-stage build, HEALTHCHECK, curl|bash absence, `.dockerignore` presence, apt-get hygiene, OS package pinning, and image signing via cosign / GitHub attestations. New advisory bundled profile `container-baseline-1`. Total bundled profiles: **30 → 32**.
-- **Fuzzing presence signal.** New experimental control `SEC-FUZZ-001` (vulnerability_management category) PASSes when fuzz directories, fuzz-target filenames, runner references (atheris, libfuzzer, oss-fuzz, etc.), or a Scorecard `Fuzzing` check ≥ 7 are detected. Bundled into the 6 `*-level-3` and `*-release-hardening-3` profiles.
-- **AWS CodeCommit deprecation completed.** `AWS-CC-046` and the entire CodeCommit collector path were removed; AWS CI/CD coverage continues via `AWS-CP-044`, `AWS-CB-045`, `AWS-PIPEIAM-056`, and `AWS-CBIDENT-057`.
-- **Internal refactor (step 1).** `evaluators_common.py` extracted from the historic `evaluators.py` megafile so new evaluator packs (`evaluators_iac`, `evaluators_fuzzing`, `evaluators_containers`, `evaluators_k8s`) share helpers without breaking `EVALUATOR_REGISTRY` byte-equivalence.
+- **Three new cloud-platform IaC parsers**: `scan-cfn` for CloudFormation (YAML + JSON, tolerant of short-form intrinsics `!Ref` / `!Sub` / `!GetAtt`), `scan-pulumi` for Pulumi Python programs (uses stdlib `ast`), and `scan-bicep` for Bicep modules (pure-Python regex tokenizer, no `bicep` CLI required). Each ships a 6-rule pack, an evidence schema (`oss-policy-kit/evidence/iac-{cfn,pulumi,bicep}/v1`), and an advisory bundled profile (`iac-cfn-baseline-1`, `iac-pulumi-baseline-1`, `iac-bicep-baseline-1`).
+- **Opt-in Helm template pre-pass for `scan-k8s`** via the new `--helm-render` flag. When the system `helm` CLI is available, `scan-k8s` discovers every `Chart.yaml` under the target, renders the chart via `helm template`, and merges the rendered manifests into the regular K8s scan. Charts that fail to render are recorded in evidence diagnostics; missing `helm` CLI is reported as a non-fatal note. Default behavior (skipping unrendered `{{ ... }}` templates) is unchanged.
+- **Webhook receiver security pack** (`SEC-WEBHOOK-001` signature validation, `SEC-WEBHOOK-002` replay defense). Both ship as `lifecycle: experimental`, `assurance: signal`. Returns `not-applicable` for repositories with no webhook receiver, so non-receiver repos are never penalized. New profile `webhook-security-1`. Total bundled profiles: **32 → 36**.
+- **`evaluators.py` decomposition steps 2 & 3**: new `evaluators_governance.py` and `evaluators_supply_chain.py` modules introduced as public package boundaries. `EVALUATOR_REGISTRY` is byte-equivalent across the v5.6 → v5.7 transition (validated by a dedicated invariant test). Future v5.8 work will move the function bodies into these modules incrementally.
 
-There are no breaking changes in `v5.6.0` other than the deliberate removal of `AWS-CC-046` (notice given in `v5.4.0`). The `--fail-on` semantics, JSON report contracts (`reports/1.0`, `0.3`, `0.2` byte-stable), Markdown report layout, and the surfaces of `evaluate` / `evaluate-many` / `recommend-profile` / `scaffold-evidence` / `collect-evidence` / `diff-reports` / `init` / `scan-sast` / `scan-iac` are unchanged.
+There are no breaking changes in `v5.7.0`. The `--fail-on` semantics, JSON report contracts (`reports/1.0`, `0.3`, `0.2` byte-stable), Markdown report layout, and the surfaces of `evaluate` / `evaluate-many` / `recommend-profile` / `scaffold-evidence` / `collect-evidence` / `diff-reports` / `init` / `scan-sast` / `scan-iac` / `scan-k8s` are unchanged. No new hard dependencies were added.
 
 ## What This Kit Does
 

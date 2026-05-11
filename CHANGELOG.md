@@ -6,17 +6,69 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
-## OSS Security Policy as Code Starter Kit v5.7.0 (Unreleased)
+## OSS Security Policy as Code Starter Kit v5.7.0
 
-Planned scope (subject to change):
+This minor release lands the four roadmap items declared in the v5.7 (Unreleased) section of the v5.6.0 changelog:
 
-- **Additional cloud-platform IaC parsers** — Pulumi / CloudFormation / Bicep coverage on top of the v5.5 Terraform pack, sharing the same evidence contract (`oss-policy-kit/evidence/iac-*/v1`).
-- **Helm chart rendering** — opt-in `helm template` pre-pass for `scan-k8s` so charts stop being silently skipped.
-- **Webhook security** — `SEC-WEBHOOK-001..002` covering signature validation and replay defenses.
-- **Active runtime probes** — explicitly **out of scope**; the kit stays clone-visible by design.
-- **Continued `evaluators.py` decomposition** — extract `governance.py` / `ci_cd.py` / `supply_chain.py` packs (refactor steps 2-N) without breaking `EVALUATOR_REGISTRY` byte-equivalence.
+1. **Three new cloud-platform IaC parsers** — Pulumi (Python), CloudFormation (YAML + JSON), and Bicep — sharing the v5.5 Terraform evidence contract shape and the same honesty rules.
+2. **Opt-in Helm template pre-pass for `scan-k8s`** — charts are now rendered through the system `helm` CLI instead of being silently skipped.
+3. **Webhook receiver security pack** — `SEC-WEBHOOK-001` (signature validation) and `SEC-WEBHOOK-002` (replay defense) bundled into the new `webhook-security-1` profile.
+4. **`evaluators.py` decomposition steps 2 & 3** — `evaluators_governance.py` and `evaluators_supply_chain.py` modules introduced as public package boundaries; `EVALUATOR_REGISTRY` is byte-equivalent across the v5.6 -> v5.7 transition (validated by a dedicated invariant test).
 
-`reports/1.0`, `reports/0.3`, `reports/0.2` shapes remain byte-stable. No new hard dependencies planned.
+`reports/1.0`, `reports/0.3`, `reports/0.2` shapes remain byte-stable. No new hard dependencies were added; the new IaC scanners use stdlib (`ast`, `re`) or already-vendored deps (`PyYAML`).
+
+---
+
+### Highlights
+
+- **New `scan-cfn` subcommand + 6 `IAC-CFN-*` controls.** `scan-cfn` walks `*.yaml` / `*.yml` / `*.json` / `*.template` files (skipping vendored / cache dirs), parses every CloudFormation template via PyYAML (with a tolerant loader that decodes short-form intrinsics like `!Ref`, `!Sub`, `!GetAtt` into the long-form dict shape), runs the bundled rule pack, and writes evidence under `.oss-policy-kit/evidence/iac-cfn.json` (schema `oss-policy-kit/evidence/iac-cfn/v1`). The 6 rules cover: public S3 (`IAC-CFN-001`), open management ports on `AWS::EC2::SecurityGroup` (`IAC-CFN-002`), IAM `AdministratorAccess` / wildcard Action+Resource (`IAC-CFN-003`), missing encryption-at-rest on S3 / RDS / EBS / DynamoDB / SNS / SQS (`IAC-CFN-004`), audit/logging gaps (`IAC-CFN-005`), and accidental public IPs (`IAC-CFN-006`). All 6 ship as `lifecycle: experimental`, `assurance: evidence-backed`. New advisory bundled profile `iac-cfn-baseline-1` (7 controls = 6 IAC-CFN-* + `GOV-EVIDFRESH-054`). No new dependency — PyYAML is already a hard dep.
+
+- **New `scan-pulumi` subcommand + 6 `IAC-PUL-*` controls.** `scan-pulumi` walks `*.py` files, uses the stdlib `ast` module to extract Pulumi resource constructors (e.g. `aws.s3.Bucket(...)`, `pulumi_aws.iam.RolePolicyAttachment(...)`), and writes evidence under `.oss-policy-kit/evidence/iac-pulumi.json` (schema `oss-policy-kit/evidence/iac-pulumi/v1`). Best-effort by design: unresolved variable references and non-literal kwargs are treated as indeterminate (no false positives). The 6 rules cover: public storage (`IAC-PUL-001`), open management ports (`IAC-PUL-002`), IAM wildcards (`IAC-PUL-003`), missing encryption-at-rest (`IAC-PUL-004`), default network primitives (`IAC-PUL-005`), accidental public IPs (`IAC-PUL-006`). All 6 ship as `lifecycle: experimental`, `assurance: evidence-backed`. New profile `iac-pulumi-baseline-1`. **Scope:** Pulumi Python programs only; TypeScript / Go / .NET are out of scope for v5.7 and tracked for a future release.
+
+- **New `scan-bicep` subcommand + 6 `IAC-BICEP-*` controls.** `scan-bicep` walks `*.bicep` files and uses a pure-Python regex tokenizer (no `bicep` CLI required, no extra deps) to extract `resource <symbolic> '<type>@<ver>' = { ... }` declarations with their literal property bodies, then runs the bundled rule pack. Evidence is written under `.oss-policy-kit/evidence/iac-bicep.json` (schema `oss-policy-kit/evidence/iac-bicep/v1`). The 6 rules cover: public storage accounts (`IAC-BICEP-001`), NSG security rules with management ports open to `*` (`IAC-BICEP-002`), high-privilege Azure role assignments (Owner / Contributor / User Access Administrator, by their built-in roleDefinition GUIDs) (`IAC-BICEP-003`), missing encryption on Storage / SQL / Disk (`IAC-BICEP-004`), sensitive resources without paired `diagnosticSettings` (`IAC-BICEP-005`), and direct `publicIPAddresses` declarations (`IAC-BICEP-006`). All 6 ship as `lifecycle: experimental`, `assurance: evidence-backed`. New profile `iac-bicep-baseline-1`.
+
+- **Helm template pre-pass for `scan-k8s` (opt-in via `--helm-render`).** `scan-k8s --helm-render` discovers every `Chart.yaml` under the target, invokes the system `helm template` for each chart (no network access, no install — operates on the chart sources already in the clone), and merges the rendered manifests into the regular K8s scan. Charts that fail to render are recorded in `helm_render_errors` and the scan continues with what it could parse. When the `helm` CLI is not on `PATH`, the scanner records a diagnostic and continues without rendering (graceful degradation; never crashes). Six new fields are added to the `k8s-baseline.json` evidence shape: `helm_render_attempted`, `helm_available`, `helm_version`, `helm_charts_discovered`, `helm_charts_rendered`, `helm_render_errors`. Default behavior is unchanged (rendering is off unless `--helm-render` is passed).
+
+- **Webhook receiver security pack** (`SEC-WEBHOOK-001`, `SEC-WEBHOOK-002`). Two new clone-visible signal controls covering the two most common webhook-receiver weaknesses: missing signature validation and missing replay defense. The kit walks up to 400 source files of recognized server-side languages (`.py`, `.js`, `.ts`, `.go`, `.rb`, `.java`, `.cs`, `.php`, `.rs`) and looks for the conjunction of (a) a webhook route declaration and (b) a recognized signature / replay primitive (e.g. `X-Hub-Signature-256`, `Stripe-Signature`, `X-Signature-Ed25519`, `hmac.compare_digest`, `X-GitHub-Delivery` dedupe, `idempotency-key`, …). Both controls return `not-applicable` when no webhook route is found in the clone (so non-receiver repositories are never penalized). Both ship as `lifecycle: experimental`, `assurance: signal`. New profile `webhook-security-1` (3 controls = `SEC-WEBHOOK-001` + `SEC-WEBHOOK-002` + `GOV-EVIDFRESH-054`).
+
+- **`evaluators_governance.py` + `evaluators_supply_chain.py` package boundaries** (refactor steps 2 & 3). These modules are the new public surface for the governance and supply-chain control packs. They re-export the existing callables from `evaluators.py` via `build_governance_evaluators()` / `build_supply_chain_evaluators()` so that **`EVALUATOR_REGISTRY` stays byte-equivalent** across the v5.6 -> v5.7 transition. A dedicated invariant test (`test_governance_shim_returns_identical_callables` / `test_supply_chain_shim_returns_identical_callables`) pins the guarantee by asserting `EVALUATOR_REGISTRY[cid] is fn` for every shim-built entry. Future v5.8 work will move the function bodies into these modules incrementally so each move can be validated against the same guarantee in isolation.
+
+---
+
+### Catalog & profiles
+
+- Bundled profiles: **32 -> 36** (added `iac-cfn-baseline-1`, `iac-pulumi-baseline-1`, `iac-bicep-baseline-1`, `webhook-security-1`).
+- Catalog total: **+20 controls** (6 CFN + 6 PUL + 6 BICEP + 2 WEBHOOK). All 20 ship as `lifecycle: experimental`. CFN / Pulumi / Bicep are `assurance: evidence-backed`; SEC-WEBHOOK is `assurance: signal`.
+- `recommend-profile` heuristic is unchanged for v5.7.0 — the four new profiles are deliberate operator choices, not auto-suggested. The `[advisory profile]` banner fires when one of the new IaC profiles is selected.
+
+---
+
+### CLI changes
+
+- `evaluate` honors the v5.6 evidence-missing banner for the three new evidence files (`iac-cfn.json`, `iac-pulumi.json`, `iac-bicep.json`) — operators who run an evaluate against one of the four new profiles without first running the matching `scan-*` command get a prominent stderr note pointing them at the right command.
+- `scan-k8s --helm-render` is the only behavioral switch on an existing CLI; default behavior is byte-stable.
+- `scan-cfn`, `scan-pulumi`, `scan-bicep` are new positional-friendly subcommands (the leading-path dispatch in `prepare_cli_args` recognizes them so `python -m oss_policy_kit scan-cfn` works the same as `python -m oss_policy_kit scan-iac`).
+
+---
+
+### Breaking changes
+
+None. v5.7.0 is fully backwards-compatible with v5.6.0:
+
+- `reports/1.0`, `reports/0.3`, `reports/0.2` shapes are byte-stable.
+- All v5.6.0 profile IDs and control IDs remain.
+- `EVALUATOR_REGISTRY` is byte-equivalent across the v5.6 -> v5.7 transition — the governance / supply-chain extraction is a re-export, not a move.
+- All new controls are `experimental` and only fire when included in a profile (the four bundled `*-baseline-1` / `webhook-security-1` profiles are the only profiles that include them today).
+- No new hard dependencies. CFN uses PyYAML (already a hard dep); Pulumi uses stdlib `ast`; Bicep is pure regex; the Helm pre-pass shells out to the system `helm` CLI only when `--helm-render` is explicitly requested.
+
+---
+
+### Notes
+
+- New tests: 59 new cases across `tests/application/test_evaluators_iac_cfn.py`, `tests/application/test_evaluators_iac_pulumi.py`, `tests/application/test_evaluators_iac_bicep.py`, `tests/application/test_evaluators_webhook.py`, `tests/application/test_evaluators_governance_shim.py`, `tests/application/test_helm_renderer.py`, and `tests/cli/test_scan_cfn_pulumi_bicep.py`. Suite total: **870 -> 929 passed**, 1 skipped.
+- Active runtime probes remain explicitly **out of scope**. The kit stays clone-visible by design.
+
+**License:** Apache-2.0.
 
 ---
 

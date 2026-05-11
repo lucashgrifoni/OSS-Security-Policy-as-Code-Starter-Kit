@@ -1,0 +1,35 @@
+id: iac-pulumi-baseline-1
+title: Pulumi IaC baseline (clone-side advisory)
+description: >
+  **Advisory profile (advisory only). Do not use as a hard release gate.**
+  Pulumi posture profile introduced in v5.7.0. Bundles the 6 ``IAC-PUL-*``
+  rules plus ``GOV-EVIDFRESH-054`` for scan-pulumi evidence freshness.
+  Designed to surface the most common clone-visible Pulumi posture gaps
+  (public storage, open management ports, IAM AdministratorAccess and
+  inline-policy wildcards, missing encryption-at-rest, default network
+  primitives, accidental public IPs).
+  This release covers **Pulumi Python programs only**. Pulumi TypeScript /
+  Go / .NET programs are out of scope for v5.7.0 and tracked for a future
+  release. The scanner uses the stdlib :mod:`ast` module, so there is no
+  optional extra to install.
+  **Posture:** advisory. **Recommended `--fail-on`:** ``degraded`` only.
+  Pair with ``oss-policy-kit scan-pulumi --target .`` so the IAC-PUL-*
+  controls have evidence to read; without it they all return
+  ``manual-review-required`` (honest gap, never a crash).
+  **Composition note:** this profile contains **only** Pulumi controls.
+  For governance baseline (SECURITY.md, waivers policy, CHANGELOG
+  presence) compose with ``osps-baseline-1`` or a ``*-release-hardening-*``
+  profile.
+audience: >
+  Platform teams owning Pulumi Python programs who want a clone-side
+  posture scorecard. Combine with ``osps-baseline-1`` for governance and
+  with a ``*-release-hardening-3`` profile when the programs are part of
+  a release pipeline.
+controls:
+  - IAC-PUL-001
+  - IAC-PUL-002
+  - IAC-PUL-003
+  - IAC-PUL-004
+  - IAC-PUL-005
+  - IAC-PUL-006
+  - GOV-EVIDFRESH-054

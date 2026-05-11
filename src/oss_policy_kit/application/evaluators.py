@@ -1018,7 +1018,10 @@ def eval_sec_secrets_050(ctx: EvalContext) -> EvalOutcome:
     if not paths:
         return EvalOutcome(
             status=ControlStatus.FAIL,
-            reason="In-repo secret scanning step not implemented (no GitHub Actions workflows found in .github/workflows/).",
+            reason=(
+                "In-repo secret scanning step not implemented "
+                "(no GitHub Actions workflows found in .github/workflows/)."
+            ),
             remediation=(
                 "Add a secret scanning step to CI (for example gitleaks, trufflehog, detect-secrets, or secretlint)."
             ),
@@ -4782,10 +4785,50 @@ def _load_k8s_evaluators() -> None:
         EVALUATOR_REGISTRY.setdefault(control_id, fn)
 
 
+def _load_iac_cfn_evaluators() -> None:
+    """Register the v5.7 IAC-CFN-* evaluators built in ``evaluators_iac_cfn``."""
+
+    from oss_policy_kit.application.evaluators_iac_cfn import build_iac_cfn_evaluators
+
+    for control_id, fn in build_iac_cfn_evaluators().items():
+        EVALUATOR_REGISTRY.setdefault(control_id, fn)
+
+
+def _load_iac_pulumi_evaluators() -> None:
+    """Register the v5.7 IAC-PUL-* evaluators built in ``evaluators_iac_pulumi``."""
+
+    from oss_policy_kit.application.evaluators_iac_pulumi import build_iac_pulumi_evaluators
+
+    for control_id, fn in build_iac_pulumi_evaluators().items():
+        EVALUATOR_REGISTRY.setdefault(control_id, fn)
+
+
+def _load_iac_bicep_evaluators() -> None:
+    """Register the v5.7 IAC-BICEP-* evaluators built in ``evaluators_iac_bicep``."""
+
+    from oss_policy_kit.application.evaluators_iac_bicep import build_iac_bicep_evaluators
+
+    for control_id, fn in build_iac_bicep_evaluators().items():
+        EVALUATOR_REGISTRY.setdefault(control_id, fn)
+
+
+def _load_webhook_evaluators() -> None:
+    """Register the v5.7 SEC-WEBHOOK-* evaluators built in ``evaluators_webhook``."""
+
+    from oss_policy_kit.application.evaluators_webhook import build_webhook_evaluators
+
+    for control_id, fn in build_webhook_evaluators().items():
+        EVALUATOR_REGISTRY.setdefault(control_id, fn)
+
+
 _load_iac_evaluators()
 _load_fuzzing_evaluators()
 _load_container_evaluators()
 _load_k8s_evaluators()
+_load_iac_cfn_evaluators()
+_load_iac_pulumi_evaluators()
+_load_iac_bicep_evaluators()
+_load_webhook_evaluators()
 
 
 def _load_external_evaluators() -> None:

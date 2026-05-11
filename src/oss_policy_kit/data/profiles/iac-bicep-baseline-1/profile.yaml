@@ -1,0 +1,34 @@
+id: iac-bicep-baseline-1
+title: Bicep IaC baseline (clone-side advisory)
+description: >
+  **Advisory profile (advisory only). Do not use as a hard release gate.**
+  Bicep posture profile introduced in v5.7.0. Bundles the 6
+  ``IAC-BICEP-*`` rules plus ``GOV-EVIDFRESH-054`` for scan-bicep evidence
+  freshness. Designed to surface the most common clone-visible Bicep
+  posture gaps for Azure (public storage, NSG management ports open to
+  ``*``, broad Azure role assignments, missing encryption-at-rest, no
+  diagnostic settings, accidental public IPs).
+  The scanner is regex-based and pure-Python (no optional extras, no
+  ``bicep`` CLI required). Complex parameter / interpolation references
+  are treated as opaque and never raise false positives.
+  **Posture:** advisory. **Recommended `--fail-on`:** ``degraded`` only.
+  Pair with ``oss-policy-kit scan-bicep --target .`` so the IAC-BICEP-*
+  controls have evidence to read; without it they all return
+  ``manual-review-required`` (honest gap, never a crash).
+  **Composition note:** this profile contains **only** Bicep controls.
+  For governance baseline (SECURITY.md, waivers policy, CHANGELOG
+  presence) compose with ``osps-baseline-1`` or a ``*-release-hardening-*``
+  profile.
+audience: >
+  Platform teams owning Bicep / ARM modules who want a clone-side
+  posture scorecard. Combine with ``osps-baseline-1`` for governance and
+  with ``azure-release-hardening-3`` when the modules are part of an
+  Azure release pipeline.
+controls:
+  - IAC-BICEP-001
+  - IAC-BICEP-002
+  - IAC-BICEP-003
+  - IAC-BICEP-004
+  - IAC-BICEP-005
+  - IAC-BICEP-006
+  - GOV-EVIDFRESH-054

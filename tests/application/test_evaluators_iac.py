@@ -248,7 +248,7 @@ def test_iac_tf_004_cross_reference_only_matches_named_bucket(tmp_path: Path) ->
         "}\n\n"
         'resource "aws_s3_bucket_server_side_encryption_configuration" "encrypted_one" {\n'
         "  bucket = aws_s3_bucket.encrypted_one.id\n"
-        "  rule { apply_server_side_encryption_by_default { sse_algorithm = \"AES256\" } }\n"
+        '  rule { apply_server_side_encryption_by_default { sse_algorithm = "AES256" } }\n'
         "}\n\n"
         # Unencrypted sibling bucket with no inline attrs and no separate resource — must fire.
         'resource "aws_s3_bucket" "leaky_other" {\n'

@@ -82,6 +82,12 @@ class K8sScanOutcome:
     findings: list[K8sFinding] = field(default_factory=list)
     scanned_at: str = ""
     diagnostics: str = ""
+    helm_render_attempted: bool = False
+    helm_available: bool = False
+    helm_version: str | None = None
+    helm_charts_discovered: list[str] = field(default_factory=list)
+    helm_charts_rendered: list[str] = field(default_factory=list)
+    helm_render_errors: list[dict[str, str]] = field(default_factory=list)
 
 
 def _kit_version() -> str:
@@ -591,12 +597,56 @@ def run_scan(
     include_globs: Iterable[str] = DEFAULT_INCLUDE_GLOBS,
     exclude_globs: Iterable[str] | None = None,
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+    helm_render: bool = False,
 ) -> K8sScanOutcome:
-    """Discover Kubernetes manifests, run every bundled rule, return a structured outcome."""
+    """Discover Kubernetes manifests, run every bundled rule, return a structured outcome.
+
+    When ``helm_render=True``, the scanner first invokes ``helm template``
+    via :mod:`oss_policy_kit.infrastructure.k8s.helm_renderer` on every
+    discovered ``Chart.yaml`` and merges the rendered manifests into the
+    scan. Charts that fail to render are recorded in
+    ``helm_render_errors``; the scan continues with what it could parse.
+    Helm-rendered manifests do **not** appear in ``helm_templates_skipped``
+    (that list is reserved for unrendered ``{{ ... }}`` templates).
+    """
 
     _ = timeout_seconds
     files = _walk_yaml_files(repo_root, include_globs, exclude_globs)
     manifests, helm_skipped, parse_errors = _index_manifests(repo_root, files)
+
+    helm_attempted = False
+    helm_available_flag = False
+    helm_version_str: str | None = None
+    helm_charts_discovered: list[str] = []
+    helm_charts_rendered: list[str] = []
+    helm_render_errors: list[dict[str, str]] = []
+    if helm_render:
+        from oss_policy_kit.infrastructure.k8s.helm_renderer import render_charts
+
+        helm_attempted = True
+        rendered = render_charts(repo_root)
+        helm_available_flag = rendered.available
+        helm_version_str = rendered.helm_version
+        helm_charts_discovered = list(rendered.charts_discovered)
+        helm_charts_rendered = list(rendered.charts_rendered)
+        helm_render_errors = list(rendered.render_errors)
+        if rendered.rendered_manifest_paths:
+            extra_manifests, _extra_skipped, extra_parse_errors = _index_manifests(
+                repo_root, rendered.rendered_manifest_paths
+            )
+            manifests.extend(extra_manifests)
+            parse_errors.extend(extra_parse_errors)
+            # Helm-rendered manifests should no longer be tagged as "skipped":
+            # remove any chart files that we now know we rendered.
+            rendered_chart_dirs = {Path(c) for c in rendered.charts_rendered}
+            remaining_skipped: list[str] = []
+            for skipped in helm_skipped:
+                skip_path = Path(skipped)
+                if any(rcd == skip_path or rcd in skip_path.parents for rcd in rendered_chart_dirs):
+                    continue
+                remaining_skipped.append(skipped)
+            helm_skipped = remaining_skipped
+
     findings: list[K8sFinding] = []
     try:
         for _rid, fn in _RULES:
@@ -611,6 +661,12 @@ def run_scan(
             findings=[],
             scanned_at=_utc_iso(),
             diagnostics=f"rule engine raised {type(exc).__name__}: {exc}",
+            helm_render_attempted=helm_attempted,
+            helm_available=helm_available_flag,
+            helm_version=helm_version_str,
+            helm_charts_discovered=helm_charts_discovered,
+            helm_charts_rendered=helm_charts_rendered,
+            helm_render_errors=helm_render_errors,
         )
     return K8sScanOutcome(
         status="ok",
@@ -620,6 +676,12 @@ def run_scan(
         parse_errors=parse_errors,
         findings=findings,
         scanned_at=_utc_iso(),
+        helm_render_attempted=helm_attempted,
+        helm_available=helm_available_flag,
+        helm_version=helm_version_str,
+        helm_charts_discovered=helm_charts_discovered,
+        helm_charts_rendered=helm_charts_rendered,
+        helm_render_errors=helm_render_errors,
     )
 
 
@@ -643,6 +705,12 @@ def render_evidence_payload(outcome: K8sScanOutcome, *, target: Path) -> dict[st
         "files_scanned": outcome.files_scanned,
         "files_failed": [pe["file"] for pe in outcome.parse_errors],
         "helm_templates_skipped": outcome.helm_templates_skipped,
+        "helm_render_attempted": outcome.helm_render_attempted,
+        "helm_available": outcome.helm_available,
+        "helm_version": outcome.helm_version,
+        "helm_charts_discovered": outcome.helm_charts_discovered,
+        "helm_charts_rendered": outcome.helm_charts_rendered,
+        "helm_render_errors": outcome.helm_render_errors,
         "findings_total": len(outcome.findings),
         "findings_by_rule": by_rule,
         "findings_by_severity": by_severity,

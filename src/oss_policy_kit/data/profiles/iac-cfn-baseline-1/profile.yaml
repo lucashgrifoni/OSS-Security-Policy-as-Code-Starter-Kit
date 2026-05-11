@@ -1,0 +1,35 @@
+id: iac-cfn-baseline-1
+title: CloudFormation IaC baseline (clone-side advisory)
+description: >
+  **Advisory profile (advisory only). Do not use as a hard release gate.**
+  CloudFormation posture profile introduced in v5.7.0. Bundles the 6
+  ``IAC-CFN-*`` rules plus ``GOV-EVIDFRESH-054`` for scan-cfn evidence
+  freshness. Designed to surface the most common clone-visible
+  CloudFormation posture gaps (public S3, open management ports, IAM
+  AdministratorAccess and wildcard Action+Resource, missing
+  encryption-at-rest, audit / access logging gaps, accidental public IPs).
+  This profile is **not** a CSPM verdict and **not** a Trivy / Checkov
+  replacement; it is a kit-managed evidence shape on top of a pragmatic
+  rule pack so adopters can compose CloudFormation posture into existing
+  OSS policy evaluation. **Posture:** advisory. **Recommended
+  `--fail-on`:** ``degraded`` only. Pair with ``oss-policy-kit scan-cfn
+  --target .`` so the IAC-CFN-* controls have evidence to read; without
+  it they all return ``manual-review-required`` (honest gap, never a
+  crash).
+  **Composition note:** this profile contains **only** CloudFormation
+  controls. For governance baseline (SECURITY.md, waivers policy,
+  CHANGELOG presence) compose with ``osps-baseline-1`` or a
+  ``*-release-hardening-*`` profile.
+audience: >
+  Platform teams owning CloudFormation stacks who want a clone-side
+  posture scorecard. Combine with ``osps-baseline-1`` for governance and
+  with ``aws-release-hardening-3`` when the templates are part of an AWS
+  release pipeline.
+controls:
+  - IAC-CFN-001
+  - IAC-CFN-002
+  - IAC-CFN-003
+  - IAC-CFN-004
+  - IAC-CFN-005
+  - IAC-CFN-006
+  - GOV-EVIDFRESH-054

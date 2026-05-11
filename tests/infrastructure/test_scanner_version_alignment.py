@@ -23,9 +23,7 @@ from oss_policy_kit.infrastructure.k8s import scanner as k8s_scanner
     [iac_scanner, k8s_scanner],
     ids=["iac", "k8s"],
 )
-def test_kit_version_returns_installed_when_matching_source(
-    scanner_module, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_kit_version_returns_installed_when_matching_source(scanner_module, monkeypatch: pytest.MonkeyPatch) -> None:
     """Installed wheel == source __version__ -> returns the installed string."""
 
     monkeypatch.setattr(scanner_module, "_pkg_version", lambda _name: oss_policy_kit.__version__)
@@ -37,9 +35,7 @@ def test_kit_version_returns_installed_when_matching_source(
     [iac_scanner, k8s_scanner],
     ids=["iac", "k8s"],
 )
-def test_kit_version_prefers_source_when_installed_diverges(
-    scanner_module, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_kit_version_prefers_source_when_installed_diverges(scanner_module, monkeypatch: pytest.MonkeyPatch) -> None:
     """Installed wheel diverges from source __version__ -> source wins.
 
     Dev cycles bump ``oss_policy_kit.__version__`` ahead of the installed

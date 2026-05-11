@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oss-policy-kit"
-version = "5.7.0.dev0"
+version = "5.7.0"
 description = "Open source starter kit for adopting OSS security baselines via policy packs, templates, evidence, and remediation."
 readme = "README.md"
 license = "Apache-2.0"
@@ -102,6 +102,11 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 "src/oss_policy_kit/cli/init.py" = ["B008"]
 "src/oss_policy_kit/cli/profiles.py" = ["B008"]
 "src/oss_policy_kit/cli/scan_sast.py" = ["B008"]
+"src/oss_policy_kit/cli/scan_iac.py" = ["B008"]
+"src/oss_policy_kit/cli/scan_k8s.py" = ["B008"]
+"src/oss_policy_kit/cli/scan_cfn.py" = ["B008"]
+"src/oss_policy_kit/cli/scan_pulumi.py" = ["B008"]
+"src/oss_policy_kit/cli/scan_bicep.py" = ["B008"]
 "src/oss_policy_kit/cli/recommend.py" = ["B008"]
 "src/oss_policy_kit/cli/reports.py" = ["B008"]
 

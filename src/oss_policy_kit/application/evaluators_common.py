@@ -137,9 +137,7 @@ def load_packaged_schema(filename: str) -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(raw))
 
 
-_DOCKERFILE_NAME_RE = re.compile(
-    r"^(?:[Dd]ockerfile)(?:[.\-][\w.\-]+)?$|^[\w.\-]+\.[Dd]ockerfile$"
-)
+_DOCKERFILE_NAME_RE = re.compile(r"^(?:[Dd]ockerfile)(?:[.\-][\w.\-]+)?$|^[\w.\-]+\.[Dd]ockerfile$")
 _DOCKERFILE_NON_DOCKER_EXTS = frozenset(
     {
         "bak",

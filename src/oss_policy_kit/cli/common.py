@@ -209,6 +209,9 @@ def prepare_cli_args(args: list[str]) -> list[str]:
         "scan-sast",
         "scan-iac",
         "scan-k8s",
+        "scan-cfn",
+        "scan-pulumi",
+        "scan-bicep",
     }:
         return args
     if first in ("--help", "-h", "--version", "-V"):
@@ -221,6 +224,9 @@ def prepare_cli_args(args: list[str]) -> list[str]:
 _SCAN_EVIDENCE_MAP: tuple[tuple[str, str, str], ...] = (
     ("K8S-", "k8s-baseline.json", "scan-k8s"),
     ("IAC-TF-", "iac-terraform.json", "scan-iac"),
+    ("IAC-CFN-", "iac-cfn.json", "scan-cfn"),
+    ("IAC-PUL-", "iac-pulumi.json", "scan-pulumi"),
+    ("IAC-BICEP-", "iac-bicep.json", "scan-bicep"),
     ("SAST-SEMGREP-", "sast-semgrep.json", "scan-sast"),
 )
 
@@ -248,7 +254,7 @@ def _warn_missing_scan_evidence(repo_root: Path, control_ids: set[str], machine_
             f"[yellow bold]NOTE:[/yellow bold] profile uses controls that depend on "
             f"[bold]oss-policy-kit {scan_cmd}[/bold] evidence; none was found in "
             f".oss-policy-kit/evidence/. Those controls will return manual-review-required. "
-            f"To enable detection, run first: [bold]oss-policy-kit {scan_cmd} --target \"{target}\"[/bold]",
+            f'To enable detection, run first: [bold]oss-policy-kit {scan_cmd} --target "{target}"[/bold]',
         )
 
 

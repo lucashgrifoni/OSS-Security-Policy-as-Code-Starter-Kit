@@ -23,9 +23,7 @@ def _normalize(text: str) -> str:
     return " ".join(text.split())
 
 
-def test_banner_fires_for_k8s_profile_when_evidence_missing(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_banner_fires_for_k8s_profile_when_evidence_missing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """A profile containing ``K8S-*`` controls must surface the scan-k8s hint."""
 
     _warn_missing_scan_evidence(
@@ -66,9 +64,7 @@ def test_banner_fires_for_sast_semgrep_profile_when_evidence_missing(
     assert "scan-sast" in err
 
 
-def test_banner_suppressed_when_machine_stdout(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_banner_suppressed_when_machine_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """JSON-mode evaluate must not corrupt the parser stream with banner bytes.
 
     The banner goes to stderr today, but the function is conservative and skips
@@ -88,9 +84,7 @@ def test_banner_suppressed_when_machine_stdout(
     assert "scan-sast" not in captured.err
 
 
-def test_banner_silent_when_evidence_file_already_exists(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_banner_silent_when_evidence_file_already_exists(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Evidence file present -> no hint for that scan-* command.
 
     Other branches (missing evidence for a different scan-*) must still fire,
@@ -111,9 +105,7 @@ def test_banner_silent_when_evidence_file_already_exists(
     assert "scan-iac" in err
 
 
-def test_banner_silent_for_profile_without_scan_controls(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_banner_silent_for_profile_without_scan_controls(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """A governance-only profile must not trigger any scan-* banner."""
 
     _warn_missing_scan_evidence(

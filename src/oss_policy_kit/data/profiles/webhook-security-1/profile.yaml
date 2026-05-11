@@ -1,0 +1,28 @@
+id: webhook-security-1
+title: Webhook receiver security baseline (clone-side advisory)
+description: >
+  **Advisory profile (advisory only). Do not use as a hard release gate.**
+  Clone-side signal pack for repositories that expose a webhook receiver.
+  Introduced in v5.7.0. Bundles the two ``SEC-WEBHOOK-*`` controls plus
+  ``GOV-EVIDFRESH-054`` for evidence hygiene. The pack returns
+  ``not-applicable`` for both controls when no webhook route is detected
+  in the clone, so it never penalizes non-receiver repositories.
+  - ``SEC-WEBHOOK-001`` — webhook signature validation present
+    (``X-Hub-Signature-256``, ``Stripe-Signature``, ``X-Signature-Ed25519``,
+    ``hmac.compare_digest`` / ``compare_digest`` and related primitives).
+  - ``SEC-WEBHOOK-002`` — webhook replay defense present (timestamp
+    tolerance, nonce / event-id dedupe, idempotency key, TTL-bounded
+    seen-store).
+  Both controls ship as ``lifecycle: experimental``, ``assurance: signal``.
+  A PASS proves a primitive exists in the clone, not that the receiver is
+  correctly secured end-to-end. Pair with reviewer judgment.
+  **Posture:** advisory. **Recommended `--fail-on`:** ``degraded`` only.
+audience: >
+  Platform / AppSec teams maintaining services that expose webhook
+  endpoints (GitHub Apps, Stripe / Twilio / Slack / Shopify integrations,
+  custom integrations). Compose with ``appsec-sast-sca-1`` and an OSPS or
+  release-hardening profile for full release posture.
+controls:
+  - SEC-WEBHOOK-001
+  - SEC-WEBHOOK-002
+  - GOV-EVIDFRESH-054

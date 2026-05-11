@@ -1,10 +1,9 @@
-"""``oss-policy-kit scan-k8s`` subcommand.
+"""``oss-policy-kit scan-bicep`` subcommand.
 
-Discovers ``*.yaml`` / ``*.yml`` files under the target, runs the bundled
-Kubernetes rule pack, and writes
-``.oss-policy-kit/evidence/k8s-baseline.json`` (schema
-``oss-policy-kit/evidence/k8s-baseline/v1``). Each ``K8S-*`` control
-reads that file on the next ``evaluate`` run.
+Discovers ``*.bicep`` files under the target, runs the bundled
+``IAC-BICEP-*`` rule pack, and writes
+``.oss-policy-kit/evidence/iac-bicep.json`` (schema
+``oss-policy-kit/evidence/iac-bicep/v1``).
 """
 
 from __future__ import annotations
@@ -17,7 +16,7 @@ import typer
 from oss_policy_kit.adapters.local_paths import resolve_existing_dir
 from oss_policy_kit.cli.common import app, stderr_console, write_stdout_text
 from oss_policy_kit.domain.errors import OssPolicyKitError
-from oss_policy_kit.infrastructure.k8s.scanner import (
+from oss_policy_kit.infrastructure.iac.bicep.scanner import (
     DEFAULT_INCLUDE_GLOBS,
     DEFAULT_TIMEOUT_SECONDS,
     EVIDENCE_FILENAME,
@@ -27,18 +26,18 @@ from oss_policy_kit.infrastructure.k8s.scanner import (
 )
 
 
-@app.command("scan-k8s")
-def scan_k8s_cmd(
+@app.command("scan-bicep")
+def scan_bicep_cmd(
     target: str = typer.Option(
         ".",
         "--target",
         "-t",
-        help="Repository root to scan for Kubernetes manifests. Defaults to the current directory.",
+        help="Repository root to scan for Bicep files. Defaults to the current directory.",
     ),
     include: str = typer.Option(
         ",".join(DEFAULT_INCLUDE_GLOBS),
         "--include",
-        help="Comma-separated glob patterns for source files. Defaults to '**/*.yaml,**/*.yml'.",
+        help="Comma-separated glob patterns for source files. Defaults to '**/*.bicep'.",
     ),
     exclude: str = typer.Option(
         "",
@@ -56,24 +55,8 @@ def scan_k8s_cmd(
         help="Stdout format for the summary line: human or json.",
         case_sensitive=False,
     ),
-    helm_render: bool = typer.Option(
-        False,
-        "--helm-render/--no-helm-render",
-        help=(
-            "Opt-in pre-pass: run `helm template` against every Chart.yaml under the target and "
-            "scan the rendered manifests alongside regular YAML. Requires the `helm` CLI (3.x) on PATH; "
-            "without it the scan continues and records a diagnostic. Off by default."
-        ),
-    ),
 ) -> None:
-    """Run the bundled Kubernetes rule pack and write K8S-* evidence.
-
-    Exit codes:
-
-    - 0: Scan completed.
-    - 2: User-correctable error (bad target).
-    - 3: Unexpected error (re-raised stack trace inside the kit).
-    """
+    """Run the bundled Bicep rule pack and write IAC-BICEP-* evidence."""
 
     fmt = output_format.strip().lower()
     if fmt not in {"human", "json"}:
@@ -91,14 +74,13 @@ def scan_k8s_cmd(
             include_globs=include_tuple,
             exclude_globs=exclude_tuple,
             timeout_seconds=timeout,
-            helm_render=helm_render,
         )
         payload = render_evidence_payload(outcome, target=repo)
         evidence_path = write_evidence(payload, repo_root=repo, filename=EVIDENCE_FILENAME)
 
         if outcome.status == "error":
             stderr_console().print(
-                f"[red]Kubernetes scan failed:[/red] see diagnostics in {evidence_path.name}.",
+                f"[red]Bicep scan failed:[/red] see diagnostics in {evidence_path.name}.",
             )
             raise typer.Exit(code=2)
 
@@ -106,36 +88,15 @@ def scan_k8s_cmd(
             sys.stdout.write(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
         else:
             write_stdout_text(
-                f"scan-k8s: {outcome.status} -- "
+                f"scan-bicep: {outcome.status} -- "
                 f"files={len(outcome.files_scanned)} "
-                f"helm_skipped={len(outcome.helm_templates_skipped)} "
                 f"findings={len(outcome.findings)} "
                 f"-> {evidence_path}\n",
             )
-            if outcome.helm_render_attempted and not outcome.helm_available:
-                stderr_console().print(
-                    "[yellow]--helm-render requested but the `helm` CLI was not on PATH[/yellow]; "
-                    "scan continued without rendering charts. Install Helm 3.x to enable the pre-pass."
-                )
-            if outcome.helm_render_attempted and outcome.helm_render_errors:
-                stderr_console().print(
-                    f"[yellow]{len(outcome.helm_render_errors)} chart(s) failed to render[/yellow]; "
-                    "see helm_render_errors in the evidence file."
-                )
-            if outcome.helm_render_attempted and outcome.helm_charts_rendered:
-                stderr_console().print(
-                    f"[green]Rendered {len(outcome.helm_charts_rendered)} Helm chart(s)[/green] "
-                    "and merged the manifests into the scan."
-                )
-            if outcome.helm_templates_skipped:
-                stderr_console().print(
-                    f"[yellow]{len(outcome.helm_templates_skipped)} Helm template(s) skipped[/yellow] "
-                    "(contain {{ ... }} markers); pass --helm-render to render them before scanning."
-                )
             if outcome.parse_errors:
                 stderr_console().print(
                     f"[yellow]{len(outcome.parse_errors)} file(s) failed to parse[/yellow]; "
-                    "see diagnostics.parse_errors in the evidence file."
+                    "see diagnostics.parse_errors in the evidence file.",
                 )
 
     except OssPolicyKitError as exc:
