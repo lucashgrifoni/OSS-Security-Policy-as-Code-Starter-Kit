@@ -8,7 +8,8 @@ description: >
   floating image tags), 5 RBAC rules (`K8S-RBAC-001..005` covering wildcard
   verbs, cluster-admin bindings, default ServiceAccount in the default
   namespace, wildcard resources on ClusterRoles, and broad secrets reads),
-  and 1 NetworkPolicy presence rule (`K8S-NETPOL-001`).
+  and 1 NetworkPolicy presence rule (`K8S-NETPOL-001`). Includes
+  ``GOV-EVIDFRESH-054`` to flag stale ``scan-k8s`` evidence.
   All `K8S-*` controls ship as `lifecycle: experimental`,
   `assurance: evidence-backed`. Use with `--fail-on degraded` to surface
   posture drift without blocking releases.
@@ -17,11 +18,15 @@ description: >
   diagnostic — render them with `helm template` before scanning. Live
   cluster posture (admission webhooks, runtime CIS scans) is
   intentionally out of scope.
+  **Composition note:** this profile contains **only** Kubernetes-related
+  controls. For governance baseline (SECURITY.md, waivers policy,
+  disclosure policy) compose with ``osps-baseline-1`` or a
+  ``*-release-hardening-*`` profile.
 audience: Platform / AppSec teams hardening Kubernetes manifests at PR time.
 controls:
-  - GOV-WAIV-014
-  - GOV-DISC-013
+  # Evidence freshness for scan-k8s output
   - GOV-EVIDFRESH-054
+  # Pod Security Standards (10)
   - K8S-PSS-001
   - K8S-PSS-002
   - K8S-PSS-003
@@ -32,9 +37,11 @@ controls:
   - K8S-PSS-008
   - K8S-PSS-009
   - K8S-PSS-010
+  # RBAC (5)
   - K8S-RBAC-001
   - K8S-RBAC-002
   - K8S-RBAC-003
   - K8S-RBAC-004
   - K8S-RBAC-005
+  # NetworkPolicy
   - K8S-NETPOL-001

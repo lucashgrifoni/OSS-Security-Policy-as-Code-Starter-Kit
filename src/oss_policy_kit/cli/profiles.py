@@ -28,7 +28,20 @@ from oss_policy_kit.cli.common import (
 from oss_policy_kit.domain.errors import InvalidInputError, LoadError, OssPolicyKitError
 
 _PROFILE_DISPLAY_ALIAS_TARGETS = dict(PROFILE_DIRECTORY_ALIASES)
-_REGULATORY_PROFILE_IDS: frozenset[str] = frozenset({"cra-eu-ready-1"})
+_REGULATORY_PROFILE_IDS: frozenset[str] = frozenset({"cra-eu-ready-1", "cra-eu-strict-1"})
+
+_FRAMEWORK_PROFILE_LABELS: dict[str, str] = {
+    "osps-baseline-1": "framework-aligned advisory (OSPS Baseline)",
+    "slsa-build-l2-1": "framework-aligned hard-gate-capable (SLSA Build L2)",
+    "ssdf-baseline-1": "framework-aligned advisory (NIST SSDF)",
+    "cis-supply-chain-1": "framework-aligned advisory (CIS Supply Chain)",
+    "owasp-cicd-top10-1": "framework-aligned advisory (OWASP CICD Top 10)",
+    "s2c2f-l1-1": "framework-aligned advisory (Microsoft S2C2F L1)",
+    "appsec-sast-sca-1": "AppSec native bundle (hard-gate-capable with scan-sast)",
+    "iac-terraform-baseline-1": "IaC Terraform posture (advisory, paired with scan-iac)",
+    "kubernetes-baseline-1": "Kubernetes manifest posture (advisory, paired with scan-k8s)",
+    "container-baseline-1": "container hardening posture (advisory)",
+}
 
 _PROFILE_COMPACT_AUDIENCES = {
     "aws-level-1": "AWS teams starting honest checks.",
@@ -103,6 +116,8 @@ def _profile_maturity_label(profile_id: str, *, is_legacy_alias: bool) -> str:
         return "legacy bundled id (non-canonical)"
     if profile_id in _REGULATORY_PROFILE_IDS:
         return "framework-aligned advisory (regulatory)"
+    if profile_id in _FRAMEWORK_PROFILE_LABELS:
+        return _FRAMEWORK_PROFILE_LABELS[profile_id]
     if profile_id in {"github-aws-level-2", "github-azure-level-2"}:
         return "advisory hybrid (multi-platform)"
     if profile_id.endswith("release-hardening-3"):
@@ -117,11 +132,21 @@ def _profile_maturity_label(profile_id: str, *, is_legacy_alias: bool) -> str:
 
 
 def _profile_row_is_extreme(row: _ProfileDisplayRow) -> bool:
+    """Return True for profiles that default to extreme / hard-gate posture.
+
+    The catalog has two such tiers: ``*-level-3`` and ``*release-hardening-3``.
+    Both produce a maturity label containing ``(extreme)``; the pid patterns are
+    redundant but kept as a belt-and-suspenders. Labels that merely describe a
+    profile as ``hard-gate-capable`` (e.g. ``appsec-sast-sca-1``,
+    ``slsa-build-l2-1``) are intentionally NOT extreme — they ship as advisory
+    by default and graduate only when paired with the appropriate ``scan-*``
+    evidence.
+    """
+
     m = _profile_maturity_label(row.profile_id, is_legacy_alias=row.is_legacy_alias).lower()
     pid = row.profile_id
     return (
-        "extreme" in m
-        or "hard-gate" in m
+        "(extreme)" in m
         or ("-level-3" in pid and "release-hardening" not in pid)
         or ("release-hardening-3" in pid)
     )

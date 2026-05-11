@@ -675,7 +675,7 @@ def eval_gov_disc_013(ctx: EvalContext) -> EvalOutcome:
     if text is None:
         return EvalOutcome(
             status=ControlStatus.FAIL,
-            reason="SECURITY.md missing; cannot evaluate disclosure reporting mechanism.",
+            reason="Disclosure reporting mechanism not implemented (SECURITY.md missing at repository root).",
             remediation="Add SECURITY.md with a clear reporting channel (email or form).",
             evidence_sources=[],
             confidence="high",
@@ -1018,7 +1018,7 @@ def eval_sec_secrets_050(ctx: EvalContext) -> EvalOutcome:
     if not paths:
         return EvalOutcome(
             status=ControlStatus.FAIL,
-            reason="No GitHub Actions workflows found; cannot detect an in-repo secret scanning step.",
+            reason="In-repo secret scanning step not implemented (no GitHub Actions workflows found in .github/workflows/).",
             remediation=(
                 "Add a secret scanning step to CI (for example gitleaks, trufflehog, detect-secrets, or secretlint)."
             ),

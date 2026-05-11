@@ -218,6 +218,40 @@ def prepare_cli_args(args: list[str]) -> list[str]:
     return ["evaluate", *args]
 
 
+_SCAN_EVIDENCE_MAP: tuple[tuple[str, str, str], ...] = (
+    ("K8S-", "k8s-baseline.json", "scan-k8s"),
+    ("IAC-TF-", "iac-terraform.json", "scan-iac"),
+    ("SAST-SEMGREP-", "sast-semgrep.json", "scan-sast"),
+)
+
+
+def _warn_missing_scan_evidence(repo_root: Path, control_ids: set[str], machine_stdout: bool) -> None:
+    """Print a prominent banner when the profile bundles scan-* controls but the
+    corresponding evidence file is missing. Prevents the UX gap where evaluate
+    against k8s/iac/sast profiles returns opaque manual-review-required for every
+    control because the user did not know to run the scan-* command first.
+    """
+    if machine_stdout:
+        return  # JSON-mode stdout must stay pure; banner would corrupt parsing.
+    evidence_dir = repo_root / ".oss-policy-kit" / "evidence"
+    missing: list[tuple[str, str]] = []
+    for prefix, filename, scan_cmd in _SCAN_EVIDENCE_MAP:
+        if not any(cid.startswith(prefix) for cid in control_ids):
+            continue
+        if not (evidence_dir / filename).is_file():
+            missing.append((scan_cmd, str(repo_root)))
+    if not missing:
+        return
+    out = stderr_console()
+    for scan_cmd, target in missing:
+        out.print(
+            f"[yellow bold]NOTE:[/yellow bold] profile uses controls that depend on "
+            f"[bold]oss-policy-kit {scan_cmd}[/bold] evidence; none was found in "
+            f".oss-policy-kit/evidence/. Those controls will return manual-review-required. "
+            f"To enable detection, run first: [bold]oss-policy-kit {scan_cmd} --target \"{target}\"[/bold]",
+        )
+
+
 def execute_evaluate(
     target_pos: str | None,
     target_opt: str | None,
@@ -294,6 +328,11 @@ def execute_evaluate(
                 ) from exc
 
         ext_waiver = str(Path(waivers).resolve()) if waivers is not None else None
+        _warn_missing_scan_evidence(
+            repo_root=repo_root,
+            control_ids=set(prof.control_ids),
+            machine_stdout=(normalize_evaluate_format(output_format) == "json"),
+        )
         emit: Callable[[str], None] | None
         if verbose:
             _verbose_console = terminal_ui.build_stdout_console()
