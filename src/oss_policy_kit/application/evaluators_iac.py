@@ -108,15 +108,26 @@ def _make_iac_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOutco
         if gate is not None:
             return gate
         assert data is not None
+        files_scanned = data.get("files_scanned") or []
+        if not isinstance(files_scanned, list):
+            files_scanned = []
+        sources = [str(evidence_path.resolve())]
+        if not files_scanned:
+            return EvalOutcome(
+                status=ControlStatus.NOT_APPLICABLE,
+                reason=("No Terraform / OpenTofu sources detected in repository; control is not applicable."),
+                remediation="No action required. Add Terraform sources to enable IaC posture evaluation.",
+                evidence_sources=sources,
+                confidence="high",
+            )
         by_rule = data.get("findings_by_rule") or {}
         if not isinstance(by_rule, dict):
             by_rule = {}
         count = int(by_rule.get(rule_id, 0) or 0)
-        sources = [str(evidence_path.resolve())]
         if count == 0:
             return EvalOutcome(
                 status=ControlStatus.PASS,
-                reason=f"No {rule_id} findings detected in scanned Terraform sources.",
+                reason=f"No {rule_id} findings detected across {len(files_scanned)} scanned Terraform source(s).",
                 remediation="Re-scan after Terraform changes to keep evidence fresh.",
                 evidence_sources=sources,
                 confidence="high",

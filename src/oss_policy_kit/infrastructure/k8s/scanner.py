@@ -85,10 +85,15 @@ class K8sScanOutcome:
 
 
 def _kit_version() -> str:
+    from oss_policy_kit import __version__ as _src_version
+
     try:
-        return _pkg_version("oss-policy-kit")
+        installed = _pkg_version("oss-policy-kit")
     except PackageNotFoundError:  # pragma: no cover - dev-only fallback
-        return "0.0.0+local"
+        return _src_version
+    if installed != _src_version:
+        return _src_version
+    return installed
 
 
 def _utc_iso() -> str:

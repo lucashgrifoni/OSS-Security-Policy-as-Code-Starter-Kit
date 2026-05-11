@@ -257,7 +257,19 @@ def test_evaluator_returns_manual_review_when_evidence_missing(tmp_path: Path) -
     assert "scan-k8s" in out.remediation
 
 
-def test_evaluator_passes_when_zero_findings(tmp_path: Path) -> None:
+def test_evaluator_returns_not_applicable_when_no_manifests(tmp_path: Path) -> None:
+    """Empty repo -> scan writes evidence with files_scanned=[] -> NA, not PASS."""
+    outcome = run_scan(tmp_path)
+    payload = render_evidence_payload(outcome, target=tmp_path)
+    write_evidence(payload, repo_root=tmp_path, filename=EVIDENCE_FILENAME)
+    eval_fn = EVALUATOR_REGISTRY["K8S-PSS-001"]
+    out = eval_fn(SimpleNamespace(repo_root=tmp_path))
+    assert out.status is ControlStatus.NOT_APPLICABLE
+
+
+def test_evaluator_passes_when_zero_findings_with_scanned_files(tmp_path: Path) -> None:
+    """Repo with manifests but no findings for this rule -> PASS."""
+    _write(tmp_path, "k8s/good.yaml", _HARDENED_DEPLOYMENT)
     outcome = run_scan(tmp_path)
     payload = render_evidence_payload(outcome, target=tmp_path)
     write_evidence(payload, repo_root=tmp_path, filename=EVIDENCE_FILENAME)

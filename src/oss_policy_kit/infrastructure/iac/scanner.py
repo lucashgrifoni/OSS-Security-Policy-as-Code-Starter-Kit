@@ -121,10 +121,15 @@ class IacScanOutcome:
 
 
 def _kit_version() -> str:
+    from oss_policy_kit import __version__ as _src_version
+
     try:
-        return _pkg_version("oss-policy-kit")
+        installed = _pkg_version("oss-policy-kit")
     except PackageNotFoundError:  # pragma: no cover - dev-only fallback
-        return "0.0.0+local"
+        return _src_version
+    if installed != _src_version:
+        return _src_version
+    return installed
 
 
 def _utc_iso() -> str:
@@ -348,6 +353,25 @@ def _rule_iac_tf_003_iam_wildcards(repo_root: Path, index: TfResourceIndex) -> l
     return findings
 
 
+def _has_separate_s3_encryption(bucket_name: str, index: TfResourceIndex) -> bool:
+    """True when an ``aws_s3_bucket_server_side_encryption_configuration`` resource references *bucket_name*.
+
+    AWS S3 moved encryption out of ``aws_s3_bucket`` into a dedicated resource
+    starting with terraform-provider-aws v4. Hardened modules following the
+    modern pattern (``resource "aws_s3_bucket" "x" {}`` paired with
+    ``resource "aws_s3_bucket_server_side_encryption_configuration" "x" { bucket = aws_s3_bucket.x.id }``)
+    used to fail IAC-TF-004 because the evaluator only looked at attributes
+    inside the bucket block. Cross-referencing eliminates that false positive
+    while keeping the rule honest for unencrypted buckets.
+    """
+
+    for sep in index.resources("aws_s3_bucket_server_side_encryption_configuration"):
+        bucket_ref = sep.get("bucket")
+        if isinstance(bucket_ref, str) and bucket_name in bucket_ref:
+            return True
+    return False
+
+
 def _rule_iac_tf_004_no_encryption(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:
     """Storage / RDS / EBS resources without encryption-at-rest."""
 
@@ -357,6 +381,9 @@ def _rule_iac_tf_004_no_encryption(repo_root: Path, index: TfResourceIndex) -> l
             encrypted = block.get("storage_encrypted") or block.get("encrypted") or block.get("enable_kms_encryption")
             sse = block.get("server_side_encryption_configuration")
             kms_key = block.get("kms_key_id") or block.get("kms_master_key_id")
+            # AWS S3 modern pattern: encryption can live in a separate resource.
+            if rt == "aws_s3_bucket" and _has_separate_s3_encryption(block.name, index):
+                continue
             if encrypted is None and sse is None and kms_key is None:
                 # No encryption attribute set at all on a type that needs one.
                 findings.append(

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -198,6 +199,70 @@ def test_hardened_fixture_has_zero_iac_tf_findings(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# IAC-TF-004 cross-reference for the modern AWS S3 encryption pattern
+# ---------------------------------------------------------------------------
+
+
+def test_iac_tf_004_modern_s3_encryption_pattern_passes(tmp_path: Path) -> None:
+    """A bucket whose encryption lives in a separate
+    ``aws_s3_bucket_server_side_encryption_configuration`` resource (the
+    pattern recommended by terraform-provider-aws v4+) must NOT trip
+    IAC-TF-004. Regression for the v5.7.0 readiness finding against
+    ``terraform-iac-hardened-target``.
+    """
+
+    hcl = HARDENED_FIXTURE_HEADER + (
+        'resource "aws_s3_bucket" "private_assets" {\n'
+        '  bucket = "lab-hardened-private-assets"\n'
+        '  tags = { owner = "team" cost_center = "cc-1" }\n'
+        "}\n\n"
+        'resource "aws_s3_bucket_server_side_encryption_configuration" "private_assets" {\n'
+        "  bucket = aws_s3_bucket.private_assets.id\n"
+        "  rule {\n"
+        "    apply_server_side_encryption_by_default {\n"
+        '      sse_algorithm = "aws:kms"\n'
+        '      kms_master_key_id = "arn:aws:kms:us-east-1:111122223333:key/abc"\n'
+        "    }\n"
+        "  }\n"
+        "}\n"
+    )
+    payload = _scan_and_dump(tmp_path, hcl)
+    counts = payload["findings_by_rule"]
+    assert counts["IAC-TF-004"] == 0, (
+        "Bucket with separate aws_s3_bucket_server_side_encryption_configuration "
+        f"must not trigger IAC-TF-004; got {counts['IAC-TF-004']} findings."
+    )
+
+
+def test_iac_tf_004_cross_reference_only_matches_named_bucket(tmp_path: Path) -> None:
+    """Cross-reference must be bucket-name-specific: an unrelated bucket without
+    its own encryption resource must still trigger IAC-TF-004.
+    Guards against a too-permissive `any(...)` check.
+    """
+
+    hcl = HARDENED_FIXTURE_HEADER + (
+        # Encrypted bucket via separate resource — should NOT fire.
+        'resource "aws_s3_bucket" "encrypted_one" {\n'
+        '  bucket = "encrypted-one"\n'
+        '  tags = { owner = "team" cost_center = "cc-1" }\n'
+        "}\n\n"
+        'resource "aws_s3_bucket_server_side_encryption_configuration" "encrypted_one" {\n'
+        "  bucket = aws_s3_bucket.encrypted_one.id\n"
+        "  rule { apply_server_side_encryption_by_default { sse_algorithm = \"AES256\" } }\n"
+        "}\n\n"
+        # Unencrypted sibling bucket with no inline attrs and no separate resource — must fire.
+        'resource "aws_s3_bucket" "leaky_other" {\n'
+        '  bucket = "leaky-other"\n'
+        '  tags = { owner = "team" cost_center = "cc-1" }\n'
+        "}\n"
+    )
+    payload = _scan_and_dump(tmp_path, hcl)
+    findings = [f for f in payload["findings"] if f["rule_id"] == "IAC-TF-004"]
+    assert len(findings) == 1, f"expected exactly one IAC-TF-004 finding (leaky_other), got {len(findings)}"
+    assert findings[0]["resource_name"] == "leaky_other"
+
+
+# ---------------------------------------------------------------------------
 # Evaluator wiring: evidence absent -> manual-review-required
 # ---------------------------------------------------------------------------
 
@@ -216,6 +281,27 @@ def test_iac_evaluator_returns_manual_review_when_evidence_missing(tmp_path: Pat
     for rid in all_rule_ids():
         assert statuses[rid] == "manual-review-required", (
             f"{rid}: expected manual-review-required without evidence, got {statuses[rid]}."
+        )
+
+
+def test_iac_evaluator_returns_not_applicable_when_no_terraform(tmp_path: Path) -> None:
+    """Empty repo -> scan writes evidence with files_scanned=[] -> NA, not PASS.
+
+    Mirrors ``test_evaluator_returns_not_applicable_when_no_manifests`` in the K8s
+    suite: distinguishes ``no Terraform in repo`` (NOT_APPLICABLE) from ``scanned
+    and clean`` (PASS), so the kit does not silently report PASS for posture
+    controls that never had a chance to fire.
+    """
+
+    outcome = run_scan(tmp_path)
+    payload = render_evidence_payload(outcome, target=tmp_path)
+    assert payload["files_scanned"] == []  # precondition for the NA branch
+    write_evidence(payload, repo_root=tmp_path, filename=EVIDENCE_FILENAME)
+    for rid in all_rule_ids():
+        eval_fn = EVALUATOR_REGISTRY[rid]
+        out = eval_fn(SimpleNamespace(repo_root=tmp_path))
+        assert out.status is ControlStatus.NOT_APPLICABLE, (
+            f"{rid}: expected NOT_APPLICABLE on empty repo, got {out.status}."
         )
 
 
