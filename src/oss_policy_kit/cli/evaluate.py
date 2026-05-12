@@ -277,6 +277,17 @@ def evaluate_cmd(
         "-q",
         help="Suppress operational warning lines on stderr while keeping normal stdout output.",
     ),
+    include_absolute_path: bool = typer.Option(
+        False,
+        "--include-absolute-path",
+        help=(
+            "Keep the full absolute path in target_path of the JSON/Markdown reports. "
+            "Default is privacy-by-default: target_path is sanitized to the target's basename "
+            "(or '.' when the target is the current working directory). Use this flag only "
+            "when downstream tooling specifically expects an absolute path; sharing reports "
+            "publicly with absolute paths leaks the auditor's home directory or username."
+        ),
+    ),
 ) -> None:
     """Evaluate a local repository clone against a bundled profile.
 
@@ -309,4 +320,5 @@ def evaluate_cmd(
         quiet=quiet,
         report_json_contract=report_json_contract.strip().lower().removeprefix("v"),
         sarif_output=sarif_output,
+        include_absolute_path=include_absolute_path,
     )

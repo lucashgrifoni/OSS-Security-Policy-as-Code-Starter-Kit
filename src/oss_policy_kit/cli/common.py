@@ -274,6 +274,7 @@ def execute_evaluate(
     quiet: bool = False,
     report_json_contract: str = "1.0",
     sarif_output: Path | None = None,
+    include_absolute_path: bool = False,
 ) -> None:
     """Shared implementation for root-level and `evaluate` subcommand invocations.
 
@@ -361,7 +362,9 @@ def execute_evaluate(
         )
         out = output_dir.resolve()
         try:
-            json_path, md_path = write_reports(report, out)
+            json_path, md_path = write_reports(
+                report, out, include_absolute_path=include_absolute_path
+            )
         except (PermissionError, NotADirectoryError, FileNotFoundError, OSError) as exc:
             raise InvalidInputError(
                 f"Cannot write to --output-dir '{output_dir}': {exc.strerror or exc}"

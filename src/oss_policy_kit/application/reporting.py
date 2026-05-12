@@ -26,6 +26,31 @@ REPORT_JSON_SCHEMA_URL_V0_3 = "https://github.com/lucashgrifoni/OSS-Security-Pol
 REPORT_JSON_SCHEMA_URL_V1_0 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/1.0"
 
 
+def _sanitize_target_path_for_payload(absolute: str, *, include_absolute: bool) -> str:
+    """Sanitize the target path for inclusion in shareable report files (M-002).
+
+    Default behavior is privacy-by-default: emit only the basename of the
+    target directory. If the target is the current working directory, emit
+    ``"."``. Reports that ship in PR artifacts, GitHub Releases, or vulnerability
+    write-ups should not leak the auditor's home directory or username.
+
+    Pass ``include_absolute=True`` to opt back into the raw absolute path
+    (useful when integrating with downstream tooling that expects it).
+    """
+
+    if include_absolute:
+        return absolute
+    try:
+        p = Path(absolute)
+        cwd = Path.cwd().resolve()
+        if p.resolve() == cwd:
+            return "."
+        return p.name or "."
+    except (OSError, ValueError):
+        # Fall back to the original string rather than leaking implementation errors.
+        return Path(absolute).name or absolute
+
+
 def _effective_schema_version(report: ExecutionReport, schema_version_override: str | None) -> str:
     if schema_version_override is None:
         return report.schema_version
@@ -348,8 +373,18 @@ def _result_to_dict_v1(r: ControlResult) -> dict[str, Any]:
     return payload
 
 
-def report_to_dict_v1(report: ExecutionReport) -> dict[str, Any]:
-    """Serialize execution report under the reports/1.0 contract."""
+def report_to_dict_v1(
+    report: ExecutionReport,
+    *,
+    include_absolute_path: bool = False,
+) -> dict[str, Any]:
+    """Serialize execution report under the reports/1.0 contract.
+
+    By default the emitted ``target_path`` is sanitized to the basename of the
+    target directory (or ``"."`` if the target is CWD) so that report files do
+    not leak the auditor's home directory. Pass ``include_absolute_path=True``
+    to keep the full absolute path.
+    """
 
     profile_meta = derive_profile_metadata(report.profile_id)
     profile_block = {
@@ -382,7 +417,9 @@ def report_to_dict_v1(report: ExecutionReport) -> dict[str, Any]:
         "evidence_provenance_version": EVIDENCE_PROVENANCE_VERSION,
         "generated_at": report.generated_at,
         "kit_version": report.kit_version,
-        "target_path": report.target_path,
+        "target_path": _sanitize_target_path_for_payload(
+            report.target_path, include_absolute=include_absolute_path
+        ),
         "profile": profile_block,
         "summary_by_status": report.summary_by_status,
         "controls_total": sum(report.summary_by_status.values()),
@@ -406,6 +443,7 @@ def report_to_dict(
     report: ExecutionReport,
     *,
     schema_version_override: str | None = None,
+    include_absolute_path: bool = False,
 ) -> dict[str, Any]:
     """Serialize execution report to a JSON-compatible dict.
 
@@ -415,17 +453,23 @@ def report_to_dict(
 
     When *schema_version_override* targets ``reports/1.0``, dispatch to the v1
     projection which uses a structured ``evidence`` object per result.
+
+    ``include_absolute_path`` controls whether ``target_path`` in the payload is
+    sanitized to a basename (default, privacy-by-default) or kept as the full
+    absolute path.
     """
 
     effective = _effective_schema_version(report, schema_version_override)
     if _emit_contract_v1_0(effective):
-        return report_to_dict_v1(report)
+        return report_to_dict_v1(report, include_absolute_path=include_absolute_path)
     contract_v2 = _emit_contract_v2(effective)
     payload: dict[str, Any] = {
         "schema_version": effective,
         "generated_at": report.generated_at,
         "kit_version": report.kit_version,
-        "target_path": report.target_path,
+        "target_path": _sanitize_target_path_for_payload(
+            report.target_path, include_absolute=include_absolute_path
+        ),
         "profile_id": report.profile_id,
         "profile_title": report.profile_title,
         "summary_by_status": report.summary_by_status,
@@ -456,15 +500,25 @@ def write_json_report(
     path: Path,
     *,
     schema_version_override: str | None = None,
+    include_absolute_path: bool = False,
 ) -> None:
     """Write evaluation-report.json."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = report_to_dict(report, schema_version_override=schema_version_override)
+    payload = report_to_dict(
+        report,
+        schema_version_override=schema_version_override,
+        include_absolute_path=include_absolute_path,
+    )
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def write_markdown_report(report: ExecutionReport, path: Path) -> None:
+def write_markdown_report(
+    report: ExecutionReport,
+    path: Path,
+    *,
+    include_absolute_path: bool = False,
+) -> None:
     """Write evaluation-report.md."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -473,7 +527,10 @@ def write_markdown_report(report: ExecutionReport, path: Path) -> None:
     lines.append("")
     lines.append(f"- **Generated (UTC)**: `{report.generated_at}`")
     lines.append(f"- **Kit version**: `{report.kit_version}`")
-    lines.append(f"- **Target**: `{report.target_path}`")
+    _target_display = _sanitize_target_path_for_payload(
+        report.target_path, include_absolute=include_absolute_path
+    )
+    lines.append(f"- **Target**: `{_target_display}`")
     lines.append(f"- **Profile**: `{report.profile_id}` - {report.profile_title}")
     if report.scorecard_path:
         lines.append(f"- **Scorecard file**: `{report.scorecard_path}`")
@@ -622,13 +679,24 @@ def write_reports(
     output_dir: Path,
     *,
     schema_version_override: str | None = None,
+    include_absolute_path: bool = False,
 ) -> tuple[Path, Path]:
-    """Write JSON and Markdown reports; return paths."""
+    """Write JSON and Markdown reports; return paths.
+
+    ``include_absolute_path`` is forwarded to both writers so the on-disk
+    payload either sanitizes ``target_path`` (default, privacy-by-default) or
+    keeps the full absolute path the operator passed in.
+    """
 
     json_path = output_dir / "evaluation-report.json"
     md_path = output_dir / "evaluation-report.md"
-    write_json_report(report, json_path, schema_version_override=schema_version_override)
-    write_markdown_report(report, md_path)
+    write_json_report(
+        report,
+        json_path,
+        schema_version_override=schema_version_override,
+        include_absolute_path=include_absolute_path,
+    )
+    write_markdown_report(report, md_path, include_absolute_path=include_absolute_path)
     return json_path, md_path
 
 
