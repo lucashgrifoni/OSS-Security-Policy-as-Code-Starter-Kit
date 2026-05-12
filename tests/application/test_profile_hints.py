@@ -28,14 +28,67 @@ def test_recommendation_includes_signals_for_hardened_example(tmp_path: Path) ->
     assert any(s["profile_id"].startswith("github-level") for s in rec.suggestions)
 
 
-def test_recommendation_suggests_release_hardening_when_github_evidence_present(tmp_path: Path) -> None:
+def test_recommendation_suggests_release_hardening_when_workflows_and_evidence_present(
+    tmp_path: Path,
+) -> None:
+    """release-hardening-2 must require BOTH a CI signal AND release evidence (M-005)."""
+
+    # Workflow signal (was missing in the legacy test, which therefore relied on the
+    # over-permissive OR heuristic that we tightened in M-005).
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "ci.yml").write_text(
+        "on: push\njobs: {x: {runs-on: ubuntu-latest, steps: [{run: echo hi}]}}\n",
+        encoding="utf-8",
+    )
+    # Release-shaped evidence.
     ev = tmp_path / ".oss-policy-kit" / "evidence"
     ev.mkdir(parents=True)
-    (ev / "branch-protection.json").write_text(json.dumps({"schema_version": "x"}), encoding="utf-8")
+    (ev / "branch-protection.json").write_text(
+        json.dumps({"schema_version": "x"}), encoding="utf-8"
+    )
     rec = build_profile_recommendation(tmp_path)
     pids = [s["profile_id"] for s in rec.suggestions]
     assert any(p.startswith("github-release-hardening") for p in pids)
     assert any(s["id"] == "github_evidence_json_files" for s in rec.signals_detected)
+
+
+def test_recommendation_does_not_suggest_release_hardening_without_evidence(
+    tmp_path: Path,
+) -> None:
+    """Single workflow alone must NOT trigger release-hardening-2 (M-005 regression guard).
+
+    This is the case that motivated MELHORIA-005: the examples/vulnerable-repo
+    fixture only ships an intentionally-unsafe workflow, and the old OR heuristic
+    confidently recommended release-hardening-2 against it.
+    """
+
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "unsafe.yml").write_text(
+        "name: x\non: pull_request_target\njobs: {y: {runs-on: ubuntu-latest, steps: [{run: echo}]}}\n",
+        encoding="utf-8",
+    )
+    rec = build_profile_recommendation(tmp_path)
+    pids = [s["profile_id"] for s in rec.suggestions]
+    assert not any(
+        p.startswith("github-release-hardening") for p in pids
+    ), f"release-hardening must not be recommended without evidence; got: {pids}"
+
+
+def test_recommendation_does_not_suggest_release_hardening_with_evidence_alone(
+    tmp_path: Path,
+) -> None:
+    """Release-shaped evidence without any workflow must NOT trigger release-hardening-2 (M-005)."""
+
+    ev = tmp_path / ".oss-policy-kit" / "evidence"
+    ev.mkdir(parents=True)
+    (ev / "branch-protection.json").write_text(
+        json.dumps({"schema_version": "x"}), encoding="utf-8"
+    )
+    rec = build_profile_recommendation(tmp_path)
+    pids = [s["profile_id"] for s in rec.suggestions]
+    assert not any(p.startswith("github-release-hardening") for p in pids), pids
 
 
 def test_recommendation_conservative_note_when_empty_repo(tmp_path: Path) -> None:
