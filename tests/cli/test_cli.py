@@ -350,6 +350,37 @@ def test_cli_collect_evidence_aws_dry_run_lists_three_files(tmp_path: Path, monk
     assert "us-east-2" not in out, "Probe must never echo variable values"
 
 
+def test_cli_collect_evidence_dry_run_accepts_missing_target(tmp_path: Path) -> None:
+    """``collect-evidence --dry-run`` must not require --target to exist (M-003).
+
+    The dry-run intent is "preview without touching the filesystem"; failing
+    on a missing target directory contradicts that contract.
+    """
+
+    runner = CliRunner()
+    missing = tmp_path / "does" / "not" / "exist"
+    assert not missing.exists()
+
+    result = runner.invoke(
+        app,
+        [
+            "collect-evidence",
+            "--target",
+            str(missing),
+            "--platform",
+            "github",
+            "--repo",
+            "owner/repo",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    out = _result_stdout(result)
+    assert "collect-evidence" in out and "dry-run" in out
+    # The target reported in the preview must be the (non-existing) path the user passed.
+    assert "exist" in out
+
+
 def test_cli_collect_evidence_azure_dry_run_lists_two_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     runner = CliRunner()
     repo = tmp_path / "az-target"
