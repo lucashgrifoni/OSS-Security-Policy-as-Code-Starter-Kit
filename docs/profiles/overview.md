@@ -159,6 +159,12 @@ Starting in v5.4.0 the kit also ships **bundled framework alignment profiles** (
 | s2c2f-l1-1 | 9 | framework alignment (advisory, OSS consumption) | no | see JSON |
 | appsec-sast-sca-1 | 11 | AppSec native bundle (hard-gate-capable with scan-sast) | **yes (with scan-sast)** | 7 / 2 / 2 |
 | iac-terraform-baseline-1 | 15 | IaC Terraform / OpenTofu baseline (advisory) | no | see JSON |
+| iac-cfn-baseline-1 | 7 | CloudFormation posture (advisory, paired with scan-cfn) | no | 1 / 0 / 6 |
+| iac-pulumi-baseline-1 | 7 | Pulumi Python posture (advisory, paired with scan-pulumi) | no | 1 / 0 / 6 |
+| iac-bicep-baseline-1 | 7 | Bicep posture (advisory, paired with scan-bicep) | no | 1 / 0 / 6 |
+| kubernetes-baseline-1 | 17 | Kubernetes manifest posture (advisory, paired with scan-k8s) | no | 1 / 0 / 16 |
+| container-baseline-1 | 11 | Container hardening posture (advisory) | no | 3 / 8 / 0 |
+| webhook-security-1 | 3 | Webhook receiver security (advisory, paired with the receiver) | no | 1 / 2 / 0 |
 
 > **Source for counts**: `python -m oss_policy_kit profiles --format json` (`controls` and `assurance_mix`) against the bundled catalog in this revision. Counts evolve as new controls are folded into existing profiles; the JSON output is the canonical source of truth for any given build.
 
