@@ -350,6 +350,23 @@ def test_cli_collect_evidence_aws_dry_run_lists_three_files(tmp_path: Path, monk
     assert "us-east-2" not in out, "Probe must never echo variable values"
 
 
+def test_cli_show_profiles_emits_deprecation_warning() -> None:
+    """`--show-profiles` continues to work but prints a deprecation warning (M-006).
+
+    Users should be guided to the canonical `profiles` subcommand.
+    """
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["--show-profiles"])
+    assert result.exit_code == 0, result.output
+    # Deprecation goes to stderr; CliRunner default merges streams into .output.
+    combined = (result.output or "") + (getattr(result, "stderr", "") or "")
+    assert "Deprecation" in combined
+    assert "profiles" in combined  # points users at the subcommand
+    # The profiles table still renders.
+    assert "Profile" in combined
+
+
 def test_cli_evaluate_output_dir_write_error_is_user_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

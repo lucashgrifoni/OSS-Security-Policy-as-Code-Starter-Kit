@@ -42,7 +42,10 @@ def cli_root(
         False,
         "--show-profiles",
         "-sp",
-        help="Show bundled profiles with full audience and description details, and exit.",
+        help=(
+            "DEPRECATED — use the 'profiles' subcommand. Show bundled profiles with full "
+            "audience and description details, and exit."
+        ),
     ),
     output_dir: Path = typer.Option(
         Path("out"),
@@ -137,6 +140,11 @@ def cli_root(
         typer.echo(kit_version)
         raise typer.Exit(0)
     if show_profiles:
+        stderr_console().print(
+            "[yellow]Deprecation:[/yellow] --show-profiles is deprecated; "
+            "use the 'profiles' subcommand "
+            "(e.g. `python -m oss_policy_kit profiles`)."
+        )
         try:
             _print_profiles_table(detailed=True, compact_layout=False)
         except LoadError as exc:
