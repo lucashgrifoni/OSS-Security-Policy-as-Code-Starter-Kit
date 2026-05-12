@@ -15,10 +15,16 @@ Scope (closed set, alphabetized):
 - ``DEP-UPDATE-001`` — automated dependency update tooling.
 - ``OSS-SCORECARD-001`` — OpenSSF Scorecard JSON aggregate.
 - ``PROV-VERIFY-061`` — provenance verification.
-- ``SAST-SEMGREP-064`` — Semgrep SAST evidence.
 - ``SEC-CODEQL-010`` — CodeQL / SAST workflow presence.
 - ``SEC-DEPREV-011`` — dependency-review / Snyk / Dependabot security
   updates workflow presence.
+
+``SAST-SEMGREP-064`` previously appeared here. It moved to
+:mod:`oss_policy_kit.application.evaluators_sast` in v5.8.0 so SAST
+adapters (Semgrep today; Trivy / Gitleaks / Grype tracked for v5.9.0)
+share a single dedicated public boundary instead of growing this pack.
+The evaluator function object itself is unchanged; ``EVALUATOR_REGISTRY``
+remains byte-equivalent.
 """
 
 from __future__ import annotations
@@ -34,7 +40,6 @@ SUPPLY_CHAIN_CONTROL_IDS: tuple[str, ...] = (
     "DEP-UPDATE-001",
     "OSS-SCORECARD-001",
     "PROV-VERIFY-061",
-    "SAST-SEMGREP-064",
     "SEC-CODEQL-010",
     "SEC-DEPREV-011",
 )
@@ -57,7 +62,6 @@ def build_supply_chain_evaluators() -> dict[str, Callable[[Any], EvalOutcome]]:
         "DEP-UPDATE-001": _e.eval_dep_update_001,
         "OSS-SCORECARD-001": _e.eval_oss_scorecard_001,
         "PROV-VERIFY-061": _e.eval_prov_verify_061,
-        "SAST-SEMGREP-064": _e.eval_sast_semgrep_064,
         "SEC-CODEQL-010": _e.eval_sec_codeql_010,
         "SEC-DEPREV-011": _e.eval_sec_deprev_011,
     }

@@ -53,6 +53,42 @@ Product orchestration and control semantics:
 - report assembly and status summarization
 - JSON and Markdown report emission
 
+#### Evaluator boundary modules
+
+`evaluators.py` remains the registry owner (`EVALUATOR_REGISTRY`) and
+holds the function bodies for v5.7-era controls. Public **boundary
+modules** sit alongside it; each exposes a closed list of control IDs
+and a `build_<bucket>_evaluators()` function that returns the same
+callables as the registry (byte-equivalence guarantee). External code
+that cares about a single pack should import from the boundary module
+instead of reaching into `evaluators.py`:
+
+| Module | Pack | Introduced in |
+|---|---|---|
+| `evaluators_governance.py` | Governance + release-changelog | v5.7.0 |
+| `evaluators_supply_chain.py` | Supply chain (SBOM, Scorecard, dep-update, CodeQL, dependency review, provenance verify) | v5.7.0 |
+| `evaluators_ci_cd.py` | CI/CD (workflow + Azure pipeline + AWS buildspec analysis) | v5.8.0 |
+| `evaluators_platform.py` | Repo / org / platform-side controls | v5.8.0 |
+| `evaluators_release.py` | Release artifacts (provenance, SBOM artifact-bound, deploy, audit stream, archive) | v5.8.0 |
+| `evaluators_vuln_management.py` | In-repo secret / pin / gitignore hygiene | v5.8.0 |
+| `evaluators_sast.py` | SAST adapters (Semgrep today; Trivy / Gitleaks / Grype tracked for v5.9.0) | v5.8.0 |
+| `evaluators_containers.py` | Container image hardening | pre-v5.7 |
+| `evaluators_k8s.py` | Kubernetes manifest posture | pre-v5.7 |
+| `evaluators_iac.py` | Terraform / OpenTofu posture | pre-v5.7 |
+| `evaluators_iac_cfn.py` | CloudFormation posture | v5.7.0 |
+| `evaluators_iac_pulumi.py` | Pulumi Python posture | v5.7.0 |
+| `evaluators_iac_bicep.py` | Bicep posture | v5.7.0 |
+| `evaluators_webhook.py` | Webhook receiver security | v5.7.0 |
+| `evaluators_fuzzing.py` | Fuzzing presence | pre-v5.7 |
+| `evaluators_common.py` | Shared evaluator utilities | pre-v5.7 |
+
+Moving function bodies into the new boundary modules is intentionally
+incremental (one bucket per minor release) so each move can be
+validated against the byte-equivalence guarantee in isolation.
+Promoting the whole set into a Python package
+(`oss_policy_kit.application.evaluators.*`) is tracked for v6.0 (Fase 6
+of the maturity plan).
+
 ### Adapters (`oss_policy_kit.adapters`)
 
 Boundary adapters:
@@ -106,6 +142,37 @@ The public report schema remains under:
 - `reports/schema/evidence-azure-pipeline-governance.schema.json`
 - `reports/schema/evidence-aws-codebuild-project.schema.json`
 - `reports/schema/evidence-aws-codepipeline.schema.json`
+
+### Catalog and profile invariants
+
+The bundled catalog and profiles are guarded by four invariant suites so
+adding a new control, adding a new profile, or editing an existing entry
+cannot silently break the public contract. All four run as part of
+`python -m pytest`:
+
+- `tests/application/test_profile_schemas.py` -- every `profile.yaml`
+  declares the required fields (`id`, `title`, `description`,
+  `audience`, `controls`), the profile `id` matches its directory name,
+  every `control_id` it lists exists in `catalog.yaml`, and no
+  `control_id` appears twice in the same profile.
+- `tests/application/test_profile_maturity_drift.py` -- profiles
+  classified as extreme hard-gate (`-level-3`, `release-hardening-3`)
+  must keep at least 15% evidence-backed weight; framework-aligned
+  hard-gate-capable profiles need at least 5%; advisory profiles must
+  surface their disposition in title or description.
+- `tests/data/test_catalog_consistency.py` -- every control in
+  `catalog.yaml` exposes the required fields with values from the
+  documented enum sets (`category`, `lifecycle`, `assurance`,
+  `automation`, `weight`); no duplicate ids.
+- `tests/data/test_evidence_schemas_versioned.py` -- every
+  `*.schema.json` under `src/oss_policy_kit/data/schema/` parses as a
+  JSON object, declares the JSON Schema 2020-12 draft, exposes a
+  well-formed `$id` ending in the file's basename, and is UTF-8 without
+  BOM (release-readiness contract).
+
+A standalone CLI mirror of these checks ships at
+`scripts/validate-bundled-profiles.py` for lightweight pre-commit / CI
+use without the full pytest harness.
 
 ## Evidence and trust model
 

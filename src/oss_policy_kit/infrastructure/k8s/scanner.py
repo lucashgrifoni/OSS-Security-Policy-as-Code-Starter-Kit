@@ -17,6 +17,7 @@ Each ``K8S-*`` evaluator is a thin reader of that JSON.
 from __future__ import annotations
 
 import re
+import shutil
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -620,6 +621,7 @@ def run_scan(
     helm_charts_discovered: list[str] = []
     helm_charts_rendered: list[str] = []
     helm_render_errors: list[dict[str, str]] = []
+    helm_tmp_root: Path | None = None
     if helm_render:
         from oss_policy_kit.infrastructure.k8s.helm_renderer import render_charts
 
@@ -630,6 +632,7 @@ def run_scan(
         helm_charts_discovered = list(rendered.charts_discovered)
         helm_charts_rendered = list(rendered.charts_rendered)
         helm_render_errors = list(rendered.render_errors)
+        helm_tmp_root = rendered.tmp_root
         if rendered.rendered_manifest_paths:
             extra_manifests, _extra_skipped, extra_parse_errors = _index_manifests(
                 repo_root, rendered.rendered_manifest_paths
@@ -647,20 +650,36 @@ def run_scan(
                 remaining_skipped.append(skipped)
             helm_skipped = remaining_skipped
 
-    findings: list[K8sFinding] = []
     try:
-        for _rid, fn in _RULES:
-            findings.extend(fn(repo_root, manifests))
-    except Exception as exc:  # noqa: BLE001 - one bad rule should not crash the scan
+        findings: list[K8sFinding] = []
+        try:
+            for _rid, fn in _RULES:
+                findings.extend(fn(repo_root, manifests))
+        except Exception as exc:  # noqa: BLE001 - one bad rule should not crash the scan
+            return K8sScanOutcome(
+                status="error",
+                tool_version=_kit_version(),
+                files_scanned=[_normalize_target(repo_root, p) for p in files],
+                helm_templates_skipped=helm_skipped,
+                parse_errors=parse_errors,
+                findings=[],
+                scanned_at=_utc_iso(),
+                diagnostics=f"rule engine raised {type(exc).__name__}: {exc}",
+                helm_render_attempted=helm_attempted,
+                helm_available=helm_available_flag,
+                helm_version=helm_version_str,
+                helm_charts_discovered=helm_charts_discovered,
+                helm_charts_rendered=helm_charts_rendered,
+                helm_render_errors=helm_render_errors,
+            )
         return K8sScanOutcome(
-            status="error",
+            status="ok",
             tool_version=_kit_version(),
             files_scanned=[_normalize_target(repo_root, p) for p in files],
             helm_templates_skipped=helm_skipped,
             parse_errors=parse_errors,
-            findings=[],
+            findings=findings,
             scanned_at=_utc_iso(),
-            diagnostics=f"rule engine raised {type(exc).__name__}: {exc}",
             helm_render_attempted=helm_attempted,
             helm_available=helm_available_flag,
             helm_version=helm_version_str,
@@ -668,21 +687,9 @@ def run_scan(
             helm_charts_rendered=helm_charts_rendered,
             helm_render_errors=helm_render_errors,
         )
-    return K8sScanOutcome(
-        status="ok",
-        tool_version=_kit_version(),
-        files_scanned=[_normalize_target(repo_root, p) for p in files],
-        helm_templates_skipped=helm_skipped,
-        parse_errors=parse_errors,
-        findings=findings,
-        scanned_at=_utc_iso(),
-        helm_render_attempted=helm_attempted,
-        helm_available=helm_available_flag,
-        helm_version=helm_version_str,
-        helm_charts_discovered=helm_charts_discovered,
-        helm_charts_rendered=helm_charts_rendered,
-        helm_render_errors=helm_render_errors,
-    )
+    finally:
+        if helm_tmp_root is not None:
+            shutil.rmtree(helm_tmp_root, ignore_errors=True)
 
 
 def render_evidence_payload(outcome: K8sScanOutcome, *, target: Path) -> dict[str, Any]:

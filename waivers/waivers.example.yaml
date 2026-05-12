@@ -39,3 +39,27 @@ waivers:
   #   owner: platform-security
   #   status: approved
   #   expires_at: "2027-01-31"
+
+  # - control_id: CONT-RUNTIME-003
+  #   justification: >
+  #     The Dockerfile uses `curl ... | bash` only inside a base-image
+  #     build stage rebuilt nightly from a pinned digest; the fetched
+  #     script is verified by sha256sum against a tracked value before
+  #     piping to bash. CONT-IMAGE pins remain enforced.
+  #   owner: container-platform
+  #   status: approved
+  #   expires_at: "2027-01-31"
+  #   applies_to:
+  #     - "build/Dockerfile.base"
+
+  # - control_id: K8S-PSS-007
+  #   justification: >
+  #     allowPrivilegeEscalation=false is enforced cluster-wide via a
+  #     Kyverno ClusterPolicy in the platform repo (see ADR-37); the
+  #     in-repo manifest intentionally omits the field because the
+  #     admission controller mutates it. Evidence in
+  #     .oss-policy-kit/evidence/k8s-baseline.json reflects the
+  #     post-admission posture.
+  #   owner: platform-k8s
+  #   status: approved
+  #   expires_at: "2027-01-31"

@@ -193,7 +193,11 @@ def _load_cfn(path: Path) -> dict[str, Any] | None:
             return None
         return parsed if _looks_like_cfn(parsed) else None
     try:
-        parsed = yaml.load(text, Loader=_CfnSafeLoader)
+        # _CfnSafeLoader is a SafeLoader subclass that only adds constructors
+        # for CloudFormation short-form intrinsics (!Ref/!Sub/!GetAtt/...).
+        # SafeLoader semantics are preserved; yaml.load is required so the
+        # custom Loader= argument can be passed (yaml.safe_load forbids it).
+        parsed = yaml.load(text, Loader=_CfnSafeLoader)  # nosec B506
     except yaml.YAMLError:
         return None
     return parsed if _looks_like_cfn(parsed) else None
