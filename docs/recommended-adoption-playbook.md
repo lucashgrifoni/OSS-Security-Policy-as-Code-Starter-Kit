@@ -32,7 +32,7 @@ Also ensure:
 python -m pip install -e ".[dev]"
 python -m ruff check .
 python -m ruff format --check .
-python -m mypy src
+python -m mypy src/oss_policy_kit
 python -m pytest
 ```
 

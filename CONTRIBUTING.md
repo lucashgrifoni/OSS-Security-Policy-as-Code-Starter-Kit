@@ -28,7 +28,7 @@ Run these before opening or updating a pull request:
 ```bash
 python -m ruff check .
 python -m ruff format --check .
-python -m mypy src
+python -m mypy src/oss_policy_kit
 python -m pytest
 python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck
 ```

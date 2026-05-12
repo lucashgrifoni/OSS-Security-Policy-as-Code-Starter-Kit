@@ -8,7 +8,7 @@
 - [ ] `python -m pytest`
 - [ ] `python -m ruff check .`
 - [ ] `python -m ruff format --check .`
-- [ ] `python -m mypy src`
+- [ ] `python -m mypy src/oss_policy_kit`
 - [ ] Relevant CLI smoke test executed (examples and/or `python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck`, or the top-level equivalent without `evaluate`)
 - [ ] If packaging, metadata, or `.github/workflows/github-ci-cd.yml` / `.github/workflows/security-ci-cd.yml` changed: `python -m build` and `python scripts/twine_check_dist.py` (after cleaning `dist/`, `build/`, `src/*.egg-info`; avoids fragile `dist/*` on Windows PowerShell)
 

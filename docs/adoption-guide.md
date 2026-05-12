@@ -227,7 +227,7 @@ The summary object includes ordered status counts, `controls_total`, and warning
 3. **Governance docs** - copy from `templates/docs/` (`SECURITY.md`, `CONTRIBUTING.md`, etc.) and customize.
 4. **Pins** - templates already use full action SHAs; keep that discipline when upgrading actions (see maintainer docs for resolving new SHAs).
 
-Adapt `python-version`, install paths, and branch filters to your repository. The template assumes `pip install -e ".[dev]"`, `ruff`, `mypy src`, and `pytest`.
+Adapt `python-version`, install paths, and branch filters to your repository. The template assumes `pip install -e ".[dev]"`, `ruff`, `python -m mypy src/oss_policy_kit`, and `pytest`.
 
 For a deterministic runbook with copy/paste commands, use:
 

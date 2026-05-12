@@ -52,7 +52,11 @@ DEFAULT_FORBIDDEN_TOKENS: tuple[tuple[str, str, bool], ...] = (
         True,
     ),
     ("windows-home-path", r"[A-Za-z]:\\+Users\\+[^\s\\]+", True),
-    ("posix-home-path", r"/(?:Users|home)/[^\s/]+", True),
+    # Anchor the leading slash so prose like ``Roles/Users/Groups`` or
+    # ``foo/home/bar`` is not mistaken for a real POSIX home path. Only
+    # match when the slash starts a path component (start-of-line, or
+    # preceded by a non-identifier character such as whitespace or quotes).
+    ("posix-home-path", r"(?<![A-Za-z0-9_])/(?:Users|home)/[^\s/]+", True),
     ("author-map-file", _LOCAL_AUTHOR_MAP, False),
     ("private-planning-dir", _PRIVATE_PLANNING_DIR + "/", False),
     ("validation-pack-prefix", _VALIDATION_PREFIX, False),
@@ -72,6 +76,10 @@ ALLOWLISTED_PATHS: frozenset[str] = frozenset(
         # examples on purpose — these are not real credentials.
         ".gitleaks.toml",
         "tests/infrastructure/test_aws_ci.py",
+        # This test pins the public-hygiene regexes themselves and therefore
+        # has to embed synthetic POSIX home-path fixtures to exercise the
+        # matcher. The strings are not real paths.
+        "tests/test_check_public_hygiene.py",
     }
 )
 

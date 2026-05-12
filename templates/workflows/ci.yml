@@ -28,7 +28,7 @@ jobs:
       - name: Ruff format
         run: ruff format --check .
       - name: Mypy
-        run: mypy src
+        run: python -m mypy src/oss_policy_kit
       - name: Pytest
         run: python -m pytest
 

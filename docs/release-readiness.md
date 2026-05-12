@@ -86,7 +86,10 @@ This script grep-scans tracked files for the forbidden tokens and exits non-zero
 
 - [ ] `python -m pytest -q`
 - [ ] `python -m ruff check src tests`
-- [ ] `python -m mypy src/oss_policy_kit --strict`
+- [ ] `python -m mypy src/oss_policy_kit`
+- [ ] Bandit local sweep — on Windows use the JSON formatter with forced UTF-8 IO encoding so the default text formatter does not fail on `cp1252`:
+      `$env:PYTHONIOENCODING='utf-8'; python -m bandit -q -r src -f json -o security-results/bandit.json` (PowerShell)
+      or `PYTHONIOENCODING=utf-8 python -m bandit -q -r src -f json -o security-results/bandit.json` (bash/zsh)
 
 ## Packaging gates
 

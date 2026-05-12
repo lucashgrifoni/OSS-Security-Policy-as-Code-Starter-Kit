@@ -80,7 +80,7 @@ stages:
           - script: $(venvPython) -m ruff format --check .
             displayName: Ruff format check
 
-          - script: $(venvPython) -m mypy src
+          - script: $(venvPython) -m mypy src/oss_policy_kit
             displayName: Mypy
 
           - script: |

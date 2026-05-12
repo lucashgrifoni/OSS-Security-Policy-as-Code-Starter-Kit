@@ -8,7 +8,7 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 
 ## Quick Links
 
-- [What's new in v5.7.0](#whats-new-in-v570)
+- [What's new in v5.8.0](#whats-new-in-v580)
 - [Current Release State](#current-release-state)
 - [Recommended First Command](#recommended-first-command)
 - [Quickstart](#quickstart)
@@ -29,7 +29,7 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 
 | Area | What you get |
 | --- | --- |
-| Current release | `v5.7.0` / Python package `oss-policy-kit==5.7.0` |
+| Current release | `v5.8.0` / Python package `oss-policy-kit==5.8.0` |
 | Input | A local repository clone |
 | Output | `evaluation-report.json` and `evaluation-report.md` (optional SARIF 2.1.0 via `--sarif-output`) |
 | Core scope | Clone-visible governance and GitHub/Azure/AWS CI/CD signals |
@@ -48,7 +48,7 @@ python -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile gi
 
 This confirms the CLI, bundled profile data, example repository, and report generation path before you evaluate your own repository.
 
-### Two-line bootstrap (v5.4.0+; available in current v5.7.0)
+### Two-line bootstrap (v5.4.0+; available in current v5.8.0)
 
 For brand new adopters, `init` collapses the first run into two commands:
 
@@ -74,12 +74,12 @@ Inputs map 1:1 to CLI flags. Full reference and SARIF forwarding example in [doc
 
 ## Current Release State
 
-`v5.7.0` is the current public release line. It is an additive minor release on top of `v5.6.0`: the JSON report contract remains `reports/1.0`, legacy `0.3` and `0.2` report shapes remain selectable, and the existing profile IDs stay stable. The release adds three new cloud-platform IaC parsers (CloudFormation, Pulumi Python, Bicep), an opt-in Helm template pre-pass for `scan-k8s`, two webhook-security signal controls (`SEC-WEBHOOK-001..002`), and continues the internal `evaluators.py` decomposition (governance + supply-chain shims, byte-equivalent registry). v5.6.0 (Kubernetes manifest coverage + container hardening), v5.5.0 (Terraform IaC posture), and v5.4.0 (`init` wizard + `scan-sast` + Semgrep adapter) remain part of the catalog. See `CHANGELOG.md` for full details.
+`v5.8.0` is the current public release line. It is an additive minor release on top of `v5.7.0`: the JSON report contract remains `reports/1.0`, legacy `0.3` and `0.2` report shapes remain selectable, and every existing profile ID, control ID, evaluator function object, and CLI surface stays stable. The release lands the v5.7 → v5.8 catalog-quality and refactor trajectory: catalog/profile/evidence invariant test suites, five new evaluator package boundaries (`evaluators_ci_cd`, `_platform`, `_release`, `_vuln_management`, `_sast`) with `EVALUATOR_REGISTRY` identity-equivalent across the transition, an advisory profile banner expanded to the full bundled set, a completed maturity matrix for all 36 profiles, a 15-minute quickstart, the `scripts/validate-bundled-profiles.py` validator, and a cluster of maintenance fixes (BOM-stripped GitHub evidence schemas, README factual drift, Helm pre-pass tmp cleanup, `engine.evaluate_repository` default-contract docstring, Bandit B506 rationale). v5.7.0 (Pulumi/CFN/Bicep IaC + Helm pre-pass + SEC-WEBHOOK + evaluators steps 2-3), v5.6.0 (Kubernetes manifest coverage + container hardening), v5.5.0 (Terraform IaC posture), and v5.4.0 (`init` wizard + `scan-sast` + Semgrep adapter) remain part of the catalog. See `CHANGELOG.md` for full details.
 
 | Surface | Current state |
 | --- | --- |
-| Package | `oss-policy-kit==5.7.0` |
-| GitHub Release | `v5.7.0` is the current release target; `v5.6.0`, `v5.5.0`, `v5.4.0`, and earlier versions remain available as predecessors |
+| Package | `oss-policy-kit==5.8.0` |
+| GitHub Release | `v5.8.0` is the current release target; `v5.7.0`, `v5.6.0`, `v5.5.0`, `v5.4.0`, and earlier versions remain available as predecessors |
 | Default branch | `master` |
 | License | Apache-2.0 (`LICENSE` + `NOTICE`) |
 | Report contract | `reports/1.0` by default; `0.3` and `0.2` remain selectable via `--report-json-contract`. `0.1` was removed in v5.0.0 |
@@ -87,16 +87,19 @@ Inputs map 1:1 to CLI flags. Full reference and SARIF forwarding example in [doc
 
 The repository is designed to be reproducible from a clean clone: install the package, run the built-in examples, and compare the generated JSON/Markdown reports.
 
-## What's new in v5.7.0
+## What's new in v5.8.0
 
 Highlights only — full detail in [`CHANGELOG.md`](CHANGELOG.md). For migration notes from earlier releases, see [`docs/v5.1.0-migration-guide.md`](docs/v5.1.0-migration-guide.md) and [`docs/v5.0.0-migration-guide.md`](docs/v5.0.0-migration-guide.md).
 
-- **Three new cloud-platform IaC parsers**: `scan-cfn` for CloudFormation (YAML + JSON, tolerant of short-form intrinsics `!Ref` / `!Sub` / `!GetAtt`), `scan-pulumi` for Pulumi Python programs (uses stdlib `ast`), and `scan-bicep` for Bicep modules (pure-Python regex tokenizer, no `bicep` CLI required). Each ships a 6-rule pack, an evidence schema (`oss-policy-kit/evidence/iac-{cfn,pulumi,bicep}/v1`), and an advisory bundled profile (`iac-cfn-baseline-1`, `iac-pulumi-baseline-1`, `iac-bicep-baseline-1`).
-- **Opt-in Helm template pre-pass for `scan-k8s`** via the new `--helm-render` flag. When the system `helm` CLI is available, `scan-k8s` discovers every `Chart.yaml` under the target, renders the chart via `helm template`, and merges the rendered manifests into the regular K8s scan. Charts that fail to render are recorded in evidence diagnostics; missing `helm` CLI is reported as a non-fatal note. Default behavior (skipping unrendered `{{ ... }}` templates) is unchanged.
-- **Webhook receiver security pack** (`SEC-WEBHOOK-001` signature validation, `SEC-WEBHOOK-002` replay defense). Both ship as `lifecycle: experimental`, `assurance: signal`. Returns `not-applicable` for repositories with no webhook receiver, so non-receiver repos are never penalized. New profile `webhook-security-1`. Total bundled profiles: **32 → 36**.
-- **`evaluators.py` decomposition steps 2 & 3**: new `evaluators_governance.py` and `evaluators_supply_chain.py` modules introduced as public package boundaries. `EVALUATOR_REGISTRY` is byte-equivalent across the v5.6 → v5.7 transition (validated by a dedicated invariant test). Future v5.8 work will move the function bodies into these modules incrementally.
+- **Catalog / profile / evidence invariant test suites.** Three new test modules pin properties that previously had to be checked by hand: catalog consistency (unique IDs, recognized lifecycle/assurance, no orphan controls), evidence schema versioning (every packaged `evidence-*.schema.json` declares its `$schema` and explicit `oss-policy-kit/evidence/.../v<n>` version, with the packaged copy and the `reports/schema/` mirror byte-identical), and profile-maturity-matrix drift (`docs/profiles/overview.md` is locked to reflect the actual lifecycle composition of every bundled profile).
+- **`evaluators.py` decomposition steps 4-8 — five new public package boundaries.** Following the v5.7 governance / supply-chain extraction, v5.8 adds `evaluators_ci_cd.py` (`CI-*`), `evaluators_platform.py` (`PLAT-*`, `GH-PLAT-*`, `AZ-PLAT-*`), `evaluators_release.py` (`REL-*`, `GH-REL-*`, release archive), `evaluators_vuln_management.py` (`DEP-UPDATE-*`, dependency review, fuzzing aggregation), and `evaluators_sast.py` (dedicated SAST adapter surface; `SAST-SEMGREP-064` moved here from supply-chain so v5.9 adapters such as Trivy / Gitleaks / Grype plug into a single boundary). All five modules re-export the existing callables — `EVALUATOR_REGISTRY` is **identity-equivalent** to v5.7.0 (validated by `tests/application/test_evaluators_v58_shims.py`).
+- **Advisory profile banner expanded to the full bundled set.** The `[advisory profile]` operator banner now fires for every bundled advisory profile (IaC posture profiles, Kubernetes, container, webhook-security, AppSec native, plus every framework-alignment profile: `osps-*`, `slsa-*`, `ssdf-*`, `cis-*`, `owasp-*`, `s2c2f-*`, `cra-*`). Operators get consistent guidance to run `--fail-on degraded` (not `fail`) on every advisory profile.
+- **Profile maturity matrix completed for all 36 bundled profiles.** `docs/profiles/overview.md` now lists every bundled profile with its lifecycle blend, assurance blend, recommended `--fail-on` setting, and adoption stage. Locked by `tests/application/test_profile_maturity_drift.py`.
+- **15-minute quickstart.** New [`docs/quickstart-15-min.md`](docs/quickstart-15-min.md) walks a brand-new adopter from `pip install` to a passing gate against the hardened example in under 15 minutes (install → `init` → first `evaluate` → read the report → wire a CI gate → add the first waiver).
+- **`scripts/validate-bundled-profiles.py`.** New maintainer-side validator that loads every bundled profile, checks each `control_ids` member against the catalog, surfaces unknown IDs / removed IDs / orphan controls, and emits a non-zero exit code on any drift.
+- **Fixes.** Stripped UTF-8 BOM from three GitHub evidence schemas (`evidence-github-environment-protection`, `evidence-github-rulesets`, `evidence-github-secret-scanning`); README factual drift corrected (release row, profile count `32 → 36`, anchor for the "What's new" section, two-line bootstrap version, pipeline exit codes `0 / 1 / 2 / 3`); Helm pre-pass tmp-directory leak (`HelmRenderOutcome.tmp_root` is now surfaced and `scan-k8s` cleans it up via `try/finally`); `engine.evaluate_repository` default contract documented (programmatic default stays `"0.3"` for v4.x callers, CLI / config / init template default to `"1.0"`); Bandit B506 on the CFN parser annotated with rationale (`_CfnSafeLoader` is a `SafeLoader` subclass that only adds CFN intrinsic constructors).
 
-There are no breaking changes in `v5.7.0`. The `--fail-on` semantics, JSON report contracts (`reports/1.0`, `0.3`, `0.2` byte-stable), Markdown report layout, and the surfaces of `evaluate` / `evaluate-many` / `recommend-profile` / `scaffold-evidence` / `collect-evidence` / `diff-reports` / `init` / `scan-sast` / `scan-iac` / `scan-k8s` are unchanged. No new hard dependencies were added.
+There are no breaking changes in `v5.8.0`. The `--fail-on` semantics, JSON report contracts (`reports/1.0`, `0.3`, `0.2` byte-stable), Markdown report layout, the surfaces of `evaluate` / `evaluate-many` / `recommend-profile` / `scaffold-evidence` / `collect-evidence` / `diff-reports` / `init` / `scan-sast` / `scan-iac` / `scan-k8s` / `scan-cfn` / `scan-pulumi` / `scan-bicep`, every profile ID, every control ID, and `EVALUATOR_REGISTRY` itself are unchanged. No new hard dependencies were added.
 
 ## What This Kit Does
 

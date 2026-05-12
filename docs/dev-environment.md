@@ -46,6 +46,30 @@ python -m ruff check src/ tests/
 python -m mypy src/oss_policy_kit
 ```
 
+## Bandit (local SAST sweep)
+
+Bandit is part of the `[dev]` extra. On Windows, the default text formatter
+can fail with `UnicodeEncodeError` on the system code page (`cp1252`). Use
+the JSON formatter and force UTF-8 IO encoding for a robust local run:
+
+```powershell
+New-Item -ItemType Directory -Force security-results | Out-Null
+$env:PYTHONIOENCODING = "utf-8"
+python -m bandit -q -r src -f json -o security-results/bandit.json
+```
+
+Equivalent on bash / zsh:
+
+```bash
+mkdir -p security-results
+PYTHONIOENCODING=utf-8 python -m bandit -q -r src -f json -o security-results/bandit.json
+```
+
+The Azure Pipelines template already uses the JSON formatter
+(`pipelines/azure/azure-pipelines.yml`); on GitHub Actions the equivalent
+SARIF-producing scanners (Semgrep, Trivy, Snyk Code, CodeQL) run in
+`Security CI/CD` instead.
+
 ## CLI smoke checks
 
 ```powershell
