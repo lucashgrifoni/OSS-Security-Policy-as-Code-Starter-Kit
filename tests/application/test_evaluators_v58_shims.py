@@ -52,7 +52,6 @@ from oss_policy_kit.application.evaluators_vuln_management import (
     build_vuln_management_evaluators,
 )
 
-
 _NEW_PACKS: tuple[tuple[str, tuple[str, ...], object], ...] = (
     ("ci_cd", CI_CD_CONTROL_IDS, build_ci_cd_evaluators),
     ("platform", PLATFORM_CONTROL_IDS, build_platform_evaluators),
