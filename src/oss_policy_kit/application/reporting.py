@@ -385,6 +385,7 @@ def report_to_dict_v1(report: ExecutionReport) -> dict[str, Any]:
         "target_path": report.target_path,
         "profile": profile_block,
         "summary_by_status": report.summary_by_status,
+        "controls_total": sum(report.summary_by_status.values()),
         "summary_by_gate_role": compute_summary_by_gate_role(report.summary_by_status),
         "gate_execution_model": GATE_EXECUTION_MODEL_V2,
         "results": results_v1,

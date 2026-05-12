@@ -244,6 +244,16 @@ def test_v1_payload_uses_repo_to_dict_dispatch(v1_validator: Draft202012Validato
     assert "evidence_provenance_version" in payload
 
 
+def test_v1_controls_total_in_payload(v1_validator: Draft202012Validator) -> None:
+    """reports/1.0 must surface controls_total at the top level (M-001)."""
+
+    report = _make_report([_make_result()])
+    payload = report_to_dict_v1(report)
+    v1_validator.validate(payload)
+    assert "controls_total" in payload
+    assert payload["controls_total"] == sum(payload["summary_by_status"].values())
+
+
 def test_v1_strict_no_unknown_top_level_keys(v1_validator: Draft202012Validator) -> None:
     """additionalProperties:false — adding a stray key must fail validation."""
 
