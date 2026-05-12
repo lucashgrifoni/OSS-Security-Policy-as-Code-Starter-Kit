@@ -577,10 +577,16 @@ def _print_health_strip(
 #: visible at the top of every interactive evaluate run.
 _ADVISORY_ONLY_PROFILE_IDS: frozenset[str] = frozenset(
     {
+        "container-baseline-1",
         "cra-eu-ready-1",
         "github-aws-level-2",
         "github-azure-level-2",
+        "iac-bicep-baseline-1",
+        "iac-cfn-baseline-1",
+        "iac-pulumi-baseline-1",
         "iac-terraform-baseline-1",
+        "kubernetes-baseline-1",
+        "webhook-security-1",
     }
 )
 
