@@ -6,6 +6,34 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## Unreleased
+
+UX, contract, and privacy fixes following an internal audit. No new controls, profiles, flags (other than one privacy opt-in), schemas, or subcommands.
+
+### Fixed
+
+- **Privacy: `target_path` no longer leaks the auditor's home directory.** The default `evaluation-report.json` and `evaluation-report.md` `target_path` is now the target's basename (or `"."` when the target is the current working directory). Operator stdout / stderr keeps showing the absolute path. Use the new `evaluate --include-absolute-path` flag to keep the full path in the file payload when downstream tooling specifically expects it. **Breaking** for any consumer that parses `target_path` expecting an absolute path. (M-002)
+- **`recommend-profile` no longer suggests `release-hardening-2` from a single workflow alone.** The heuristic now requires BOTH a CI signal (workflow / pipeline / buildspec) AND release-shaped evidence JSON to be present in the clone. Repositories with only one of the two signals fall back to `*-level-1`. The previous behavior over-recommended `release-hardening-2` for any repo carrying a single workflow file — including the intentionally-unsafe `examples/vulnerable-repo`. (M-005)
+- **`collect-evidence --dry-run` no longer requires the target to exist.** Dry-run is preview-only; the existence check now only applies to the real collection path. (M-003)
+- **`evaluate --output-dir` returns EXIT=2 (not EXIT=3) when the path is unwritable.** Permission errors, missing parents, or a non-directory at the path now surface as `Error: Cannot write to --output-dir '<path>': <reason>` instead of `Unexpected error: <OS message>`. (M-004)
+
+### Added
+
+- **`controls_total` in the `reports/1.0` file payload.** The compact stdout JSON summary already exposed this field; the file did not. The new top-level integer equals `sum(summary_by_status.values())`. Contracts `0.3` and `0.2` are not touched. Schema (`evaluation-report-v1.schema.json`) updated accordingly. (M-001)
+
+### Deprecated
+
+- **`--show-profiles` (root option).** Still works, but emits a deprecation warning on stderr. Use the `profiles` subcommand: `python -m oss_policy_kit profiles` (default compact), `--format detailed`, or `--format json`. (M-006)
+
+### Docs
+
+- `docs/cli-reference.md`: the "Quick reference" table now lists all 12 subcommands. The previous table omitted `scan-bicep`, `scan-cfn`, `scan-pulumi`, and `scan-k8s`. Notes for `evaluate`, `recommend-profile`, `collect-evidence`, and the root `--show-profiles` row updated to reflect the M-002 / M-005 / M-003 / M-006 fixes above.
+- `docs/adoption-guide.md`, `docs/validation-walkthrough.md`, `docs/architecture.md`: switch examples and references to the `profiles` subcommand and document `--show-profiles` as a deprecated alias. The `recommend-profile` honesty callout is rewritten to reflect the AND requirement.
+- `pipelines/README.md` (new): clarifies that `pipelines/azure/azure-pipelines.yml` is the project's own Azure DevOps self-config, not an example.
+- `waivers/README.md` (new): clarifies the boundary between `waivers.example.yaml` (template for consumers) and `waivers.yaml` (the project's own, currently empty).
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.8.0
 
 This minor release continues the v5.7 catalog-quality and refactor trajectory. It is fully backwards-compatible: no profile id, control id, evaluator function object, report contract, or CLI surface changed. `EVALUATOR_REGISTRY` remains byte-equivalent across the v5.7 -> v5.8 transition (validated by dedicated invariant tests).
