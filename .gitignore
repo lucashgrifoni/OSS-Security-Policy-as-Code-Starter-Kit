@@ -1,13 +1,14 @@
 # Local assistant/workspace state
 .claude/
 .cursorrules
+.vscode/
+
 # Ignore local kit output everywhere; do not remove this broad rule.
 .oss-policy-kit/
 # Exception: version synthetic evidence for the bundled hardened-repo fixture only.
 !examples/hardened-repo/.oss-policy-kit/
 !examples/hardened-repo/.oss-policy-kit/evidence/
 !examples/hardened-repo/.oss-policy-kit/evidence/**
-.vscode/
 
 # Python caches, virtualenvs, and build outputs
 .coverage
@@ -15,8 +16,9 @@
 .pytest_cache/
 .ruff_cache/
 .venv/
-.venv-v5-baseline/
-.consumer-smoke-venv/
+.venv-*/
+venv/
+*-venv/
 __pycache__/
 *.egg-info/
 *.py[cod]
@@ -31,10 +33,7 @@ artifacts/
 out/
 sonar-report/
 test-runs/
-teste-projeto/
-# Per-auditor scratch directory used when running validation rounds locally; never public.
 .tmp-validation/
-# Local validation run outputs (per-auditor snapshots under reports/validacao-<date>/)
 reports/validacao-*/
 
 # Front-end local dependencies/build outputs
@@ -42,22 +41,8 @@ gitpage/dist/
 gitpage/node_modules/
 
 # Local secrets and private notes
+.env
+.env.*
 .secrets/
-docs/superpowers/
+secrets/
 private-notes/
-secrets/sonar.token
-
-# Maintainer-private planning documents kept at the repository root.
-# These are never intended for the public mirror; pinning them here prevents
-# `git add -A` / `git add .` from accidentally staging them during a release freeze.
-/Crit*.txt
-/Criterios*.txt
-/Secrets*.txt
-/*.private.md
-/*.private.txt
-
-.venv-v5-baseline/
-
-.venv/
-
-venv/

@@ -181,20 +181,18 @@ That behavior matters. A blocked pipeline should still leave behind actionable e
 
 **GitHub Actions break build behavior:** run the evaluator in a normal workflow step with `--fail-on fail`. The command writes `evaluation-report.json` and `evaluation-report.md` first. If any control resolves to `fail`, the process exits with code `1`, which marks the step, job, and required check as failed. Keep the output directory as an artifact with `if: always()` when you want reviewers to inspect the reports after a blocked PR or release job.
 
-The first GitHub Actions screenshot shows the current repository passing `github-level-1`. The second shows the same gate failing against the intentionally vulnerable fixture, which is the expected break-build path.
+You can reproduce both the pass and fail paths locally to confirm the exit-code contract before wiring it into CI:
 
-<p align="center">
-  <img src="../screenshots/10-github-actions-selfcheck-pass.png" alt="GitHub Actions self-check pass demo for github-level-1 showing pass=14." width="960">
-</p>
+```bash
+# Pass path against the current repository
+python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck-pass --fail-on fail
+echo "exit=$?"   # 0 when no control fails
 
-<p align="center">
-  <img src="../screenshots/11-github-actions-selfcheck-fail.png" alt="GitHub Actions self-check fail demo for github-level-1 against the vulnerable fixture showing fail=11, manual-review-required=1, and exit code 1." width="960">
-</p>
+# Fail path against the bundled vulnerable fixture
+python -m oss_policy_kit evaluate --target examples/vulnerable-repo --profile github-level-1 --output-dir ./out/selfcheck-fail --fail-on fail
+echo "exit=$?"   # 1 when at least one control fails
+```
 
 **Azure Pipelines break build behavior:** the same exit-code contract applies in a Bash or Command Line task on a Linux/Ubuntu agent. If `--fail-on fail` finds a failing control, Azure marks that task and job as failed after the reports have already been written. Publish the report directory with `PublishPipelineArtifact@1` and `condition: succeededOrFailed()` so the JSON and Markdown evidence remain available even when the gate blocks the run.
 
-The Azure screenshot is a failure-path demo against a minimal target. It demonstrates the break-build behavior; it is not a status claim for the current repository revision.
-
-<p align="center">
-  <img src="../screenshots/12-azure-pipelines-selfcheck-fail.png" alt="Sanitized Azure Pipelines Ubuntu agent step showing azure-level-1 reports written before Bash exits with code 1 under fail-on fail." width="960">
-</p>
+The same command above produces the failure-path evidence on an Azure Ubuntu agent; the JSON and Markdown reports are written before the non-zero exit, so the artifact remains publishable.

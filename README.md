@@ -195,7 +195,6 @@ Optional maintainer scripts under [`scripts/`](./scripts/):
 - `consumer_smoke.py` — install the wheel into a clean venv and exercise the CLI end-to-end.
 - `twine_check_dist.py` — run `twine check` against `dist/*.whl` / `dist/*.tar.gz`.
 - `check_public_hygiene.py` — fail-fast guard against private tokens leaking into public files.
-- `demo-video.ps1` — PowerShell helper to record a CLI demo GIF/video; not part of CI or packaging.
 
 ## Documentation
 
