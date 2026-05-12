@@ -6,13 +6,35 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
-## Unreleased
+## OSS Security Policy as Code Starter Kit v5.8.1 — 2026-05-12
 
 UX, contract, and privacy fixes following an internal audit. No new controls, profiles, flags (other than one privacy opt-in), schemas, or subcommands.
 
+### ⚠️ Breaking default change — `target_path` (M-002)
+
+`evaluation-report.json` and `evaluation-report.md` previously stored `target_path` as the resolved **absolute** path of the target on the operator's machine. When a report was attached to a PR artifact, GitHub Release, or vulnerability write-up, that value leaked the auditor's home directory and login name (the Windows and POSIX flavors of an operator's user directory both produce identifiable strings).
+
+**New default (privacy-by-default):**
+
+- `target_path` is the target's basename (e.g. `"hardened-repo"`)
+- when the target is the current working directory, `target_path` is `"."`
+- stdout / stderr operator messages still show the absolute path (local-only)
+- SARIF already emitted `uri: "."` for repo-level findings and is unchanged
+
+**Affected:** any pipeline / dashboard / database that parses `target_path` and expects an absolute path. Both contracts `reports/1.0` and `reports/0.3` (and `0.2`) are sanitized.
+
+**Migration — opt back into the legacy behavior:**
+
+```bash
+python -m oss_policy_kit evaluate --target <repo> --profile <id> \
+  --output-dir <dir> --include-absolute-path
+```
+
+Use `--include-absolute-path` only when downstream tooling specifically expects an absolute path; do not enable it for reports that will be published or shared.
+
 ### Fixed
 
-- **Privacy: `target_path` no longer leaks the auditor's home directory.** The default `evaluation-report.json` and `evaluation-report.md` `target_path` is now the target's basename (or `"."` when the target is the current working directory). Operator stdout / stderr keeps showing the absolute path. Use the new `evaluate --include-absolute-path` flag to keep the full path in the file payload when downstream tooling specifically expects it. **Breaking** for any consumer that parses `target_path` expecting an absolute path. (M-002)
+- **Privacy: `target_path` no longer leaks the auditor's home directory.** See the breaking-default section above for details and the `--include-absolute-path` opt-in. (M-002)
 - **`recommend-profile` no longer suggests `release-hardening-2` from a single workflow alone.** The heuristic now requires BOTH a CI signal (workflow / pipeline / buildspec) AND release-shaped evidence JSON to be present in the clone. Repositories with only one of the two signals fall back to `*-level-1`. The previous behavior over-recommended `release-hardening-2` for any repo carrying a single workflow file — including the intentionally-unsafe `examples/vulnerable-repo`. (M-005)
 - **`collect-evidence --dry-run` no longer requires the target to exist.** Dry-run is preview-only; the existence check now only applies to the real collection path. (M-003)
 - **`evaluate --output-dir` returns EXIT=2 (not EXIT=3) when the path is unwritable.** Permission errors, missing parents, or a non-directory at the path now surface as `Error: Cannot write to --output-dir '<path>': <reason>` instead of `Unexpected error: <OS message>`. (M-004)
