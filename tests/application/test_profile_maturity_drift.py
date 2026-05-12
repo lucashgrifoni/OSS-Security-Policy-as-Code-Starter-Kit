@@ -54,9 +54,7 @@ import yaml
 from oss_policy_kit.cli.profiles import _profile_maturity_label
 
 PROFILES_DIR = Path(__file__).resolve().parents[2] / "src" / "oss_policy_kit" / "data" / "profiles"
-CATALOG_PATH = (
-    Path(__file__).resolve().parents[2] / "src" / "oss_policy_kit" / "data" / "controls" / "catalog.yaml"
-)
+CATALOG_PATH = Path(__file__).resolve().parents[2] / "src" / "oss_policy_kit" / "data" / "controls" / "catalog.yaml"
 
 # Tiered thresholds derived from the current bundle (Fase 1 of the
 # amadurecimento plan, opcao A). Update intentionally if the catalog
@@ -181,7 +179,7 @@ def test_bucket_population_floor() -> None:
     """
 
     assert len(_EXTREME) >= 6, f"Expected at least 6 extreme hard-gate profiles; found {len(_EXTREME)}"
-    assert (
-        len(_FRAMEWORK_HARD_GATE) >= 2
-    ), f"Expected at least 2 framework-aligned hard-gate-capable profiles; found {len(_FRAMEWORK_HARD_GATE)}"
+    assert len(_FRAMEWORK_HARD_GATE) >= 2, (
+        f"Expected at least 2 framework-aligned hard-gate-capable profiles; found {len(_FRAMEWORK_HARD_GATE)}"
+    )
     assert len(_ADVISORY) >= 14, f"Expected at least 14 advisory profiles; found {len(_ADVISORY)}"

@@ -23,13 +23,7 @@ from typing import Any
 
 import pytest
 
-SCHEMA_DIR = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "oss_policy_kit"
-    / "data"
-    / "schema"
-)
+SCHEMA_DIR = Path(__file__).resolve().parents[2] / "src" / "oss_policy_kit" / "data" / "schema"
 
 EXPECTED_DRAFT = "https://json-schema.org/draft/2020-12/schema"
 

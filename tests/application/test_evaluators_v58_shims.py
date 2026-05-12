@@ -72,9 +72,7 @@ def test_every_control_in_pack_has_registry_entry(
 
 
 @pytest.mark.parametrize("pack_name,_control_ids,builder", _NEW_PACKS, ids=lambda x: x if isinstance(x, str) else "")
-def test_shim_returns_identical_callables(
-    pack_name: str, _control_ids: tuple[str, ...], builder: object
-) -> None:
+def test_shim_returns_identical_callables(pack_name: str, _control_ids: tuple[str, ...], builder: object) -> None:
     """Byte-equivalence: shim must return the same function object the registry uses."""
 
     built = builder()  # type: ignore[operator]

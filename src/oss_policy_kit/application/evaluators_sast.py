@@ -25,9 +25,7 @@ from typing import Any
 
 from oss_policy_kit.domain.models import EvalOutcome
 
-SAST_CONTROL_IDS: tuple[str, ...] = (
-    "SAST-SEMGREP-064",
-)
+SAST_CONTROL_IDS: tuple[str, ...] = ("SAST-SEMGREP-064",)
 
 
 def build_sast_evaluators() -> dict[str, Callable[[Any], EvalOutcome]]:

@@ -25,14 +25,7 @@ from typing import Any
 import pytest
 import yaml
 
-CATALOG_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "oss_policy_kit"
-    / "data"
-    / "controls"
-    / "catalog.yaml"
-)
+CATALOG_PATH = Path(__file__).resolve().parents[2] / "src" / "oss_policy_kit" / "data" / "controls" / "catalog.yaml"
 
 REQUIRED_FIELDS: tuple[str, ...] = (
     "id",
@@ -108,41 +101,39 @@ def test_control_title_is_non_empty_string(control: dict[str, Any]) -> None:
 @pytest.mark.parametrize("control", CONTROLS, ids=lambda c: str(c.get("id", "<no-id>")))
 def test_control_category_is_allowed(control: dict[str, Any]) -> None:
     cid = control["id"]
-    assert (
-        control["category"] in ALLOWED_CATEGORIES
-    ), f"{cid}: category={control['category']!r} not in {sorted(ALLOWED_CATEGORIES)}"
+    assert control["category"] in ALLOWED_CATEGORIES, (
+        f"{cid}: category={control['category']!r} not in {sorted(ALLOWED_CATEGORIES)}"
+    )
 
 
 @pytest.mark.parametrize("control", CONTROLS, ids=lambda c: str(c.get("id", "<no-id>")))
 def test_control_lifecycle_is_allowed(control: dict[str, Any]) -> None:
     cid = control["id"]
-    assert (
-        control["lifecycle"] in ALLOWED_LIFECYCLES
-    ), f"{cid}: lifecycle={control['lifecycle']!r} not in {sorted(ALLOWED_LIFECYCLES)}"
+    assert control["lifecycle"] in ALLOWED_LIFECYCLES, (
+        f"{cid}: lifecycle={control['lifecycle']!r} not in {sorted(ALLOWED_LIFECYCLES)}"
+    )
 
 
 @pytest.mark.parametrize("control", CONTROLS, ids=lambda c: str(c.get("id", "<no-id>")))
 def test_control_assurance_is_allowed(control: dict[str, Any]) -> None:
     cid = control["id"]
-    assert (
-        control["assurance"] in ALLOWED_ASSURANCE
-    ), f"{cid}: assurance={control['assurance']!r} not in {sorted(ALLOWED_ASSURANCE)}"
+    assert control["assurance"] in ALLOWED_ASSURANCE, (
+        f"{cid}: assurance={control['assurance']!r} not in {sorted(ALLOWED_ASSURANCE)}"
+    )
 
 
 @pytest.mark.parametrize("control", CONTROLS, ids=lambda c: str(c.get("id", "<no-id>")))
 def test_control_automation_is_allowed(control: dict[str, Any]) -> None:
     cid = control["id"]
-    assert (
-        control["automation"] in ALLOWED_AUTOMATION
-    ), f"{cid}: automation={control['automation']!r} not in {sorted(ALLOWED_AUTOMATION)}"
+    assert control["automation"] in ALLOWED_AUTOMATION, (
+        f"{cid}: automation={control['automation']!r} not in {sorted(ALLOWED_AUTOMATION)}"
+    )
 
 
 @pytest.mark.parametrize("control", CONTROLS, ids=lambda c: str(c.get("id", "<no-id>")))
 def test_control_weight_is_allowed(control: dict[str, Any]) -> None:
     cid = control["id"]
-    assert (
-        control["weight"] in ALLOWED_WEIGHTS
-    ), f"{cid}: weight={control['weight']!r} not in {sorted(ALLOWED_WEIGHTS)}"
+    assert control["weight"] in ALLOWED_WEIGHTS, f"{cid}: weight={control['weight']!r} not in {sorted(ALLOWED_WEIGHTS)}"
 
 
 def test_no_duplicate_control_ids() -> None:

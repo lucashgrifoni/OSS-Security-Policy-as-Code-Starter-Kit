@@ -237,9 +237,7 @@ def main(argv: list[str] | None = None) -> int:
 
     catalog_raw = yaml.safe_load(catalog_path.read_text(encoding="utf-8"))
     catalog_ids: set[str] = {
-        c["id"]
-        for c in catalog_raw.get("controls", [])
-        if isinstance(c, dict) and isinstance(c.get("id"), str)
+        c["id"] for c in catalog_raw.get("controls", []) if isinstance(c, dict) and isinstance(c.get("id"), str)
     }
 
     if not args.quiet:
