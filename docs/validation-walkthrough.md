@@ -15,7 +15,7 @@ Treat these artifacts as operational evidence. They show that the kit runs, repo
 | Step | Command or artifact | Use it when |
 | --- | --- | --- |
 | Understand the CLI | `python -m oss_policy_kit --help` | You want to see the supported commands, flags, and exit codes before wiring the tool into scripts or CI. |
-| Discover profiles | `python -m oss_policy_kit profiles` or `python -m oss_policy_kit --show-profiles` | You need to choose the right platform and strictness level before running an evaluation. |
+| Discover profiles | `python -m oss_policy_kit profiles` | You need to choose the right platform and strictness level before running an evaluation. |
 | Compare baseline outcomes | `python -m oss_policy_kit evaluate --target ./examples/... --summary-only` | You want a fast visual contrast between a stronger fixture and a weaker fixture under the same profile. |
 | Self-check the current repo | `python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck` | You want to validate the current repository revision using the same kit it ships. |
 | Compare fixtures | `python -m oss_policy_kit evaluate --target ./examples/...` | You want a stable passing fixture and a stable failing fixture for demos, tests, or onboarding. |
@@ -40,16 +40,19 @@ python -m oss_policy_kit --help
 
 ## 2. Discover And Choose A Profile
 
-Before evaluating a repository, choose the profile that matches the platform and the desired assurance level. That is the context for the two profile-discovery commands:
+Before evaluating a repository, choose the profile that matches the platform and the desired assurance level. The canonical command is:
 
-- `python -m oss_policy_kit --show-profiles` prints the bundled profile table
-- `python -m oss_policy_kit profiles` prints the same bundled profile table
+- `python -m oss_policy_kit profiles` prints the compact bundled profile table
+- `python -m oss_policy_kit profiles --format detailed` prints the same table with full audience and description text
+- `python -m oss_policy_kit profiles --format json` returns the listing as JSON (`oss-policy-kit/profile-list/v2`) for automation
+
+(`python -m oss_policy_kit --show-profiles` is a deprecated alias — it still works but emits a deprecation warning. Prefer the subcommand above.)
 
 Use `level-1` when you are starting with the baseline and want honest clone-only checks. Move to higher levels or `release-hardening-*` profiles when you want stricter controls and are ready to provide supporting evidence for release posture.
 
 ```bash
-python -m oss_policy_kit --show-profiles
 python -m oss_policy_kit profiles
+python -m oss_policy_kit profiles --format detailed
 ```
 
 <p align="center">

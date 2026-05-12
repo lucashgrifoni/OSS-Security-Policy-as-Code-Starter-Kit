@@ -274,6 +274,7 @@ def execute_evaluate(
     quiet: bool = False,
     report_json_contract: str = "1.0",
     sarif_output: Path | None = None,
+    include_absolute_path: bool = False,
 ) -> None:
     """Shared implementation for root-level and `evaluate` subcommand invocations.
 
@@ -360,7 +361,14 @@ def execute_evaluate(
             report_json_contract=report_json_contract,
         )
         out = output_dir.resolve()
-        json_path, md_path = write_reports(report, out)
+        try:
+            json_path, md_path = write_reports(
+                report, out, include_absolute_path=include_absolute_path
+            )
+        except (PermissionError, NotADirectoryError, FileNotFoundError, OSError) as exc:
+            raise InvalidInputError(
+                f"Cannot write to --output-dir '{output_dir}': {exc.strerror or exc}"
+            ) from exc
         sarif_path: Path | None = None
         if sarif_output is not None:
             from oss_policy_kit.application.sarif_writer import write_sarif_report

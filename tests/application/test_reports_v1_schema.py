@@ -244,6 +244,36 @@ def test_v1_payload_uses_repo_to_dict_dispatch(v1_validator: Draft202012Validato
     assert "evidence_provenance_version" in payload
 
 
+def test_v1_controls_total_in_payload(v1_validator: Draft202012Validator) -> None:
+    """reports/1.0 must surface controls_total at the top level (M-001)."""
+
+    report = _make_report([_make_result()])
+    payload = report_to_dict_v1(report)
+    v1_validator.validate(payload)
+    assert "controls_total" in payload
+    assert payload["controls_total"] == sum(payload["summary_by_status"].values())
+
+
+def test_v1_target_path_sanitized_by_default() -> None:
+    """target_path must be sanitized to the basename by default (M-002).
+
+    Reports get shipped as PR artifacts, attached to GitHub Releases, and
+    appended to vulnerability write-ups. Leaking an auditor's full
+    `C:\\Users\\<name>\\...` path is a privacy regression. Default the
+    serialization to a relative basename and require an explicit opt-in
+    for the absolute path.
+    """
+
+    from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
+
+    # Direct test of the sanitizer with a synthetic absolute path that would
+    # otherwise leak a username. ExecutionReport is frozen, so test the helper
+    # — the v1 dispatch is covered by test_v1_payload_uses_repo_to_dict_dispatch.
+    leaky = "/Users/somebody/work/my-app"
+    assert _sanitize_target_path_for_payload(leaky, include_absolute=False) == "my-app"
+    assert _sanitize_target_path_for_payload(leaky, include_absolute=True) == leaky
+
+
 def test_v1_strict_no_unknown_top_level_keys(v1_validator: Draft202012Validator) -> None:
     """additionalProperties:false — adding a stray key must fail validation."""
 

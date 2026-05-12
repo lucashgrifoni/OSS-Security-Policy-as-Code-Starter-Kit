@@ -214,15 +214,17 @@ def collect_evidence_cmd(
 
     try:
         plat = platform.strip().lower()
-        repo = resolve_existing_dir(str(target))
         if dry_run:
+            # Dry-run never touches the filesystem; do not require the target to exist.
+            preview_target = Path(str(target)).expanduser().resolve()
             _print_collect_dry_run_preview(
-                target=repo,
+                target=preview_target,
                 platform=plat,
                 repo_slug=repo_slug,
                 output_dir=output_dir,
             )
             return
+        repo = resolve_existing_dir(str(target))
 
         collector: GitHubEvidenceCollector | AzureDevOpsEvidenceCollector | AWSEvidenceCollector
         slug: str

@@ -350,6 +350,92 @@ def test_cli_collect_evidence_aws_dry_run_lists_three_files(tmp_path: Path, monk
     assert "us-east-2" not in out, "Probe must never echo variable values"
 
 
+def test_cli_show_profiles_emits_deprecation_warning() -> None:
+    """`--show-profiles` continues to work but prints a deprecation warning (M-006).
+
+    Users should be guided to the canonical `profiles` subcommand.
+    """
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["--show-profiles"])
+    assert result.exit_code == 0, result.output
+    # Deprecation goes to stderr; CliRunner default merges streams into .output.
+    combined = (result.output or "") + (getattr(result, "stderr", "") or "")
+    assert "Deprecation" in combined
+    assert "profiles" in combined  # points users at the subcommand
+    # The profiles table still renders.
+    assert "Profile" in combined
+
+
+def test_cli_evaluate_output_dir_write_error_is_user_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unwritable --output-dir must surface as EXIT=2 + 'Error: Cannot write to ...' (M-004).
+
+    Previously the OSError leaked through the last-resort exception handler as
+    EXIT=3 'Unexpected error: ...', which signaled an internal bug to CI instead
+    of a user-correctable input. Pin the contract: EXIT=2 with normalized text.
+    """
+
+    runner = CliRunner()
+
+    # Create a file at the would-be output-dir path so Python's mkdir rejects it
+    # with NotADirectoryError/FileExistsError — works cross-platform without
+    # relying on permission semantics.
+    blocker = tmp_path / "not-a-directory"
+    blocker.write_text("blocking the output-dir path", encoding="utf-8")
+    target_output = blocker / "would-be-output"
+
+    result = runner.invoke(
+        app,
+        [
+            "evaluate",
+            "--target",
+            str(EXAMPLE_HARDENED),
+            "--profile",
+            "github-level-1",
+            "--output-dir",
+            str(target_output),
+        ],
+    )
+    assert result.exit_code == 2, (result.exit_code, result.output, result.stderr if hasattr(result, "stderr") else "")
+    combined = (result.output or "") + (getattr(result, "stderr", "") or "")
+    assert "Error:" in combined
+    assert "Cannot write to --output-dir" in combined
+    assert "Unexpected error" not in combined
+
+
+def test_cli_collect_evidence_dry_run_accepts_missing_target(tmp_path: Path) -> None:
+    """``collect-evidence --dry-run`` must not require --target to exist (M-003).
+
+    The dry-run intent is "preview without touching the filesystem"; failing
+    on a missing target directory contradicts that contract.
+    """
+
+    runner = CliRunner()
+    missing = tmp_path / "does" / "not" / "exist"
+    assert not missing.exists()
+
+    result = runner.invoke(
+        app,
+        [
+            "collect-evidence",
+            "--target",
+            str(missing),
+            "--platform",
+            "github",
+            "--repo",
+            "owner/repo",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    out = _result_stdout(result)
+    assert "collect-evidence" in out and "dry-run" in out
+    # The target reported in the preview must be the (non-existing) path the user passed.
+    assert "exist" in out
+
+
 def test_cli_collect_evidence_azure_dry_run_lists_two_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     runner = CliRunner()
     repo = tmp_path / "az-target"

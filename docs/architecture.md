@@ -111,7 +111,7 @@ Low-level mechanics:
 Typer-based command surface with:
 
 - explicit `evaluate` subcommand
-- bundled profile discovery via `profiles` and `--show-profiles`
+- bundled profile discovery via the `profiles` subcommand (canonical; `--show-profiles` is a deprecated alias kept for compatibility)
 - compatible top-level invocation without `evaluate`
 - machine-friendly summary output
 - CI-friendly exit codes

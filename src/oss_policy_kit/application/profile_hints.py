@@ -293,7 +293,10 @@ def _suggestions_for_platform(
     empty_evidence_dir = ev_dir.is_dir() and not ev_json
 
     if platform == "github":
-        can_rh2 = bool(wf_paths or github_ev)
+        # release-hardening-2 requires BOTH a CI signal AND release-shaped evidence
+        # (M-005): a single intentionally-unsafe workflow alone is not justification
+        # to recommend a release-track profile.
+        can_rh2 = bool(wf_paths) and bool(github_ev)
         can_rh1 = empty_evidence_dir and bool(wf_paths) and not github_ev
         if wf_paths and not github_ev:
             out.append(
@@ -317,8 +320,8 @@ def _suggestions_for_platform(
                     300,
                     "github-release-hardening-2",
                     (
-                        "GitHub Actions and/or GitHub-shaped evidence JSON is present; "
-                        "evaluate declared release posture with github-release-hardening-2 "
+                        "GitHub Actions workflows AND GitHub-shaped release evidence JSON are both "
+                        "present; evaluate declared release posture with github-release-hardening-2 "
                         "(verify evidence JSONs are filled, not templates)."
                     ),
                     _normalize_based_on(bo, wf_paths, github_ev),
@@ -352,7 +355,8 @@ def _suggestions_for_platform(
         return out
 
     if platform == "azure":
-        can_rh2 = bool(azure_ev or az_paths)
+        # See github branch above: BOTH signals required for release-hardening-2 (M-005).
+        can_rh2 = bool(az_paths) and bool(azure_ev)
         can_rh1 = empty_evidence_dir and bool(az_paths) and not azure_ev
         if can_rh2:
             az_keys = ("azure_pipelines_yaml", "azure_evidence_json_files")
@@ -364,8 +368,8 @@ def _suggestions_for_platform(
                     300,
                     "azure-release-hardening-2",
                     (
-                        "Azure Pipelines and/or Azure-shaped evidence JSON is present; "
-                        "evaluate declared release posture with azure-release-hardening-2 "
+                        "Azure Pipelines YAML AND Azure-shaped release evidence JSON are both "
+                        "present; evaluate declared release posture with azure-release-hardening-2 "
                         "(verify evidence JSONs are filled, not templates)."
                     ),
                     _normalize_based_on_az(bo, az_paths, azure_ev),
@@ -395,7 +399,8 @@ def _suggestions_for_platform(
         return out
 
     # aws
-    can_rh2 = bool(buildspec or aws_ev)
+    # See github branch above: BOTH signals required for release-hardening-2 (M-005).
+    can_rh2 = bool(buildspec) and bool(aws_ev)
     can_rh1 = empty_evidence_dir and bool(buildspec) and not aws_ev
     if can_rh2:
         aws_keys = ("aws_codebuild_buildspec", "aws_evidence_json_files")
@@ -407,7 +412,7 @@ def _suggestions_for_platform(
                 300,
                 "aws-release-hardening-2",
                 (
-                    "A buildspec and/or AWS-shaped evidence JSON is present; "
+                    "A buildspec AND AWS-shaped release evidence JSON are both present; "
                     "evaluate declared release posture with aws-release-hardening-2 "
                     "(verify evidence JSONs are filled, not templates)."
                 ),

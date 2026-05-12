@@ -12,6 +12,7 @@
     "target_path",
     "profile",
     "summary_by_status",
+    "controls_total",
     "summary_by_gate_role",
     "gate_execution_model",
     "results",
@@ -55,6 +56,11 @@
     "summary_by_status": {
       "type": "object",
       "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "controls_total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total count of controls evaluated; equals sum(summary_by_status.values())."
     },
     "summary_by_gate_role": {
       "type": "object",
