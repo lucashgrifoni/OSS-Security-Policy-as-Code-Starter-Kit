@@ -53,6 +53,42 @@ Product orchestration and control semantics:
 - report assembly and status summarization
 - JSON and Markdown report emission
 
+#### Evaluator boundary modules
+
+`evaluators.py` remains the registry owner (`EVALUATOR_REGISTRY`) and
+holds the function bodies for v5.7-era controls. Public **boundary
+modules** sit alongside it; each exposes a closed list of control IDs
+and a `build_<bucket>_evaluators()` function that returns the same
+callables as the registry (byte-equivalence guarantee). External code
+that cares about a single pack should import from the boundary module
+instead of reaching into `evaluators.py`:
+
+| Module | Pack | Introduced in |
+|---|---|---|
+| `evaluators_governance.py` | Governance + release-changelog | v5.7.0 |
+| `evaluators_supply_chain.py` | Supply chain (SBOM, Scorecard, dep-update, CodeQL, dependency review, provenance verify) | v5.7.0 |
+| `evaluators_ci_cd.py` | CI/CD (workflow + Azure pipeline + AWS buildspec analysis) | v5.8.0 |
+| `evaluators_platform.py` | Repo / org / platform-side controls | v5.8.0 |
+| `evaluators_release.py` | Release artifacts (provenance, SBOM artifact-bound, deploy, audit stream, archive) | v5.8.0 |
+| `evaluators_vuln_management.py` | In-repo secret / pin / gitignore hygiene | v5.8.0 |
+| `evaluators_sast.py` | SAST adapters (Semgrep today; Trivy / Gitleaks / Grype tracked for v5.9.0) | v5.8.0 |
+| `evaluators_containers.py` | Container image hardening | pre-v5.7 |
+| `evaluators_k8s.py` | Kubernetes manifest posture | pre-v5.7 |
+| `evaluators_iac.py` | Terraform / OpenTofu posture | pre-v5.7 |
+| `evaluators_iac_cfn.py` | CloudFormation posture | v5.7.0 |
+| `evaluators_iac_pulumi.py` | Pulumi Python posture | v5.7.0 |
+| `evaluators_iac_bicep.py` | Bicep posture | v5.7.0 |
+| `evaluators_webhook.py` | Webhook receiver security | v5.7.0 |
+| `evaluators_fuzzing.py` | Fuzzing presence | pre-v5.7 |
+| `evaluators_common.py` | Shared evaluator utilities | pre-v5.7 |
+
+Moving function bodies into the new boundary modules is intentionally
+incremental (one bucket per minor release) so each move can be
+validated against the byte-equivalence guarantee in isolation.
+Promoting the whole set into a Python package
+(`oss_policy_kit.application.evaluators.*`) is tracked for v6.0 (Fase 6
+of the maturity plan).
+
 ### Adapters (`oss_policy_kit.adapters`)
 
 Boundary adapters:
