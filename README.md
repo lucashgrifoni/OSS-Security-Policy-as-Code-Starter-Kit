@@ -8,7 +8,7 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 
 ## Quick Links
 
-- [What's new in v5.6.0](#whats-new-in-v560)
+- [What's new in v5.7.0](#whats-new-in-v570)
 - [Current Release State](#current-release-state)
 - [Recommended First Command](#recommended-first-command)
 - [Quickstart](#quickstart)
@@ -29,11 +29,11 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 
 | Area | What you get |
 | --- | --- |
-| Current release | `v5.6.0` / Python package `oss-policy-kit==5.6.0` |
+| Current release | `v5.7.0` / Python package `oss-policy-kit==5.7.0` |
 | Input | A local repository clone |
 | Output | `evaluation-report.json` and `evaluation-report.md` (optional SARIF 2.1.0 via `--sarif-output`) |
 | Core scope | Clone-visible governance and GitHub/Azure/AWS CI/CD signals |
-| Profiles | **32 bundled profiles** — platform ladders (`github-*`, `azure-*`, `aws-*` levels 1-3 and release-hardening 1-3), advisory hybrids (`github-aws-level-2`, `github-azure-level-2`), regulatory (`cra-eu-ready-1`, `cra-eu-strict-1`), framework alignment (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`), AppSec native bundle (`appsec-sast-sca-1`), and posture profiles (`iac-terraform-baseline-1`, `kubernetes-baseline-1`, `container-baseline-1`). List with `python -m oss_policy_kit profiles`; full matrix in [`docs/profiles/overview.md`](docs/profiles/overview.md). |
+| Profiles | **36 bundled profiles** — platform ladders (`github-*`, `azure-*`, `aws-*` levels 1-3 and release-hardening 1-3), advisory hybrids (`github-aws-level-2`, `github-azure-level-2`), regulatory (`cra-eu-ready-1`, `cra-eu-strict-1`), framework alignment (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`), AppSec native bundle (`appsec-sast-sca-1`), posture profiles (`iac-terraform-baseline-1`, `iac-cfn-baseline-1`, `iac-pulumi-baseline-1`, `iac-bicep-baseline-1`, `kubernetes-baseline-1`, `container-baseline-1`), and webhook receiver hardening (`webhook-security-1`). List with `python -m oss_policy_kit profiles`; full matrix in [`docs/profiles/overview.md`](docs/profiles/overview.md). |
 | Exceptions | Waiver registry with owner, reason, and expiry |
 | Examples | Hardened and vulnerable sample repositories |
 | Assurance model | Each control is labelled `deterministic`, `signal`, or `evidence-backed`; the value flows into `reports/1.0` JSON and Markdown so consumers can reason about proof strength. See [docs/profiles/overview.md](docs/profiles/overview.md). |
@@ -48,7 +48,7 @@ python -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile gi
 
 This confirms the CLI, bundled profile data, example repository, and report generation path before you evaluate your own repository.
 
-### Two-line bootstrap (v5.4.0+; available in current v5.6.0)
+### Two-line bootstrap (v5.4.0+; available in current v5.7.0)
 
 For brand new adopters, `init` collapses the first run into two commands:
 
@@ -163,7 +163,7 @@ Typical CI command:
 python -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on fail --output-dir ./oss-policy-reports
 ```
 
-**Exit codes** in pipelines: `0` evaluation finished and the `--fail-on` threshold was not violated; `1` the gate tripped; `2` is usage or load errors. Keep the output directory as an artifact with `if: always()` so reviewers can inspect reports after a blocked run.
+**Exit codes** in pipelines: `0` evaluation finished and the `--fail-on` threshold was not violated; `1` the gate tripped; `2` is usage or load errors; `3` is an unexpected internal error (re-raised stack trace). Keep the output directory as an artifact with `if: always()` so reviewers can inspect reports after a blocked run.
 
 GitHub Release assets are the intended alternate install path when wheel or sdist artifacts are attached. PyPI remains the primary install channel, and the publish workflow generates both distribution artifacts and a CycloneDX SBOM as workflow artifacts for release evidence.
 

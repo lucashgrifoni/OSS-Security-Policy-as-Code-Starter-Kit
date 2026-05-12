@@ -51,6 +51,11 @@ class HelmRenderOutcome:
     rendered_manifest_paths: list[Path] = field(default_factory=list)
     render_errors: list[dict[str, str]] = field(default_factory=list)
     diagnostic: str = ""
+    #: Temporary directory created by :func:`render_charts`. Callers must
+    #: ``shutil.rmtree(tmp_root, ignore_errors=True)`` once the scan that
+    #: consumed ``rendered_manifest_paths`` has completed. ``None`` when no
+    #: tmp dir was created (helm absent, no charts discovered).
+    tmp_root: Path | None = None
 
 
 def helm_available() -> tuple[bool, str | None]:
@@ -110,8 +115,10 @@ def render_charts(
 
     Rendered manifests are written to a fresh temporary directory; the
     paths are returned in ``rendered_manifest_paths`` so the K8s scanner
-    can index them as regular YAML documents. Callers are responsible for
-    cleaning up the tmp dir when the scan completes.
+    can index them as regular YAML documents. The tmp directory itself is
+    surfaced through :attr:`HelmRenderOutcome.tmp_root` so callers can
+    ``shutil.rmtree(outcome.tmp_root, ignore_errors=True)`` once the scan
+    that consumed the manifests has completed.
     """
 
     available, version = helm_available()
@@ -135,6 +142,7 @@ def render_charts(
         return outcome
 
     tmp_root = Path(tempfile.mkdtemp(prefix="oss-policy-kit-helm-"))
+    outcome.tmp_root = tmp_root
     helm_bin = shutil.which("helm") or "helm"
     for chart_dir in charts:
         rel = chart_dir.relative_to(repo_root.resolve()).as_posix()

@@ -215,6 +215,11 @@ def evaluate_repository(
     *,
     external_waiver_path: str | None = None,
     verbose_emit: Callable[[str], None] | None = None,
+    # Programmatic default is kept at "0.3" for ExecutionReport callers that
+    # were written against the v4.x report shape. The CLI, ``oss-policy-kit.yaml``
+    # config loader, and ``init`` template all default to "1.0" — pass
+    # ``report_json_contract="1.0"`` explicitly when invoking this engine
+    # function from new code paths.
     report_json_contract: str = "0.3",
     live_collection: LiveCollectionMetadata | None = None,
 ) -> ExecutionReport:
