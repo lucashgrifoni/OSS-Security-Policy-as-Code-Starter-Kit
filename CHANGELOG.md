@@ -6,6 +6,68 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## OSS Security Policy as Code Starter Kit v5.8.0
+
+This minor release continues the v5.7 catalog-quality and refactor trajectory. It is fully backwards-compatible: no profile id, control id, evaluator function object, report contract, or CLI surface changed. `EVALUATOR_REGISTRY` remains byte-equivalent across the v5.7 -> v5.8 transition (validated by dedicated invariant tests).
+
+### Highlights
+
+- **Catalog and profile invariant test suites.** Three new test modules pin properties that previously had to be checked by hand:
+  - `tests/data/test_catalog_consistency.py` — every catalog control has a unique id, a known category, a recognized `lifecycle` / `assurance` value, and is either referenced by at least one bundled profile or marked deprecated.
+  - `tests/data/test_evidence_schemas_versioned.py` — every packaged `evidence-*.schema.json` declares a `$schema` and an explicit `oss-policy-kit/evidence/.../v<n>` `schema_version`, and the packaged copy under `src/oss_policy_kit/data/schema/` matches the mirror under `reports/schema/` byte-for-byte.
+  - `tests/application/test_profile_maturity_drift.py` — guards the `docs/profiles/overview.md` maturity matrix against silent drift (every bundled profile row reflects the profile's actual lifecycle composition).
+
+- **`evaluators.py` decomposition steps 4-8 — five new public package boundaries.** Following the v5.7 introduction of `evaluators_governance.py` / `evaluators_supply_chain.py`, this release adds:
+  - `evaluators_ci_cd.py` — workflow / pipeline / build CI controls (`CI-*`, platform-agnostic).
+  - `evaluators_platform.py` — platform settings controls (`PLAT-*`, `GH-PLAT-*`, `AZ-PLAT-*`).
+  - `evaluators_release.py` — release-process controls (`REL-*`, `GH-REL-*`, release-archive).
+  - `evaluators_vuln_management.py` — vulnerability-management controls (`DEP-UPDATE-*`, dependency review, fuzzing aggregation).
+  - `evaluators_sast.py` — dedicated SAST adapter boundary. `SAST-SEMGREP-064` moved here from `evaluators_supply_chain.py` so future v5.9 adapters (Trivy, Gitleaks, Grype) plug into a single surface.
+
+  All five modules **re-export** the existing callables from `evaluators.py` — every shim returns `EVALUATOR_REGISTRY[cid] is fn`, so the registry is identity-equivalent to v5.7.0. A new test module (`tests/application/test_evaluators_v58_shims.py`) pins both the byte-equivalence guarantee and a disjointness guarantee across all eight pack boundaries (governance, supply-chain, ci_cd, platform, release, vuln_management, sast, containers).
+
+- **Advisory profile banner expanded to the full bundled set.** Previously the `[advisory profile]` operator banner fired only for the IaC posture profiles. It now fires for every bundled advisory profile (`iac-terraform-baseline-1`, `iac-cfn-baseline-1`, `iac-pulumi-baseline-1`, `iac-bicep-baseline-1`, `kubernetes-baseline-1`, `container-baseline-1`, `webhook-security-1`, `appsec-sast-sca-1`, plus all `osps-*` / `slsa-*` / `ssdf-*` / `cis-*` / `owasp-*` / `s2c2f-*` / `cra-*` framework profiles). Operators now get consistent guidance to run `--fail-on degraded` (not `fail`) on every advisory profile.
+
+- **Profile maturity matrix completed to all 36 bundled profiles.** `docs/profiles/overview.md` now lists every bundled profile with its `lifecycle` blend, `assurance` blend, recommended `--fail-on` setting, and adoption stage. The matrix is locked by `tests/application/test_profile_maturity_drift.py` so future profile additions or lifecycle promotions cannot silently desync from the docs.
+
+- **15-minute quickstart guide.** New `docs/quickstart-15-min.md` walks a brand-new adopter from `pip install` to a passing gate against the hardened example in under 15 minutes (install -> `init` -> first `evaluate` -> read the report -> wire a CI gate -> add the first waiver). Cross-linked from the README and the documentation hub.
+
+- **`scripts/validate-bundled-profiles.py`.** New maintainer-side validator that loads every bundled profile, checks each `control_ids` member against the catalog, surfaces unknown ids / removed ids / orphan controls, and emits a non-zero exit code on any drift. Wired into the maintainer self-check flow; the test suites covering the same invariants are the authoritative gate in CI.
+
+### Documentation
+
+- `docs/architecture.md` — new sections covering the eight v5.8 evaluator package boundaries (governance, supply-chain, ci_cd, platform, release, vuln_management, sast, containers) and the catalog / profile / evidence invariant test suites. The trust model and evidence semantics sections are unchanged.
+- `docs/quickstart-15-min.md` — new (see above).
+- `docs/profiles/overview.md` — maturity matrix now complete for all 36 bundled profiles.
+- `waivers/waivers.example.yaml` — two new posture-control waiver examples (Kubernetes baseline + container baseline) to demonstrate the registry pattern for non-platform profiles.
+
+### Fixes
+
+- **Stripped UTF-8 BOM from three GitHub evidence schemas.** `evidence-github-environment-protection.schema.json`, `evidence-github-rulesets.schema.json`, and `evidence-github-secret-scanning.schema.json` carried a leading BOM that broke strict JSON Schema loaders on some toolchains. Both the packaged copies under `src/oss_policy_kit/data/schema/` and the public mirrors under `reports/schema/` are now plain UTF-8 without BOM.
+- **README factual drift corrected.** "Current release" row, "Profiles" count (32 -> 36 bundled), "What's new" anchor, two-line bootstrap blurb, and pipeline exit codes (`0 / 1 / 2 / 3`) are now consistent with the published surface.
+- **Helm pre-pass tmp directory leak.** `HelmRenderOutcome` now exposes the `tempfile.mkdtemp` directory created for `helm template --output-dir`; `scan-k8s` cleans it up in a `try/finally` after the K8s rule engine consumes the rendered manifests. Previous behavior left one `oss-policy-kit-helm-*` directory per `scan-k8s --helm-render` invocation under the system tmp dir.
+- **`engine.evaluate_repository` default contract documented.** The signature still defaults `report_json_contract` to `"0.3"` (programmatic API stability for v4.x callers), but the parameter now carries an explicit comment pointing v5+ programmatic callers at `"1.0"`. The CLI, `oss-policy-kit.yaml` config loader, and `init` template continue to default to `"1.0"` as documented.
+- **Bandit B506 suppressed with rationale on `cfn/scanner.py`.** The CloudFormation parser uses `yaml.load(..., Loader=_CfnSafeLoader)` where `_CfnSafeLoader` is a `SafeLoader` subclass that only adds CFN short-form intrinsic constructors. `yaml.safe_load` cannot accept a custom Loader, so the explicit `# nosec B506` keeps Bandit output clean without masking real findings.
+
+### Breaking changes
+
+None. v5.8.0 is fully backwards-compatible with v5.7.0:
+
+- `reports/1.0`, `reports/0.3`, `reports/0.2` shapes remain byte-stable.
+- All v5.7.0 profile ids and control ids remain.
+- `EVALUATOR_REGISTRY` is identity-equivalent across the v5.7 -> v5.8 transition (the five new shims re-export the same function objects).
+- No new hard dependencies. The five new evaluator modules use only stdlib and existing internal imports.
+
+### Notes
+
+- Suite total: **1953 passed, 1 skipped** (full test run on Python 3.12 / Windows).
+- `python -m ruff check src tests` clean. `python -m mypy --strict src` clean (88 source files).
+- Bandit: 0 High, 0 Medium, 50 Low (informational; the previous Medium on the CFN parser is now an annotated false positive).
+
+**License:** Apache-2.0.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.7.0
 
 This minor release lands the four roadmap items declared in the v5.7 (Unreleased) section of the v5.6.0 changelog:
