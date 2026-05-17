@@ -57,6 +57,51 @@ _REPO_GLOB_PRIMARY: tuple[str, ...] = (
 
 REPO_SIGNALS = _REPO_PRIMARY_SIGNALS
 
+# Directory names that should be skipped even when --skip-non-repos is set
+# because they are output, build, or meta directories rather than projects.
+# Compared case-insensitively. Adopters can still force-evaluate by removing
+# --skip-non-repos and naming the directory directly.
+_META_DIR_NAMES: frozenset[str] = frozenset(
+    {
+        "out",
+        "output",
+        "dist",
+        "build",
+        "_build",
+        "_output",
+        ".out",
+        "target",  # rust/java build output
+        "node_modules",
+        "vendor",
+        "venv",
+        ".venv",
+        "site",  # mkdocs / static site builds
+        "coverage",
+        "htmlcov",
+    }
+)
+
+# Directory name prefixes that should be skipped: matches "out-*", "out_*",
+# "build-*", "_output-*", etc. — frequent in build/run artifact folders.
+_META_DIR_PREFIXES: tuple[str, ...] = (
+    "out-",
+    "out_",
+    "output-",
+    "_output",
+    "build-",
+    "dist-",
+    ".tmp",
+)
+
+
+def _is_meta_directory(name: str) -> bool:
+    """Return True when *name* looks like an output / build / cache directory
+    that should never be evaluated as a project, even via --skip-non-repos."""
+    low = name.lower()
+    if low in _META_DIR_NAMES:
+        return True
+    return any(low.startswith(p) for p in _META_DIR_PREFIXES)
+
 
 def is_likely_repository(path: Path) -> tuple[bool, str]:
     """Return ``(True, signal_found)`` when *path* looks like a repository root.
@@ -189,6 +234,19 @@ def run_batch_evaluation(
     skipped_dirs: list[dict[str, str]] = []
     eval_queue: list[tuple[Path, bool]] = []
     for child in targets:
+        # Even without --skip-non-repos, output / build directories should not
+        # be treated as evaluable projects. Adopters can still target them
+        # explicitly via `evaluate --target <path>`; only the batch entry
+        # is filtered out here.
+        if skip_non_repos and _is_meta_directory(child.name):
+            skipped_dirs.append(
+                {
+                    "name": child.name,
+                    "path": str(child.resolve()),
+                    "reason": "Looks like an output / build / cache directory (matches meta-directory name pattern).",
+                }
+            )
+            continue
         likely, _sig = is_likely_repository(child)
         if skip_non_repos and not likely:
             skipped_dirs.append(

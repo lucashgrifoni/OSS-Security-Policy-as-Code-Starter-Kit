@@ -579,6 +579,7 @@ _ADVISORY_ONLY_PROFILE_IDS: frozenset[str] = frozenset(
     {
         "container-baseline-1",
         "cra-eu-ready-1",
+        "cra-eu-reporting-1",
         "github-aws-level-2",
         "github-azure-level-2",
         "iac-bicep-baseline-1",

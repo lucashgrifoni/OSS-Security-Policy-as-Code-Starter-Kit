@@ -11,6 +11,7 @@ import pytest
 from tests.conftest import EXAMPLE_HARDENED, EXAMPLE_VULNERABLE, ROOT
 
 from oss_policy_kit.application.batch_evaluate import (
+    _is_meta_directory,
     discover_batch_targets,
     is_likely_repository,
     run_batch_evaluation,
@@ -388,3 +389,76 @@ def test_repositories_fixture_batch_smoke(tmp_path: Path) -> None:
         exclude=None,
     )
     assert (out / "evaluation-batch.json").is_file()
+
+
+# --- MELHORIA-002 / F-007: meta-directory skip ------------------------------
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "out",
+        "Out",
+        "OUTPUT",
+        "dist",
+        "build",
+        ".tmp",
+        "_output",
+        "node_modules",
+        "venv",
+        ".venv",
+        "out-fullsuite-2026-05-11",
+        "out_archived",
+        "build-2025",
+        "dist-rc1",
+        "coverage",
+        "htmlcov",
+    ],
+)
+def test_meta_directory_names_are_recognized(name: str) -> None:
+    assert _is_meta_directory(name) is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "01-core-saas-lab",
+        "07-oss-policy-fixtures-lab",
+        "Projeto - Threat Modeling",
+        "my-real-repo",
+        "outpost",  # starts with 'out' but not 'out-' / 'out_' prefix
+        "buildup-lab",  # starts with 'build' but not 'build-' prefix
+    ],
+)
+def test_real_project_names_are_not_meta(name: str) -> None:
+    assert _is_meta_directory(name) is False
+
+
+def test_run_batch_skips_meta_dirs_with_skip_non_repos(tmp_path: Path) -> None:
+    """Even when an output dir happens to contain repo signals, --skip-non-repos
+    should skip it because the folder name screams 'output / build artifact'."""
+    # Real repo (kept)
+    real = tmp_path / "real-app"
+    real.mkdir()
+    (real / "package.json").write_text("{}", encoding="utf-8")
+
+    # Meta dir that LOOKS like a repo (has package.json from a build) — must be skipped.
+    meta = tmp_path / "out-fullsuite-2026-05-11"
+    meta.mkdir()
+    (meta / "package.json").write_text("{}", encoding="utf-8")
+
+    out = tmp_path / "_out"
+    run_batch_evaluation(
+        target_root=tmp_path,
+        profile_ids=["github-level-1"],
+        output_dir=out,
+        kit_root=None,
+        include=None,
+        exclude=None,
+        skip_non_repos=True,
+    )
+    batch = json.loads((out / "evaluation-batch.json").read_text(encoding="utf-8"))
+    skipped = batch.get("skipped_directories", [])
+    skipped_names = {s["name"] for s in skipped}
+    assert "out-fullsuite-2026-05-11" in skipped_names
+    assert "real-app" not in skipped_names

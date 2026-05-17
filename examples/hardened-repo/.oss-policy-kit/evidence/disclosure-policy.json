@@ -1,0 +1,30 @@
+{
+  "schema_version": "disclosure-policy/v1",
+  "attested_at": "2026-05-16",
+  "attested_by": "security-team@hardened-repo.example",
+  "contact": {
+    "method": "email",
+    "value": "security@hardened-repo.example",
+    "pgp_fingerprint": "AAAA BBBB CCCC DDDD EEEE FFFF 0000 1111 2222 3333"
+  },
+  "acknowledgement_sla_hours": 72,
+  "triage_sla_hours": 168,
+  "public_disclosure_policy": {
+    "default_window_days": 90,
+    "negotiable": true
+  },
+  "safe_harbor": true,
+  "out_of_scope": [
+    "denial of service",
+    "social engineering",
+    "physical attacks against employees"
+  ],
+  "cve_assignment_authority": "MITRE",
+  "collection": {
+    "evidence_collection_method": "manual",
+    "collected_at": "2026-05-16T00:00:00Z",
+    "source_url": "https://hardened-repo.example/security/policy",
+    "mode": "self-attested"
+  },
+  "notes": "Example evidence shipped with the hardened-repo fixture. Demonstrates GOV-DISC-065 (Disclosure channel SLA documented) — manufacturer commits to 72h acknowledgement / 168h (7-day) triage / 90-day default disclosure window. Replace these values with your own when copying into your repository."
+}

@@ -1,0 +1,43 @@
+id: gitlab-level-1
+title: GitLab CI starter baseline
+description: >
+  Starter baseline for projects using GitLab CI/CD. Pairs the kit's
+  governance core (SECURITY.md, CONTRIBUTING.md, CODEOWNERS, LICENSE,
+  responsible-disclosure heuristic, versioned waivers) with the v5.9.0
+  initial GitLab-CI control family (`GL-PIPE-001..006`): pipeline presence,
+  image pinning, no curl-pipe-shell, no broad secret inheritance, no
+  unpinned remote includes, and trigger restrictions. Also includes the
+  multi-platform dependency-hygiene controls (`SEC-DEPREV-011`,
+  `DEP-UPDATE-001`) and the release-change control (`REL-CHANGE-012`).
+  **Posture:** starter ladder (analogous to `github-level-1`).
+  **Recommended `--fail-on`:** `fail`. Six of the bundled controls are
+  experimental in v5.9.0 because the GitLab parser ships as an initial
+  subset of the ADR-003 design — promote to stable as the parser matures.
+  **Framework alignment:** see `docs/framework-alignment.md` and
+  `docs/decisions/adr-003-gitlab-ci-support.md`.
+audience: >
+  Projects whose primary CI lives on GitLab (gitlab.com or self-managed).
+  Use as a clone-visible baseline; pair with poutine SARIF
+  (`SAST-POUTINE-067`) when you want deeper pipeline AST analysis. The
+  ladder profiles `gitlab-level-2` and `gitlab-level-3` are planned as the
+  parser surface grows toward the full 12-control ADR-003 design.
+controls:
+  # Governance core (multi-platform, deterministic).
+  - GOV-SEC-001
+  - GOV-CON-002
+  - GOV-COWN-003
+  - GOV-LIC-004
+  - GOV-DISC-013
+  - GOV-WAIV-014
+  # GitLab CI native (v5.9.0 subset).
+  - GL-PIPE-001
+  - GL-PIPE-002
+  - GL-PIPE-003
+  - GL-PIPE-004
+  - GL-PIPE-005
+  - GL-PIPE-006
+  # Multi-platform supply chain / release hygiene.
+  - DEP-UPDATE-001
+  - SEC-DEPREV-011
+  - REL-CHANGE-012
+  - BUILD-SBOM-QUAL-003

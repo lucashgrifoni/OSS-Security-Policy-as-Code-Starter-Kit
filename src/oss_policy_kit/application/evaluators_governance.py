@@ -37,6 +37,7 @@ GOVERNANCE_CONTROL_IDS: tuple[str, ...] = (
     "GOV-DISC-013",
     "GOV-WAIV-014",
     "GOV-EVIDFRESH-054",
+    "GOV-DISC-065",
     "REL-CHANGE-012",
 )
 
@@ -61,5 +62,6 @@ def build_governance_evaluators() -> dict[str, Callable[[Any], EvalOutcome]]:
         "GOV-DISC-013": _e.eval_gov_disc_013,
         "GOV-WAIV-014": _e.eval_gov_waiv_014,
         "GOV-EVIDFRESH-054": _e.eval_gov_evidfresh_054,
+        "GOV-DISC-065": _e.eval_gov_disc_065,
         "REL-CHANGE-012": _e.eval_rel_change_012,
     }

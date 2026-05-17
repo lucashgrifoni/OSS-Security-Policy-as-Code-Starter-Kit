@@ -8,7 +8,7 @@ import importlib.resources as ir
 import json
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -39,6 +39,7 @@ from oss_policy_kit.application.evidence_placeholders import has_placeholder_val
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome, EvidenceCollectionMethod
 from oss_policy_kit.infrastructure.aws_ci_parser import AwsCiAnalysis
 from oss_policy_kit.infrastructure.azure_pipeline_parser import AzurePipelineAnalysis
+from oss_policy_kit.infrastructure.gitlab_ci_parser import GitLabCiAnalysis
 from oss_policy_kit.infrastructure.workflow_parser import WorkflowAnalysis
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
@@ -190,6 +191,11 @@ def _release_archival_policy_schema() -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(raw))
 
 
+def _disclosure_policy_schema() -> dict[str, Any]:
+    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-disclosure-policy.schema.json").read_bytes()
+    return cast(dict[str, Any], json.loads(raw))
+
+
 @dataclass(slots=True)
 class EvalContext:
     """Inputs for a single control evaluation."""
@@ -204,6 +210,9 @@ class EvalContext:
     #: Max age (days) before evidence JSON under .oss-policy-kit/evidence is considered stale
     #: by GOV-EVIDFRESH-054. Override per invocation to tighten or relax freshness requirements.
     evidence_max_age_days: int = 90
+    #: GitLab CI pipeline analysis (v5.9.0). Default empty so existing call sites and
+    #: test fixtures stay valid without an explicit constructor argument.
+    gitlab_ci: GitLabCiAnalysis = field(default_factory=GitLabCiAnalysis)
 
 
 def _exists_ci_readme(repo: Path) -> bool:
@@ -1196,6 +1205,14 @@ def eval_gov_evidfresh_054(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     json_files = sorted(evid_root.rglob("*.json"))
+    # Skip raw SARIF output files (scanner output, not kit-attestation evidence).
+    # SARIF files have their own freshness contract via invocations[].startTimeUtc;
+    # GOV-EVIDFRESH-054 covers attested_at / collected_at / generated_at on the
+    # kit's structured evidence files only. Convention: scanner SARIF lives under
+    # .oss-policy-kit/evidence/sast/<tool>.sarif.json — see SAST-OSV-068, SAST-ZIZMOR-066,
+    # SAST-POUTINE-067, SAST-GITLEAKS-069 (v5.9.0).
+    sast_dir = evid_root / "sast"
+    json_files = [p for p in json_files if not (sast_dir in p.parents or p.name.endswith(".sarif.json"))]
     if not json_files:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
@@ -4088,6 +4105,159 @@ def eval_audit_stream_060(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+_DISCLOSURE_SLA_KEYWORDS: tuple[str, ...] = (
+    "respond within",
+    "acknowledge within",
+    "acknowledgement within",
+    "response within",
+    "we will respond",
+    "we aim to respond",
+    "response time",
+    "response sla",
+    "triage within",
+    "initial response",
+)
+
+
+def _disclosure_sla_signal_match(repo: Path) -> tuple[Path, str] | None:
+    """Return (path, matched_keyword) if SECURITY.md mentions a response SLA, else None.
+
+    Heuristic only — looking for any of the phrases in :data:`_DISCLOSURE_SLA_KEYWORDS`
+    in ``SECURITY.md`` or ``.github/SECURITY.md``. The intent is "did the maintainer
+    write down *any* SLA-shaped commitment", not "is the SLA fast enough". The latter
+    judgement belongs to the operator / auditor.
+    """
+
+    for rel in ("SECURITY.md", ".github/SECURITY.md", "docs/SECURITY.md"):
+        p = repo / rel
+        if not p.is_file():
+            continue
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+        except OSError:
+            continue
+        for kw in _DISCLOSURE_SLA_KEYWORDS:
+            if kw in text:
+                return (p, kw)
+    return None
+
+
+def eval_gov_disc_065(ctx: EvalContext) -> EvalOutcome:
+    """GOV-DISC-065: Disclosure channel SLA documented (CRA reporting readiness).
+
+    Closes a gap left by ``GOV-DISC-013`` (signal-grade existence-check on responsible
+    disclosure mention) for adopters preparing for the EU CRA 2026-09-11 24-hour
+    reporting deadline. The CRA report is *outbound* (manufacturer to ENISA); this
+    control checks the *inbound* SLA (researcher to manufacturer), which is a
+    necessary precondition for the outbound clock to be meetable.
+    """
+
+    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "disclosure-policy.json"
+    if not evidence.is_file():
+        signal = _disclosure_sla_signal_match(ctx.repo_root)
+        if signal is not None:
+            path, kw = signal
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason=(
+                    f"Disclosure response-SLA intent detected via clone signal "
+                    f"({path.name}, keyword '{kw}'). Heuristic only — promote to "
+                    "evidence-backed by adding "
+                    ".oss-policy-kit/evidence/disclosure-policy.json with explicit "
+                    "acknowledgement_sla_hours, triage_sla_hours, and public_disclosure_policy."
+                ),
+                remediation=(
+                    "Document the disclosure SLA in "
+                    ".oss-policy-kit/evidence/disclosure-policy.json per "
+                    "evidence-disclosure-policy.schema.json so trust projects to verified."
+                ),
+                evidence_sources=[str(path.resolve())],
+                confidence="low",
+                operational_warnings=(_KEYWORD_CI_SIGNAL_WARN,),
+            )
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No disclosure SLA found in SECURITY.md and no evidence file present. "
+                "EU CRA 2026-09-11 24-hour reporting depends on having a documented "
+                "inbound disclosure channel with a stated acknowledgement window."
+            ),
+            remediation=(
+                "Add an acknowledgement SLA to SECURITY.md (e.g. 'we will acknowledge "
+                "within 72 hours') or attach "
+                ".oss-policy-kit/evidence/disclosure-policy.json per "
+                "evidence-disclosure-policy.schema.json."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    data, error, ph = _validate_json_evidence(
+        evidence,
+        schema_loader=_disclosure_policy_schema,
+        evidence_name="Disclosure policy",
+    )
+    if error:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=error,
+            remediation="Regenerate evidence using reports/schema/evidence-disclosure-policy.schema.json.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    blocked = _evidence_placeholder_outcome(evidence, ph)
+    if blocked is not None:
+        return blocked
+    assert data is not None
+    contact = data.get("contact") or {}
+    ack_sla = data.get("acknowledgement_sla_hours")
+    triage_sla = data.get("triage_sla_hours")
+    pdp = data.get("public_disclosure_policy") or {}
+    missing: list[str] = []
+    if not isinstance(contact.get("method"), str) or not isinstance(contact.get("value"), str):
+        missing.append("contact.method / contact.value")
+    if not isinstance(ack_sla, int) or ack_sla < 1:
+        missing.append("acknowledgement_sla_hours")
+    if not isinstance(triage_sla, int) or triage_sla < 1:
+        missing.append("triage_sla_hours")
+    if not isinstance(pdp.get("default_window_days"), int) or "negotiable" not in pdp:
+        missing.append("public_disclosure_policy.default_window_days / negotiable")
+    if missing:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                "Disclosure policy evidence is missing required SLA fields: "
+                + ", ".join(missing)
+                + ". The kit does not judge whether the SLA is fast enough; it requires "
+                "that an SLA is documented at all."
+            ),
+            remediation=(
+                "Fill the missing fields in .oss-policy-kit/evidence/disclosure-policy.json "
+                "per evidence-disclosure-policy.schema.json."
+            ),
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+        )
+    method = EvidenceCollectionMethod.STATIC
+    coll = data.get("collection")
+    if isinstance(coll, dict) and str(coll.get("evidence_collection_method", "")).strip().lower() == "live":
+        method = EvidenceCollectionMethod.LIVE
+    elif isinstance(coll, dict) and str(coll.get("evidence_collection_method", "")).strip().lower() == "manual":
+        method = EvidenceCollectionMethod.MANUAL
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=(
+            f"Disclosure policy evidence is valid: contact={contact.get('method')}, "
+            f"acknowledgement_sla_hours={ack_sla}, triage_sla_hours={triage_sla}, "
+            f"public_disclosure_window={pdp.get('default_window_days')}d "
+            f"(negotiable={pdp.get('negotiable')})."
+        ),
+        remediation="Re-attest evidence within freshness window when the policy changes.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="high",
+        evidence_collection_method=method,
+    )
+
+
 _PROV_VERIFY_FILES: tuple[tuple[str, Callable[[], dict[str, Any]]], ...] = (
     ("github-provenance-artifact.json", _github_provenance_artifact_schema),
     ("azure-provenance-artifact.json", _azure_provenance_artifact_schema),
@@ -4671,6 +4841,449 @@ def eval_sast_semgrep_064(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+# ---------------------------------------------------------------------------
+# SARIF-ingest adapters (F4-02b zizmor, F4-02c poutine). Reads raw SARIF 2.1.0
+# files dropped at .oss-policy-kit/evidence/sast/<tool>.sarif.json. Distinct
+# from the SEMGREP path (SAST-SEMGREP-064) which consumes a kit-emitted JSON
+# wrapper; raw SARIF keeps the kit honest about ingesting third-party output
+# without re-implementing scanner-specific normalization.
+# ---------------------------------------------------------------------------
+
+
+def _parse_sarif_findings(
+    sarif_path: Path,
+) -> tuple[dict[str, int] | None, str | None]:
+    """Return ({"error": int, "warning": int, "note": int, "none": int}, None)
+    on success, or (None, error_message) on parse failure.
+
+    SARIF 2.1.0 result-level levels are: error, warning, note, none. When a
+    result omits ``level``, the rule's ``defaultConfiguration.level`` applies
+    (per the SARIF spec). Missing both is treated as ``warning`` per the spec.
+    """
+
+    try:
+        raw = sarif_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return None, f"Could not read SARIF file: {exc}"
+    try:
+        doc = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return None, f"Could not parse SARIF JSON: {exc}"
+    if (
+        not isinstance(doc, dict) or doc.get("$schema", "").endswith("sarif-schema-2.1.0.json") is False
+    ) and "runs" not in doc:
+        # Accept SARIF docs without an explicit $schema; just require the runs[] array.
+        return None, "SARIF file missing top-level 'runs' array."
+    runs = doc.get("runs") or []
+    if not isinstance(runs, list):
+        return None, "SARIF 'runs' is not an array."
+    counts: dict[str, int] = {"error": 0, "warning": 0, "note": 0, "none": 0}
+    for run in runs:
+        if not isinstance(run, dict):
+            continue
+        rule_levels: dict[str, str] = {}
+        rules = ((run.get("tool") or {}).get("driver") or {}).get("rules") or []
+        if isinstance(rules, list):
+            for rule in rules:
+                if not isinstance(rule, dict):
+                    continue
+                rid = rule.get("id")
+                if not isinstance(rid, str):
+                    continue
+                default_level = (rule.get("defaultConfiguration") or {}).get("level")
+                if isinstance(default_level, str):
+                    rule_levels[rid] = default_level
+        results = run.get("results") or []
+        if not isinstance(results, list):
+            continue
+        for result in results:
+            if not isinstance(result, dict):
+                continue
+            level = result.get("level")
+            if not isinstance(level, str):
+                rid = result.get("ruleId")
+                level = rule_levels.get(rid, "warning") if isinstance(rid, str) else "warning"
+            level = level.lower()
+            if level not in counts:
+                level = "warning"
+            counts[level] += 1
+    return counts, None
+
+
+def _eval_sarif_adapter(
+    ctx: EvalContext,
+    *,
+    tool_name: str,
+    evidence_relpath: str,
+    scan_command_hint: str,
+    fail_on_error: bool = True,
+    fail_on_warning: bool = False,
+) -> EvalOutcome:
+    """Generic SARIF-ingest evaluator shared by zizmor / poutine / OSV / Gitleaks.
+
+    Returns:
+
+    - ``manual-review-required`` if the evidence file is missing.
+    - ``manual-review-required`` if SARIF parsing fails.
+    - ``fail`` if ``fail_on_error`` and there is at least one ``error``-level
+      finding (or any finding when ``fail_on_warning=True``).
+    - ``pass`` otherwise, surfacing the counts in ``reason``.
+    """
+
+    evidence = ctx.repo_root / evidence_relpath
+    if not evidence.is_file():
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"No {tool_name} SARIF evidence at {evidence_relpath}. Findings cannot be verified from a clone alone."
+            ),
+            remediation=(f"{scan_command_hint} and drop the resulting SARIF at {evidence_relpath}."),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    counts, err = _parse_sarif_findings(evidence)
+    if err is not None or counts is None:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=err or f"{tool_name} SARIF parse failed.",
+            remediation=f"Regenerate the {tool_name} SARIF and re-attach to {evidence_relpath}.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    total = sum(counts.values())
+    if fail_on_warning and total > 0:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"{tool_name} reported {total} finding(s): "
+                f"error={counts['error']}, warning={counts['warning']}, "
+                f"note={counts['note']}, none={counts['none']}."
+            ),
+            remediation=f"Address {tool_name} findings or document waivers under waivers/.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+            evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+        )
+    if fail_on_error and counts["error"] > 0:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"{tool_name} reported {counts['error']} error-level finding(s) "
+                f"(warning={counts['warning']}, note={counts['note']})."
+            ),
+            remediation=f"Address {tool_name} error-level findings or document waivers under waivers/.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+            evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=(
+            f"{tool_name} SARIF parsed cleanly: error={counts['error']}, "
+            f"warning={counts['warning']}, note={counts['note']}, none={counts['none']}."
+        ),
+        remediation=f"Re-scan with {tool_name} at least once per release.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="high",
+        evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+    )
+
+
+def eval_sast_zizmor_066(ctx: EvalContext) -> EvalOutcome:
+    """SAST-ZIZMOR-066: zizmor SARIF findings on GitHub Actions workflows."""
+    return _eval_sarif_adapter(
+        ctx,
+        tool_name="zizmor",
+        evidence_relpath=".oss-policy-kit/evidence/sast/zizmor.sarif.json",
+        scan_command_hint="Run `zizmor --format sarif .github/workflows/ > zizmor.sarif.json`",
+        fail_on_error=True,
+    )
+
+
+def eval_sast_poutine_067(ctx: EvalContext) -> EvalOutcome:
+    """SAST-POUTINE-067: poutine SARIF findings on GitHub Actions / GitLab CI pipelines."""
+    return _eval_sarif_adapter(
+        ctx,
+        tool_name="poutine",
+        evidence_relpath=".oss-policy-kit/evidence/sast/poutine.sarif.json",
+        scan_command_hint="Run `poutine analyze-local . --format sarif > poutine.sarif.json`",
+        fail_on_error=True,
+    )
+
+
+def eval_sast_osv_068(ctx: EvalContext) -> EvalOutcome:
+    """SAST-OSV-068: OSV-Scanner v2 SARIF findings (reachability-aware SCA)."""
+    return _eval_sarif_adapter(
+        ctx,
+        tool_name="osv-scanner",
+        evidence_relpath=".oss-policy-kit/evidence/sast/osv-scanner.sarif.json",
+        scan_command_hint=(
+            "Run `osv-scanner --format sarif --recursive . > osv-scanner.sarif.json` (v2+ for reachability)"
+        ),
+        fail_on_error=True,
+    )
+
+
+def eval_sast_gitleaks_069(ctx: EvalContext) -> EvalOutcome:
+    """SAST-GITLEAKS-069: Gitleaks SARIF findings (secret leak detection)."""
+    return _eval_sarif_adapter(
+        ctx,
+        tool_name="gitleaks",
+        evidence_relpath=".oss-policy-kit/evidence/sast/gitleaks.sarif.json",
+        # Secrets are zero-tolerance — even a single warning-level finding
+        # should block until reviewed/waived.
+        scan_command_hint="Run `gitleaks detect --report-format sarif --report-path gitleaks.sarif.json`",
+        fail_on_error=True,
+        fail_on_warning=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# GitLab CI controls (v5.9.0). See ADR-003 for the broader 12-control family
+# design; v5.9.0 ships an initial subset of 6 controls. The evaluators read
+# the ``ctx.gitlab_ci`` GitLabCiAnalysis produced by analyze_gitlab_ci().
+# ---------------------------------------------------------------------------
+
+
+def eval_gl_pipe_001(ctx: EvalContext) -> EvalOutcome:
+    """GL-PIPE-001: GitLab CI pipeline files present and parseable."""
+
+    analysis = ctx.gitlab_ci
+    if not analysis.pipeline_paths:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason="No .gitlab-ci.yml found at repo root or under .gitlab/.",
+            remediation="Add a .gitlab-ci.yml describing your build/test pipeline.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    if analysis.parse_errors:
+        names = ", ".join(p.name for p, _ in analysis.parse_errors)
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=f"GitLab CI pipeline files failed to parse: {names}.",
+            remediation="Repair YAML syntax errors in the listed pipeline files.",
+            evidence_sources=[str(p.resolve()) for p, _ in analysis.parse_errors],
+            confidence="high",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"Found {len(analysis.pipeline_paths)} GitLab CI pipeline file(s) (all parseable).",
+        remediation="Keep .gitlab-ci.yml minimal, pinned, and least-privilege.",
+        evidence_sources=[str(p.resolve()) for p in analysis.pipeline_paths],
+        confidence="high",
+    )
+
+
+def eval_gl_pipe_002(ctx: EvalContext) -> EvalOutcome:
+    """GL-PIPE-002: GitLab CI image references pinned to a tag or digest."""
+
+    analysis = ctx.gitlab_ci
+    if not analysis.pipeline_paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitLab CI pipelines to evaluate.",
+            remediation="Add a .gitlab-ci.yml with `image:` references using tags or digests.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    if not analysis.image_refs_pinned and not analysis.image_refs_unpinned and not analysis.image_refs_mutable_tag:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No `image:` declarations found in any GitLab CI pipeline.",
+            remediation="If your jobs need container images, declare them explicitly with pinned references.",
+            evidence_sources=[str(p.resolve()) for p in analysis.pipeline_paths],
+            confidence="medium",
+        )
+    if analysis.image_refs_unpinned:
+        unpinned_preview = ", ".join(ref for _, ref in analysis.image_refs_unpinned[:5])
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"GitLab CI uses {len(analysis.image_refs_unpinned)} unpinned image reference(s): "
+                f"{unpinned_preview}{' …' if len(analysis.image_refs_unpinned) > 5 else ''}."
+            ),
+            remediation=(
+                "Pin every image to a specific tag (`image: alpine:3.19`) or a digest "
+                "(`image: alpine@sha256:...`). Floating tags drift silently."
+            ),
+            evidence_sources=[str(p.resolve()) for p, _ in analysis.image_refs_unpinned],
+            confidence="high",
+        )
+    if analysis.image_refs_mutable_tag:
+        mutable_preview = ", ".join(ref for _, ref in analysis.image_refs_mutable_tag[:5])
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"GitLab CI uses {len(analysis.image_refs_mutable_tag)} image reference(s) "
+                f"with a mutable / floating tag (latest, edge, stable, main, master, nightly, lts): "
+                f"{mutable_preview}{' …' if len(analysis.image_refs_mutable_tag) > 5 else ''}."
+            ),
+            remediation=(
+                "Replace mutable tags with a specific version (`image: python:3.12.4`) "
+                "or a digest (`image: python@sha256:...`). Mutable tags drift silently "
+                "between pipeline runs and break reproducibility."
+            ),
+            evidence_sources=[str(p.resolve()) for p, _ in analysis.image_refs_mutable_tag],
+            confidence="high",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"All {len(analysis.image_refs_pinned)} GitLab CI `image:` reference(s) are pinned.",
+        remediation="Prefer digest pinning over tag pinning for the highest assurance.",
+        evidence_sources=[str(p.resolve()) for p, _ in analysis.image_refs_pinned],
+        confidence="high",
+    )
+
+
+def eval_gl_pipe_003(ctx: EvalContext) -> EvalOutcome:
+    """GL-PIPE-003: GitLab CI scripts do not pipe network downloads to a shell."""
+
+    analysis = ctx.gitlab_ci
+    if not analysis.pipeline_paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitLab CI pipelines to evaluate.",
+            remediation="Add a .gitlab-ci.yml; this control inspects `script:` blocks for unsafe patterns.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    if analysis.script_uses_curl_pipe_shell:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"{len(analysis.script_uses_curl_pipe_shell)} pipeline(s) contain "
+                "`curl ... | sh` / `wget ... | sh` patterns. These execute arbitrary "
+                "remote code without verification."
+            ),
+            remediation=(
+                "Replace `curl URL | sh` with a download-verify-execute pattern (pin URL "
+                "+ verify checksum/signature before running)."
+            ),
+            evidence_sources=[str(p.resolve()) for p in analysis.script_uses_curl_pipe_shell],
+            confidence="high",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason="No `curl|sh` / `wget|sh` patterns detected in GitLab CI `script:` blocks.",
+        remediation="Continue to download-verify-execute or pin binary dependencies.",
+        evidence_sources=[str(p.resolve()) for p in analysis.pipeline_paths],
+        confidence="medium",
+    )
+
+
+def eval_gl_pipe_004(ctx: EvalContext) -> EvalOutcome:
+    """GL-PIPE-004: GitLab CI jobs do not declare broad `inherit: secrets: true`."""
+
+    analysis = ctx.gitlab_ci
+    if not analysis.pipeline_paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitLab CI pipelines to evaluate.",
+            remediation="Add a .gitlab-ci.yml; this control checks for broad secret inheritance.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    if analysis.jobs_with_inherit_secrets:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"{len(analysis.jobs_with_inherit_secrets)} pipeline(s) declare "
+                "`inherit: secrets: true`. This grants every inheriting job access "
+                "to every defined secret — least-privilege violation."
+            ),
+            remediation=(
+                "Replace blanket inheritance with explicit `secrets:` per job, listing "
+                "only the secrets each job actually needs."
+            ),
+            evidence_sources=[str(p.resolve()) for p in analysis.jobs_with_inherit_secrets],
+            confidence="high",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason="No `inherit: secrets: true` declarations detected in GitLab CI pipelines.",
+        remediation="Continue declaring `secrets:` explicitly per job that needs them.",
+        evidence_sources=[str(p.resolve()) for p in analysis.pipeline_paths],
+        confidence="high",
+    )
+
+
+def eval_gl_pipe_005(ctx: EvalContext) -> EvalOutcome:
+    """GL-PIPE-005: GitLab CI `include:` does not reference unpinned remote URLs."""
+
+    analysis = ctx.gitlab_ci
+    if not analysis.pipeline_paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitLab CI pipelines to evaluate.",
+            remediation="Add a .gitlab-ci.yml; this control reviews `include:` references.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    if analysis.includes_remote:
+        preview = ", ".join(ref for _, ref in analysis.includes_remote[:3])
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"{len(analysis.includes_remote)} `include:` entries reference remote URLs "
+                f"(supply-chain risk): {preview}{' …' if len(analysis.includes_remote) > 3 else ''}."
+            ),
+            remediation=(
+                "Prefer `include: local: ./...` for in-repo files, or `include: project:` "
+                "with a pinned `ref:`. Remote URLs without integrity verification can change "
+                "between pipeline runs."
+            ),
+            evidence_sources=[str(p.resolve()) for p, _ in analysis.includes_remote],
+            confidence="high",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason="No remote `include:` references detected; supply-chain risk reduced.",
+        remediation="Prefer local includes or pinned cross-project includes (project + ref).",
+        evidence_sources=[str(p.resolve()) for p in analysis.pipeline_paths],
+        confidence="medium",
+    )
+
+
+def eval_gl_pipe_006(ctx: EvalContext) -> EvalOutcome:
+    """GL-PIPE-006: GitLab CI jobs use trigger restrictions (rules / only / except)."""
+
+    analysis = ctx.gitlab_ci
+    if not analysis.pipeline_paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitLab CI pipelines to evaluate.",
+            remediation="Add a .gitlab-ci.yml; this control checks for trigger restrictions.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    if not analysis.jobs_with_trigger_restrictions:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                "No pipeline declares `rules:`, `only:`, `except:`, or `when:`. Jobs run "
+                "on every commit/event by default, which is rarely the intended behavior "
+                "for security-sensitive jobs."
+            ),
+            remediation=(
+                "Add `rules:` (preferred) or `only:` / `except:` clauses to scope jobs to "
+                "specific branches, MR events, or schedules."
+            ),
+            evidence_sources=[str(p.resolve()) for p in analysis.pipeline_paths],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=(
+            f"{len(analysis.jobs_with_trigger_restrictions)} pipeline(s) declare trigger "
+            "restrictions (`rules:` / `only:` / `except:` / `when:`)."
+        ),
+        remediation="Audit `rules:` regularly; prefer them over deprecated `only:` / `except:`.",
+        evidence_sources=[str(p.resolve()) for p in analysis.jobs_with_trigger_restrictions],
+        confidence="medium",
+    )
+
+
 EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "GOV-SEC-001": eval_gov_sec_001,
     "GOV-CON-002": eval_gov_con_002,
@@ -4741,6 +5354,17 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "GH-RUNNER-062": eval_gh_runner_062,
     "RELEASE-ARCHIVE-063": eval_release_archive_063,
     "SAST-SEMGREP-064": eval_sast_semgrep_064,
+    "GOV-DISC-065": eval_gov_disc_065,
+    "SAST-ZIZMOR-066": eval_sast_zizmor_066,
+    "SAST-POUTINE-067": eval_sast_poutine_067,
+    "SAST-OSV-068": eval_sast_osv_068,
+    "SAST-GITLEAKS-069": eval_sast_gitleaks_069,
+    "GL-PIPE-001": eval_gl_pipe_001,
+    "GL-PIPE-002": eval_gl_pipe_002,
+    "GL-PIPE-003": eval_gl_pipe_003,
+    "GL-PIPE-004": eval_gl_pipe_004,
+    "GL-PIPE-005": eval_gl_pipe_005,
+    "GL-PIPE-006": eval_gl_pipe_006,
 }
 
 

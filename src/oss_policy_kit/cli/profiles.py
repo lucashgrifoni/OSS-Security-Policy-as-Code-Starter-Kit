@@ -28,7 +28,7 @@ from oss_policy_kit.cli.common import (
 from oss_policy_kit.domain.errors import InvalidInputError, LoadError, OssPolicyKitError
 
 _PROFILE_DISPLAY_ALIAS_TARGETS = dict(PROFILE_DIRECTORY_ALIASES)
-_REGULATORY_PROFILE_IDS: frozenset[str] = frozenset({"cra-eu-ready-1", "cra-eu-strict-1"})
+_REGULATORY_PROFILE_IDS: frozenset[str] = frozenset({"cra-eu-ready-1", "cra-eu-reporting-1", "cra-eu-strict-1"})
 
 _FRAMEWORK_PROFILE_LABELS: dict[str, str] = {
     "osps-baseline-1": "framework-aligned advisory (OSPS Baseline)",
@@ -66,6 +66,9 @@ _PROFILE_COMPACT_AUDIENCES = {
     "github-release-hardening-2": "GitHub teams enforcing release posture.",
     "github-release-hardening-3": "High-assurance GitHub release teams.",
     "cra-eu-ready-1": "EU manufacturers preparing for CRA reporting (advisory, multi-platform).",
+    "cra-eu-reporting-1": (
+        "EU manufacturers preparing for the 2026-09-11 24h reporting deadline (advisory, multi-platform)."
+    ),
 }
 _PROFILE_COMPACT_DESCRIPTIONS = {
     "aws-level-1": "Starter AWS buildspec/pipeline signals (honest clone checks).",
@@ -90,6 +93,9 @@ _PROFILE_COMPACT_DESCRIPTIONS = {
     "github-release-hardening-2": "Stricter GitHub release posture with evidence.",
     "github-release-hardening-3": "Highest GitHub release governance with evidence.",
     "cra-eu-ready-1": "EU CRA preparation (advisory) — multi-platform mapping, not certification.",
+    "cra-eu-reporting-1": (
+        "EU CRA 24h reporting readiness (advisory) — 2026-09-11 deadline, technical preconditions only."
+    ),
 }
 
 

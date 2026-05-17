@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oss-policy-kit"
-version = "5.8.1"
+version = "5.9.0"
 description = "Open source starter kit for adopting OSS security baselines via policy packs, templates, evidence, and remediation."
 readme = "README.md"
 license = "Apache-2.0"
@@ -13,7 +13,7 @@ requires-python = ">=3.12"
 authors = [{ name = "Lucas Henrique Grifoni" }]
 keywords = ["open-source", "security", "policy", "github-actions", "devsecops", "osps"]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.12",
@@ -109,6 +109,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 "src/oss_policy_kit/cli/scan_bicep.py" = ["B008"]
 "src/oss_policy_kit/cli/recommend.py" = ["B008"]
 "src/oss_policy_kit/cli/reports.py" = ["B008"]
+"src/oss_policy_kit/cli/emit_vex.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.12"

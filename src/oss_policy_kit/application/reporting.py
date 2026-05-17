@@ -417,9 +417,7 @@ def report_to_dict_v1(
         "evidence_provenance_version": EVIDENCE_PROVENANCE_VERSION,
         "generated_at": report.generated_at,
         "kit_version": report.kit_version,
-        "target_path": _sanitize_target_path_for_payload(
-            report.target_path, include_absolute=include_absolute_path
-        ),
+        "target_path": _sanitize_target_path_for_payload(report.target_path, include_absolute=include_absolute_path),
         "profile": profile_block,
         "summary_by_status": report.summary_by_status,
         "controls_total": sum(report.summary_by_status.values()),
@@ -467,9 +465,7 @@ def report_to_dict(
         "schema_version": effective,
         "generated_at": report.generated_at,
         "kit_version": report.kit_version,
-        "target_path": _sanitize_target_path_for_payload(
-            report.target_path, include_absolute=include_absolute_path
-        ),
+        "target_path": _sanitize_target_path_for_payload(report.target_path, include_absolute=include_absolute_path),
         "profile_id": report.profile_id,
         "profile_title": report.profile_title,
         "summary_by_status": report.summary_by_status,
@@ -527,9 +523,7 @@ def write_markdown_report(
     lines.append("")
     lines.append(f"- **Generated (UTC)**: `{report.generated_at}`")
     lines.append(f"- **Kit version**: `{report.kit_version}`")
-    _target_display = _sanitize_target_path_for_payload(
-        report.target_path, include_absolute=include_absolute_path
-    )
+    _target_display = _sanitize_target_path_for_payload(report.target_path, include_absolute=include_absolute_path)
     lines.append(f"- **Target**: `{_target_display}`")
     lines.append(f"- **Profile**: `{report.profile_id}` - {report.profile_title}")
     if report.scorecard_path:

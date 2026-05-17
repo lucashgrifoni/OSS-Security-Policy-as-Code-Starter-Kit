@@ -498,6 +498,83 @@ controls:
     lifecycle: stable
     assurance: evidence-backed
     weight: 3
+  - id: GOV-DISC-065
+    title: Disclosure channel SLA documented (CRA reporting readiness)
+    category: governance
+    automation: partially_observable
+    lifecycle: stable
+    assurance: evidence-backed
+    weight: 2
+  - id: SAST-ZIZMOR-066
+    title: zizmor SARIF findings (GitHub Actions security AST analysis)
+    category: ci_cd
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: SAST-POUTINE-067
+    title: poutine SARIF findings (GitHub Actions / GitLab CI pipeline scanner)
+    category: ci_cd
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: SAST-OSV-068
+    title: OSV-Scanner v2 SARIF findings (reachability-aware SCA)
+    category: supply_chain
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: SAST-GITLEAKS-069
+    title: Gitleaks SARIF findings (secret leak detection)
+    category: secure_development
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: GL-PIPE-001
+    title: GitLab CI pipeline files present and parseable
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: deterministic
+    weight: 1
+  - id: GL-PIPE-002
+    title: GitLab CI image references pinned to a tag or digest
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GL-PIPE-003
+    title: GitLab CI scripts do not pipe network downloads to a shell
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: GL-PIPE-004
+    title: "GitLab CI jobs do not declare broad `inherit: secrets: true`"
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: deterministic
+    weight: 2
+  - id: GL-PIPE-005
+    title: GitLab CI `include:` does not reference unpinned remote URLs
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GL-PIPE-006
+    title: GitLab CI jobs use trigger restrictions (`rules:` / `only:` / `except:`)
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
   - id: IAC-TF-001
     title: Terraform - object storage configured for public access
     category: iac

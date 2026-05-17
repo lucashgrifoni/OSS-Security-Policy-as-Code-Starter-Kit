@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/schema/evidence-disclosure-policy.schema.json",
+  "title": "Disclosure policy SLA evidence",
+  "description": "Self-attested or live-collected record of the manufacturer's responsible disclosure channel and committed service levels. Used by GOV-DISC-065 to support EU CRA 24-hour reporting readiness. Place at .oss-policy-kit/evidence/disclosure-policy.json. Trust level: evidence-backed when collection.evidence_collection_method=live; otherwise self-attested.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "attested_at",
+    "attested_by",
+    "contact",
+    "acknowledgement_sla_hours",
+    "triage_sla_hours",
+    "public_disclosure_policy"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "disclosure-policy/v1"
+    },
+    "attested_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO-8601 date (YYYY-MM-DD) when the policy was last verified."
+    },
+    "attested_by": {
+      "type": "string",
+      "description": "Username, security team, or identifier of the attester."
+    },
+    "contact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "value"],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["email", "url", "form", "pgp"],
+          "description": "Primary disclosure channel type. Use 'url' for a public form or advisory page."
+        },
+        "value": {
+          "type": "string",
+          "description": "Address, URL, or PGP key identifier corresponding to the chosen method."
+        },
+        "pgp_fingerprint": {
+          "type": "string",
+          "description": "Optional. Fingerprint of the public key when method=pgp or when a key is offered alongside email/url."
+        }
+      }
+    },
+    "acknowledgement_sla_hours": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Hours within which the manufacturer commits to acknowledge receipt of a report. Documents the *inbound* SLA — distinct from the CRA 24-hour outbound reporting clock to ENISA, but a necessary precondition for it."
+    },
+    "triage_sla_hours": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Hours within which the manufacturer commits to perform an initial triage / severity assessment of a report."
+    },
+    "public_disclosure_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_window_days", "negotiable"],
+      "properties": {
+        "default_window_days": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Default number of days between report and public disclosure. 90 is a common industry default; 0 means immediate."
+        },
+        "negotiable": {
+          "type": "boolean",
+          "description": "Whether the default window is negotiable with the reporter for legitimate cases (extension, embargo coordination)."
+        }
+      }
+    },
+    "safe_harbor": {
+      "type": "boolean",
+      "description": "Optional. Whether the manufacturer commits to not pursue legal action against good-faith researchers."
+    },
+    "out_of_scope": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional. Categories explicitly excluded from the program (e.g. 'denial of service', 'social engineering', 'physical attacks')."
+    },
+    "cve_assignment_authority": {
+      "type": "string",
+      "description": "Optional. CNA used to mint CVE IDs for confirmed reports (e.g. 'MITRE', 'GitHub', 'self')."
+    },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_collection_method", "collected_at"],
+      "properties": {
+        "evidence_collection_method": {
+          "type": "string",
+          "enum": ["live", "manual"]
+        },
+        "collected_at": { "type": "string" },
+        "source_url": { "type": "string" },
+        "mode": { "type": "string", "enum": ["api", "self-attested"] }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional free-text notes (e.g. coordinated-disclosure partners, regional contacts, exception reasoning)."
+    }
+  }
+}

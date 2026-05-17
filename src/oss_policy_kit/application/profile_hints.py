@@ -12,6 +12,9 @@ GITHUB_EVIDENCE_FILENAMES: frozenset[str] = frozenset(
         "github-rulesets.json",
         "github-environment-protection.json",
         "github-secret-scanning.json",
+        "github-provenance-artifact.json",
+        "org-mfa-posture.json",
+        "runner-groups.json",
     }
 )
 AZURE_EVIDENCE_FILENAMES: frozenset[str] = frozenset(
@@ -28,6 +31,21 @@ AWS_EVIDENCE_FILENAMES: frozenset[str] = frozenset(
         "aws-codepipeline.json",
         "aws-sbom-artifact.json",
         "aws-provenance-artifact.json",
+    }
+)
+# Platform-agnostic evidence filenames bundled with the kit. These are consumed
+# by controls that apply across GitHub/Azure/AWS (governance, IaC, K8s, etc.).
+# Keep this set in sync with the schemas in src/oss_policy_kit/data/schema/.
+GENERIC_EVIDENCE_FILENAMES: frozenset[str] = frozenset(
+    {
+        "audit-log-streaming.json",
+        "disclosure-policy.json",
+        "k8s-baseline.json",
+        "release-archival-policy.json",
+        "iac-terraform.json",
+        "iac-bicep.json",
+        "iac-cfn.json",
+        "iac-pulumi.json",
     }
 )
 
@@ -94,6 +112,14 @@ def _evidence_json_paths(repo_root: Path) -> list[Path]:
 
 
 def _partition_evidence_json(ev_json: list[Path]) -> tuple[list[Path], list[Path], list[Path], list[Path]]:
+    """Partition discovered evidence JSON paths into (github, azure, aws, unrecognized).
+
+    Generic / cross-platform bundled filenames (disclosure-policy.json,
+    audit-log-streaming.json, release-archival-policy.json, iac-*.json,
+    k8s-baseline.json) are RECOGNIZED as bundled and therefore do NOT land
+    in the unrecognized bucket — they are consumed by controls that aren't
+    tied to a specific CI platform.
+    """
     github: list[Path] = []
     azure: list[Path] = []
     aws: list[Path] = []
@@ -106,6 +132,9 @@ def _partition_evidence_json(ev_json: list[Path]) -> tuple[list[Path], list[Path
             azure.append(p)
         elif name in AWS_EVIDENCE_FILENAMES:
             aws.append(p)
+        elif name in GENERIC_EVIDENCE_FILENAMES:
+            # Bundled & cross-platform; skip the unrecognized signal entirely.
+            continue
         else:
             other.append(p)
     return github, azure, aws, other
@@ -269,8 +298,12 @@ def _collect_signals(
         extra = "" if len(other_ev) <= 5 else f" (+{len(other_ev) - 5} more)"
         _append_signal(
             signals,
-            "evidence_json_non_bundled_filenames",
-            f"JSON under evidence/ with names outside bundled templates: {names}{extra}",
+            "evidence_json_unrecognized_filenames",
+            (
+                f"Unrecognized JSON under .oss-policy-kit/evidence/ — these files do not "
+                f"match any bundled schema and will be ignored by `evaluate`: {names}{extra}. "
+                f"Rename to a bundled template (see `scaffold-evidence --help`) or remove them."
+            ),
         )
     return signals
 
@@ -352,6 +385,32 @@ def _suggestions_for_platform(
                     ["github_actions_workflows"],
                 )
             )
+        # MELHORIA-001 / F-001: evidence files for GitHub exist but NO CI signal
+        # in the clone (and no other platform's CI either). Surface a weak
+        # suggestion + explicit rationale. If another platform (Azure / AWS) has
+        # CI signals, suppress this fallback — the adopter is clearly on that
+        # platform, and a GitHub recommendation would be misleading.
+        no_other_ci = not az_paths and not buildspec
+        if github_ev and not wf_paths and no_other_ci:
+            # Suggest the starter ladder (github-level-1), not release-hardening:
+            # the adopter clearly lacks CI altogether, so release-track guidance
+            # would be misleading. The rationale explains that the evidence is
+            # currently unused. Keeps consistency with M-005 (no release-hardening
+            # without CI signal).
+            out.append(
+                (
+                    150,
+                    "github-level-1",
+                    (
+                        "GitHub-shaped evidence JSON files were found but no .github/workflows/ "
+                        "files exist in this clone. The evidence is currently unused — start "
+                        "from github-level-1 and add a workflow first (or confirm you are "
+                        "pointing --target at the correct repository root), then re-run "
+                        "recommend-profile to graduate to a release-hardening profile."
+                    ),
+                    ["github_evidence_json_files"],
+                )
+            )
         return out
 
     if platform == "azure":
@@ -396,6 +455,24 @@ def _suggestions_for_platform(
                     ["azure_pipelines_yaml"],
                 )
             )
+        # MELHORIA-001 / F-001: Azure evidence without Azure Pipelines (and
+        # no other platform's CI), see the GitHub branch above.
+        no_other_ci = not wf_paths and not buildspec
+        if azure_ev and not az_paths and no_other_ci:
+            out.append(
+                (
+                    150,
+                    "azure-level-1",
+                    (
+                        "Azure-shaped evidence JSON files were found but no Azure Pipelines YAML "
+                        "exists in this clone. The evidence is currently unused — start from "
+                        "azure-level-1 and add a pipeline first (or confirm you are pointing "
+                        "--target at the correct repository root), then re-run recommend-profile "
+                        "to graduate to a release-hardening profile."
+                    ),
+                    ["azure_evidence_json_files"],
+                )
+            )
         return out
 
     # aws
@@ -438,6 +515,24 @@ def _suggestions_for_platform(
                 "aws-level-1",
                 "A CodeBuild buildspec is present; evaluate clone-visible AWS CI signals.",
                 ["aws_codebuild_buildspec"],
+            )
+        )
+    # MELHORIA-001 / F-001: AWS evidence without buildspec (and no other
+    # platform's CI), see the GitHub branch above.
+    no_other_ci = not wf_paths and not az_paths
+    if aws_ev and not buildspec and no_other_ci:
+        out.append(
+            (
+                150,
+                "aws-level-1",
+                (
+                    "AWS-shaped evidence JSON files were found but no buildspec.yml / "
+                    "buildspec.yaml exists in this clone. The evidence is currently unused — "
+                    "start from aws-level-1 and add a buildspec first (or confirm you are "
+                    "pointing --target at the correct repository root), then re-run "
+                    "recommend-profile to graduate to a release-hardening profile."
+                ),
+                ["aws_evidence_json_files"],
             )
         )
     return out

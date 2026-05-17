@@ -15,7 +15,15 @@ verification, SBOM quality).
 
 Scope (closed set, alphabetized):
 
-- ``SAST-SEMGREP-064`` -- Semgrep SAST evidence.
+- ``SAST-GITLEAKS-069`` -- Gitleaks SARIF evidence (secret leak detection).
+- ``SAST-OSV-068`` -- OSV-Scanner v2 SARIF evidence (reachability-aware SCA).
+- ``SAST-POUTINE-067`` -- poutine SARIF evidence (GHA / GitLab CI pipeline scanner).
+- ``SAST-SEMGREP-064`` -- Semgrep SAST evidence (kit-emitted wrapper).
+- ``SAST-ZIZMOR-066`` -- zizmor SARIF evidence (GHA static analysis).
+
+The 06x family (zizmor / poutine / OSV / gitleaks) was added in Fase 4
+(v5.9.0). They share a generic SARIF reader in ``evaluators.py``; the
+boundary keeps the shared helper visible to a single import point.
 """
 
 from __future__ import annotations
@@ -25,7 +33,13 @@ from typing import Any
 
 from oss_policy_kit.domain.models import EvalOutcome
 
-SAST_CONTROL_IDS: tuple[str, ...] = ("SAST-SEMGREP-064",)
+SAST_CONTROL_IDS: tuple[str, ...] = (
+    "SAST-SEMGREP-064",
+    "SAST-ZIZMOR-066",
+    "SAST-POUTINE-067",
+    "SAST-OSV-068",
+    "SAST-GITLEAKS-069",
+)
 
 
 def build_sast_evaluators() -> dict[str, Callable[[Any], EvalOutcome]]:
@@ -35,4 +49,8 @@ def build_sast_evaluators() -> dict[str, Callable[[Any], EvalOutcome]]:
 
     return {
         "SAST-SEMGREP-064": _e.eval_sast_semgrep_064,
+        "SAST-ZIZMOR-066": _e.eval_sast_zizmor_066,
+        "SAST-POUTINE-067": _e.eval_sast_poutine_067,
+        "SAST-OSV-068": _e.eval_sast_osv_068,
+        "SAST-GITLEAKS-069": _e.eval_sast_gitleaks_069,
     }

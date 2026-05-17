@@ -1,0 +1,41 @@
+# Pre-commit hooks published by this repository for downstream adopters.
+#
+# Consumers add this repo to their .pre-commit-config.yaml:
+#
+#   repos:
+#     - repo: https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit
+#       rev: v5.9.0  # pin to a tag for stable behavior
+#       hooks:
+#         - id: oss-policy-kit-evaluate
+#         - id: oss-policy-kit-validate-profiles  # maintainers of the kit itself
+#
+# Each hook is intentionally narrow. The evaluate hook gates the developer's repo
+# against a profile; the validate-profiles hook is for adopters extending the
+# bundled catalog with their own profiles. See docs/pre-commit-integration.md.
+
+- id: oss-policy-kit-evaluate
+  name: oss-policy-kit evaluate (clone-visible)
+  description: Run a clone-visible OSS security baseline evaluation. Fails the commit on `--fail-on fail` results. Defaults to the project's persisted profile from oss-policy-kit.yaml when present.
+  entry: python -m oss_policy_kit evaluate --target . --fail-on fail --summary-only
+  language: python
+  pass_filenames: false
+  always_run: true
+  stages: [pre-push]
+
+- id: oss-policy-kit-evaluate-degraded
+  name: oss-policy-kit evaluate (advisory profile, --fail-on degraded)
+  description: Same as oss-policy-kit-evaluate but with --fail-on degraded — the right setting for advisory profiles (cra-*, osps-*, slsa-*, ssdf-*, cis-*, owasp-*, s2c2f-*, IaC/K8s/container baselines, webhook-security-1).
+  entry: python -m oss_policy_kit evaluate --target . --fail-on degraded --summary-only
+  language: python
+  pass_filenames: false
+  always_run: true
+  stages: [pre-push]
+
+- id: oss-policy-kit-validate-profiles
+  name: oss-policy-kit validate-bundled-profiles
+  description: Validate that every bundled profile resolves to known control IDs (maintainer-side check for kit contributors and adopters extending the catalog).
+  entry: python scripts/validate-bundled-profiles.py
+  language: python
+  pass_filenames: false
+  always_run: true
+  stages: [pre-commit]

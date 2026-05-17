@@ -25,6 +25,7 @@ from oss_policy_kit.domain.models import (
 )
 from oss_policy_kit.infrastructure.aws_ci_parser import analyze_aws_ci
 from oss_policy_kit.infrastructure.azure_pipeline_parser import analyze_azure_pipelines
+from oss_policy_kit.infrastructure.gitlab_ci_parser import analyze_gitlab_ci
 from oss_policy_kit.infrastructure.workflow_parser import analyze_workflows
 
 _HARD_GATE_EVIDENCE_PROFILES = frozenset(
@@ -228,6 +229,7 @@ def evaluate_repository(
     workflows = analyze_workflows(repo_root)
     azure_pipelines = analyze_azure_pipelines(repo_root)
     aws_ci = analyze_aws_ci(repo_root)
+    gitlab_ci = analyze_gitlab_ci(repo_root)
     ctx = EvalContext(
         repo_root=repo_root,
         profile_id=profile.id,
@@ -236,6 +238,7 @@ def evaluate_repository(
         aws_ci=aws_ci,
         scorecard=scorecard,
         verbose_emit=verbose_emit,
+        gitlab_ci=gitlab_ci,
     )
 
     waivers = waiver_outcome.by_control if waiver_outcome else {}
@@ -247,6 +250,8 @@ def evaluate_repository(
         operational_warnings.append(f"Azure pipeline parse issue {az_path.name}: {msg}")
     for aws_path, msg in aws_ci.parse_errors:
         operational_warnings.append(f"AWS CI parse issue {aws_path.name}: {msg}")
+    for gl_path, msg in gitlab_ci.parse_errors:
+        operational_warnings.append(f"GitLab CI parse issue {gl_path.name}: {msg}")
 
     results: list[ControlResult] = []
 

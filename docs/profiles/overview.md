@@ -1,6 +1,6 @@
 # Profiles overview
 
-This page summarizes the **32 bundled profiles** in this kit build: deterministic ladder profiles per platform (`github-*`, `azure-*`, `aws-*`), two **advisory-only hybrid** profiles, one **regulatory mapping** profile for the CRA reporting deadline (`cra-eu-ready-1`, EU Cyber Resilience Act, advisory), one **regulatory hard-gate-capable** profile for full CRA obligations (`cra-eu-strict-1`), six **framework alignment** profiles introduced in v5.4.0 (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`), the **AppSec native bundle** `appsec-sast-sca-1` (hard-gate-capable when paired with `scan-sast`), the v5.5.0 **Terraform / OpenTofu IaC baseline** `iac-terraform-baseline-1` (advisory, paired with `scan-iac`), the v5.6.0 **Kubernetes manifest baseline** `kubernetes-baseline-1` (advisory, paired with `scan-k8s`), and the v5.6.0 **container hardening baseline** `container-baseline-1` (advisory, clone-visible Dockerfile signals). The legacy bundled id `github-release-hardening` was **removed in v5.0.0**; passing it now returns a migration error pointing to the canonical `github-release-hardening-1`. See [docs/v5.0.0-migration-guide.md](../v5.0.0-migration-guide.md).
+This page summarizes the **38 bundled profiles** in this kit build (v5.9.0): deterministic ladder profiles per platform (`github-*`, `azure-*`, `aws-*`), two **advisory-only hybrid** profiles, three **regulatory mapping** profiles for the EU Cyber Resilience Act (`cra-eu-reporting-1` for the 2026-09-11 24-hour reporting deadline — new in v5.9.0; `cra-eu-ready-1` for broader CRA preparation; `cra-eu-strict-1` for the 2027-12-11 full-obligations deadline — all three advisory), six **framework alignment** profiles introduced in v5.4.0 (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`), the **AppSec native bundle** `appsec-sast-sca-1` (hard-gate-capable when paired with `scan-sast`; now 15 controls including the v5.9.0 SARIF adapters), the v5.5.0 **Terraform / OpenTofu IaC baseline** `iac-terraform-baseline-1` (advisory, paired with `scan-iac`), the v5.6.0 **Kubernetes manifest baseline** `kubernetes-baseline-1` (advisory, paired with `scan-k8s`), the v5.6.0 **container hardening baseline** `container-baseline-1` (advisory, clone-visible Dockerfile signals), and the v5.7.0 **webhook receiver hardening** profile `webhook-security-1`. The legacy bundled id `github-release-hardening` was **removed in v5.0.0**; passing it now returns a migration error pointing to the canonical `github-release-hardening-1`. See [docs/v5.0.0-migration-guide.md](../v5.0.0-migration-guide.md).
 
 > **Hybrid profiles are advisory-only.** `github-aws-level-2` and `github-azure-level-2` combine GitHub SCM signals with AWS or Azure CI signals. They emit JSON `posture: multi_platform_advisory_hybrid`. **Do not use these profiles as a release or PR gate** — use the platform-specific `*-level-3` or `*-release-hardening-3` ladders instead.
 >
@@ -121,9 +121,9 @@ These tiers are **not** evidence of catalog immaturity — they reflect the limi
 
 ### Framework alignment
 
-Each bundled profile description (`profiles --format detailed`) now ends with a **Framework alignment** sentence pointing operators at [framework-alignment.md](../framework-alignment.md), which maps the 70 catalog controls to OpenSSF Scorecard, OSPS Baseline, OWASP CI/CD Top 10, SLSA v1.1, NIST SSDF SP 800-218, Microsoft S2C2F, CIS Software Supply Chain Security Benchmark, AWS Well-Architected (Security Pillar), Azure DevOps Security Best Practices, and EU Cyber Resilience Act. The page documents YES / PARTIAL / OUT / GAP coverage per framework requirement.
+Each bundled profile description (`profiles --format detailed`) now ends with a **Framework alignment** sentence pointing operators at [framework-alignment.md](../framework-alignment.md), which maps the **130 catalog controls (v5.9.0)** to OpenSSF Scorecard, OSPS Baseline, OWASP CI/CD Top 10, SLSA v1.1, NIST SSDF SP 800-218, Microsoft S2C2F, CIS Software Supply Chain Security Benchmark, AWS Well-Architected (Security Pillar), Azure DevOps Security Best Practices, and EU Cyber Resilience Act. The page documents YES / PARTIAL / OUT / GAP coverage per framework requirement.
 
-Starting in v5.4.0 the kit also ships **bundled framework alignment profiles** (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `cra-eu-strict-1`). They are multi-platform mappings that combine existing controls into framework-specific bundles - operators who used to rely on the mapping documentation alone can now also `evaluate --profile <id>` to get a framework-shaped report. None of these profiles introduces a new control; they reuse the existing 70-control catalog. See the per-profile mapping in [framework-alignment.md](../framework-alignment.md).
+Starting in v5.4.0 the kit also ships **bundled framework alignment profiles** (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `cra-eu-strict-1`). They are multi-platform mappings that combine existing controls into framework-specific bundles - operators who used to rely on the mapping documentation alone can now also `evaluate --profile <id>` to get a framework-shaped report. None of these profiles introduces a new control; they reuse the existing catalog. See the per-profile mapping in [framework-alignment.md](../framework-alignment.md).
 
 ## Matrix (derived from bundled YAML + catalog assurance mix)
 
@@ -149,15 +149,16 @@ Starting in v5.4.0 the kit also ships **bundled framework alignment profiles** (
 | aws-release-hardening-1 | 16 | release ladder | no | 10 / 4 / 2 |
 | aws-release-hardening-2 | 22 | release ladder | no | 14 / 6 / 2 |
 | aws-release-hardening-3 | 29 | release hard-gate (extreme) | **yes** | 15 / 7 / 7 |
+| cra-eu-reporting-1 | 11 | regulatory mapping (advisory, 2026-09-11 reporting) | no | see JSON |
 | cra-eu-ready-1 | 12 | regulatory mapping (advisory) | no | 5 / 4 / 3 |
-| cra-eu-strict-1 | 19 | regulatory hard-gate (advisory until evidence) | **yes (with evidence)** | see JSON |
+| cra-eu-strict-1 | 19 | regulatory mapping (advisory, strict track) | no | see JSON |
 | osps-baseline-1 | 18 | framework alignment (advisory) | no | see JSON |
 | slsa-build-l2-1 | 14 | framework alignment (hard-gate-capable) | **yes (with evidence)** | see JSON |
 | ssdf-baseline-1 | 22 | framework alignment (advisory) | no | see JSON |
 | cis-supply-chain-1 | 24 | framework alignment (advisory) | no | see JSON |
 | owasp-cicd-top10-1 | 23 | framework alignment (advisory) | no | see JSON |
 | s2c2f-l1-1 | 9 | framework alignment (advisory, OSS consumption) | no | see JSON |
-| appsec-sast-sca-1 | 11 | AppSec native bundle (hard-gate-capable with scan-sast) | **yes (with scan-sast)** | 7 / 2 / 2 |
+| appsec-sast-sca-1 | 15 | AppSec native bundle (hard-gate-capable with scan-sast + SARIF adapters) | **yes (with scan-sast)** | see JSON |
 | iac-terraform-baseline-1 | 15 | IaC Terraform / OpenTofu baseline (advisory) | no | see JSON |
 | iac-cfn-baseline-1 | 7 | CloudFormation posture (advisory, paired with scan-cfn) | no | 1 / 0 / 6 |
 | iac-pulumi-baseline-1 | 7 | Pulumi Python posture (advisory, paired with scan-pulumi) | no | 1 / 0 / 6 |
@@ -165,14 +166,15 @@ Starting in v5.4.0 the kit also ships **bundled framework alignment profiles** (
 | kubernetes-baseline-1 | 17 | Kubernetes manifest posture (advisory, paired with scan-k8s) | no | 1 / 0 / 16 |
 | container-baseline-1 | 11 | Container hardening posture (advisory) | no | 3 / 8 / 0 |
 | webhook-security-1 | 3 | Webhook receiver security (advisory, paired with the receiver) | no | 1 / 2 / 0 |
+| gitlab-level-1 | 16 | GitLab CI starter ladder | no | see JSON |
 
 > **Source for counts**: `python -m oss_policy_kit profiles --format json` (`controls` and `assurance_mix`) against the bundled catalog in this revision. Counts evolve as new controls are folded into existing profiles; the JSON output is the canonical source of truth for any given build.
 
 ### Framework alignment profiles (v5.4.0)
 
-The seven profiles introduced in v5.4.0 (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `cra-eu-strict-1`) are **multi-platform mappings**: they have no platform prefix and combine controls from the existing 70-control catalog into framework-aligned bundles. They complement (not replace) the platform ladders. Detailed per-framework mapping is documented in [framework-alignment.md](../framework-alignment.md).
+The seven profiles introduced in v5.4.0 (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `cra-eu-strict-1`) are **multi-platform mappings**: they have no platform prefix and combine controls from the existing 130-control catalog (as of v5.9.0) into framework-aligned bundles. They complement (not replace) the platform ladders. Detailed per-framework mapping is documented in [framework-alignment.md](../framework-alignment.md).
 
-Two of the seven are hard-gate-capable when evidence is present (`slsa-build-l2-1`, `cra-eu-strict-1`); the other five are advisory mappings (`--fail-on degraded` recommended). All seven trigger the `[advisory profile]` banner only when explicitly listed there; consult `src/oss_policy_kit/cli/terminal_ui.py:_ADVISORY_ONLY_PROFILE_IDS` for the live list.
+One of the seven is hard-gate-capable when evidence is present (`slsa-build-l2-1`); the other six are advisory mappings (`--fail-on degraded` recommended). Both CRA profiles (`cra-eu-ready-1` for the 2026-09-11 reporting deadline and `cra-eu-strict-1` for the 2027-12-11 full obligations) are advisory regulatory mappings: the kit aligns evidence with CRA expectations but does not certify compliance, which requires a competent authority (notified body, CE-marking) outside the kit's scope. All seven trigger the `[advisory profile]` banner only when explicitly listed there; consult `src/oss_policy_kit/cli/terminal_ui.py:_ADVISORY_ONLY_PROFILE_IDS` for the live list.
 
 The `recommend-profile` heuristic does not auto-suggest these seven framework profiles - they are deliberate operator choices, not heuristic recommendations (same pattern as `cra-eu-ready-1`).
 

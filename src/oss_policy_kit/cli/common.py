@@ -212,6 +212,7 @@ def prepare_cli_args(args: list[str]) -> list[str]:
         "scan-cfn",
         "scan-pulumi",
         "scan-bicep",
+        "emit-vex",
     }:
         return args
     if first in ("--help", "-h", "--version", "-V"):
@@ -362,13 +363,9 @@ def execute_evaluate(
         )
         out = output_dir.resolve()
         try:
-            json_path, md_path = write_reports(
-                report, out, include_absolute_path=include_absolute_path
-            )
+            json_path, md_path = write_reports(report, out, include_absolute_path=include_absolute_path)
         except (PermissionError, NotADirectoryError, FileNotFoundError, OSError) as exc:
-            raise InvalidInputError(
-                f"Cannot write to --output-dir '{output_dir}': {exc.strerror or exc}"
-            ) from exc
+            raise InvalidInputError(f"Cannot write to --output-dir '{output_dir}': {exc.strerror or exc}") from exc
         sarif_path: Path | None = None
         if sarif_output is not None:
             from oss_policy_kit.application.sarif_writer import write_sarif_report

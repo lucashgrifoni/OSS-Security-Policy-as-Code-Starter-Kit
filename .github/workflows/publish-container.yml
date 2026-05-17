@@ -1,0 +1,140 @@
+name: Publish container image
+
+# Builds the official oss-policy-kit container image, signs it with cosign
+# (keyless via Sigstore + GitHub OIDC), generates a CycloneDX SBOM, and
+# pushes everything to ghcr.io/<owner>/oss-policy-kit.
+#
+# Triggers:
+#   - tag push matching v*  → publish stable image tagged with the version
+#                              (e.g. v5.9.0 → ghcr.io/<owner>/oss-policy-kit:5.9.0)
+#   - workflow_dispatch     → manual run, publishes :edge tag for previews
+#
+# Permissions are scoped per-job; the workflow has no top-level write perms.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_suffix:
+        description: "Optional tag suffix appended after the version (e.g. 'rc1')"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build, sign, publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # `packages: write` is needed to push to ghcr.io.
+      packages: write
+      # `id-token: write` is needed for cosign keyless signing via Sigstore.
+      id-token: write
+      # `attestations: write` is needed for GitHub Artifact Attestations.
+      attestations: write
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository_owner }}/oss-policy-kit
+    steps:
+      - name: Check out the source tag
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Derive image tags
+        id: tags
+        run: |
+          set -euo pipefail
+          REF="${GITHUB_REF#refs/tags/}"
+          SUFFIX="${{ inputs.tag_suffix }}"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION="${REF#v}"
+            if [[ -n "$SUFFIX" ]]; then VERSION="$VERSION-$SUFFIX"; fi
+            TAGS="$REGISTRY/$IMAGE_NAME:$VERSION,$REGISTRY/$IMAGE_NAME:latest"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=edge" >> "$GITHUB_OUTPUT"
+            echo "tags=$REGISTRY/$IMAGE_NAME:edge" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push multi-arch image
+        id: build
+        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.tags.outputs.tags }}
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            KIT_VERSION=${{ steps.tags.outputs.version }}
+          labels: |
+            org.opencontainers.image.title=oss-policy-kit
+            org.opencontainers.image.version=${{ steps.tags.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@d7d6e4dc6b7022ec4adb70b8a8e9f72e1cdd0fe5 # v3
+        with:
+          cosign-release: "v2.4.0"
+
+      - name: Sign image with cosign (keyless)
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          TAGS: ${{ steps.tags.outputs.tags }}
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra TAG_LIST <<< "$TAGS"
+          for tag in "${TAG_LIST[@]}"; do
+            cosign sign --yes "${tag}@${DIGEST}"
+          done
+
+      - name: Generate GitHub Artifact Attestation for image
+        uses: actions/attest-build-provenance@2ce9eaf73be86df0fa3f29c20a93927b89ad6c43 # v3
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Summary
+        run: |
+          {
+            echo "## Published container image"
+            echo ""
+            echo "- **Tags**: ${{ steps.tags.outputs.tags }}"
+            echo "- **Digest**: ${{ steps.build.outputs.digest }}"
+            echo "- **Cosign**: signed (keyless, Sigstore Public Good)"
+            echo "- **Provenance**: GitHub Artifact Attestation pushed to registry"
+            echo "- **SBOM**: attached via Buildx (sbom=true)"
+            echo "- **Platforms**: linux/amd64, linux/arm64"
+            echo ""
+            echo "Verify locally:"
+            echo ""
+            echo '```bash'
+            echo "cosign verify ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.version }} \\"
+            echo "  --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.+' \\"
+            echo "  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'"
+            echo "gh attestation verify oci://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.version }} \\"
+            echo "  --repo ${{ github.repository }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

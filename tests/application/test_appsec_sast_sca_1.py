@@ -22,12 +22,23 @@ from oss_policy_kit.application.loader import (
 def test_appsec_sast_sca_1_profile_loads() -> None:
     spec = load_profile_by_id(bundled_kit_root(), "appsec-sast-sca-1")
     assert spec.id == "appsec-sast-sca-1"
-    assert len(spec.control_ids) == 11
+    # v5.9.0 (Fase 4): added 4 SARIF adapters (zizmor / poutine / OSV / gitleaks)
+    # to the AppSec native bundle, taking the count from 11 to 15.
+    assert len(spec.control_ids) == 15
 
 
 def test_appsec_sast_sca_1_includes_sast_semgrep_064() -> None:
     spec = load_profile_by_id(bundled_kit_root(), "appsec-sast-sca-1")
     assert "SAST-SEMGREP-064" in set(spec.control_ids)
+
+
+def test_appsec_sast_sca_1_includes_v59_sarif_adapters() -> None:
+    """v5.9.0 (Fase 4) SARIF adapters are part of the AppSec native bundle."""
+
+    spec = load_profile_by_id(bundled_kit_root(), "appsec-sast-sca-1")
+    cids = set(spec.control_ids)
+    for new_id in ("SAST-ZIZMOR-066", "SAST-POUTINE-067", "SAST-OSV-068", "SAST-GITLEAKS-069"):
+        assert new_id in cids, f"appsec-sast-sca-1 should include {new_id} after v5.9.0"
 
 
 def test_appsec_sast_sca_1_controls_all_resolve_in_catalog() -> None:

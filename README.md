@@ -8,7 +8,7 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 
 ## Quick Links
 
-- [What's new in v5.8.0](#whats-new-in-v580)
+- [What's new in v5.9.0](#whats-new-in-v590)
 - [Current Release State](#current-release-state)
 - [Recommended First Command](#recommended-first-command)
 - [Quickstart](#quickstart)
@@ -17,11 +17,16 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 - [Documentation](#documentation)
 - [CHANGELOG.md](CHANGELOG.md)
 - [GitHub Releases](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/releases)
+- [Positioning vs adjacent OSS tooling](docs/positioning.md)
+- [CRA readiness](docs/cra-readiness.md)
+- [VEX emission (`emit-vex`)](docs/vex-emission.md)
+- [Pre-commit integration](docs/pre-commit-integration.md)
 - [Validation walkthrough](docs/validation-walkthrough.md)
 - [CLI reference](docs/cli-reference.md)
 - [Results guide](docs/results-guide.md)
 - [Bundled profiles overview](docs/profiles/overview.md)
 - [Release hard-gate playbook](docs/release-playbook-hardgate.md)
+- [v5.9.0 migration guide](docs/v5.9.0-migration-guide.md)
 - [v5.1.0 migration guide](docs/v5.1.0-migration-guide.md)
 - [v5.0.0 migration guide](docs/v5.0.0-migration-guide.md)
 
@@ -29,11 +34,11 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 
 | Area | What you get |
 | --- | --- |
-| Current release | `v5.8.0` / Python package `oss-policy-kit==5.8.0` |
+| Current release | `v5.9.0` / Python package `oss-policy-kit==5.9.0` (Development Status: `Production/Stable`) |
 | Input | A local repository clone |
-| Output | `evaluation-report.json` and `evaluation-report.md` (optional SARIF 2.1.0 via `--sarif-output`) |
-| Core scope | Clone-visible governance and GitHub/Azure/AWS CI/CD signals |
-| Profiles | **36 bundled profiles** — platform ladders (`github-*`, `azure-*`, `aws-*` levels 1-3 and release-hardening 1-3), advisory hybrids (`github-aws-level-2`, `github-azure-level-2`), regulatory (`cra-eu-ready-1`, `cra-eu-strict-1`), framework alignment (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`), AppSec native bundle (`appsec-sast-sca-1`), posture profiles (`iac-terraform-baseline-1`, `iac-cfn-baseline-1`, `iac-pulumi-baseline-1`, `iac-bicep-baseline-1`, `kubernetes-baseline-1`, `container-baseline-1`), and webhook receiver hardening (`webhook-security-1`). List with `python -m oss_policy_kit profiles`; full matrix in [`docs/profiles/overview.md`](docs/profiles/overview.md). |
+| Output | `evaluation-report.json` and `evaluation-report.md` (optional SARIF 2.1.0 via `--sarif-output`); `oss-policy-kit emit-vex` also emits CycloneDX VEX 1.6 from OSV-Scanner SARIF |
+| Core scope | Clone-visible governance and GitHub/Azure/AWS CI/CD signals; ingests SARIF from zizmor, poutine, OSV-Scanner v2, Gitleaks, and Semgrep |
+| Profiles | **38 bundled profiles** — platform ladders (`github-*`, `azure-*`, `aws-*` levels 1-3 and release-hardening 1-3), advisory hybrids (`github-aws-level-2`, `github-azure-level-2`), regulatory (`cra-eu-reporting-1` — 2026-09-11 24h reporting; `cra-eu-ready-1`; `cra-eu-strict-1`), framework alignment (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`), AppSec native bundle (`appsec-sast-sca-1` — now 15 controls with v5.9 SARIF adapters), **GitLab CI starter** (`gitlab-level-1` — new in v5.9.0), posture profiles (`iac-terraform-baseline-1`, `iac-cfn-baseline-1`, `iac-pulumi-baseline-1`, `iac-bicep-baseline-1`, `kubernetes-baseline-1`, `container-baseline-1`), and webhook receiver hardening (`webhook-security-1`). List with `python -m oss_policy_kit profiles`; full matrix in [`docs/profiles/overview.md`](docs/profiles/overview.md). |
 | Exceptions | Waiver registry with owner, reason, and expiry |
 | Examples | Hardened and vulnerable sample repositories |
 | Assurance model | Each control is labelled `deterministic`, `signal`, or `evidence-backed`; the value flows into `reports/1.0` JSON and Markdown so consumers can reason about proof strength. See [docs/profiles/overview.md](docs/profiles/overview.md). |
@@ -48,7 +53,7 @@ python -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile gi
 
 This confirms the CLI, bundled profile data, example repository, and report generation path before you evaluate your own repository.
 
-### Two-line bootstrap (v5.4.0+; available in current v5.8.0)
+### Two-line bootstrap (v5.4.0+; available in current v5.9.0)
 
 For brand new adopters, `init` collapses the first run into two commands:
 
@@ -74,32 +79,39 @@ Inputs map 1:1 to CLI flags. Full reference and SARIF forwarding example in [doc
 
 ## Current Release State
 
-`v5.8.0` is the current public release line. It is an additive minor release on top of `v5.7.0`: the JSON report contract remains `reports/1.0`, legacy `0.3` and `0.2` report shapes remain selectable, and every existing profile ID, control ID, evaluator function object, and CLI surface stays stable. The release lands the v5.7 → v5.8 catalog-quality and refactor trajectory: catalog/profile/evidence invariant test suites, five new evaluator package boundaries (`evaluators_ci_cd`, `_platform`, `_release`, `_vuln_management`, `_sast`) with `EVALUATOR_REGISTRY` identity-equivalent across the transition, an advisory profile banner expanded to the full bundled set, a completed maturity matrix for all 36 profiles, a 15-minute quickstart, the `scripts/validate-bundled-profiles.py` validator, and a cluster of maintenance fixes (BOM-stripped GitHub evidence schemas, README factual drift, Helm pre-pass tmp cleanup, `engine.evaluate_repository` default-contract docstring, Bandit B506 rationale). v5.7.0 (Pulumi/CFN/Bicep IaC + Helm pre-pass + SEC-WEBHOOK + evaluators steps 2-3), v5.6.0 (Kubernetes manifest coverage + container hardening), v5.5.0 (Terraform IaC posture), and v5.4.0 (`init` wizard + `scan-sast` + Semgrep adapter) remain part of the catalog. See `CHANGELOG.md` for full details.
+`v5.9.0` is the current public release line. It lands **Fase 4** of the v5 trajectory: four new SARIF-ingest adapters for the de-facto OSS scanner ecosystem (`SAST-ZIZMOR-066`, `SAST-POUTINE-067`, `SAST-OSV-068`, `SAST-GITLEAKS-069`), a CRA-reporting-readiness profile aligned with the 2026-09-11 deadline (`cra-eu-reporting-1`), a new evidence-backed disclosure-SLA control (`GOV-DISC-065`), the first `emit-vex` subcommand (CycloneDX VEX 1.6 emission from OSV-Scanner SARIF), the first two ADRs (`docs/decisions/`), a public positioning page, pre-commit hooks for downstream adopters, and a CRA-readiness narrative tying it all together. The kit's `Development Status` classifier is now `Production/Stable`. The JSON report contract is unchanged (`reports/1.0`); `0.3` and `0.2` remain selectable. v5.8.0 (catalog/profile/evidence invariant suites + 5 evaluator-package boundaries), v5.7.0 (Pulumi/CFN/Bicep IaC), v5.6.0 (Kubernetes + container), v5.5.0 (Terraform), and v5.4.0 (`init` wizard + Semgrep adapter) remain part of the catalog. See `CHANGELOG.md` for full details.
 
 | Surface | Current state |
 | --- | --- |
-| Package | `oss-policy-kit==5.8.0` |
-| GitHub Release | `v5.8.0` is the current release target; `v5.7.0`, `v5.6.0`, `v5.5.0`, `v5.4.0`, and earlier versions remain available as predecessors |
+| Package | `oss-policy-kit==5.9.0` (`Development Status :: 5 - Production/Stable`) |
+| GitHub Release | `v5.9.0` is the current release target; `v5.8.1`, `v5.8.0`, `v5.7.0`, `v5.6.0`, `v5.5.0`, `v5.4.0`, and earlier versions remain available as predecessors |
 | Default branch | `master` |
 | License | Apache-2.0 (`LICENSE` + `NOTICE`) |
 | Report contract | `reports/1.0` by default; `0.3` and `0.2` remain selectable via `--report-json-contract`. `0.1` was removed in v5.0.0 |
 | Security workflow | Scanners run in `Security CI/CD`; SARIF upload is gated by `ENABLE_CODE_SCANNING_UPLOAD=true` so validation does not fail when Code Scanning upload APIs are unavailable |
+| CLI subcommands | 13 — `evaluate`, `evaluate-many`, `profiles`, `recommend-profile`, `scaffold-evidence`, `collect-evidence`, `diff-reports`, `init`, `scan-sast`, `scan-iac`, `scan-k8s`, `scan-cfn`, `scan-pulumi`, `scan-bicep`, **`emit-vex`** (new in v5.9.0) |
 
 The repository is designed to be reproducible from a clean clone: install the package, run the built-in examples, and compare the generated JSON/Markdown reports.
 
-## What's new in v5.8.0
+## What's new in v5.9.0
 
-Highlights only — full detail in [`CHANGELOG.md`](CHANGELOG.md). For migration notes from earlier releases, see [`docs/v5.1.0-migration-guide.md`](docs/v5.1.0-migration-guide.md) and [`docs/v5.0.0-migration-guide.md`](docs/v5.0.0-migration-guide.md).
+Highlights only — full detail in [`CHANGELOG.md`](CHANGELOG.md). Migration notes in [`docs/v5.9.0-migration-guide.md`](docs/v5.9.0-migration-guide.md).
 
-- **Catalog / profile / evidence invariant test suites.** Three new test modules pin properties that previously had to be checked by hand: catalog consistency (unique IDs, recognized lifecycle/assurance, no orphan controls), evidence schema versioning (every packaged `evidence-*.schema.json` declares its `$schema` and explicit `oss-policy-kit/evidence/.../v<n>` version, with the packaged copy and the `reports/schema/` mirror byte-identical), and profile-maturity-matrix drift (`docs/profiles/overview.md` is locked to reflect the actual lifecycle composition of every bundled profile).
-- **`evaluators.py` decomposition steps 4-8 — five new public package boundaries.** Following the v5.7 governance / supply-chain extraction, v5.8 adds `evaluators_ci_cd.py` (`CI-*`), `evaluators_platform.py` (`PLAT-*`, `GH-PLAT-*`, `AZ-PLAT-*`), `evaluators_release.py` (`REL-*`, `GH-REL-*`, release archive), `evaluators_vuln_management.py` (`DEP-UPDATE-*`, dependency review, fuzzing aggregation), and `evaluators_sast.py` (dedicated SAST adapter surface; `SAST-SEMGREP-064` moved here from supply-chain so v5.9 adapters such as Trivy / Gitleaks / Grype plug into a single boundary). All five modules re-export the existing callables — `EVALUATOR_REGISTRY` is **identity-equivalent** to v5.7.0 (validated by `tests/application/test_evaluators_v58_shims.py`).
-- **Advisory profile banner expanded to the full bundled set.** The `[advisory profile]` operator banner now fires for every bundled advisory profile (IaC posture profiles, Kubernetes, container, webhook-security, AppSec native, plus every framework-alignment profile: `osps-*`, `slsa-*`, `ssdf-*`, `cis-*`, `owasp-*`, `s2c2f-*`, `cra-*`). Operators get consistent guidance to run `--fail-on degraded` (not `fail`) on every advisory profile.
-- **Profile maturity matrix completed for all 36 bundled profiles.** `docs/profiles/overview.md` now lists every bundled profile with its lifecycle blend, assurance blend, recommended `--fail-on` setting, and adoption stage. Locked by `tests/application/test_profile_maturity_drift.py`.
-- **15-minute quickstart.** New [`docs/quickstart-15-min.md`](docs/quickstart-15-min.md) walks a brand-new adopter from `pip install` to a passing gate against the hardened example in under 15 minutes (install → `init` → first `evaluate` → read the report → wire a CI gate → add the first waiver).
-- **`scripts/validate-bundled-profiles.py`.** New maintainer-side validator that loads every bundled profile, checks each `control_ids` member against the catalog, surfaces unknown IDs / removed IDs / orphan controls, and emits a non-zero exit code on any drift.
-- **Fixes.** Stripped UTF-8 BOM from three GitHub evidence schemas (`evidence-github-environment-protection`, `evidence-github-rulesets`, `evidence-github-secret-scanning`); README factual drift corrected (release row, profile count `32 → 36`, anchor for the "What's new" section, two-line bootstrap version, pipeline exit codes `0 / 1 / 2 / 3`); Helm pre-pass tmp-directory leak (`HelmRenderOutcome.tmp_root` is now surfaced and `scan-k8s` cleans it up via `try/finally`); `engine.evaluate_repository` default contract documented (programmatic default stays `"0.3"` for v4.x callers, CLI / config / init template default to `"1.0"`); Bandit B506 on the CFN parser annotated with rationale (`_CfnSafeLoader` is a `SafeLoader` subclass that only adds CFN intrinsic constructors).
+- **Four new SARIF-ingest adapters.** `SAST-ZIZMOR-066` (GitHub Actions AST analysis), `SAST-POUTINE-067` (GitHub Actions + GitLab CI), `SAST-OSV-068` (OSV-Scanner v2 reachability-aware SCA), and `SAST-GITLEAKS-069` (secret leak detection). Each reads raw SARIF 2.1.0 dropped at `.oss-policy-kit/evidence/sast/<tool>.sarif.json` and grades findings by severity. Gitleaks is zero-tolerance (any finding blocks); the others fail only on `error`-level results. All four are bundled into `appsec-sast-sca-1` (which grows from 11 to 15 controls).
+- **`cra-eu-reporting-1` profile** focused on the EU CRA's **2026-09-11** 24-hour reporting deadline. Eleven controls covering disclosure channel + SLA, detection capability, audit trail, risk handling discipline, and affected-artifact identification. Advisory (`--fail-on degraded`). Distinct from the existing `cra-eu-ready-1` (broader preparation) and `cra-eu-strict-1` (2027-12-11 full obligations).
+- **`GOV-DISC-065` — disclosure SLA evidence-backed control.** Reads `.oss-policy-kit/evidence/disclosure-policy.json` (schema `disclosure-policy/v1`) with required fields `contact.method/value`, `acknowledgement_sla_hours`, `triage_sla_hours`, `public_disclosure_policy`. Signal fallback: looks for SLA keywords in `SECURITY.md` (root, `.github/`, `docs/`). The kit checks that an SLA is documented at all — it does not judge whether the SLA is fast enough.
+- **`oss-policy-kit emit-vex` subcommand.** Emits a CycloneDX VEX 1.6 document from OSV-Scanner SARIF — every distinct vulnerability ID (CVE / GHSA / OSV / RUSTSEC) is listed with `analysis.state: in_triage`. The manufacturer fills the analysis post-hoc; per-CVE waiver integration is tracked for v5.9.x (see ADR-002). See [`docs/vex-emission.md`](docs/vex-emission.md).
+- **First two ADRs.** [`docs/decisions/adr-001-sca-scanner-choice.md`](docs/decisions/adr-001-sca-scanner-choice.md) — OSV-Scanner v2 chosen as SCA primary, Trivy repositioned as future container-scanning candidate. [`docs/decisions/adr-002-emit-vex-scope.md`](docs/decisions/adr-002-emit-vex-scope.md) — emit-vex v0.1 scope (this release) plus v5.9.x extensions.
+- **Public positioning page.** New [`docs/positioning.md`](docs/positioning.md) answering "why use this kit if Scorecard v6 / zizmor / OSV-Scanner / Harden-Runner exist". Honest boundary-drawing — composition, not replacement.
+- **CRA readiness narrative.** New [`docs/cra-readiness.md`](docs/cra-readiness.md) walks both CRA deadlines, maps each of the three bundled CRA profiles, and is explicit about what the kit does **not** prove (24-hour clock, conformity assessment, CE-marking).
+- **Pre-commit hook surface.** New `.pre-commit-hooks.yaml` with three published hooks (`oss-policy-kit-evaluate`, `oss-policy-kit-evaluate-degraded`, `oss-policy-kit-validate-profiles`). See [`docs/pre-commit-integration.md`](docs/pre-commit-integration.md).
+- **Development Status promoted** from `4 - Beta` to `5 - Production/Stable`.
 
-There are no breaking changes in `v5.8.0`. The `--fail-on` semantics, JSON report contracts (`reports/1.0`, `0.3`, `0.2` byte-stable), Markdown report layout, the surfaces of `evaluate` / `evaluate-many` / `recommend-profile` / `scaffold-evidence` / `collect-evidence` / `diff-reports` / `init` / `scan-sast` / `scan-iac` / `scan-k8s` / `scan-cfn` / `scan-pulumi` / `scan-bicep`, every profile ID, every control ID, and `EVALUATOR_REGISTRY` itself are unchanged. No new hard dependencies were added.
+### Breaking — `cra-eu-strict-1` description rewrite
+
+`cra-eu-strict-1` previously self-described as "hard-gate-capable when evidence files are filled" while its CLI maturity label was "framework-aligned advisory (regulatory)". The inconsistency is resolved in favor of advisory. The profile is **functionally unchanged** (same 19 controls, same `--fail-on degraded` recommendation); only the description text changed. This may surface in adopter dashboards that parse the profile description string. See [`docs/v5.9.0-migration-guide.md`](docs/v5.9.0-migration-guide.md) for full impact analysis.
+
+Other release contracts are unchanged: the `--fail-on` semantics, JSON report contracts (`reports/1.0`, `0.3`, `0.2` byte-stable), Markdown report layout, every existing profile ID, every existing control ID, and `EVALUATOR_REGISTRY` membership for the v5.8 surface are preserved (v5.9 adds new IDs additively). No new hard dependencies were added.
 
 ## What This Kit Does
 

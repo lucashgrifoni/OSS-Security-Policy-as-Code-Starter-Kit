@@ -37,7 +37,7 @@ from oss_policy_kit.cli.common import (
 from oss_policy_kit.domain.errors import InvalidInputError, OssPolicyKitError
 
 
-def _resolve_target(raw: str) -> Path:
+def _resolve_target(raw: str, *, allow_missing: bool = False) -> Path:
     """Resolve and validate the ``--target`` directory.
 
     Unlike ``evaluate``'s helper, ``init`` happily creates new files inside
@@ -45,12 +45,21 @@ def _resolve_target(raw: str) -> Path:
     target already exists. We never auto-create the target itself: a
     missing directory almost always means the user mistyped a path.
 
+    When ``allow_missing`` is True (used by ``--dry-run``), a path that
+    does not exist yet is accepted: the caller will only render the plan
+    and write nothing. The "is a directory" guard still applies whenever
+    the path exists but is a file. (OP-001 / MELHORIA-011)
+
     Raises:
-        InvalidInputError: When the path does not exist or is not a dir.
+        InvalidInputError: When the path does not exist (and
+            ``allow_missing`` is False), or when the path exists but is
+            not a directory.
     """
 
     candidate = Path(raw).expanduser()
     if not candidate.exists():
+        if allow_missing:
+            return candidate.resolve()
         raise InvalidInputError(
             f"--target path does not exist: {candidate}. "
             "Pass an existing repository root, or create the directory first.",
@@ -222,7 +231,17 @@ def init_cmd(
         False,
         "--yes",
         "-y",
-        help="Reserved for future interactive prompts; today init is always non-interactive.",
+        help="Skip the interactive profile-confirmation prompt (use the recommended profile as-is).",
+    ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive/--no-interactive",
+        help=(
+            "Prompt the user to confirm or override the recommended profile "
+            "before writing oss-policy-kit.yaml. Only fires when --profile is "
+            "not supplied and stdin is a TTY. Other flags remain "
+            "non-interactive."
+        ),
     ),
     output_format: str = typer.Option(
         "human",
@@ -249,17 +268,46 @@ def init_cmd(
     ``schema_version`` so the upcoming consumer can migrate safely.
     """
 
-    # ``--yes`` is currently a no-op because the wizard is fully
-    # non-interactive. Accepting the flag now keeps future scripts
-    # forward-compatible when interactive prompts land.
-    _ = yes
-
     try:
         fmt = _normalize_format(output_format)
-        target_path = _resolve_target(target)
+        # In --dry-run we accept a path that does not exist yet so the user
+        # can preview the plan before creating the directory (OP-001).
+        target_path = _resolve_target(target, allow_missing=dry_run)
+        target_pre_existed = Path(target).expanduser().exists()
+
+        # Interactive prompt path (v5.9.0). Only fires when:
+        # - --interactive is set
+        # - --profile was NOT supplied (we have something to recommend)
+        # - --yes was NOT supplied (operator wants the prompt)
+        # - stdin is a TTY (we are not in a CI / pipe scenario)
+        # - output format is human (JSON callers expect deterministic output)
+        chosen_profile = profile
+        if interactive and chosen_profile is None and not yes and sys.stdin.isatty() and fmt == "human":
+            preview_plan = build_init_plan(
+                target=target_path,
+                forced_profile=None,
+                forced_platform=platform,
+                fail_on=fail_on,
+                output_dir=output_dir,
+                with_waivers=with_waivers,
+                with_evidence=with_evidence,
+                with_workflow=with_workflow,
+                force=force,
+                dry_run=True,
+            )
+            recommended = preview_plan.profile
+            stderr_console().print(f"\n[cyan]Detected platform:[/cyan] {preview_plan.platform or 'unknown'}")
+            stderr_console().print(f"[cyan]Recommended profile:[/cyan] {recommended}")
+            response = typer.prompt(
+                "Use this profile (press Enter to accept, or type a different profile id)",
+                default=recommended,
+                show_default=True,
+            )
+            chosen_profile = response.strip() or recommended
+
         plan = build_init_plan(
             target=target_path,
-            forced_profile=profile,
+            forced_profile=chosen_profile,
             forced_platform=platform,
             fail_on=fail_on,
             output_dir=output_dir,
@@ -269,6 +317,14 @@ def init_cmd(
             force=force,
             dry_run=dry_run,
         )
+        # OP-001: when dry-run targets a path that does not yet exist, surface
+        # the fact explicitly so adopters know they will need to create it
+        # before running init without --dry-run.
+        if dry_run and not target_pre_existed:
+            plan.notes.append(
+                f"Target directory does not exist yet: {target_path}. "
+                "Running init without --dry-run will require you to create it first."
+            )
         outcome = execute_init_plan(plan)
 
         if fmt == "json":

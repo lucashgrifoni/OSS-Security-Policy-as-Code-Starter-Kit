@@ -67,7 +67,10 @@ def evaluate_many_cmd(
             "manifest (package.json, pyproject.toml, requirements.txt, go.mod, "
             "Cargo.toml, pom.xml, etc.), a CI file (.github/workflows/, "
             "azure-pipelines.yml, pipelines/azure/*.yml, buildspec.yml), or a Dockerfile. "
-            "README.md alone is NOT sufficient."
+            "README.md alone is NOT sufficient. Output / build / cache directories "
+            "(out, dist, build, _output, .tmp, node_modules, venv, .venv, target, site, "
+            "coverage, htmlcov, plus out-* / build-* / dist-* / output-* prefixes) "
+            "are also skipped even when they happen to contain a manifest."
         ),
     ),
     quiet: bool = typer.Option(

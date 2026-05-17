@@ -1,6 +1,6 @@
 # Framework alignment
 
-This page maps the **65 controls** and **20 profiles** bundled with v5.0.0 to the AppSec /
+This page maps the **125 controls** and **36 profiles** bundled with v5.8.1 to the AppSec /
 DevSecOps frameworks operators most often have to defend against. It is a **mapping**, not a
 **certification claim**. The kit does not assert conformance to any of these frameworks; it
 documents how its honest signals align with each framework's expectations so operators can
@@ -94,11 +94,11 @@ already listed under Scorecard above.
 |---|---|---|---|
 | CICD-SEC-1: Insufficient Flow Control | `PLAT-BRPROT-015`, `GH-PLAT-024`, `AZ-PLAT-034`, `AWS-CP-044` | YES | Branch protection / rulesets / Azure branch policies / CodePipeline approvals. |
 | CICD-SEC-2: Inadequate IAM | `GH-DEPLOY-022`, `AZ-IDENT-036`, `AZ-WIFEV-057`, `AZ-SCONN-056`, `AWS-CBIDENT-057`, `AWS-PIPEIAM-056`, `ORG-MFA-001` | YES | Federated identity preferred; OIDC enforced; org MFA evidenced. |
-| CICD-SEC-3: Dependency Chain Abuse | `CI-PIN-008`, `SEC-DEPREV-011`, `SEC-PINLOCK-052`, `DEP-UPDATE-001`, `CI-WFCALLSHA-055` | YES | Multiple deterministic angles. |
-| CICD-SEC-4: Poisoned Pipeline Execution | `CI-DANGER-007`, `GH-WF-019`, `AZ-PIPE-029`, `PLAT-BRPROT-015` | YES | `pull_request_target` hardening + branch protection. |
+| CICD-SEC-3: Dependency Chain Abuse | `CI-PIN-008`, `SEC-DEPREV-011`, `SEC-PINLOCK-052`, `DEP-UPDATE-001`, `CI-WFCALLSHA-055`, `SAST-OSV-068` (v5.9.0) | YES | Multiple deterministic angles plus reachability-aware SCA via OSV-Scanner v2 SARIF ingestion. |
+| CICD-SEC-4: Poisoned Pipeline Execution | `CI-DANGER-007`, `GH-WF-019`, `AZ-PIPE-029`, `PLAT-BRPROT-015`, `SAST-ZIZMOR-066`, `SAST-POUTINE-067` (v5.9.0) | YES | `pull_request_target` hardening + branch protection plus AST-level workflow analysis via zizmor / poutine SARIF ingestion. |
 | CICD-SEC-5: Insufficient PBAC | `GH-PLAT-026`, `AZ-PLAT-035`, `AWS-CP-044` | YES | Environment approvals, manual approvals on CodePipeline. |
-| CICD-SEC-6: Insufficient Credential Hygiene | `GH-PLAT-025`, `AZ-SEC-031`, `AWS-SECRET-038`, `SEC-SECRETS-050` | YES | Secret scanning + plaintext-secret avoidance. |
-| CICD-SEC-7: Insecure System Configuration | `GH-WF-019` | PARTIAL | We discourage self-hosted runners on PR-triggered workflows but do not deeply analyze runner posture. |
+| CICD-SEC-6: Insufficient Credential Hygiene | `GH-PLAT-025`, `AZ-SEC-031`, `AWS-SECRET-038`, `SEC-SECRETS-050`, `SAST-GITLEAKS-069` (v5.9.0) | YES | Secret scanning + plaintext-secret avoidance plus Gitleaks SARIF (zero-tolerance — any finding blocks). |
+| CICD-SEC-7: Insecure System Configuration | `GH-WF-019`, `SAST-ZIZMOR-066`, `SAST-POUTINE-067` (v5.9.0) | PARTIAL → YES (with zizmor/poutine evidence) | We discourage self-hosted runners on PR-triggered workflows; zizmor/poutine adapters surface deeper workflow misconfiguration patterns when their SARIF is supplied. |
 | CICD-SEC-8: Ungoverned Use of 3rd-Party Services | `CI-PIN-008`, `CI-WFCALLSHA-055` | YES | Third-party action SHA pinning + reusable workflow SHA pinning. |
 | CICD-SEC-9: Improper Artifact Integrity Validation | `GH-PROV-023`, `AZ-ARTSBOM-058`, `AZ-ARTPRV-059`, `AWS-SBOMART-058`, `AWS-PROVART-059`, `BUILD-SBOM-QUAL-003`, `PROV-VERIFY-061` | YES | SBOM + provenance attestation against artifact digest; v5.1.0 adds independent verification (sigstore / `gh attestation verify`). |
 | CICD-SEC-10: Insufficient Logging and Visibility | `AUDIT-STREAM-060` | YES | v5.1.0 closes this with audit log streaming evidence (signal fallback + evidence-backed). |
@@ -232,7 +232,13 @@ Regulatory pressure with concrete artifact requirements. Key dates:
 | Centralized incident reporting / audit trail | `AUDIT-STREAM-060` | YES (since v5.1.0) | Audit-log streaming evidence is the trail an incident report needs. |
 | Build provenance for shipped artifacts | `GH-PROV-023`, `AZ-ARTPRV-059`, `AWS-PROVART-059`, `PROV-VERIFY-061` | YES (since v5.1.0) | Provenance attestation independently verified. |
 
-> **Honesty contract**: this kit does **not** certify CRA compliance. The legal side (notified bodies, market-placement timing, retention storage destinations) is out of scope. The advisory profile `cra-eu-ready-1`, introduced in v5.2.0, bundles the technical-readiness controls into a single discovery surface.
+> **Honesty contract**: this kit does **not** certify CRA compliance. The legal side (notified bodies, market-placement timing, retention storage destinations) is out of scope. Three bundled advisory profiles bundle technical-readiness controls into discovery surfaces:
+>
+> - **`cra-eu-reporting-1`** — focused on the **2026-09-11** 24-hour reporting deadline. Bundles 11 controls covering disclosure channel (including the new evidence-backed `GOV-DISC-065` for acknowledgement-SLA documentation), detection capability, audit trail, risk handling, and affected-artifact identification. Cannot prove the 24-hour clock is met (process, not observable).
+> - **`cra-eu-ready-1`** — broader CRA preparation (advisory). 12 controls. Recommended `--fail-on degraded`.
+> - **`cra-eu-strict-1`** — alignment with the **2027-12-11** full-obligations deadline (advisory). 19 controls including GitHub platform governance evidence, org-wide MFA, action pinning, and secret scanning posture.
+>
+> All three are **advisory regulatory mappings**, not conformity assessments. See [`cra-readiness.md`](cra-readiness.md) for what the kit proves vs what remains with the operator.
 
 ## NIST SP 800-218A — AI / Generative AI (out of scope for v5.x)
 
@@ -244,9 +250,17 @@ NIST finalized SP 800-218A as an SSDF *Community Profile* augmenting SP 800-218 
 
 After mapping the catalog to all nine frameworks above, the explicit decisions are:
 
-### Decision 1 — No new profiles in v5.0.0
+### Decision 1 — No new profiles in v5.0.0 (historical, superseded post-v5.0.0)
 
-**Reasoning**:
+> **Historical context**: this decision was taken at the v5.0.0 mapping iteration when the
+> kit shipped 20 profiles. The profile count has since grown to 36 (v5.8.1), incorporating
+> IaC posture (`iac-{terraform,cfn,pulumi,bicep}-baseline-1`), Kubernetes / container
+> baselines, webhook receiver hardening, AppSec native (`appsec-sast-sca-1`), and additional
+> framework-aligned advisories. The argument structure below was the original v5.0.0
+> rationale; later iterations relaxed it when posture profiles became necessary to express
+> assurance grades the platform ladder alone could not.
+
+**Original reasoning (v5.0.0)**:
 
 1. The 20 bundled profiles cover the full ladder for 3 platforms × 3 levels × 2 tracks + 2
    advisory hybrids. No threat model identified during the framework mapping is unrepresented
@@ -299,22 +313,49 @@ After mapping the catalog to all nine frameworks above, the explicit decisions a
 
 ### Decision 4 — Concrete future work ranked by framework leverage
 
-When the v5.0.0 line is published and a future minor (5.1+) opens, the **highest-leverage**
-framework-driven additions, ranked by impact:
+**Status (refreshed for v5.8.1)**: of the five items ranked at v5.0.0, three have shipped.
 
-1. **Audit log evidence** (`<platform>-audit-log.json` collected via org-scope endpoint).
-   Closes CICD-SEC-10, NIST SSDF RV.1 partial, AWS Enable-Traceability, Azure SIEM.
-2. **Sigstore/cosign signature verification** (verify `provenance` evidence is signed).
-   Closes SLSA L2 PARTIAL (provenance signed). Requires new dependency.
-3. **OpenSSF Best Practices badge ingestion** (`openssf-best-practices.json`). Closes
-   Scorecard CII-Best-Practices OUT → INDIRECT.
-4. **Reusable runner posture evaluator** (deeper analysis of self-hosted runner config).
-   Closes CICD-SEC-7 PARTIAL.
-5. **Container hardening evaluator** (extending `CONT-IMAGE-001..003` with seccomp /
-   capabilities checks). Closes CIS SSCS Deployment PARTIAL.
+1. ~~**Audit log evidence**~~ — **shipped v5.1.0** via `AUDIT-STREAM-060`. Closed CICD-SEC-10,
+   AWS Enable-Traceability, Azure SIEM mapping; NIST SSDF RV.1 upgraded from PARTIAL to YES.
+2. ~~**Sigstore/cosign signature verification**~~ — **shipped v5.1.0** via `PROV-VERIFY-061`.
+   Upgraded SLSA Build L2 "Provenance signed" from PARTIAL to YES.
+3. **OpenSSF Best Practices badge ingestion** — still open. Would close Scorecard
+   CII-Best-Practices OUT → INDIRECT.
+4. **Reusable runner posture evaluator** — still open. Would close CICD-SEC-7 PARTIAL.
+5. ~~**Container hardening evaluator**~~ — **shipped v5.6.0** via `CONT-IMAGE-001..003` plus
+   the `container-baseline-1` profile.
 
-Each item above requires either a new evaluator, a new evidence schema, or both. None are in
-scope for v5.0.0 release.
+**Items added since the v5.0.0 ranking** (post-v5.0.0 market signals; tracked in
+[`profiles/deferred-followups.md`](profiles/deferred-followups.md) and the project planning
+artifacts under `melhorias/` (local-only)):
+
+6. **OSV-Scanner v2 SARIF adapter** — reachability-aware SCA (Java JAR, Go) reduces SCA
+   noise materially. Would integrate as a `signal`/`evidence-backed` source per the
+   `SAST-SEMGREP-064`-style adapter pattern.
+7. **zizmor SARIF adapter** — deep AST analysis of GitHub Actions; complements the kit's
+   own targeted GHA checks rather than replacing them.
+8. **poutine SARIF adapter** — covers GitHub Actions and GitLab CI; combined with a
+   bundled `gitlab-level-1` profile this would extend the kit's CI/CD coverage to GitLab
+   without re-implementing pipeline parsers.
+9. ~~**GitHub Artifact Attestations parser** — promote `GH-PROV-023` from `signal` to
+   `evidence-backed` by reading `.sigstore` bundles natively (cosign v2.4+ bundle format).~~ —
+   **Closed as redundant** with the existing `PROV-VERIFY-061` control (v5.1.0), which already
+   captures the verification outcome (`cosign verify` / `gh attestation verify`) via the
+   `verification:` block in `evidence-{github,azure,aws}-provenance-artifact.schema.json`. A
+   third control that re-reads the bundle directly would duplicate evidentiary work without
+   adding strength. Adopters integrate by running the verification command once per release
+   and filling the verification block; the kit's job is to gate on that outcome, not to
+   re-implement signature verification.
+10. **CycloneDX VEX 1.6 emission** — `oss-policy-kit emit-vex` converting waivers + scanner
+    findings already present in the report into a CycloneDX VEX document. Aligns with EU
+    CRA's December 2027 SBOM/VEX obligation without making the kit a full SBOM generator.
+11. **GitHub native security platform features (GA-dependent)** — egress firewall, scoped
+    secrets, workflow dependency locking. Tracked but not implemented until the underlying
+    GitHub features reach GA.
+
+Each item above requires either a new evaluator, a new evidence schema, or both. The
+ordering reflects regulatory urgency (CRA 2026-09-11 reporting deadline) followed by
+market-tool composition value (OSV-Scanner / zizmor / poutine).
 
 ## Out of scope (intentional)
 

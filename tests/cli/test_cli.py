@@ -367,9 +367,7 @@ def test_cli_show_profiles_emits_deprecation_warning() -> None:
     assert "Profile" in combined
 
 
-def test_cli_evaluate_output_dir_write_error_is_user_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cli_evaluate_output_dir_write_error_is_user_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Unwritable --output-dir must surface as EXIT=2 + 'Error: Cannot write to ...' (M-004).
 
     Previously the OSError leaked through the last-resort exception handler as

@@ -1,17 +1,19 @@
 id: cra-eu-strict-1
 title: EU Cyber Resilience Act - strict track (2027-12-11 obligations)
 description: >
-  **Hard-gate-capable when evidence files are filled. Without evidence, results in
-  manual-review-required (honest gap, not a crash).**
-  Stricter version of `cra-eu-ready-1` aimed at the EU CRA full-obligations deadline
-  of 2027-12-11. Adds 7 controls beyond `cra-eu-ready-1` to cover GitHub platform
-  governance evidence (rulesets, environments, secret scanning), org-wide MFA, action
-  pinning, and secret scanning posture. Bundles 19 existing controls total.
-  **Posture:** hard-gate-capable mapping. **Recommended `--fail-on`:** `fail` paired
-  with `collect-evidence` and filled artifact-bound SBOM/provenance. Without evidence,
-  expect `manual-review-required` on platform/SBOM/provenance controls.
-  **Important:** this profile is **not** a CRA conformity assessment. Conformity
-  assessment requires a competent authority and is outside the kit's scope.
+  **Regulatory mapping (advisory only). Do not use as a release gate. Not a compliance
+  certification.** Stricter version of `cra-eu-ready-1` aimed at the EU CRA
+  full-obligations deadline of 2027-12-11. Adds 7 controls beyond `cra-eu-ready-1` to
+  cover GitHub platform governance evidence (rulesets, environments, secret scanning),
+  org-wide MFA, action pinning, and secret scanning posture. Bundles 19 existing
+  controls total. Without filled evidence files, the strict-track-specific controls
+  (rulesets, environments, secret scanning, provenance verification) surface as
+  `manual-review-required` — an honest gap, not a crash.
+  **Posture:** advisory. CRA reporting deadline is 2026-09-11; full obligations apply
+  2027-12-11. This profile is a *mapping* between the kit's existing evidence and CRA
+  strict-track expectations — it does not certify compliance.
+  **Recommended `--fail-on`:** `degraded`. CRA conformity assessment requires a
+  competent authority (notified body, CE-marking) and is outside the kit's scope.
   **Framework alignment:** see `docs/framework-alignment.md` (EU Cyber Resilience Act section).
 audience: >
   Manufacturers placing software products on the EU market who need to prepare for

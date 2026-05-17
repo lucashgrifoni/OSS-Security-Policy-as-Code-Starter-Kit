@@ -44,9 +44,7 @@ def test_recommendation_suggests_release_hardening_when_workflows_and_evidence_p
     # Release-shaped evidence.
     ev = tmp_path / ".oss-policy-kit" / "evidence"
     ev.mkdir(parents=True)
-    (ev / "branch-protection.json").write_text(
-        json.dumps({"schema_version": "x"}), encoding="utf-8"
-    )
+    (ev / "branch-protection.json").write_text(json.dumps({"schema_version": "x"}), encoding="utf-8")
     rec = build_profile_recommendation(tmp_path)
     pids = [s["profile_id"] for s in rec.suggestions]
     assert any(p.startswith("github-release-hardening") for p in pids)
@@ -71,9 +69,9 @@ def test_recommendation_does_not_suggest_release_hardening_without_evidence(
     )
     rec = build_profile_recommendation(tmp_path)
     pids = [s["profile_id"] for s in rec.suggestions]
-    assert not any(
-        p.startswith("github-release-hardening") for p in pids
-    ), f"release-hardening must not be recommended without evidence; got: {pids}"
+    assert not any(p.startswith("github-release-hardening") for p in pids), (
+        f"release-hardening must not be recommended without evidence; got: {pids}"
+    )
 
 
 def test_recommendation_does_not_suggest_release_hardening_with_evidence_alone(
@@ -83,9 +81,7 @@ def test_recommendation_does_not_suggest_release_hardening_with_evidence_alone(
 
     ev = tmp_path / ".oss-policy-kit" / "evidence"
     ev.mkdir(parents=True)
-    (ev / "branch-protection.json").write_text(
-        json.dumps({"schema_version": "x"}), encoding="utf-8"
-    )
+    (ev / "branch-protection.json").write_text(json.dumps({"schema_version": "x"}), encoding="utf-8")
     rec = build_profile_recommendation(tmp_path)
     pids = [s["profile_id"] for s in rec.suggestions]
     assert not any(p.startswith("github-release-hardening") for p in pids), pids
@@ -281,3 +277,80 @@ def test_release_hardening_2_rationale_warns_about_unfilled_evidence_templates(t
     rec_aws = build_profile_recommendation(aws)
     rh2_aws = next(s for s in rec_aws.suggestions if s["profile_id"] == "aws-release-hardening-2")
     assert expected_warning in rh2_aws["rationale"], rh2_aws["rationale"]
+
+
+# --- MELHORIA-006: generic bundled filenames are recognized as bundled ------
+
+
+def test_generic_bundled_filename_not_flagged_as_unrecognized(tmp_path: Path) -> None:
+    """disclosure-policy.json is bundled in v5.9.0 (consumed by GOV-DISC-065).
+    It must NOT appear in evidence_json_unrecognized_filenames."""
+    ev = tmp_path / ".oss-policy-kit" / "evidence"
+    ev.mkdir(parents=True)
+    (ev / "disclosure-policy.json").write_text(json.dumps({"schema_version": "disclosure-policy/v1"}), encoding="utf-8")
+    rec = build_profile_recommendation(tmp_path)
+    ids = {s["id"] for s in rec.signals_detected}
+    assert "evidence_json_unrecognized_filenames" not in ids
+    assert "evidence_json_non_bundled_filenames" not in ids
+
+
+def test_github_provenance_artifact_is_recognized_as_github_evidence(tmp_path: Path) -> None:
+    """github-provenance-artifact.json was historically misclassified as 'other'.
+    Now it must be partitioned into the GitHub evidence bucket."""
+    ev = tmp_path / ".oss-policy-kit" / "evidence"
+    ev.mkdir(parents=True)
+    (ev / "github-provenance-artifact.json").write_text(json.dumps({"schema_version": "x"}), encoding="utf-8")
+    rec = build_profile_recommendation(tmp_path)
+    ids = {s["id"] for s in rec.signals_detected}
+    assert "github_evidence_json_files" in ids
+    assert "evidence_json_unrecognized_filenames" not in ids
+
+
+def test_truly_unknown_filename_still_surfaces_signal(tmp_path: Path) -> None:
+    """A filename that is not in any bundled set must still appear in the
+    unrecognized signal so the user notices stale or typo'd evidence files."""
+    ev = tmp_path / ".oss-policy-kit" / "evidence"
+    ev.mkdir(parents=True)
+    (ev / "completely-made-up-evidence.json").write_text(json.dumps({"schema_version": "made-up/v1"}), encoding="utf-8")
+    rec = build_profile_recommendation(tmp_path)
+    ids = {s["id"] for s in rec.signals_detected}
+    assert "evidence_json_unrecognized_filenames" in ids
+    detail = next(s["detail"] for s in rec.signals_detected if s["id"] == "evidence_json_unrecognized_filenames")
+    assert "completely-made-up-evidence.json" in detail
+    assert "ignored" in detail.lower()
+
+
+# --- MELHORIA-001 / F-001: evidence without CI signal -----------------------
+
+
+def test_github_evidence_without_workflows_emits_weak_suggestion(tmp_path: Path) -> None:
+    """If GitHub evidence files exist but .github/workflows/ is missing, the
+    recommender should still produce a suggestion + rationale explaining the gap.
+    Previously this returned suggestions: [] and left the adopter without guidance."""
+    ev = tmp_path / ".oss-policy-kit" / "evidence"
+    ev.mkdir(parents=True)
+    (ev / "branch-protection.json").write_text(json.dumps({"schema_version": "x"}), encoding="utf-8")
+    rec = build_profile_recommendation(tmp_path)
+    assert rec.suggestions, "expected at least one suggestion when GitHub evidence exists"
+    rationales = " ".join(s["rationale"] for s in rec.suggestions)
+    assert "workflow" in rationales.lower() or "wired up" in rationales.lower()
+
+
+def test_azure_evidence_without_pipelines_emits_weak_suggestion(tmp_path: Path) -> None:
+    ev = tmp_path / ".oss-policy-kit" / "evidence"
+    ev.mkdir(parents=True)
+    (ev / "azure-branch-policies.json").write_text(json.dumps({"schema_version": "x"}), encoding="utf-8")
+    rec = build_profile_recommendation(tmp_path)
+    assert rec.suggestions
+    pids = [s["profile_id"] for s in rec.suggestions]
+    assert any(p.startswith("azure-") for p in pids)
+
+
+def test_aws_evidence_without_buildspec_emits_weak_suggestion(tmp_path: Path) -> None:
+    ev = tmp_path / ".oss-policy-kit" / "evidence"
+    ev.mkdir(parents=True)
+    (ev / "aws-codebuild-project.json").write_text(json.dumps({"schema_version": "x"}), encoding="utf-8")
+    rec = build_profile_recommendation(tmp_path)
+    assert rec.suggestions
+    pids = [s["profile_id"] for s in rec.suggestions]
+    assert any(p.startswith("aws-") for p in pids)

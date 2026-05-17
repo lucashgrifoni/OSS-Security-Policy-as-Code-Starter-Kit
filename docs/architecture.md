@@ -210,6 +210,11 @@ Current structured evidence supported by the kit:
 | `AWS-CB-045` | `.oss-policy-kit/evidence/aws-codebuild-project.json` | `reports/schema/evidence-aws-codebuild-project.schema.json` |
 | `AWS-SBOMART-058` | `.oss-policy-kit/evidence/aws-sbom-artifact.json` | `reports/schema/evidence-aws-sbom-artifact.schema.json` |
 | `AWS-PROVART-059` | `.oss-policy-kit/evidence/aws-provenance-artifact.json` | `reports/schema/evidence-aws-provenance-artifact.schema.json` |
+| `GOV-DISC-065` (v5.9.0) | `.oss-policy-kit/evidence/disclosure-policy.json` | `reports/schema/evidence-disclosure-policy.schema.json` |
+| `SAST-ZIZMOR-066` (v5.9.0) | `.oss-policy-kit/evidence/sast/zizmor.sarif.json` | (raw SARIF 2.1.0; no kit-specific schema — parsed by the shared SARIF helper) |
+| `SAST-POUTINE-067` (v5.9.0) | `.oss-policy-kit/evidence/sast/poutine.sarif.json` | (raw SARIF 2.1.0) |
+| `SAST-OSV-068` (v5.9.0) | `.oss-policy-kit/evidence/sast/osv-scanner.sarif.json` | (raw SARIF 2.1.0) |
+| `SAST-GITLEAKS-069` (v5.9.0) | `.oss-policy-kit/evidence/sast/gitleaks.sarif.json` | (raw SARIF 2.1.0; zero-tolerance — any finding blocks) |
 
 ### Branch protection evidence
 
@@ -221,6 +226,25 @@ Implications:
 - missing required protections do not pass silently
 - self-attested evidence remains lower-trust than live GitHub confirmation
 - `github-release-hardening-1` can legitimately end with `pass` plus `manual-review-required` or `self-attested`
+
+## SARIF-ingest adapters (v5.9.0)
+
+Fase 4 introduced four SARIF-ingest adapters that read raw SARIF 2.1.0 dropped at `.oss-policy-kit/evidence/sast/<tool>.sarif.json`:
+
+- **`SAST-ZIZMOR-066`** — zizmor (GitHub Actions AST analysis).
+- **`SAST-POUTINE-067`** — poutine (GitHub Actions + GitLab CI).
+- **`SAST-OSV-068`** — OSV-Scanner v2 (reachability-aware SCA).
+- **`SAST-GITLEAKS-069`** — Gitleaks (secret leak detection; zero-tolerance — any finding fails).
+
+All four share a single helper `_parse_sarif_findings` in `evaluators.py` and a generic adapter shell `_eval_sarif_adapter`. Adding another SARIF-emitting tool follows a one-line evaluator pattern; see ADR-001 for the scanner selection rationale and `docs/positioning.md` for the broader "compose, not replace" stance.
+
+The SAST boundary module (`evaluators_sast.py`) closes around five controls: the four new SARIF adapters plus `SAST-SEMGREP-064` (which retains its kit-emitted JSON wrapper from v5.4.0 for backward compatibility).
+
+## `emit-vex` subcommand (v5.9.0)
+
+`oss-policy-kit emit-vex` reads the OSV-Scanner SARIF file consumed by `SAST-OSV-068` and emits a CycloneDX VEX 1.6 document. The v0.1 surface emits every distinct vulnerability ID (CVE / GHSA / OSV / RUSTSEC) with `analysis.state: in_triage`; the manufacturer fills the analysis post-hoc. Per-CVE waiver integration is planned for v5.9.x (see [`docs/decisions/adr-002-emit-vex-scope.md`](decisions/adr-002-emit-vex-scope.md) and [`docs/vex-emission.md`](vex-emission.md)).
+
+The subcommand is intentionally narrow: it does not generate an SBOM (delegated to Syft / Trivy), does not verify the manufacturer's analysis (auditor's job), and does not cover non-OSV findings (zizmor / poutine / Gitleaks findings are policy patterns, not CVEs).
 
 ## CLI trust boundaries
 

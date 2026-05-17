@@ -18,14 +18,18 @@ controls:
   # SAST
   - SEC-CODEQL-010
   - SAST-SEMGREP-064
+  - SAST-ZIZMOR-066
+  - SAST-POUTINE-067
   # SCA
   - SEC-DEPREV-011
   - DEP-UPDATE-001
   - SEC-PINLOCK-052
+  - SAST-OSV-068
   # Secret scanning
   - SEC-SECRETS-050
   - SEC-GITIGNORE-051
   - GH-PLAT-026
+  - SAST-GITLEAKS-069
   # Dependency integrity
   - CI-PIN-008
   - CI-WFCALLSHA-055

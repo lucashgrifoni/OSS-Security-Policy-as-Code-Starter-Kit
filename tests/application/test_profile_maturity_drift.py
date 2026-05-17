@@ -23,17 +23,9 @@ Two invariants:
    ``title`` or ``description`` so adopters do not accidentally use it as a
    hard release gate. We accept the phrases ``advisory only``,
    ``advisory-only``, or ``advisory`` paired with ``not a hard gate``.
-
-   **Regulatory carve-out:** profiles classified as
-   ``framework-aligned advisory (regulatory)`` (today: ``cra-eu-ready-1``
-   and ``cra-eu-strict-1``) MAY instead surface ``hard-gate-capable`` as
-   the disposition word, because the EU CRA strict track is documented in
-   the kit as hard-gate-capable when evidence files are filled. The
-   intent of this test is "the profile MUST clearly tell the adopter
-   whether to treat it as advisory or as a hard gate", not "the profile
-   MUST literally say 'advisory'". A future cleanup pass may reclassify
-   ``cra-eu-strict-1`` outside the regulatory advisory bucket; until
-   then this carve-out keeps the test honest about today's reality.
+   Regulatory advisory profiles (``cra-eu-*``) follow the same rule — their
+   description must surface the advisory disposition explicitly, not rely
+   on the framework label alone.
 
 Failure modes captured:
 
@@ -147,26 +139,19 @@ def test_framework_hard_gate_profile_has_enough_evidence_backed(profile_dir: Pat
 
 @pytest.mark.parametrize("profile_dir", _ADVISORY, ids=lambda d: d.name)
 def test_advisory_profile_documents_advisory_disposition(profile_dir: Path) -> None:
-    """Advisory profiles must surface their disposition in title or description.
-
-    Regulatory advisory profiles MAY surface "hard-gate-capable" instead of
-    "advisory" (see module docstring carve-out).
-    """
+    """Advisory profiles must surface their disposition in title or description."""
 
     data = _load_profile(profile_dir)
     title = str(data.get("title", ""))
     description = str(data.get("description", ""))
     blob = (title + "\n" + description).lower()
-    label = _profile_maturity_label(profile_dir.name, is_legacy_alias=False).lower()
 
     matched = any(phrase in blob for phrase in ADVISORY_BANNER_PHRASES)
     paired_caveat = "advisory" in blob and "not a hard gate" in blob
-    regulatory_hard_gate_caveat = "regulatory" in label and "hard-gate-capable" in blob
 
-    assert matched or paired_caveat or regulatory_hard_gate_caveat, (
+    assert matched or paired_caveat, (
         f"{profile_dir.name}: title/description must surface the disposition "
-        f"(one of {ADVISORY_BANNER_PHRASES!r}, 'advisory' plus 'not a hard gate', "
-        f"or 'hard-gate-capable' for regulatory profiles); "
+        f"(one of {ADVISORY_BANNER_PHRASES!r}, or 'advisory' plus 'not a hard gate'); "
         f"got title={title!r}, description={description!r}"
     )
 

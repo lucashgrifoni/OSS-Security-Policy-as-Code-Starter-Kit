@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "zizmor",
+          "informationUri": "https://github.com/zizmorcore/zizmor",
+          "rules": []
+        }
+      },
+      "results": []
+    }
+  ]
+}

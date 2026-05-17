@@ -6,6 +6,92 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## OSS Security Policy as Code Starter Kit v5.9.0 — 2026-05-16
+
+A minor release that lands **Fase 4** of the v5 trajectory: new SARIF-ingest adapters for the de-facto OSS scanner ecosystem, a CRA-reporting-readiness profile aligned with the 2026-09-11 deadline, a new evidence-backed disclosure-SLA control, the first two ADRs, a public positioning page, and a pre-commit hook surface for downstream adopters.
+
+**Development Status promoted to `Production/Stable`** (`pyproject.toml` classifier). The kit has been usable as a release gate for several minor versions; v5.9 makes that posture explicit.
+
+### Highlights
+
+- **Four new SARIF-ingest adapters** in the SAST family — `SAST-ZIZMOR-066`, `SAST-POUTINE-067`, `SAST-OSV-068`, `SAST-GITLEAKS-069`. They read raw SARIF 2.1.0 dropped at `.oss-policy-kit/evidence/sast/<tool>.sarif.json` and surface findings by severity. zizmor / poutine / OSV pass on warning-only output; Gitleaks treats any finding as a block (secrets are zero-tolerance). All four are bundled into `appsec-sast-sca-1` (which grows from 11 to 15 controls).
+- **Native GitLab CI support** — new infrastructure parser (`gitlab_ci_parser.py`), six new controls (`GL-PIPE-001..006`), and the first bundled `gitlab-level-1` profile. The parser surfaces pipeline presence, `image:` pinning, `curl|sh` script patterns, broad `inherit: secrets: true`, unpinned remote `include:`, and trigger restrictions (`rules:` / `only:` / `except:` / `when:`). The initial 6-control subset closes the most common GitLab CI hardening gaps; the remaining 6 from the ADR-003 design (`GL-PIPE-007..012` — OIDC tokens, self-hosted-runner restrictions, audit-log streaming, etc.) ship in subsequent minors. `gitlab-level-2` and `-3` ladder profiles follow as the parser surface widens.
+- **Official `Dockerfile` + GHCR publish workflow.** Multi-stage Dockerfile in the working tree (`Dockerfile`) builds a non-root, container-baseline-1-compliant image. The new `.github/workflows/publish-container.yml` workflow builds multi-arch (`linux/amd64`, `linux/arm64`), signs with cosign (keyless via Sigstore Public Good + GitHub OIDC), generates a CycloneDX SBOM via Buildx, and produces a GitHub Artifact Attestation pushed to the registry. Triggered by `v*` tags. Verify with `cosign verify` or `gh attestation verify`. See [`docs/container-image.md`](docs/container-image.md).
+- **New bundled profile `cra-eu-reporting-1`** focused on the EU CRA's 2026-09-11 24-hour reporting deadline. Eleven controls covering disclosure channel + SLA, detection capability, audit trail, risk handling discipline, and affected-artifact identification. Advisory (`--fail-on degraded`). Distinct from `cra-eu-ready-1` (broader preparation) and `cra-eu-strict-1` (2027-12-11 full obligations).
+- **New evidence-backed control `GOV-DISC-065`** — disclosure channel SLA documented. Reads `.oss-policy-kit/evidence/disclosure-policy.json` (schema `disclosure-policy/v1`) with required fields `schema_version`, `attested_at`, `attested_by`, `contact.method/value`, `acknowledgement_sla_hours`, `triage_sla_hours`, and `public_disclosure_policy.{default_window_days, negotiable}`. Signal fallback: looks for SLA keywords in `SECURITY.md` (root, `.github/`, `docs/`) when no evidence file is present.
+- **First two ADRs (`docs/decisions/`)**:
+  - `adr-001-sca-scanner-choice.md` — OSV-Scanner v2 selected as SCA primary (reachability-aware in JAR/Go), Trivy repositioned as future container-scanning candidate.
+  - `adr-002-emit-vex-scope.md` — scope and design for the planned `emit-vex` subcommand (CycloneDX VEX 1.6 from OSV-Scanner findings + waivers). Implementation deferred to a v5.9.x point release after adopter SARIF fixtures are available.
+- **`docs/positioning.md`** (new) — public positioning page answering "why use this kit if Scorecard v6 / zizmor / OSV-Scanner / Harden-Runner exist". Honest boundary-drawing: what the kit does (composable profiles, evidence trust grading, multi-platform gates, waiver registry) and what it deliberately does not (universal scanner, deep AST analysis, runtime egress enforcement, OSPS certification engine, SBOM generator, compliance guarantee).
+- **`docs/cra-readiness.md`** (new) — walks both CRA deadlines (2026-09-11 24-hour reporting, 2027-12-11 full obligations), maps each of the three bundled CRA profiles, and is explicit about what the kit does **not** prove (the actual 24-hour clock, conformity assessment, CE-marking, severity-of-exploitation judgement).
+- **New `emit-vex` subcommand** — emits a CycloneDX VEX 1.6 document from OSV-Scanner SARIF. Every distinct vulnerability ID (CVE / GHSA / OSV / RUSTSEC) appears in `analysis.state: in_triage`; the manufacturer fills in the analysis post-hoc. Conservative v0.1 surface — per-CVE waiver integration is tracked for v5.9.x (see ADR-002). Documented in [`docs/vex-emission.md`](docs/vex-emission.md).
+- **Pre-commit hook surface (`.pre-commit-hooks.yaml`)**. Three hooks shipped: `oss-policy-kit-evaluate` (hard-gate ladders), `oss-policy-kit-evaluate-degraded` (advisory profiles), `oss-policy-kit-validate-profiles` (maintainers). Wiring documented in [`docs/pre-commit-integration.md`](docs/pre-commit-integration.md).
+
+### Breaking — `cra-eu-strict-1` description rewrite
+
+`cra-eu-strict-1` previously self-described as "hard-gate-capable when evidence files are filled" while its CLI maturity label was "framework-aligned advisory (regulatory)". The inconsistency was resolved in favor of advisory: the kit does not certify CRA conformity (which requires a competent authority / notified body), and "hard-gate-capable" overpromised what evidence alone can demonstrate. The profile is **functionally unchanged** (same 19 controls, same `--fail-on degraded` recommendation); only the description and the test carve-out were updated.
+
+This may surface in adopter dashboards that parse the profile description string. The profile id, control list, and report contracts are unchanged.
+
+### Added
+
+- New control `GOV-DISC-065` — Disclosure channel SLA documented (evidence-backed, weight 2, category governance).
+- New control `SAST-ZIZMOR-066` — zizmor SARIF findings on GitHub Actions workflows (evidence-backed, weight 2, experimental).
+- New control `SAST-POUTINE-067` — poutine SARIF findings on GitHub Actions / GitLab CI pipelines (evidence-backed, weight 2, experimental).
+- New control `SAST-OSV-068` — OSV-Scanner v2 SARIF findings (evidence-backed, weight 3, experimental).
+- New control `SAST-GITLEAKS-069` — Gitleaks SARIF findings (evidence-backed, weight 3, experimental).
+- New controls `GL-PIPE-001..006` — GitLab CI native checks: pipeline presence (deterministic, w1), image pinning (signal, w2 — includes mutable-tag detection for `:latest`, `:edge`, `:stable`, `:main`, `:master`, `:nightly`, `:lts`), `curl|sh` (signal, w3), broad `inherit: secrets: true` (deterministic, w2), unpinned remote `include:` (signal, w2), trigger restrictions (signal, w1). All experimental, category `ci_cd`.
+- New profile `cra-eu-reporting-1` (advisory, regulatory, 11 controls).
+- New profile `gitlab-level-1` (starter ladder, 16 controls, `--fail-on fail` recommended).
+- New evidence schema `disclosure-policy/v1` packaged at `src/oss_policy_kit/data/schema/evidence-disclosure-policy.schema.json` with byte-identical mirror at `reports/schema/`.
+- New infrastructure parser `gitlab_ci_parser.py` with `GitLabCiAnalysis` dataclass; integrated into `engine.evaluate_repository` and `EvalContext.gitlab_ci` (default empty for backward compatibility).
+- New CLI subcommand **`emit-vex`** (CycloneDX VEX 1.6 from OSV-Scanner SARIF; per-CVE waivers, `--validate`, `--include-references`).
+- New CLI flag **`init --interactive`** that prompts the operator to confirm or override the recommended profile before writing `oss-policy-kit.yaml`. Opt-in; non-interactive when stdin is not a TTY.
+- New `Dockerfile` (multi-stage, non-root uid 10001) and `.github/workflows/publish-container.yml` (multi-arch + cosign + Artifact Attestation + SBOM).
+- New public docs: `docs/positioning.md`, `docs/cra-readiness.md`, `docs/pre-commit-integration.md`, `docs/vex-emission.md`, `docs/container-image.md`, `docs/v5.9.0-migration-guide.md`.
+- New ADRs: `docs/decisions/adr-001-sca-scanner-choice.md`, `docs/decisions/adr-002-emit-vex-scope.md`, `docs/decisions/adr-003-gitlab-ci-support.md`.
+- `.pre-commit-hooks.yaml` with three published hooks.
+- Example fixtures: `examples/hardened-repo/.oss-policy-kit/evidence/disclosure-policy.json` plus four empty-findings SARIF stubs under `evidence/sast/` (zizmor, poutine, osv-scanner, gitleaks).
+
+### Changed
+
+- `appsec-sast-sca-1` profile expanded from 11 to 15 controls (adds the four v5.9 SARIF adapters).
+- `cra-eu-strict-1` profile description rewritten as advisory (no functional / control change).
+- `GL-PIPE-002` now flags mutable / floating image tags (`:latest`, `:edge`, `:stable`, `:main`, `:master`, `:nightly`, `:lts`) as fail with `high` confidence instead of treating them as pinned. Specific tags (e.g. `python:3.12-slim`) and digests still pass. Closes the v0.1 limitation noted in ADR-003. (MELHORIA-005)
+- `recommend-profile`: when GitHub/Azure/AWS evidence files exist but the matching CI signal (workflow / pipeline / buildspec) is missing AND no other platform's CI signal exists either, the recommender now emits the `*-level-1` starter profile with an explicit "evidence is currently unused" rationale instead of returning an empty `suggestions[]`. Prevents the silent-no-suggestion UX gap. (MELHORIA-001 / F-001)
+- `recommend-profile`: the `evidence_json_non_bundled_filenames` signal was renamed to `evidence_json_unrecognized_filenames` and now correctly excludes platform-agnostic bundled filenames (`disclosure-policy.json`, `audit-log-streaming.json`, `release-archival-policy.json`, `iac-*.json`, `k8s-baseline.json`, `org-mfa-posture.json`, `github-provenance-artifact.json`, `runner-groups.json`). The detail message also states explicitly that unrecognized files are ignored by `evaluate`. (MELHORIA-006 / F-008)
+- `evaluate-many --skip-non-repos` now also skips meta / output / cache directory names (`out`, `dist`, `build`, `_output`, `.tmp`, `node_modules`, `venv`, `.venv`, `target`, `site`, `coverage`, `htmlcov`, plus `out-*` / `out_*` / `build-*` / `dist-*` / `output-*` / `_output*` prefixes) even when they happen to contain a package manifest from a build artifact. Adopters can still force-evaluate via `evaluate --target <path>`. (MELHORIA-002 / F-007)
+- `emit-vex --waivers` now emits a stderr warning when waiver `vulnerability_ids` do not match any SARIF finding, listing the unmatched IDs so adopters can spot typos or CVE↔GHSA alias mismatches. (MELHORIA-008)
+- New adopter-facing docs `docs/profiles/gitlab.md`, `docs/profiles/cra-eu.md`, `docs/profiles/appsec-sast-sca.md` covering the v5.9.0 surface in depth.
+- `init --dry-run` now accepts a target path that does not exist yet, so adopters can preview the plan before creating the directory. The plan is printed, nothing is written, and an explicit note ("Target directory does not exist yet: <path>. Running init without --dry-run will require you to create it first.") is appended to `notes` in both human and JSON output. Without `--dry-run`, the legacy guard remains: a missing target still exits 2 with the same actionable message. (OP-001 / MELHORIA-011)
+- `docs/framework-alignment.md` header counts refreshed (65 → 125 controls, 20 → 36 profiles, v5.0.0 → v5.8.1), Decision 4 "future work" section refreshed to mark items shipped in v5.1.0 / v5.6.0 / v5.9.0 and to list the six new post-v5.0.0 candidates with regulatory-urgency ranking. CRA section now documents all three CRA-aligned profiles distinctly (reporting / ready / strict).
+- `docs/profiles/overview.md` references to `cra-eu-strict-1` aligned with the advisory rewrite.
+- `docs/profiles/deferred-followups.md` extended with GitHub native security platform features (GA-dependent), `emit-vex` subcommand (planned per ADR-002), and GitLab CI support (`gitlab-level-1`, planned — needs a `.gitlab-ci.yml` parser first).
+- Test file `tests/application/test_profile_maturity_drift.py` lost its `cra-*` regulatory carve-out; the advisory rule applies uniformly now.
+
+### Maintenance
+
+- Test suite grew from 1958 to 2191 (+233 tests covering the new controls, the new profiles, the four SARIF adapters, the GitLab CI parser including a realistic ~120-line fixture, the GL-PIPE-* evaluators, the `emit-vex` v0.2 surface including unmatched-waiver warning, mutable-tag detection, evaluate-many meta-directory filter, recommend-profile fallback, the .pre-commit-hooks.yaml structural contract, init --dry-run accepting a missing target, and parametrized cross-profile invariants that auto-detected the new bundles).
+- `Development Status :: 4 - Beta` → `5 - Production/Stable` in `pyproject.toml`.
+- Version bump `5.8.1` → `5.9.0`.
+- `GOV-EVIDFRESH-054` now skips `.oss-policy-kit/evidence/sast/*.sarif.json` files (scanner outputs have their own freshness contract via SARIF `invocations[].startTimeUtc`; the kit's `attested_at` / `collected_at` check applies only to attestation-style evidence).
+
+### Deferred to v5.9.x
+
+- `emit-vex` extensions: full CycloneDX 1.6 JSON Schema validation (today `--validate` is structural / required-field only), `response.type` mapping from waiver fields, multi-source ingest for zizmor / poutine / Gitleaks SARIF.
+- `GL-PIPE-007..012` (the remaining 6 controls of the ADR-003 design) and `gitlab-level-2` / `gitlab-level-3` ladder profiles.
+- `F4-05` interactive wizard for `init`.
+- `F4-06` official container image distribution.
+- GitHub 2026 native security platform features (egress firewall, scoped secrets, workflow dependency locking) — registered as GA-dependent; will be added when each feature reaches GitHub GA.
+
+### Documentation references
+
+- See `docs/cra-readiness.md` for the CRA deadline framing.
+- See `docs/positioning.md` for the kit's position relative to Scorecard v6, zizmor, poutine, OSV-Scanner, Harden-Runner, and the broader OSS security ecosystem.
+- See `docs/decisions/adr-001-sca-scanner-choice.md` for why OSV-Scanner v2 was chosen over Trivy / Grype / Snyk OSS as the SCA primary.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.8.1 — 2026-05-12
 
 UX, contract, and privacy fixes following an internal audit. No new controls, profiles, flags (other than one privacy opt-in), schemas, or subcommands.

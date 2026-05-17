@@ -306,3 +306,101 @@ def test_init_workflow_skipped_for_non_github_platform(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     assert not (repo / ".github" / "workflows" / "oss-policy-check.yml").exists()
     assert "Workflow templates are only generated for GitHub" in result.output
+
+
+# --- OP-001 / MELHORIA-011: init --dry-run accepts a missing target -----------
+
+
+def test_init_dry_run_accepts_nonexistent_target_and_writes_nothing(tmp_path: Path) -> None:
+    """``init --dry-run --target <path-that-does-not-exist>`` must exit 0,
+    print the plan, surface a clear note that the directory does not exist,
+    and write nothing to disk. Regression guard for OP-001."""
+    runner = CliRunner()
+    novo = tmp_path / "repo-novo"
+    assert not novo.exists()
+
+    result = runner.invoke(
+        app,
+        prepare_cli_args(
+            [
+                "init",
+                "--target",
+                str(novo),
+                "--profile",
+                "github-level-1",
+                "--dry-run",
+            ]
+        ),
+    )
+
+    assert result.exit_code == 0, result.output
+    # The directory was NOT created.
+    assert not novo.exists(), "dry-run must not create the target directory"
+    # The plan still surfaced (header + planned config file).
+    assert "Plan" in result.output
+    assert "oss-policy-kit.yaml" in result.output
+    # The explanatory note must be present so the adopter knows the next step.
+    assert "does not exist yet" in result.output
+    assert "without --dry-run" in result.output
+
+
+def test_init_without_dry_run_still_rejects_nonexistent_target(tmp_path: Path) -> None:
+    """Without --dry-run the legacy behavior is preserved: missing target -> exit 2."""
+    runner = CliRunner()
+    novo = tmp_path / "repo-novo"
+    assert not novo.exists()
+
+    result = runner.invoke(
+        app,
+        prepare_cli_args(["init", "--target", str(novo), "--profile", "github-level-1"]),
+    )
+
+    assert result.exit_code == 2, result.output
+    assert "does not exist" in result.output.lower()
+    assert not novo.exists()
+
+
+def test_init_dry_run_with_existing_target_does_not_add_op001_note(tmp_path: Path) -> None:
+    """When the target exists, the OP-001 note must NOT appear; otherwise we
+    would mislead adopters who already created their directory."""
+    repo = _make_github_repo(tmp_path)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        prepare_cli_args(["init", "--target", str(repo), "--profile", "github-level-1", "--dry-run"]),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "does not exist yet" not in result.output
+
+
+def test_init_dry_run_json_emits_note_for_missing_target(tmp_path: Path) -> None:
+    """JSON format must surface the same note so machine consumers see it."""
+    import json as _json
+
+    runner = CliRunner()
+    novo = tmp_path / "repo-novo-json"
+    assert not novo.exists()
+
+    result = runner.invoke(
+        app,
+        prepare_cli_args(
+            [
+                "init",
+                "--target",
+                str(novo),
+                "--profile",
+                "github-level-1",
+                "--dry-run",
+                "--format",
+                "json",
+            ]
+        ),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert not novo.exists()
+    payload = _json.loads(result.output)
+    notes = payload.get("notes") or payload.get("plan", {}).get("notes") or []
+    assert any("does not exist yet" in n for n in notes), payload
