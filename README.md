@@ -55,7 +55,7 @@ python -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile gi
 
 This confirms the CLI, bundled profile data, example repository, and report generation path before you evaluate your own repository.
 
-### Two-line bootstrap (v5.4.0+; available in current v5.9.0)
+### Two-line bootstrap (v5.4.0+; available in current v5.9.x)
 
 For brand new adopters, `init` collapses the first run into two commands:
 
@@ -91,7 +91,7 @@ Inputs map 1:1 to CLI flags. Full reference and SARIF forwarding example in [doc
 | License | Apache-2.0 (`LICENSE` + `NOTICE`) |
 | Report contract | `reports/1.0` by default; `0.3` and `0.2` remain selectable via `--report-json-contract`. `0.1` was removed in v5.0.0 |
 | Security workflow | Scanners run in `Security CI/CD`; SARIF upload is gated by `ENABLE_CODE_SCANNING_UPLOAD=true` so validation does not fail when Code Scanning upload APIs are unavailable |
-| CLI subcommands | 13 — `evaluate`, `evaluate-many`, `profiles`, `recommend-profile`, `scaffold-evidence`, `collect-evidence`, `diff-reports`, `init`, `scan-sast`, `scan-iac`, `scan-k8s`, `scan-cfn`, `scan-pulumi`, `scan-bicep`, **`emit-vex`** (new in v5.9.0) |
+| CLI subcommands | 15 — `evaluate`, `evaluate-many`, `profiles`, `recommend-profile`, `scaffold-evidence`, `collect-evidence`, `diff-reports`, `init`, `scan-sast`, `scan-iac`, `scan-k8s`, `scan-cfn`, `scan-pulumi`, `scan-bicep`, **`emit-vex`** (new in v5.9.0) |
 
 The repository is designed to be reproducible from a clean clone: install the package, run the built-in examples, and compare the generated JSON/Markdown reports.
 

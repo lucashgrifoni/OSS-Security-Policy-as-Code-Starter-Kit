@@ -13,18 +13,36 @@ Work in progress on the `feat/v6.0.0-evolution` branch. This section captures ch
 ### Docs
 
 - **`docs/positioning.md`** — rewritten to (a) describe only capabilities present in the v5.9.x build, (b) list v6.0.0 plans explicitly under a `Roadmap (v6.0.0 — in development)` section so adopters can see direction without confusing roadmap with shipped capability, (c) correct the SARIF-adapter inventory (`SAST-SEMGREP-064`, `SAST-ZIZMOR-066`, `SAST-POUTINE-067`, `SAST-OSV-068`, `SAST-GITLEAKS-069`; no Trivy adapter is shipped today), (d) describe the actual `PROV-VERIFY-061` `verification:` block schema (`method`, `verified_at`, `transparency_log_inclusion`, optional `issuer` / `subject_alternative_name` / `bundle_digest` / `tool_version`) and place the planned `verification.source` enum under Roadmap, (e) correct `--fail-on` to the implemented values `none / fail / degraded`, and (f) remove links to documents that do not exist yet.
+- **`docs/framework-alignment.md`** — refresh stale counts (now `136 controls` / `38 profiles`); add three `Roadmap` sections for v6.0.0 framework expansion: NIST SP 800-218A (Generative AI SSDF), EU AI Act Article 11 + Annex IV, and OpenSSF Security Insights 1.0 emit. Every planned control / profile / subcommand is explicitly tagged as not present in v5.9.x.
 - **`docs/decisions/adr-001-sca-scanner-choice.md`** and **`docs/framework-alignment.md`** — removed references to the project-local planning directory name from public-facing prose. The local planning artifacts remain gitignored and are not part of the public repository; the prose now says so without naming the directory.
+- **Eight new ADRs** under `docs/decisions/`:
+  - **`adr-004-webhook-security-baseline-expansion.md`** — design rationale for `webhook-security-2` profile + `SEC-WEBHOOK-*` family (six new signal-grade controls).
+  - **`adr-005-s2c2f-l2-l3-recomposition.md`** — decision to ship `s2c2f-l2-1` and `s2c2f-l3-1` as recomposition of existing controls, zero new evaluators.
+  - **`adr-006-slsa-source-l1-profile.md`** — design rationale for `slsa-source-l1-1` profile + `SLSA-SRC-*` family (5–6 controls).
+  - **`adr-007-gh-prov-023-evidence-backed-promotion.md`** — `GH-PROV-023` promotion from `signal` to `evidence-backed`; assurance-mix shift documented (A-001).
+  - **`adr-008-recommend-profile-v2-schema-url.md`** — `recommend-profile/v2.schema_version` becomes an absolute URL (breaking, M-003).
+  - **`adr-011-emit-insights-subcommand.md`** — design rationale for `emit-insights` subcommand emitting OpenSSF Security Insights 1.0 YAML.
+  - **`adr-012-export-evidence-chainloop-experimental.md`** — design rationale for `export-evidence --format chainloop` (experimental in v6.0.0).
+  - **`adr-014-oss-publish-readiness.md`** — design rationale for `oss-publish-readiness-1` profile + `PUBLISH-OIDC-*` family (three signal-grade controls).
+- **Five new doc stubs** under `docs/` describing v6.0.0 features marked clearly as in-development:
+  - **`docs/eu-ai-act-readiness.md`** — adopter guide for the planned `cra-eu-ai-act-art11-1` profile; explicit caveat that the kit does not substitute for a conformity assessment.
+  - **`docs/insights-emission.md`** — design and adopter guide for the planned `emit-insights` subcommand.
+  - **`docs/evidence-export.md`** — design and adopter guide for the planned `export-evidence` subcommand, including Chainloop experimental-format details.
+  - **`docs/reports-contract-v2.0.md`** — full spec for the planned `reports/2.0` contract (five-state vocabulary aligned with Scorecard v6).
+  - **`docs/v6.0.0-migration-guide.md`** — consolidated migration guide for the three v6.0.0 breaking changes (M-003, B-001, B-002) plus the `GH-PROV-023` assurance-mix shift (A-001).
 
 ### Repository hygiene
 
 - **`.gitignore`** — added `.tmp/` so local snapshots such as `.tmp/profiles-v5.9.0.json` are not surfaced as untracked. The earlier `.tmp-v6/` entry was replaced with the more general `.tmp/`, which subsumes the v6.0.0 execution-plan use case.
 - **`src/oss_policy_kit/__init__.py`** — bumped `__version__` from `5.9.0` to `5.9.1` to match `pyproject.toml` and the published `v5.9.1` tag. This corrects a version-drift the public hygiene review surfaced; it is not a release in itself.
 - **`scripts/check_public_hygiene.py`** — added narrow allowlist entries for `.dockerignore` (the exclusion rule for the project-local planning directory is protective, not a leaked path) and `Dockerfile` (the conventional non-root home under the standard POSIX system user tree is a generic container pattern, not a real maintainer home directory). Allowlist comments explain the justification so the scanner does not weaken its detection of real sensitive paths.
+- **`README.md`** — corrected three stale references that still pointed at v5.9.0 after v5.9.1 shipped: the "Current release" table row, the "Package" / "GitHub Release" rows in *Current Release State*, the "Two-line bootstrap (v5.4.0+; available in current v5.9.x)" wording, and the CLI subcommand count (now 15, was 13). Added a one-line "In development" note at the top pointing to the positioning Roadmap.
 
 ### Notes
 
 - No profile, control, evaluator, evidence schema, CLI surface, or report contract change has landed yet on this branch. The 8 new profiles, ~24 new controls, 2 new CLI subcommands, and `reports/2.0` contract listed in the `Roadmap (v6.0.0 — in development)` section of `docs/positioning.md` arrive in subsequent PRs on the same branch.
 - `pyproject.toml` version remains `5.9.1` during in-development work on this branch; the bump to `6.0.0` happens at release-prep time.
+- Test, lint, type-check, hygiene-scan, and bundled-profile-validation are all green on the branch HEAD (1018 focused tests + 2191 full-suite tests; `ruff check` clean; `mypy` clean across 91 source files).
 
 ---
 
