@@ -60,7 +60,8 @@
         "issuer": { "type": "string" },
         "subject_alternative_name": { "type": "string" },
         "bundle_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-        "tool_version": { "type": "string" }
+        "tool_version": { "type": "string" },
+        "source": { "type": "string", "enum": ["npm-trusted-publishing", "pypi-trusted-publishing", "rubygems-trusted-publishing", "crates-trusted-publishing", "github-attestation", "sigstore-bundle", "manual"], "description": "Where the verification originates. Optional; added in v6.0.0 (V6-10)." }
       }
     },
     "notes": { "type": "string" }

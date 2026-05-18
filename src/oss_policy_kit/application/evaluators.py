@@ -4526,10 +4526,14 @@ def eval_prov_verify_061(ctx: EvalContext) -> EvalOutcome:
             confidence="low",
         )
     method = str(verification.get("method", "unknown"))
+    source_raw = verification.get("source")
+    source_suffix = ""
+    if isinstance(source_raw, str) and source_raw.strip():
+        source_suffix = f" source={source_raw.strip()};"
     return EvalOutcome(
         status=ControlStatus.PASS,
         reason=(
-            f"Provenance attestation verified ({method}); transparency-log inclusion confirmed; "
+            f"Provenance attestation verified ({method});{source_suffix} transparency-log inclusion confirmed; "
             f"verified_at={verified_at_raw} within {ctx.evidence_max_age_days}-day freshness window."
         ),
         remediation="Re-verify on every release artifact emission to keep verified_at within the freshness window.",
@@ -5490,6 +5494,81 @@ def eval_gl_pipe_006(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+# ---------------------------------------------------------------------------
+# GH-EGRESS-HRN-001 (V6-04 — Onda 2).
+#
+# Signal-grade detection of Harden-Runner (or equivalent runtime egress
+# control) presence in GitHub Actions workflows. Detects:
+#
+# - ``step-security/harden-runner`` action invocation.
+# - GitHub native egress firewall config (when it ships GA — Q4 2026 / Q1 2027
+#   expected per the GitHub Actions 2026 security roadmap). Today the kit only
+#   matches the keywords; the native config shape will be added when GA lands.
+#
+# Signal grade: the kit cannot verify the runtime egress enforcement actually
+# blocks traffic; it only confirms the declarative intent exists in the
+# workflow source. Adopters needing enforcement evidence should pair this with
+# Step Security's audit trail or a separate runtime control.
+# ---------------------------------------------------------------------------
+
+_HARDEN_RUNNER_PATTERNS: tuple[str, ...] = (
+    "step-security/harden-runner",
+    "stepsecurity/harden-runner",
+)
+
+
+def eval_gh_egress_hrn_001(ctx: EvalContext) -> EvalOutcome:
+    """GH-EGRESS-HRN-001: GitHub Actions workflows declare Harden-Runner egress controls."""
+
+    paths = list(ctx.workflows.workflow_paths)
+    if not paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitHub Actions workflows present.",
+            remediation=(
+                "If this repository uses GitHub Actions, declare Harden-Runner with "
+                "`step-security/harden-runner@<sha>` in every workflow that touches release "
+                "artifacts or runs untrusted code."
+            ),
+            evidence_sources=[],
+            confidence="high",
+        )
+    matched: list[Path] = []
+    for p in paths:
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            if any(pat in text for pat in _HARDEN_RUNNER_PATTERNS):
+                matched.append(p)
+    if not matched:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"No Harden-Runner egress control detected in {len(paths)} workflow file(s). "
+                "Harden-Runner is the de-facto OSS runtime egress control while GitHub's "
+                "native egress firewall is pre-GA (Q4 2026 / Q1 2027 expected)."
+            ),
+            remediation=(
+                "Add `uses: step-security/harden-runner@<sha>` as the first step in every "
+                "workflow that produces release artifacts or runs untrusted PR code. Pin to "
+                "a full commit SHA per CI-PIN-008."
+            ),
+            evidence_sources=[str(p.resolve()) for p in paths],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=(
+            f"Harden-Runner egress control detected in {len(matched)} of {len(paths)} workflow file(s)."
+        ),
+        remediation=(
+            "Keep Harden-Runner pinned by SHA and review the audit-mode allowlist before "
+            "tightening to block-mode."
+        ),
+        evidence_sources=[str(p.resolve()) for p in matched],
+        confidence="medium",
+    )
+
+
 EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "GOV-SEC-001": eval_gov_sec_001,
     "GOV-CON-002": eval_gov_con_002,
@@ -5515,6 +5594,7 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "GH-REL-021": eval_gh_rel_021,
     "GH-DEPLOY-022": eval_gh_dep_022,
     "GH-PROV-023": eval_gh_prov_023,
+    "GH-EGRESS-HRN-001": eval_gh_egress_hrn_001,
     "GH-PLAT-024": eval_gh_plat_024,
     "GH-PLAT-025": eval_gh_plat_025,
     "GH-PLAT-026": eval_gh_plat_026,

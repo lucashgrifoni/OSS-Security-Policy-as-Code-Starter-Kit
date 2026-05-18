@@ -967,3 +967,10 @@ controls:
     lifecycle: experimental
     assurance: signal
     weight: 2
+  - id: GH-EGRESS-HRN-001
+    title: GitHub Actions workflows declare Harden-Runner egress controls
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
