@@ -1,0 +1,39 @@
+id: s2c2f-l2-1
+title: Microsoft S2C2F Level 2 alignment (Secure OSS consumption with vulnerability scanning + license discipline)
+description: >
+  **Advisory mapping (advisory only). Do not use as a release gate.**
+  Multi-platform profile aligned with Microsoft Secure Supply Chain Consumption
+  Framework (S2C2F) Level 2. Builds on `s2c2f-l1-1` by adding the Level 2
+  expectations: vulnerability scanning (`SAST-OSV-068`), license declaration
+  discipline (`GOV-LIC-004`), and reusable-workflow SHA pinning
+  (`CI-WFCALLSHA-055`) as a clone-visible proxy for registry-enforced
+  ingestion. Bundles 12 existing controls — zero new evaluators, zero new
+  control IDs (see ADR-005).
+  **Posture:** advisory mapping. **Recommended `--fail-on`:** `degraded` only.
+  **Framework alignment:** see `docs/framework-alignment.md` (Microsoft S2C2F section).
+audience: >
+  Teams that consume OSS at scale and have already adopted L1; ready to add
+  vulnerability scanning and license discipline. Pair with a platform-specific
+  profile for full coverage.
+controls:
+  # Ingest (L1)
+  - SEC-PINLOCK-052
+  - CI-PIN-008
+  # Ingest (L2 addition — reusable-workflow SHA pinning as a clone-visible
+  # signal for "ingestion is mediated by trusted refs")
+  - CI-WFCALLSHA-055
+  # Scan (L2 addition — known-vulnerability scanning)
+  - SAST-OSV-068
+  # Inventory (L1)
+  - BUILD-SBOM-QUAL-003
+  # Update (L1)
+  - DEP-UPDATE-001
+  # Audit (L1)
+  - SEC-DEPREV-011
+  - OSS-SCORECARD-001
+  # License (L2 addition)
+  - GOV-LIC-004
+  # Govern (sustaining; L1 baseline)
+  - GOV-WAIV-014
+  - GOV-DISC-013
+  - GOV-SEC-001

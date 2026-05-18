@@ -37,6 +37,8 @@ _FRAMEWORK_PROFILE_LABELS: dict[str, str] = {
     "cis-supply-chain-1": "framework-aligned advisory (CIS Supply Chain)",
     "owasp-cicd-top10-1": "framework-aligned advisory (OWASP CICD Top 10)",
     "s2c2f-l1-1": "framework-aligned advisory (Microsoft S2C2F L1)",
+    "s2c2f-l2-1": "framework-aligned advisory (Microsoft S2C2F L2)",
+    "s2c2f-l3-1": "framework-aligned advisory (Microsoft S2C2F L3)",
     "appsec-sast-sca-1": "AppSec native bundle (hard-gate-capable with scan-sast)",
     "iac-terraform-baseline-1": "IaC Terraform posture (advisory, paired with scan-iac)",
     "kubernetes-baseline-1": "Kubernetes manifest posture (advisory, paired with scan-k8s)",
