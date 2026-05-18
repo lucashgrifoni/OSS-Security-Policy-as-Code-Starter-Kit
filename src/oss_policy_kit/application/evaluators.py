@@ -5529,6 +5529,230 @@ def eval_gl_pipe_006(ctx: EvalContext) -> EvalOutcome:
 
 
 # ---------------------------------------------------------------------------
+# GL-PIPE-007..012 — gitlab-level-2 additions (PR-14, O-09).
+#
+# Six new signal-grade controls covering OIDC tokens, self-hosted runner
+# scoping, audit-event streaming, environment approvals, MR review rules,
+# and artifact retention. Each evaluator does a focused keyword scan over
+# the GitLab CI pipeline files; the existing ``gitlab_ci_parser`` analyzer
+# is not extended in this PR — that work is tracked for v6.1.0+.
+# ---------------------------------------------------------------------------
+
+
+def _scan_gitlab_pipelines(ctx: EvalContext, hints: tuple[str, ...]) -> list[Path]:
+    """Return GitLab pipeline files whose text contains any of ``hints`` (case-insensitive)."""
+    matched: list[Path] = []
+    for p in ctx.gitlab_ci.pipeline_paths:
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            if any(h in text for h in hints):
+                matched.append(p)
+    return matched
+
+
+def _gl_no_pipeline_response(control_id: str, remediation: str) -> EvalOutcome:
+    return EvalOutcome(
+        status=ControlStatus.NOT_APPLICABLE,
+        reason=f"No GitLab CI pipelines to evaluate; {control_id} is not applicable.",
+        remediation=remediation,
+        evidence_sources=[],
+        confidence="high",
+    )
+
+
+def eval_gl_pipe_007(ctx: EvalContext) -> EvalOutcome:
+    """GL-PIPE-007: GitLab CI uses OIDC (id_tokens) for cloud / registry access."""
+    if not ctx.gitlab_ci.pipeline_paths:
+        return _gl_no_pipeline_response(
+            "GL-PIPE-007",
+            "Add a .gitlab-ci.yml; this control checks for id_tokens (OIDC) usage.",
+        )
+    matched = _scan_gitlab_pipelines(ctx, ("id_tokens:", "id_token:", "aud:"))
+    if not matched:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                "No GitLab pipeline declares `id_tokens:` (OIDC) for cloud / registry access. "
+                "Long-lived credentials are the alternative; OIDC is the GitLab GA path since "
+                "January 2026."
+            ),
+            remediation=(
+                "Declare `id_tokens:` at the job level with the appropriate `aud:` and exchange "
+                "the GitLab OIDC token for short-lived cloud / registry credentials. See GitLab "
+                "OIDC docs."
+            ),
+            evidence_sources=[str(p.resolve()) for p in ctx.gitlab_ci.pipeline_paths],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"{len(matched)} pipeline(s) declare `id_tokens:` / OIDC posture.",
+        remediation="Keep id_tokens audience scoped to the minimum required.",
+        evidence_sources=[str(p.resolve()) for p in matched],
+        confidence="medium",
+    )
+
+
+def eval_gl_pipe_008(ctx: EvalContext) -> EvalOutcome:
+    """GL-PIPE-008: GitLab CI scopes self-hosted runner usage via tags."""
+    if not ctx.gitlab_ci.pipeline_paths:
+        return _gl_no_pipeline_response(
+            "GL-PIPE-008",
+            "Add a .gitlab-ci.yml; this control checks for `tags:` scoping on jobs.",
+        )
+    matched = _scan_gitlab_pipelines(ctx, ("tags:",))
+    if not matched:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No GitLab pipeline declares `tags:` for runner scoping. Jobs may run on any "
+                "runner the project can reach."
+            ),
+            remediation=(
+                "Add `tags:` to jobs that must run on specific runner pools (especially self-"
+                "hosted runners) so untrusted MR pipelines cannot accidentally execute there."
+            ),
+            evidence_sources=[str(p.resolve()) for p in ctx.gitlab_ci.pipeline_paths],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"{len(matched)} pipeline(s) use `tags:` to scope runner selection.",
+        remediation="Confirm the tagged runners enforce isolation from MR pipelines on protected branches.",
+        evidence_sources=[str(p.resolve()) for p in matched],
+        confidence="low",
+    )
+
+
+def eval_gl_pipe_009(ctx: EvalContext) -> EvalOutcome:
+    """GL-PIPE-009: audit-event streaming or external export documented for the project."""
+    # Look in either pipeline files or known doc locations.
+    candidates: list[Path] = list(ctx.gitlab_ci.pipeline_paths)
+    for rel in ("AUDIT.md", "docs/audit-streaming.md", "RELEASE_OPERATIONS.md", ".gitlab/audit-streaming.yml"):
+        p = ctx.repo_root / rel
+        if p.is_file():
+            candidates.append(p)
+    matched: list[Path] = []
+    for p in candidates:
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            if any(h in text for h in ("audit_event", "audit-event", "audit streaming", "audit_streaming")):
+                matched.append(p)
+    if not matched:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No audit-event streaming / external export reference found in pipelines or "
+                "common doc locations."
+            ),
+            remediation=(
+                "Document the project-level audit-event streaming destination (e.g. SIEM, "
+                "object store) in AUDIT.md or .gitlab/audit-streaming.yml so reviewers can "
+                "confirm the trail leaves GitLab."
+            ),
+            evidence_sources=[],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"Audit-event streaming reference detected ({matched[0].name}).",
+        remediation="Confirm the destination is monitored and retained per the organisation's policy.",
+        evidence_sources=[str(p.resolve()) for p in matched],
+        confidence="low",
+    )
+
+
+def eval_gl_pipe_010(ctx: EvalContext) -> EvalOutcome:
+    """GL-PIPE-010: environment approval rules declared for protected envs."""
+    if not ctx.gitlab_ci.pipeline_paths:
+        return _gl_no_pipeline_response(
+            "GL-PIPE-010",
+            "Add a .gitlab-ci.yml; this control checks for `environment:` declarations with approval rules.",
+        )
+    matched = _scan_gitlab_pipelines(ctx, ("environment:", "deployment_tier:", "approval"))
+    if not matched:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="No `environment:` / `deployment_tier:` / approval declaration found in pipelines.",
+            remediation=(
+                "For deploys to production / staging, declare `environment:` with `name:`, "
+                "`deployment_tier:`, and configure protected-environment approvals at the "
+                "project level."
+            ),
+            evidence_sources=[str(p.resolve()) for p in ctx.gitlab_ci.pipeline_paths],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"{len(matched)} pipeline(s) declare environment / deployment-tier metadata.",
+        remediation="Confirm protected-environment approvals are configured in project settings.",
+        evidence_sources=[str(p.resolve()) for p in matched],
+        confidence="low",
+    )
+
+
+def eval_gl_pipe_011(ctx: EvalContext) -> EvalOutcome:
+    """GL-PIPE-011: merge-request rules enforce code-review approvals."""
+    # MR review rules are a project setting; look for project-level evidence file.
+    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "gitlab-mr-rules.json"
+    if evidence.is_file():
+        with contextlib.suppress(OSError, json.JSONDecodeError):
+            data = json.loads(evidence.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and data.get("min_approvers", 0) >= 1:
+                return EvalOutcome(
+                    status=ControlStatus.PASS,
+                    reason=f"MR rule evidence documents min_approvers={data['min_approvers']}.",
+                    remediation="SLSA Source L4 requires 2+ approvers; consider raising the threshold.",
+                    evidence_sources=[str(evidence.resolve())],
+                    confidence="high",
+                )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            "No .oss-policy-kit/evidence/gitlab-mr-rules.json evidence; MR approval enforcement "
+            "cannot be verified from a clone."
+        ),
+        remediation=(
+            "Document the project's MR approval rules (min approvers, code owner approval) in "
+            "the evidence file."
+        ),
+        evidence_sources=[],
+        confidence="medium",
+    )
+
+
+def eval_gl_pipe_012(ctx: EvalContext) -> EvalOutcome:
+    """GL-PIPE-012: artifact retention or signed-release posture documented."""
+    if not ctx.gitlab_ci.pipeline_paths:
+        return _gl_no_pipeline_response(
+            "GL-PIPE-012",
+            "Add a .gitlab-ci.yml; this control checks for artifact retention / signing posture.",
+        )
+    matched = _scan_gitlab_pipelines(ctx, ("expire_in:", "artifacts:", "cosign", "sigstore", "rekor"))
+    if not matched:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No artifact retention (`expire_in:`) or signed-release tooling (cosign / "
+                "sigstore / rekor) detected in pipelines."
+            ),
+            remediation=(
+                "Declare `expire_in:` on artifacts and sign release outputs (e.g. cosign sign-blob, "
+                "cosign attest) before publishing."
+            ),
+            evidence_sources=[str(p.resolve()) for p in ctx.gitlab_ci.pipeline_paths],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"{len(matched)} pipeline(s) document artifact retention / signing posture.",
+        remediation="Audit `expire_in:` thresholds and confirm signing keys are managed via OIDC / KMS.",
+        evidence_sources=[str(p.resolve()) for p in matched],
+        confidence="low",
+    )
+
+
+# ---------------------------------------------------------------------------
 # GH-EGRESS-HRN-001 (V6-04 — Onda 2).
 #
 # Signal-grade detection of Harden-Runner (or equivalent runtime egress
@@ -6020,6 +6244,12 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "SLSA-SRC-003": eval_slsa_src_003,
     "SLSA-SRC-004": eval_slsa_src_004,
     "SLSA-SRC-005": eval_slsa_src_005,
+    "GL-PIPE-007": eval_gl_pipe_007,
+    "GL-PIPE-008": eval_gl_pipe_008,
+    "GL-PIPE-009": eval_gl_pipe_009,
+    "GL-PIPE-010": eval_gl_pipe_010,
+    "GL-PIPE-011": eval_gl_pipe_011,
+    "GL-PIPE-012": eval_gl_pipe_012,
     "GH-PLAT-024": eval_gh_plat_024,
     "GH-PLAT-025": eval_gh_plat_025,
     "GH-PLAT-026": eval_gh_plat_026,

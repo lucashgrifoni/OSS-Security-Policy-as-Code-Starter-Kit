@@ -1072,3 +1072,45 @@ controls:
     lifecycle: experimental
     assurance: signal
     weight: 2
+  - id: GL-PIPE-007
+    title: GitLab CI workflow uses OIDC (id_tokens) for cloud / registry access
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: GL-PIPE-008
+    title: GitLab CI restricts self-hosted runner usage via tags
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GL-PIPE-009
+    title: GitLab project documents audit-event streaming or external export
+    category: ci_cd
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GL-PIPE-010
+    title: GitLab CI environment approval rules declared for protected envs
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GL-PIPE-011
+    title: GitLab CI merge-request rules enforce code-review approvals
+    category: ci_cd
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GL-PIPE-012
+    title: GitLab CI artifact retention or signed-release posture documented
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1

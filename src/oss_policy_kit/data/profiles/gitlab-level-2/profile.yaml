@@ -1,0 +1,44 @@
+id: gitlab-level-2
+title: GitLab CI stricter baseline (OIDC + runner scoping + audit / MR controls)
+description: >
+  Stricter GitLab CI baseline. Builds on ``gitlab-level-1`` by bundling
+  the v6.0.0 ``GL-PIPE-007..012`` family (PR-14, O-09): OIDC id_tokens,
+  self-hosted runner scoping via `tags:`, audit-event streaming
+  reference, environment approval declarations, MR review rules
+  evidence, and artifact retention / signing posture.
+  **Posture:** advisory ladder (analogous to ``github-level-2``).
+  **Recommended `--fail-on`:** ``degraded``.
+  **Framework alignment:** see ``docs/framework-alignment.md`` and
+  ``docs/decisions/adr-003-gitlab-ci-support.md``.
+audience: >
+  GitLab CI teams that have adopted ``gitlab-level-1`` and want the
+  stricter posture covering OIDC, self-hosted runner discipline, audit
+  trail, and MR review rules. A future ``gitlab-level-3`` profile
+  (carve-out, v6.1.0+) will add the strictest tier.
+controls:
+  # Governance core
+  - GOV-SEC-001
+  - GOV-CON-002
+  - GOV-COWN-003
+  - GOV-LIC-004
+  - GOV-DISC-013
+  - GOV-WAIV-014
+  # GitLab CI native (v5.9.0 subset — L1)
+  - GL-PIPE-001
+  - GL-PIPE-002
+  - GL-PIPE-003
+  - GL-PIPE-004
+  - GL-PIPE-005
+  - GL-PIPE-006
+  # GitLab CI v6.0.0 additions (PR-14)
+  - GL-PIPE-007
+  - GL-PIPE-008
+  - GL-PIPE-009
+  - GL-PIPE-010
+  - GL-PIPE-011
+  - GL-PIPE-012
+  # Multi-platform supply chain / release hygiene
+  - DEP-UPDATE-001
+  - SEC-DEPREV-011
+  - REL-CHANGE-012
+  - BUILD-SBOM-QUAL-003
