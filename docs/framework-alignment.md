@@ -1,10 +1,17 @@
 # Framework alignment
 
-This page maps the **125 controls** and **36 profiles** bundled with v5.8.1 to the AppSec /
+This page maps the **136 controls** and **38 profiles** bundled with v5.9.x to the AppSec /
 DevSecOps frameworks operators most often have to defend against. It is a **mapping**, not a
 **certification claim**. The kit does not assert conformance to any of these frameworks; it
 documents how its honest signals align with each framework's expectations so operators can
 navigate from a framework requirement back to a concrete control or evidence file.
+
+> **v6.0.0 framework expansion (in development on `feat/v6.0.0-evolution`)** — three additional
+> framework columns are planned: **NIST SP 800-218A** (Generative AI SSDF community profile),
+> **EU AI Act Article 11 + Annex IV**, and **OpenSSF Security Insights 1.0 emit**. Roadmap
+> sections at the end of this page describe the planned coverage; the corresponding profiles,
+> controls, and CLI subcommands are **not present in v5.9.x** and only become real once their
+> v6.0.0 PR lands.
 
 > **Honesty contract**: A `pass` on a control here does not equal a `pass` against the framework
 > requirement it maps to. Several frameworks include items the kit deliberately does **not**
@@ -434,9 +441,72 @@ Stricter version of `cra-eu-ready-1`, aimed at the EU CRA full-obligations deadl
 
 Multi-platform profile aimed at AppSec teams using the kit as part of pipeline AppSec, not just as OSS governance. 11 controls grouped in four areas: **SAST** (`SEC-CODEQL-010`, `SAST-SEMGREP-064`), **SCA** (`SEC-DEPREV-011`, `DEP-UPDATE-001`, `SEC-PINLOCK-052`), **secret scanning** (`SEC-SECRETS-050`, `SEC-GITIGNORE-051`, `GH-PLAT-026`), and **dependency integrity** (`CI-PIN-008`, `CI-WFCALLSHA-055`), plus governance sustaining (`GOV-WAIV-014`). Hard-gate-capable when paired with `oss-policy-kit scan-sast`: that command produces the Semgrep evidence file consumed by `SAST-SEMGREP-064`. Without that evidence, the SAST control returns `manual-review-required` (does not trip `--fail-on fail`); with it, the profile reaches deterministic + evidence-backed posture suitable for `--fail-on fail`. Recommended workflow: `oss-policy-kit scan-sast --target . && oss-policy-kit evaluate --target . --profile appsec-sast-sca-1 --fail-on fail`. This is the first bundled profile to consume `SAST-SEMGREP-064` (promoted from `experimental` to `stable` alongside this profile).
 
+---
+
+# Roadmap — frameworks planned for v6.0.0
+
+The three sections below describe **planned** coverage on the `feat/v6.0.0-evolution` branch. **None of the controls, profiles, or CLI subcommands referenced below exist in v5.9.x.** They land incrementally with their corresponding v6.0.0 PRs. See [`positioning.md`](positioning.md) → *Roadmap (v6.0.0 — in development)* for the broader v6.0.0 scope.
+
+## NIST SP 800-218A — Generative AI SSDF Community Profile (planned v6.0.0)
+
+[NIST SP 800-218A](https://csrc.nist.gov/pubs/sp/800/218/a/final) extends the SSDF (SP 800-218) with controls specific to organizations producing or consuming generative AI systems. v6.0.0 introduces an **advisory** profile `appsec-llm-ssdf-218a-1` with a 7-control family `LLM-218A-*`.
+
+| 218A practice (selected) | Planned kit control | Coverage | Notes |
+|---|---|---|---|
+| **PO.1.2** — Document AI security expectations | `LLM-218A-PO-001` | signal | Presence of "AI Security Considerations" section in `SECURITY.md` or `README.md`. |
+| **PO.5.1** — Maintain prompt / system-instruction registry | `LLM-218A-PO-002` | signal | Directory `prompts/`, `system_prompts/`, or equivalent registry pattern. |
+| **PS.1.1** — Release integrity for AI artifacts (model SHA, eval suite) | `LLM-218A-PS-001` | evidence-backed | `.oss-policy-kit/evidence/llm-release-integrity.json` (schema `llm-release-integrity/v1`). |
+| **PS.2** — Model versioning artifacts | `LLM-218A-PS-002` | signal | Release tags matching `model/*` semver pattern. |
+| **PW.4.4** — Pin LLM SDK dependencies | `LLM-218A-PW-001` | signal | Delegates to `CI-PIN-001` plus presence signal for `transformers`, `openai`, `anthropic`, `langchain`. |
+| **PW.7.1** — Test for prompt injection / adversarial inputs | `LLM-218A-PW-002` | signal | Test files matching `test_*prompt*injection*` or `test_*adversarial*`. |
+| **RV.2.1** — Track LLM dependency advisories | `LLM-218A-RV-001` | signal | Dependabot/Renovate config explicitly lists LLM SDKs. |
+
+Also planned: `AIBOM-PRESENT-001` (signal) — detects AIBOM in CycloneDX ML-BOM or SPDX 3.0 AI components format at `.oss-policy-kit/evidence/aibom/*.json` or `aibom/*.json`. Bundled into `appsec-llm-ssdf-218a-1` and `cra-eu-ai-act-art11-1`.
+
+**Coverage estimate at v6.0.0 GA**: 7 advisory controls + 1 AIBOM signal. Profile is advisory (`--fail-on degraded`). The kit does **not** verify the runtime behavior of an AI system — coverage is clone-side / evidence-side only. See [`positioning.md`](positioning.md) and the planned `eu-ai-act-readiness.md` for explicit caveats. ADR-009 documents the design rationale.
+
+## EU AI Act — Article 11 + Annex IV (planned v6.0.0)
+
+EU AI Act Article 11 + Annex IV become enforceable on **2026-08-02** and require technical documentation for high-risk AI systems, including the intended purpose, training data summary, risk management documentation, and post-market monitoring plan. v6.0.0 introduces an **advisory** profile `cra-eu-ai-act-art11-1` with a 3-control family `LLM-AI-ACT-*`.
+
+| Annex IV requirement (selected) | Planned kit control | Coverage | Notes |
+|---|---|---|---|
+| **Annex IV §1** — Intended purpose / users / limitations | `LLM-AI-ACT-001` | signal | "Intended Purpose / Users / Limitations" section in `README.md` or `SECURITY.md`. |
+| **Annex IV §3** — Output filtering / content moderation | `LLM-AI-ACT-002` | signal | Pattern match for `output_filter` or `content_moderation` references in test files. |
+| **Annex IV §5** — Risk management documentation | `LLM-AI-ACT-003` | signal | Presence of `risk-management.md`, `RISKS.md`, or a dedicated section in `SECURITY.md`. |
+
+Bundled controls (already in v5.9.x): `GOV-DISC-065`, `REL-CHANGE-001`, `SAST-OSV-068`, plus v6.0.0 newcomers `AIBOM-PRESENT-001` and `LLM-218A-PO-001` / `LLM-218A-PS-001` from the NIST 218A profile above.
+
+**Hard caveat (planned `eu-ai-act-readiness.md`)**: this profile is **not** a conformity assessment under the AI Act. Conformity assessment requires a notified body and is outside the kit's scope. The profile produces a clone-side posture indicator that adopters can use as evidence input; the formal CE-marking process is external. ADR-010 documents the design rationale.
+
+**Coverage estimate at v6.0.0 GA**: 3 advisory controls + 4 bundled signals. Profile is advisory (`--fail-on degraded`).
+
+## OpenSSF Security Insights 1.0 — emit (planned v6.0.0)
+
+[OpenSSF Security Insights 1.0](https://security-insights.openssf.org/) is a YAML format that lets a project publish machine-readable security metadata (security contacts, vulnerability disclosure process, build provenance, dependency policy). v6.0.0 introduces an **emit-only** subcommand `oss-policy-kit emit-insights` that produces a valid `security-insights.yml` document by reusing the kit's existing evaluators read-only.
+
+| Insights 1.0 field | Source in the kit | Notes |
+|---|---|---|
+| `header.schema-version: 1.0.0` | constant | Spec version. |
+| `project.name` / `project.homepage` | inferred from repo metadata | Best-effort from `git remote -v` plus `README.md`. |
+| `contributing-policy` | `CONTRIBUTING.md` presence | Mapped from `GOV-CON-002`. |
+| `security-contacts` | `SECURITY.md` parsing | Mapped from `GOV-SEC-001` + `GOV-DISC-013`. |
+| `vulnerability-reporting` | `disclosure-policy.json` evidence | Mapped from `GOV-DISC-065`. |
+| `dependencies.update-strategy` | Dependabot/Renovate config | Mapped from `DEP-UPDATE-001`. |
+| `release.attestation` | provenance evidence file | Mapped from `PROV-VERIFY-061`. |
+| `release.distribution-points` | inferred | Best-effort from CI publish workflows. |
+
+**Coverage estimate at v6.0.0 GA**: emits a YAML document validated against the OpenSSF Insights 1.0 schema via `--validate`. The kit does **not** add new controls for Insights — it re-projects existing controls into the Insights vocabulary. ADR-011 documents the design rationale.
+
+---
+
 ## Versioning of this doc
 
 This page is regenerated manually when the catalog or profiles change. The training cutoff
 referenced for the framework summaries is **January 2026**; framework owners should always be
 consulted upstream for the current canonical text. Prior framework releases (Scorecard v3,
 SLSA v0.1, SSDF SP 800-218 1.0, etc.) are not listed; only current major-line text is mapped.
+
+The three v6.0.0 roadmap sections above will be promoted out of *Roadmap* and into the main
+mapping body once their corresponding PRs land (PR-8 for Insights emit; PR-10 for NIST 218A;
+PR-11 for EU AI Act Art. 11).
