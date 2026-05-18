@@ -8,7 +8,72 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ## Unreleased — v6.0.0 (in development)
 
-Work in progress on the `feat/v6.0.0-evolution` branch. This section captures changes that have landed on the branch but have not yet been released. The full v6.0.0 scope is tracked in the project's internal evolution plan; what appears here is only what has actually been committed locally so far.
+Work in progress on the `feat/v6.0.0-evolution` branch. This section captures changes that have landed on the branch but have not yet been released. Version bumped to `6.0.0.dev0` in `pyproject.toml` and `src/oss_policy_kit/__init__.py` (PR-18) to signal the in-development state; the `v6.0.0` tag itself is created at release-prep time after maintainer review.
+
+### Highlights — full v6.0.0 scope (all 14 PRs landed locally)
+
+**+8 profiles, +32 controls, +2 CLI subcommands, 3 breaking changes, 11 new ADRs, 5 new docs.**
+
+| | v5.9.x | v6.0.0 (this branch) |
+|---|---|---|
+| Profiles | 38 | **46** |
+| Controls | 136 | **168** |
+| CLI subcommands | 15 | **17** |
+| Breaking changes | 0 | **3** (M-003, B-001, B-002) |
+| ADRs | 3 | **14** (3 existing + 11 new) |
+
+**New profiles**: `webhook-security-2`, `s2c2f-l2-1`, `s2c2f-l3-1`, `oss-publish-readiness-1`, `slsa-source-l1-1`, `gitlab-level-2`, `appsec-llm-ssdf-218a-1`, `cra-eu-ai-act-art11-1`.
+
+**New control families**: `SEC-WEBHOOK-HMAC..ROTATE-006` (6), `GH-EGRESS-HRN-001` (1), `PUBLISH-OIDC-001..003` (3), `SLSA-SRC-001..005` (5), `GL-PIPE-007..012` (6), `AIBOM-PRESENT-001` (1), `LLM-218A-PO..RV-001` (7), `LLM-AI-ACT-001..003` (3).
+
+**New CLI subcommands**: `emit-insights` (OpenSSF Security Insights 1.0 YAML emission), `export-evidence --format chainloop|sarif` (experimental format registry).
+
+**Breaking changes**:
+- **M-003** — `recommend-profile/v2.schema_version` is now an absolute URL. Legacy shorthand accepted for one minor (removed in v6.1.0). See ADR-008, PR-15.
+- **B-001** — `reports/2.0` contract registered with the Scorecard-v6-aligned 5-state vocabulary (`PASS / FAIL / UNKNOWN / NOT_APPLICABLE / ATTESTED`). Default REMAINS `1.0` in v6.0.0.dev0; default-switch deferred to a v6.x point release per ADR-013. Standalone `scripts/migrate-1.0-to-2.0.py` converts offline reports.
+- **B-002** — `export-evidence --format chainloop` is **experimental**; output shape may change inside the v6.0.x line. See ADR-012, PR-17.
+
+**Assurance-mix shift (A-001)**: `GH-PROV-023` promoted from `signal` to `evidence-backed` (catalog), with backward-compat runtime fallback (signal PASS when no evidence file is present). Affected profiles: `github-release-hardening-1/2/3`, `slsa-build-l2-1`. See ADR-007, PR-12.
+
+**Window-blocking content (EU AI Act Article 11 + Annex IV — effective 2026-08-02)**: both `appsec-llm-ssdf-218a-1` (PR-10, NIST 800-218A) and `cra-eu-ai-act-art11-1` (PR-11, EU AI Act) are advisory profiles. The kit does NOT substitute for a conformity assessment — see `docs/eu-ai-act-readiness.md`.
+
+### PR-by-PR delta
+
+| Wave | PR | Title | Delta |
+|---|---|---|---|
+| 1 | PR-1 | docs: correct v6 positioning and public hygiene | docs only |
+| 1 | PR-2 | docs(framework-alignment): +3 Roadmap sections | docs only |
+| 1 | PR-3 | feat(adapters,emit-vex): zizmor severity properties + CISA VEX minimum tests | +24 tests |
+| 1 | PR-4 | feat(sbom): SPDX 3.0.1 detection + BSI TR-03183-2 v2.1.0 validation | +19 tests |
+| 2 | PR-5 | feat(webhook): webhook-security-2 + 6 SEC-WEBHOOK-* dimensions | +1 profile, +6 controls |
+| 2 | PR-6 | feat(profiles): s2c2f-l2-1 + s2c2f-l3-1 (recomposition only) | +2 profiles |
+| 2 | PR-7 | feat(evaluators,schemas): GH-EGRESS-HRN-001 + verification.source enum | +1 control |
+| 2 | PR-8 | feat(cli): emit-insights subcommand | +1 subcommand |
+| 2 | PR-9 | feat(profiles,evaluators): oss-publish-readiness-1 + PUBLISH-OIDC-* | +1 profile, +3 controls |
+| 3 | PR-12 | feat(controls): GH-PROV-023 promotion signal→evidence-backed | assurance shift |
+| 3 | PR-13 | feat(profiles,evaluators): slsa-source-l1-1 + SLSA-SRC-* | +1 profile, +5 controls |
+| 3 | PR-14 | feat(profiles,evaluators): gitlab-level-2 + GL-PIPE-007..012 | +1 profile, +6 controls |
+| 3 | PR-10 | feat(profiles,evaluators): appsec-llm-ssdf-218a-1 + LLM-218A-* + AIBOM | +1 profile, +8 controls |
+| 3 | PR-11 | feat(profiles,evaluators): cra-eu-ai-act-art11-1 + LLM-AI-ACT-* | +1 profile, +3 controls |
+| 4 | PR-15 | feat(recommend): recommend-profile/v2 schema_version → absolute URL | breaking M-003 |
+| 4 | PR-17 | feat(cli): export-evidence --format chainloop (experimental) | +1 subcommand |
+| 4 | PR-16 | feat(reports): reports/2.0 contract URL + status mapping + migration | breaking B-001 |
+| 4 | PR-18 | release prep: version bump + counts refresh + CHANGELOG summary | this entry |
+
+### Validation summary (end of this PR)
+
+- `ruff check src/ tests/`                                       All checks passed
+- `mypy src/`                                                    Success (93 source files)
+- `scripts/check_public_hygiene.py`                              OK
+- `scripts/validate-bundled-profiles.py`                         OK
+- `pytest -q`                                                    2583+ passed, 1 skipped, 0 failed
+                                                                 (+392 over v5.9.x baseline of 2191)
+
+### Known follow-ups (not blocking v6.0.0 GA)
+
+- `reports/2.0` default-switch (currently 1.0 remains default; snapshots will be regenerated when the switch lands).
+- ADR-009 (LLM-218A), ADR-010 (EU AI Act), ADR-013 (reports/2.0) decision-of-record texts to be written before tagging `v6.0.0` (the docs are present as design stubs in `docs/`).
+- Container publish workflow rerun race fix (hotfix v5.9.1 lesson — deferred to PR-19 in a v6.0.x point release).
 
 ### Docs
 

@@ -6,7 +6,7 @@ This project is intentionally small and explicit about trust boundaries. GitHub 
 
 Operational privacy: evaluation is local and clone-visible by default. API-backed evidence collection runs only when explicitly invoked, and should be scoped to the platform/repository being assessed.
 
-> **In development**: `feat/v6.0.0-evolution` is the active development branch for the next major. Items marked under `Roadmap (v6.0.0 — in development)` in [`docs/positioning.md`](docs/positioning.md) are not yet shipped. The current published release line is `v5.9.x`.
+> **In development (v6.0.0.dev0)**: all 14 PRs of the v6.0.0 plan have landed locally on `feat/v6.0.0-evolution` / `v6/pr-1-positioning`. The branch ships **46 profiles**, **168 controls**, **17 CLI subcommands**, three breaking changes (M-003, B-001, B-002), and 8 new ADRs. See `CHANGELOG.md` `Unreleased — v6.0.0 (in development)` for the full delta. The current published release line on PyPI is still `v5.9.x`.
 
 ## Quick Links
 
