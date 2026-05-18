@@ -6,6 +6,28 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## OSS Security Policy as Code Starter Kit v5.9.1 — 2026-05-18
+
+A patch release that fixes two invalid action SHAs in `.github/workflows/publish-container.yml`. The v5.9.0 container publish workflow was discovered, after release, to pin two action SHAs that do not exist in the upstream repositories:
+
+- `sigstore/cosign-installer@d7d6e4dc...` — not a valid commit.
+- `actions/attest-build-provenance@2ce9eaf7...` — not a valid commit (the value used was a tag-object SHA, not the peeled commit SHA, and was inconsistent with the upstream).
+
+As a result, the workflow never ran on the `v5.9.0` tag push, and a follow-up manual `workflow_dispatch` against the same ref failed at job setup with `Unable to resolve action`. No container image was published to GHCR for `v5.9.0`.
+
+### Fixed
+
+- **`.github/workflows/publish-container.yml`** — pin `sigstore/cosign-installer` to `d58896d6a1865668819e1d91763c7751a165e159` (`v3.9.2`, peeled commit) and `actions/attest-build-provenance` to `96278af6caaf10aea03fd8d33a09a777ca52d62f` (`v3.2.0`, peeled commit). Both SHAs were validated against the upstream `git/tags` API before pinning.
+
+### Notes
+
+- The workflow already pinned the other five actions to valid SHAs (`actions/checkout`, `docker/setup-qemu-action`, `docker/setup-buildx-action`, `docker/login-action`, `docker/build-push-action`); those are unchanged.
+- The release pushes `ghcr.io/lucashgrifoni/oss-policy-kit:5.9.1` and `:latest`. The `:5.9.0` tag remains absent from GHCR; the source tree and PyPI artifact for `v5.9.0` are unchanged and remain valid.
+- No code, profile, control, evaluator, evidence schema, report contract, or CLI surface changes.
+- `pyproject.toml` version bumped to `5.9.1`.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.9.0 — 2026-05-16
 
 A minor release that lands **Fase 4** of the v5 trajectory: new SARIF-ingest adapters for the de-facto OSS scanner ecosystem, a CRA-reporting-readiness profile aligned with the 2026-09-11 deadline, a new evidence-backed disclosure-SLA control, the first two ADRs, a public positioning page, and a pre-commit hook surface for downstream adopters.
