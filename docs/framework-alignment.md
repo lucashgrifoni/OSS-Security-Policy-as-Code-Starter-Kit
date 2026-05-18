@@ -326,8 +326,8 @@ After mapping the catalog to all nine frameworks above, the explicit decisions a
    the `container-baseline-1` profile.
 
 **Items added since the v5.0.0 ranking** (post-v5.0.0 market signals; tracked in
-[`profiles/deferred-followups.md`](profiles/deferred-followups.md) and the project planning
-artifacts under `melhorias/` (local-only)):
+[`profiles/deferred-followups.md`](profiles/deferred-followups.md) and in local-only
+project planning artifacts that are not part of the public repository):
 
 6. **OSV-Scanner v2 SARIF adapter** — reachability-aware SCA (Java JAR, Go) reduces SCA
    noise materially. Would integrate as a `signal`/`evidence-backed` source per the

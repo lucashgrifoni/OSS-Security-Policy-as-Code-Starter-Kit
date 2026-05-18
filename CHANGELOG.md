@@ -6,6 +6,28 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## Unreleased — v6.0.0 (in development)
+
+Work in progress on the `feat/v6.0.0-evolution` branch. This section captures changes that have landed on the branch but have not yet been released. The full v6.0.0 scope is tracked in the project's internal evolution plan; what appears here is only what has actually been committed locally so far.
+
+### Docs
+
+- **`docs/positioning.md`** — rewritten to (a) describe only capabilities present in the v5.9.x build, (b) list v6.0.0 plans explicitly under a `Roadmap (v6.0.0 — in development)` section so adopters can see direction without confusing roadmap with shipped capability, (c) correct the SARIF-adapter inventory (`SAST-SEMGREP-064`, `SAST-ZIZMOR-066`, `SAST-POUTINE-067`, `SAST-OSV-068`, `SAST-GITLEAKS-069`; no Trivy adapter is shipped today), (d) describe the actual `PROV-VERIFY-061` `verification:` block schema (`method`, `verified_at`, `transparency_log_inclusion`, optional `issuer` / `subject_alternative_name` / `bundle_digest` / `tool_version`) and place the planned `verification.source` enum under Roadmap, (e) correct `--fail-on` to the implemented values `none / fail / degraded`, and (f) remove links to documents that do not exist yet.
+- **`docs/decisions/adr-001-sca-scanner-choice.md`** and **`docs/framework-alignment.md`** — removed references to the project-local planning directory name from public-facing prose. The local planning artifacts remain gitignored and are not part of the public repository; the prose now says so without naming the directory.
+
+### Repository hygiene
+
+- **`.gitignore`** — added `.tmp/` so local snapshots such as `.tmp/profiles-v5.9.0.json` are not surfaced as untracked. The earlier `.tmp-v6/` entry was replaced with the more general `.tmp/`, which subsumes the v6.0.0 execution-plan use case.
+- **`src/oss_policy_kit/__init__.py`** — bumped `__version__` from `5.9.0` to `5.9.1` to match `pyproject.toml` and the published `v5.9.1` tag. This corrects a version-drift the public hygiene review surfaced; it is not a release in itself.
+- **`scripts/check_public_hygiene.py`** — added narrow allowlist entries for `.dockerignore` (the exclusion rule for the project-local planning directory is protective, not a leaked path) and `Dockerfile` (the conventional non-root home under the standard POSIX system user tree is a generic container pattern, not a real maintainer home directory). Allowlist comments explain the justification so the scanner does not weaken its detection of real sensitive paths.
+
+### Notes
+
+- No profile, control, evaluator, evidence schema, CLI surface, or report contract change has landed yet on this branch. The 8 new profiles, ~24 new controls, 2 new CLI subcommands, and `reports/2.0` contract listed in the `Roadmap (v6.0.0 — in development)` section of `docs/positioning.md` arrive in subsequent PRs on the same branch.
+- `pyproject.toml` version remains `5.9.1` during in-development work on this branch; the bump to `6.0.0` happens at release-prep time.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.9.1 — 2026-05-18
 
 A patch release that fixes two invalid action SHAs in `.github/workflows/publish-container.yml`. The v5.9.0 container publish workflow was discovered, after release, to pin two action SHAs that do not exist in the upstream repositories:

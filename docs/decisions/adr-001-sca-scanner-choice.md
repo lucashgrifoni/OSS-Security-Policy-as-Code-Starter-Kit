@@ -98,4 +98,4 @@ The decision is graded **medium-reversibility** for v5.9.0 and **low-reversibili
 - [zizmor repo](https://github.com/zizmorcore/zizmor)
 - [poutine repo](https://github.com/boostsecurityio/poutine)
 - Arxiv 2026: *Unpacking Security Scanners for GitHub Actions Workflows*
-- `melhorias/plano-evolucao-mercado-2026-05-16.md` (project-local planning artifact, gitignored)
+- Project-local planning artifact (gitignored, not part of the public repository).

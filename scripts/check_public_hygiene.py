@@ -84,6 +84,15 @@ ALLOWLISTED_PATHS: frozenset[str] = frozenset(
         # fixtures to prove _sanitize_target_path_for_payload strips them.
         # Not real auditor paths.
         "tests/application/test_reports_v1_schema.py",
+        # The .dockerignore file deliberately excludes the project-local
+        # private planning directory from container builds. That exclusion
+        # rule is a protective allow-out, not a leaked path.
+        ".dockerignore",
+        # Dockerfile creates a non-root runtime user with a conventional
+        # POSIX home path under the standard system user tree. This is a
+        # generic container pattern, not a real auditor or maintainer
+        # home directory.
+        "Dockerfile",
     }
 )
 

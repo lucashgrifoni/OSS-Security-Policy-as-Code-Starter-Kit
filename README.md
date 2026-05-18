@@ -6,6 +6,8 @@ This project is intentionally small and explicit about trust boundaries. GitHub 
 
 Operational privacy: evaluation is local and clone-visible by default. API-backed evidence collection runs only when explicitly invoked, and should be scoped to the platform/repository being assessed.
 
+> **In development**: `feat/v6.0.0-evolution` is the active development branch for the next major. Items marked under `Roadmap (v6.0.0 — in development)` in [`docs/positioning.md`](docs/positioning.md) are not yet shipped. The current published release line is `v5.9.x`.
+
 ## Quick Links
 
 - [What's new in v5.9.0](#whats-new-in-v590)
@@ -34,7 +36,7 @@ Operational privacy: evaluation is local and clone-visible by default. API-backe
 
 | Area | What you get |
 | --- | --- |
-| Current release | `v5.9.0` / Python package `oss-policy-kit==5.9.0` (Development Status: `Production/Stable`) |
+| Current release | `v5.9.1` / Python package `oss-policy-kit==5.9.1` (Development Status: `Production/Stable`). `v5.9.1` is a patch release over `v5.9.0` — see `CHANGELOG.md`. |
 | Input | A local repository clone |
 | Output | `evaluation-report.json` and `evaluation-report.md` (optional SARIF 2.1.0 via `--sarif-output`); `oss-policy-kit emit-vex` also emits CycloneDX VEX 1.6 from OSV-Scanner SARIF |
 | Core scope | Clone-visible governance and GitHub/Azure/AWS CI/CD signals; ingests SARIF from zizmor, poutine, OSV-Scanner v2, Gitleaks, and Semgrep |
@@ -83,8 +85,8 @@ Inputs map 1:1 to CLI flags. Full reference and SARIF forwarding example in [doc
 
 | Surface | Current state |
 | --- | --- |
-| Package | `oss-policy-kit==5.9.0` (`Development Status :: 5 - Production/Stable`) |
-| GitHub Release | `v5.9.0` is the current release target; `v5.8.1`, `v5.8.0`, `v5.7.0`, `v5.6.0`, `v5.5.0`, `v5.4.0`, and earlier versions remain available as predecessors |
+| Package | `oss-policy-kit==5.9.1` (`Development Status :: 5 - Production/Stable`); `v5.9.1` is a patch release over `v5.9.0` (no code, profile, or contract changes — see `CHANGELOG.md`) |
+| GitHub Release | `v5.9.1` is the current release target; `v5.9.0`, `v5.8.1`, `v5.8.0`, `v5.7.0`, `v5.6.0`, `v5.5.0`, `v5.4.0`, and earlier versions remain available as predecessors. `v6.0.0` is in development on `feat/v6.0.0-evolution` (see `CHANGELOG.md` Unreleased section). |
 | Default branch | `master` |
 | License | Apache-2.0 (`LICENSE` + `NOTICE`) |
 | Report contract | `reports/1.0` by default; `0.3` and `0.2` remain selectable via `--report-json-contract`. `0.1` was removed in v5.0.0 |

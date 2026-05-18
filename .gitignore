@@ -33,6 +33,7 @@ artifacts/
 out/
 sonar-report/
 test-runs/
+.tmp/
 .tmp-validation/
 reports/validacao-*/
 
