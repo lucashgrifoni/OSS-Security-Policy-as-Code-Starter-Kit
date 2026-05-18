@@ -110,6 +110,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 "src/oss_policy_kit/cli/recommend.py" = ["B008"]
 "src/oss_policy_kit/cli/reports.py" = ["B008"]
 "src/oss_policy_kit/cli/emit_vex.py" = ["B008"]
+"src/oss_policy_kit/cli/emit_insights.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.12"
