@@ -4989,15 +4989,92 @@ def _eval_sarif_adapter(
     )
 
 
+_ZIZMOR_SEVERITY_KEYS: tuple[str, ...] = (
+    "critical",
+    "high",
+    "medium",
+    "low",
+    "informational",
+    "unknown",
+)
+
+
+def _parse_zizmor_severity_properties(
+    sarif_path: Path,
+) -> tuple[dict[str, int] | None, str | None]:
+    """Return zizmor-specific severity counts from ``result.properties``.
+
+    zizmor surfaces its own severity vocabulary via
+    ``result.properties.security_severity_level`` (one of ``Critical``, ``High``,
+    ``Medium``, ``Low``, ``Informational``, ``Unknown``). The standard SARIF
+    ``level`` (error/warning/note/none) read by ``_parse_sarif_findings`` remains
+    the source of truth for the gate decision; this helper produces supplementary
+    counts surfaced in the evaluator reason so operators can see the upstream-tool
+    severity vocabulary alongside the SARIF level.
+
+    Returns ``(counts, None)`` on success — ``counts`` is a dict keyed by
+    lowercased severity name with all six keys present (zero where absent).
+    Returns ``(None, message)`` on parse failure.
+    """
+    try:
+        raw = sarif_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return None, f"Could not read SARIF file: {exc}"
+    try:
+        doc = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return None, f"Could not parse SARIF JSON: {exc}"
+    if not isinstance(doc, dict):
+        return None, "SARIF file is not a JSON object."
+    runs = doc.get("runs") or []
+    if not isinstance(runs, list):
+        return None, "SARIF 'runs' is not an array."
+    counts: dict[str, int] = {k: 0 for k in _ZIZMOR_SEVERITY_KEYS}
+    for run in runs:
+        if not isinstance(run, dict):
+            continue
+        results = run.get("results") or []
+        if not isinstance(results, list):
+            continue
+        for result in results:
+            if not isinstance(result, dict):
+                continue
+            props = result.get("properties") or {}
+            if not isinstance(props, dict):
+                continue
+            sev = props.get("security_severity_level")
+            if not isinstance(sev, str):
+                continue
+            key = sev.strip().lower()
+            if key not in counts:
+                key = "unknown"
+            counts[key] += 1
+    return counts, None
+
+
 def eval_sast_zizmor_066(ctx: EvalContext) -> EvalOutcome:
-    """SAST-ZIZMOR-066: zizmor SARIF findings on GitHub Actions workflows."""
-    return _eval_sarif_adapter(
+    """SAST-ZIZMOR-066: zizmor SARIF findings on GitHub Actions workflows.
+
+    The gate decision is driven by the standard SARIF ``level`` (error/warning/
+    note/none) shared with the other Fase 4 adapters. When zizmor surfaces its
+    own severity vocabulary via ``result.properties.security_severity_level``
+    (Critical/High/Medium/Low/Informational), those counts are appended to the
+    reason for operator visibility but do not change the pass/fail outcome.
+    """
+    outcome = _eval_sarif_adapter(
         ctx,
         tool_name="zizmor",
         evidence_relpath=".oss-policy-kit/evidence/sast/zizmor.sarif.json",
         scan_command_hint="Run `zizmor --format sarif .github/workflows/ > zizmor.sarif.json`",
         fail_on_error=True,
     )
+    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "sast" / "zizmor.sarif.json"
+    if evidence.is_file() and outcome.status in (ControlStatus.PASS, ControlStatus.FAIL):
+        sev_counts, _ = _parse_zizmor_severity_properties(evidence)
+        if sev_counts is not None and sum(sev_counts.values()) > 0:
+            non_zero = ", ".join(f"{k}={v}" for k, v in sev_counts.items() if v > 0)
+            outcome.reason = f"{outcome.reason} zizmor severity properties: {non_zero}."
+    return outcome
 
 
 def eval_sast_poutine_067(ctx: EvalContext) -> EvalOutcome:

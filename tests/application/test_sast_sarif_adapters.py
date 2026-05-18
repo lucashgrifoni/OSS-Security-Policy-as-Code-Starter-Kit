@@ -15,6 +15,7 @@ import pytest
 from oss_policy_kit.application.evaluators import (
     EvalContext,
     _parse_sarif_findings,
+    _parse_zizmor_severity_properties,
     eval_sast_gitleaks_069,
     eval_sast_osv_068,
     eval_sast_poutine_067,
@@ -173,3 +174,99 @@ def test_adapter_manual_review_on_malformed_sarif(fn, filename, name, tmp_path: 
     (sast_dir / filename).write_text("{not valid", encoding="utf-8")
     out = fn(_ctx(tmp_path))
     assert out.status == ControlStatus.MANUAL_REVIEW_REQUIRED
+
+
+# --- O-11: zizmor severity-properties extension -----------------------------
+
+_FIXTURE_ZIZMOR_PROPS = (
+    Path(__file__).resolve().parents[1]
+    / "fixtures"
+    / "sarif"
+    / "zizmor-with-zizmor-properties.sarif.json"
+)
+
+
+def test_parse_zizmor_severity_properties_counts(tmp_path: Path) -> None:
+    """Helper extracts security_severity_level counts from result.properties."""
+    counts, err = _parse_zizmor_severity_properties(_FIXTURE_ZIZMOR_PROPS)
+    assert err is None
+    assert counts is not None
+    # Fixture has 1 Critical, 1 High, 1 Medium, 1 Low; informational and unknown are zero.
+    assert counts == {
+        "critical": 1,
+        "high": 1,
+        "medium": 1,
+        "low": 1,
+        "informational": 0,
+        "unknown": 0,
+    }
+
+
+def test_parse_zizmor_severity_properties_handles_missing_properties(tmp_path: Path) -> None:
+    """SARIF without zizmor properties returns all-zero counts (not None)."""
+    p = tmp_path / "plain.sarif.json"
+    p.write_text(json.dumps(_sarif(errors=1, warnings=2)), encoding="utf-8")
+    counts, err = _parse_zizmor_severity_properties(p)
+    assert err is None
+    assert counts == {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "informational": 0,
+        "unknown": 0,
+    }
+
+
+def test_parse_zizmor_severity_properties_unknown_value_bucketed(tmp_path: Path) -> None:
+    """Unrecognized security_severity_level values are bucketed under 'unknown'."""
+    p = tmp_path / "unknown.sarif.json"
+    payload = {
+        "runs": [
+            {
+                "tool": {"driver": {"name": "zizmor", "rules": []}},
+                "results": [
+                    {"level": "warning", "properties": {"security_severity_level": "BogusValue"}},
+                    {"level": "warning", "properties": {"security_severity_level": "Critical"}},
+                ],
+            }
+        ]
+    }
+    p.write_text(json.dumps(payload), encoding="utf-8")
+    counts, err = _parse_zizmor_severity_properties(p)
+    assert err is None
+    assert counts == {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "informational": 0,
+        "unknown": 1,
+    }
+
+
+def test_zizmor_adapter_surfaces_severity_properties_in_reason(tmp_path: Path) -> None:
+    """eval_sast_zizmor_066 appends non-zero zizmor severity counts to the reason."""
+    sast_dir = tmp_path / ".oss-policy-kit" / "evidence" / "sast"
+    sast_dir.mkdir(parents=True, exist_ok=True)
+    target = sast_dir / "zizmor.sarif.json"
+    target.write_text(_FIXTURE_ZIZMOR_PROPS.read_text(encoding="utf-8"), encoding="utf-8")
+    out = eval_sast_zizmor_066(_ctx(tmp_path))
+    # Fixture has 1 error (template-injection Critical) -> FAIL on error level.
+    assert out.status == ControlStatus.FAIL
+    assert "zizmor severity properties:" in out.reason
+    assert "critical=1" in out.reason
+    assert "high=1" in out.reason
+    assert "medium=1" in out.reason
+    assert "low=1" in out.reason
+    # Zero buckets are suppressed.
+    assert "informational=" not in out.reason
+    assert "unknown=" not in out.reason
+
+
+def test_zizmor_adapter_omits_severity_block_when_no_properties(tmp_path: Path) -> None:
+    """Plain SARIF without zizmor properties leaves the reason unchanged."""
+    _write_sarif(tmp_path, "zizmor.sarif.json", _sarif(warnings=1))
+    out = eval_sast_zizmor_066(_ctx(tmp_path))
+    assert out.status == ControlStatus.PASS
+    assert "zizmor severity properties:" not in out.reason
