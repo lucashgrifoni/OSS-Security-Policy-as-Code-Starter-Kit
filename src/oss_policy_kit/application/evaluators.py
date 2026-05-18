@@ -5828,6 +5828,277 @@ def eval_gh_egress_hrn_001(ctx: EvalContext) -> EvalOutcome:
 
 
 # ---------------------------------------------------------------------------
+# AIBOM-PRESENT-001 + LLM-218A-* family (PR-10, V6-01 + V6-08).
+#
+# Clone-side AI-security signals aligned with NIST SP 800-218A (Generative
+# AI SSDF Community Profile). All signal-grade except LLM-218A-PS-001
+# (evidence-backed via the llm-release-integrity/v1 schema).
+# ---------------------------------------------------------------------------
+
+_LLM_SDK_HINTS: tuple[str, ...] = (
+    "transformers",
+    "openai",
+    "anthropic",
+    "langchain",
+    "llama-index",
+    "llamaindex",
+    "huggingface",
+    "huggingface_hub",
+    "mistralai",
+    "cohere",
+)
+
+_AI_SECURITY_HEADINGS: tuple[str, ...] = (
+    "ai security considerations",
+    "ai/llm security",
+    "llm security considerations",
+    "model security",
+    "generative ai security",
+)
+
+
+def eval_aibom_present_001(ctx: EvalContext) -> EvalOutcome:
+    """AIBOM-PRESENT-001: AI Bill of Materials present in evidence directory."""
+    candidates: list[Path] = []
+    for rel in (".oss-policy-kit/evidence/aibom", "aibom"):
+        d = ctx.repo_root / rel
+        if d.is_dir():
+            with contextlib.suppress(OSError):
+                candidates.extend(p for p in d.glob("*.json") if p.is_file())
+    if not candidates:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No AIBOM file found at .oss-policy-kit/evidence/aibom/*.json or aibom/*.json. "
+                "CycloneDX ML-BOM and SPDX 3.0 AI components are the two recognised formats."
+            ),
+            remediation=(
+                "Generate an AIBOM (CycloneDX ML-BOM via cdxgen with ML profile, or SPDX 3.0 AI "
+                "components) and drop the JSON at .oss-policy-kit/evidence/aibom/."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"AIBOM detected: {len(candidates)} file(s) under the evidence directory.",
+        remediation="Re-generate the AIBOM on every model release.",
+        evidence_sources=[str(p.resolve()) for p in candidates],
+        confidence="medium",
+    )
+
+
+def _scan_readme_for_section(repo: Path, headings: tuple[str, ...]) -> Path | None:
+    for rel in ("SECURITY.md", "README.md", ".github/SECURITY.md", "docs/SECURITY.md"):
+        p = repo / rel
+        if not p.is_file():
+            continue
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            if any(h in text for h in headings):
+                return p
+    return None
+
+
+def eval_llm_218a_po_001(ctx: EvalContext) -> EvalOutcome:
+    """LLM-218A-PO-001: AI Security Considerations section present."""
+    p = _scan_readme_for_section(ctx.repo_root, _AI_SECURITY_HEADINGS)
+    if p is None:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="No 'AI Security Considerations' / 'LLM Security' section found in SECURITY.md or README.md.",
+            remediation=(
+                "Add a section explicitly named 'AI Security Considerations' to SECURITY.md "
+                "documenting the intended use, abuse cases, and mitigations of any AI components."
+            ),
+            evidence_sources=[],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"AI Security Considerations section detected in {p.name}.",
+        remediation="Keep the section in sync with model upgrades and capability changes.",
+        evidence_sources=[str(p.resolve())],
+        confidence="low",
+    )
+
+
+def eval_llm_218a_po_002(ctx: EvalContext) -> EvalOutcome:
+    """LLM-218A-PO-002: Prompt / system-instruction registry directory present."""
+    for rel in ("prompts", "system_prompts", "system-prompts", "prompt-registry"):
+        d = ctx.repo_root / rel
+        if d.is_dir():
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason=f"Prompt registry directory detected: {rel}/.",
+                remediation="Document the prompt lifecycle (versioning, review, deprecation).",
+                evidence_sources=[str(d.resolve())],
+                confidence="low",
+            )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="No prompt registry directory found (prompts/, system_prompts/, prompt-registry/).",
+        remediation=(
+            "Maintain prompts under version control in a dedicated directory so audit and rollback "
+            "are possible."
+        ),
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+def eval_llm_218a_ps_001(ctx: EvalContext) -> EvalOutcome:
+    """LLM-218A-PS-001: LLM release-integrity evidence file (evidence-backed)."""
+    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "llm-release-integrity.json"
+    if not evidence.is_file():
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No .oss-policy-kit/evidence/llm-release-integrity.json file. The evidence file "
+                "should record model_sha, model_version, and eval_suite_results_path per release."
+            ),
+            remediation=(
+                "Create the evidence file with the schema_version=llm-release-integrity/v1, "
+                "the model SHA, the model version, and a path to the eval-suite results."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    with contextlib.suppress(OSError, json.JSONDecodeError):
+        data = json.loads(evidence.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and data.get("model_sha") and data.get("model_version"):
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason=(
+                    f"LLM release-integrity evidence present (model_version={data.get('model_version')})."
+                ),
+                remediation="Refresh per release; keep eval_suite_results_path pointing to current results.",
+                evidence_sources=[str(evidence.resolve())],
+                confidence="medium",
+            )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="llm-release-integrity.json present but missing required fields.",
+        remediation="Populate model_sha, model_version, and eval_suite_results_path.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="low",
+    )
+
+
+def eval_llm_218a_ps_002(ctx: EvalContext) -> EvalOutcome:
+    """LLM-218A-PS-002: Model versioning artifacts (signal-grade)."""
+    for rel in ("models/MODEL_CARD.md", "MODEL_CARD.md", "model-card.md", "docs/model-card.md"):
+        p = ctx.repo_root / rel
+        if p.is_file():
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason=f"Model card found at {rel}; model versioning artifact present.",
+                remediation="Update the model card on every release.",
+                evidence_sources=[str(p.resolve())],
+                confidence="low",
+            )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="No model card or model-versioning artifact found.",
+        remediation="Add a MODEL_CARD.md (e.g. HuggingFace model-card pattern) at the repo root.",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+def _scan_for_llm_sdks(repo: Path) -> Path | None:
+    for rel in ("requirements.txt", "pyproject.toml", "package.json", "Pipfile", "poetry.lock"):
+        p = repo / rel
+        if not p.is_file():
+            continue
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            if any(sdk in text for sdk in _LLM_SDK_HINTS):
+                return p
+    return None
+
+
+def eval_llm_218a_pw_001(ctx: EvalContext) -> EvalOutcome:
+    """LLM-218A-PW-001: LLM SDK dependencies declared."""
+    p = _scan_for_llm_sdks(ctx.repo_root)
+    if p is None:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No LLM SDK dependency detected; LLM controls do not apply to this repo.",
+            remediation="If this repo uses an LLM SDK (transformers / openai / anthropic / langchain), declare it.",
+            evidence_sources=[],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"LLM SDK dependency declared in {p.name}.",
+        remediation="Pin the SDK by version (CI-PIN-001) and track upgrades via Dependabot/Renovate.",
+        evidence_sources=[str(p.resolve())],
+        confidence="medium",
+    )
+
+
+def eval_llm_218a_pw_002(ctx: EvalContext) -> EvalOutcome:
+    """LLM-218A-PW-002: Prompt-injection or adversarial test file present."""
+    found: list[Path] = []
+    for pattern in ("test_*prompt*injection*.py", "test_*adversarial*.py", "test_*jailbreak*.py"):
+        with contextlib.suppress(OSError):
+            for p in ctx.repo_root.rglob(pattern):
+                if p.is_file():
+                    found.append(p)
+    if not found:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="No prompt-injection or adversarial test file found.",
+            remediation=(
+                "Add tests under tests/ matching test_*prompt*injection*.py, test_*adversarial*.py, "
+                "or test_*jailbreak*.py covering at least the OWASP LLM Top 10 #1 (prompt injection)."
+            ),
+            evidence_sources=[],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"{len(found)} adversarial / prompt-injection test file(s) detected.",
+        remediation="Refresh test corpus as new attack patterns emerge.",
+        evidence_sources=[str(p.resolve()) for p in found[:5]],
+        confidence="low",
+    )
+
+
+def eval_llm_218a_rv_001(ctx: EvalContext) -> EvalOutcome:
+    """LLM-218A-RV-001: Dependabot/Renovate config explicitly lists LLM SDKs."""
+    candidates = [
+        ctx.repo_root / ".github" / "dependabot.yml",
+        ctx.repo_root / ".github" / "dependabot.yaml",
+        ctx.repo_root / "renovate.json",
+        ctx.repo_root / ".renovaterc.json",
+    ]
+    for p in candidates:
+        if not p.is_file():
+            continue
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            if any(sdk in text for sdk in _LLM_SDK_HINTS):
+                return EvalOutcome(
+                    status=ControlStatus.PASS,
+                    reason=f"Dependency-update config ({p.name}) explicitly references an LLM SDK.",
+                    remediation="Keep the SDK in the config so security updates land promptly.",
+                    evidence_sources=[str(p.resolve())],
+                    confidence="low",
+                )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="Dependency-update config does not explicitly reference an LLM SDK.",
+        remediation=(
+            "Add an explicit package-ecosystem entry covering the LLM SDK(s) used by this project."
+        ),
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+# ---------------------------------------------------------------------------
 # PUBLISH-OIDC-001..003 (PR-9, V6-06).
 #
 # Signal-grade detection of Trusted Publishing posture across the major
@@ -6250,6 +6521,14 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "GL-PIPE-010": eval_gl_pipe_010,
     "GL-PIPE-011": eval_gl_pipe_011,
     "GL-PIPE-012": eval_gl_pipe_012,
+    "AIBOM-PRESENT-001": eval_aibom_present_001,
+    "LLM-218A-PO-001": eval_llm_218a_po_001,
+    "LLM-218A-PO-002": eval_llm_218a_po_002,
+    "LLM-218A-PS-001": eval_llm_218a_ps_001,
+    "LLM-218A-PS-002": eval_llm_218a_ps_002,
+    "LLM-218A-PW-001": eval_llm_218a_pw_001,
+    "LLM-218A-PW-002": eval_llm_218a_pw_002,
+    "LLM-218A-RV-001": eval_llm_218a_rv_001,
     "GH-PLAT-024": eval_gh_plat_024,
     "GH-PLAT-025": eval_gh_plat_025,
     "GH-PLAT-026": eval_gh_plat_026,

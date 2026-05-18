@@ -43,6 +43,7 @@ _FRAMEWORK_PROFILE_LABELS: dict[str, str] = {
     "webhook-security-2": "Webhook receiver hardening expanded baseline (advisory)",
     "oss-publish-readiness-1": "OSS publish-readiness Trusted Publishing baseline (advisory)",
     "gitlab-level-2": "GitLab CI stricter baseline (advisory ladder)",
+    "appsec-llm-ssdf-218a-1": "framework-aligned advisory (NIST SP 800-218A LLM)",
     "appsec-sast-sca-1": "AppSec native bundle (hard-gate-capable with scan-sast)",
     "iac-terraform-baseline-1": "IaC Terraform posture (advisory, paired with scan-iac)",
     "kubernetes-baseline-1": "Kubernetes manifest posture (advisory, paired with scan-k8s)",

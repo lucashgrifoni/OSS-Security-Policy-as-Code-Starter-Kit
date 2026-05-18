@@ -1,0 +1,53 @@
+id: appsec-llm-ssdf-218a-1
+title: AppSec LLM baseline aligned with NIST SP 800-218A (Generative AI SSDF)
+description: >
+  **Advisory profile (advisory only). Do NOT use as a release gate in
+  v6.0.0.** First AI-security profile in the kit, aligned with
+  [NIST SP 800-218A](https://csrc.nist.gov/pubs/sp/800/218/a/final)
+  (Generative AI SSDF Community Profile). Bundles 7 clone-visible signal
+  controls plus 1 evidence-backed control for release integrity, plus
+  ``AIBOM-PRESENT-001`` for the training-data inventory dimension.
+  Controls (LLM-218A-* family + AIBOM):
+  - ``LLM-218A-PO-001`` — 'AI Security Considerations' section present
+    in SECURITY.md / README (signal).
+  - ``LLM-218A-PO-002`` — prompt registry directory present (signal).
+  - ``LLM-218A-PS-001`` — LLM release-integrity evidence file
+    (model_sha, model_version, eval_suite_results_path) — evidence-backed.
+  - ``LLM-218A-PS-002`` — model card present (signal).
+  - ``LLM-218A-PW-001`` — LLM SDK dependency declared (signal).
+  - ``LLM-218A-PW-002`` — prompt-injection / adversarial test file
+    present (signal).
+  - ``LLM-218A-RV-001`` — Dependabot/Renovate config explicitly lists
+    LLM SDK(s) (signal).
+  - ``AIBOM-PRESENT-001`` — AI Bill of Materials present (signal).
+  All controls are signal-grade except ``LLM-218A-PS-001``. A PASS
+  proves the artifact / pattern exists in the clone; the kit does NOT
+  verify the runtime behaviour of an AI system.
+  **Critical caveat:** the kit does NOT substitute for an AI security
+  audit, model red-team, or runtime model-output monitoring. See
+  ``docs/eu-ai-act-readiness.md`` for the related EU AI Act caveats.
+  **Posture:** framework-aligned advisory. **Recommended `--fail-on`:**
+  ``degraded`` only.
+audience: >
+  Teams shipping software that incorporates large language models
+  (HuggingFace transformers, OpenAI / Anthropic / Cohere APIs,
+  LangChain pipelines, RAG systems). Use as a clone-visible baseline;
+  pair with ``oss-publish-readiness-1`` (Trusted Publishing) and
+  ``appsec-sast-sca-1`` (SAST + SCA) for broader posture.
+controls:
+  # AI-security signals (v6.0.0)
+  - LLM-218A-PO-001
+  - LLM-218A-PO-002
+  - LLM-218A-PS-001
+  - LLM-218A-PS-002
+  - LLM-218A-PW-001
+  - LLM-218A-PW-002
+  - LLM-218A-RV-001
+  - AIBOM-PRESENT-001
+  # Supporting governance
+  - GOV-SEC-001
+  - GOV-DISC-013
+  - GOV-WAIV-014
+  # Supply chain hygiene that matters for AI repos
+  - DEP-UPDATE-001
+  - SAST-OSV-068

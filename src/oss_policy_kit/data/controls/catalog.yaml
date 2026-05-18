@@ -1114,3 +1114,59 @@ controls:
     lifecycle: experimental
     assurance: signal
     weight: 1
+  - id: AIBOM-PRESENT-001
+    title: AI Bill of Materials present in evidence directory
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: LLM-218A-PO-001
+    title: AI Security Considerations section present in SECURITY.md or README
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: LLM-218A-PO-002
+    title: Prompt / system-instruction registry directory present
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  - id: LLM-218A-PS-001
+    title: LLM release-integrity evidence file populated
+    category: secure_development
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: LLM-218A-PS-002
+    title: Model versioning artifacts (semver tags or release matching model/*)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  - id: LLM-218A-PW-001
+    title: LLM SDK dependencies declared (transformers / openai / anthropic / langchain)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: LLM-218A-PW-002
+    title: Prompt-injection or adversarial test file present
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: LLM-218A-RV-001
+    title: Dependabot or Renovate config explicitly lists LLM SDKs
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
