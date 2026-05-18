@@ -155,11 +155,11 @@ controls:
     assurance: signal
     weight: 2
   - id: GH-PROV-023
-    title: Build provenance or artifact attestation signal in workflows
+    title: Build provenance or artifact attestation signal in workflows (with optional verification-block confirmation)
     category: supply_chain
     automation: partially_observable
     lifecycle: stable
-    assurance: signal
+    assurance: evidence-backed
     weight: 2
   - id: GH-PLAT-024
     title: GitHub rulesets posture evidenced

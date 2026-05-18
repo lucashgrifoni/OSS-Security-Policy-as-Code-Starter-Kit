@@ -1637,13 +1637,47 @@ def eval_gh_prov_023(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     if ctx.workflows.has_artifact_attestation:
+        # v6.0.0 (ADR-007): if the per-artifact provenance evidence file is
+        # present with a populated verification block, return an
+        # evidence-backed PASS. If the evidence file is absent, preserve the
+        # v5.x signal-grade PASS so adopters who relied on the workflow signal
+        # alone do not see a gate regression.
+        evidence_path = ctx.repo_root / ".oss-policy-kit" / "evidence" / "github-provenance-artifact.json"
+        verification_recorded = False
+        if evidence_path.is_file():
+            with contextlib.suppress(OSError, json.JSONDecodeError):
+                data = json.loads(evidence_path.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    verification = data.get("verification")
+                    if isinstance(verification, dict) and verification.get("transparency_log_inclusion"):
+                        verification_recorded = True
+        if verification_recorded:
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason=(
+                    "Provenance/attestation signal detected in workflow configuration AND "
+                    "verification block recorded in github-provenance-artifact.json "
+                    "(evidence-backed per ADR-007)."
+                ),
+                remediation="Re-verify on every release and keep verification.verified_at within the freshness window.",
+                evidence_sources=[
+                    str(p.resolve()) for p in ctx.workflows.workflow_paths
+                ] + [str(evidence_path.resolve())],
+                confidence="high",
+                evidence_collection_method=EvidenceCollectionMethod.LIVE,
+            )
         return EvalOutcome(
             status=ControlStatus.PASS,
             reason=(
                 "Provenance/attestation signal detected in workflow configuration "
                 "(workflow signal only; artifact-level verification is not confirmed from clone-only evidence)."
             ),
-            remediation="Keep provenance artifacts linked to release outputs.",
+            remediation=(
+                "Add a per-artifact provenance evidence file at .oss-policy-kit/evidence/"
+                "github-provenance-artifact.json with the verification block populated "
+                "(method, verified_at, transparency_log_inclusion) so this control returns "
+                "an evidence-backed PASS instead of the signal-grade PASS shown here."
+            ),
             evidence_sources=[str(p.resolve()) for p in ctx.workflows.workflow_paths],
             confidence="low",
             operational_warnings=(_KEYWORD_CI_SIGNAL_WARN,),
