@@ -5816,6 +5816,176 @@ def eval_publish_oidc_003(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+# ---------------------------------------------------------------------------
+# SLSA-SRC-001..005 — SLSA v1.0 Source Track Level 1 (PR-13, O-06, ADR-006).
+#
+# Most SLSA Source L1 requirements overlap with existing kit controls
+# (branch protection, audit log, code review). Rather than duplicate them
+# under SLSA-vocabulary IDs naïvely, four of the five evaluators below
+# delegate the underlying signal lookup to the existing controls and only
+# wrap the result with the SLSA-vocabulary identity. The one genuinely new
+# signal — commit-signature enforcement — is detected by SLSA-SRC-002.
+# ---------------------------------------------------------------------------
+
+
+_COMMIT_SIGNATURE_HINTS: tuple[str, ...] = (
+    "required_signatures",
+    "require_signatures",
+    "requiresignaturecommits",
+    "signed-commits",
+    "signed commits",
+    "gpg verify-commit",
+    "git verify-commit",
+    "require_signed_commits",
+)
+
+
+def eval_slsa_src_001(ctx: EvalContext) -> EvalOutcome:
+    """SLSA-SRC-001: Version-controlled source (.git present)."""
+    if (ctx.repo_root / ".git").exists():
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason="Repository is under git version control (.git present).",
+            remediation="Continue using git for source versioning.",
+            evidence_sources=[str((ctx.repo_root / ".git").resolve())],
+            confidence="high",
+        )
+    return EvalOutcome(
+        status=ControlStatus.FAIL,
+        reason="No .git directory detected; source is not under version control.",
+        remediation="Initialise a git repository and push to a hosted SCM.",
+        evidence_sources=[],
+        confidence="high",
+    )
+
+
+def eval_slsa_src_002(ctx: EvalContext) -> EvalOutcome:
+    """SLSA-SRC-002: Commit-signature enforcement signal."""
+    workflow_paths = list(ctx.workflows.workflow_paths)
+    # Look in workflow files and known ruleset hint locations.
+    candidates: list[Path] = list(workflow_paths)
+    for rel in (
+        ".github/rulesets",
+        ".github/branch-protection.yml",
+        ".github/branch-protection.yaml",
+        ".oss-policy-kit/evidence/branch-protection.json",
+    ):
+        p = ctx.repo_root / rel
+        if p.exists():
+            if p.is_dir():
+                with contextlib.suppress(OSError):
+                    candidates.extend(c for c in p.rglob("*") if c.is_file())
+            else:
+                candidates.append(p)
+    matched: list[Path] = []
+    for p in candidates:
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            if any(h in text for h in _COMMIT_SIGNATURE_HINTS):
+                matched.append(p)
+    if not matched:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No commit-signature enforcement signal detected (no required_signatures or "
+                "equivalent in workflows / rulesets / branch-protection evidence)."
+            ),
+            remediation=(
+                "Enable required signatures via repository ruleset (GitHub: Settings → Rules → "
+                "Rulesets → Require signed commits), or document the enforcement in the "
+                "branch-protection.json evidence file."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=(
+            f"Commit-signature enforcement signal detected in {len(matched)} location(s) "
+            "(workflows, rulesets, or branch-protection evidence)."
+        ),
+        remediation="Audit the rule periodically; ensure it stays attached to protected branches.",
+        evidence_sources=[str(p.resolve()) for p in matched],
+        confidence="medium",
+    )
+
+
+def eval_slsa_src_003(ctx: EvalContext) -> EvalOutcome:
+    """SLSA-SRC-003: Branch protection present (delegates to PLAT-BRPROT-015 evidence)."""
+    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "branch-protection.json"
+    if not evidence.is_file():
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No branch-protection.json evidence file present. SLSA Source L1 requires "
+                "documented protected branches."
+            ),
+            remediation=(
+                "Run `oss-policy-kit collect-evidence --platform github` (or the equivalent for "
+                "your SCM) to populate .oss-policy-kit/evidence/branch-protection.json."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    with contextlib.suppress(OSError, json.JSONDecodeError):
+        data = json.loads(evidence.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and data.get("required_status_checks"):
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason="Branch protection rules documented in branch-protection.json evidence file.",
+                remediation="Keep the evidence file current with the live ruleset.",
+                evidence_sources=[str(evidence.resolve())],
+                confidence="high",
+            )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="branch-protection.json present but no required_status_checks documented.",
+        remediation="Populate the evidence file with the active branch protection rules.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="low",
+    )
+
+
+def eval_slsa_src_004(ctx: EvalContext) -> EvalOutcome:
+    """SLSA-SRC-004: Two-party review on protected branches."""
+    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "branch-protection.json"
+    if not evidence.is_file():
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="No branch-protection.json evidence; two-party review cannot be verified.",
+            remediation=(
+                "Run `oss-policy-kit collect-evidence --platform github` and ensure the resulting "
+                "evidence file documents required_approving_review_count >= 1."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    with contextlib.suppress(OSError, json.JSONDecodeError):
+        data = json.loads(evidence.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            count = data.get("required_approving_review_count")
+            if isinstance(count, int) and count >= 1:
+                return EvalOutcome(
+                    status=ControlStatus.PASS,
+                    reason=f"Branch protection requires {count} approving review(s).",
+                    remediation="SLSA Source L4 requires 2+ approving reviews; consider raising the threshold.",
+                    evidence_sources=[str(evidence.resolve())],
+                    confidence="high",
+                )
+    return EvalOutcome(
+        status=ControlStatus.FAIL,
+        reason="branch-protection.json present but required_approving_review_count is missing or zero.",
+        remediation="Set required_approving_review_count >= 1 on protected branches.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="high",
+    )
+
+
+def eval_slsa_src_005(ctx: EvalContext) -> EvalOutcome:
+    """SLSA-SRC-005: Audit log of source-changing events (delegates to AUDIT-STREAM-060)."""
+    return eval_audit_stream_060(ctx)
+
+
 EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "GOV-SEC-001": eval_gov_sec_001,
     "GOV-CON-002": eval_gov_con_002,
@@ -5845,6 +6015,11 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "PUBLISH-OIDC-001": eval_publish_oidc_001,
     "PUBLISH-OIDC-002": eval_publish_oidc_002,
     "PUBLISH-OIDC-003": eval_publish_oidc_003,
+    "SLSA-SRC-001": eval_slsa_src_001,
+    "SLSA-SRC-002": eval_slsa_src_002,
+    "SLSA-SRC-003": eval_slsa_src_003,
+    "SLSA-SRC-004": eval_slsa_src_004,
+    "SLSA-SRC-005": eval_slsa_src_005,
     "GH-PLAT-024": eval_gh_plat_024,
     "GH-PLAT-025": eval_gh_plat_025,
     "GH-PLAT-026": eval_gh_plat_026,

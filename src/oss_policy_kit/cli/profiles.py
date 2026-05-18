@@ -33,6 +33,7 @@ _REGULATORY_PROFILE_IDS: frozenset[str] = frozenset({"cra-eu-ready-1", "cra-eu-r
 _FRAMEWORK_PROFILE_LABELS: dict[str, str] = {
     "osps-baseline-1": "framework-aligned advisory (OSPS Baseline)",
     "slsa-build-l2-1": "framework-aligned hard-gate-capable (SLSA Build L2)",
+    "slsa-source-l1-1": "framework-aligned advisory (SLSA Source L1)",
     "ssdf-baseline-1": "framework-aligned advisory (NIST SSDF)",
     "cis-supply-chain-1": "framework-aligned advisory (CIS Supply Chain)",
     "owasp-cicd-top10-1": "framework-aligned advisory (OWASP CICD Top 10)",

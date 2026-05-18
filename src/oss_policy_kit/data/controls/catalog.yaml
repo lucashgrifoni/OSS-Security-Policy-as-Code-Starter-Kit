@@ -1037,3 +1037,38 @@ controls:
     lifecycle: experimental
     assurance: signal
     weight: 2
+  - id: SLSA-SRC-001
+    title: Version-controlled source (SLSA Source Track L1 baseline)
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: deterministic
+    weight: 1
+  - id: SLSA-SRC-002
+    title: Commit-signature enforcement signal detected (SLSA Source verified history)
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SLSA-SRC-003
+    title: Branch protection present (SLSA Source protected branches)
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SLSA-SRC-004
+    title: Two-party review required on protected branches (SLSA Source)
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SLSA-SRC-005
+    title: Audit log of source-changing events (SLSA Source auditability)
+    category: supply_chain
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
