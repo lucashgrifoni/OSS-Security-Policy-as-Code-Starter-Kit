@@ -3897,6 +3897,114 @@ def _detect_sbom_format(content: str) -> str | None:
     return None
 
 
+def _detect_sbom_format_and_version(content: str) -> tuple[str | None, str | None]:
+    """Return ``(format, version)`` for an SBOM blob; either may be None.
+
+    Recognises:
+
+    - **CycloneDX** JSON via ``bomFormat`` and ``specVersion`` (1.0 ... 1.6+).
+    - **SPDX 2.x** JSON via ``spdxVersion: SPDX-2.<minor>``.
+    - **SPDX 2.x** tag-value via ``SPDXVersion: SPDX-2.<minor>``.
+    - **SPDX 3.0+** JSON-LD via ``@context`` referencing the SPDX 3 spec, or
+      ``creationInfo.specVersion: 3.<minor>.<patch>`` in an embedded
+      element. The 3.x family changed shape significantly; the kit recognises
+      v3 explicitly so BSI TR-03183-2 v2.1.0 validation can require it.
+    """
+
+    sample = content[:8000]
+    # CycloneDX JSON
+    if '"bomFormat"' in sample and ("CycloneDX" in sample or "cyclonedx" in sample.lower()):
+        ver = None
+        m = re.search(r'"specVersion"\s*:\s*"(\d+\.\d+)"', sample)
+        if m:
+            ver = m.group(1)
+        return ("cyclonedx", ver)
+    # SPDX 3.x JSON-LD
+    if "spdx.dev/spec/3" in sample or '"@context"' in sample and "spdx" in sample.lower():
+        m = re.search(r'"specVersion"\s*:\s*"(3\.\d+\.\d+)"', sample)
+        if m:
+            return ("spdx", m.group(1))
+        if "spdx.dev/spec/3" in sample:
+            return ("spdx", "3.0")
+    # SPDX 2.x JSON
+    m = re.search(r'"spdxVersion"\s*:\s*"SPDX-(\d+\.\d+)"', sample)
+    if m:
+        return ("spdx", m.group(1))
+    # SPDX tag-value (2.x)
+    m = re.search(r"SPDXVersion:\s*SPDX-(\d+\.\d+)", sample)
+    if m:
+        return ("spdx", m.group(1))
+    return (_detect_sbom_format(content), None)
+
+
+# ---------------------------------------------------------------------------
+# BSI TR-03183-2 v2.1.0 validation (V6-09).
+#
+# The German Federal Office for Information Security (BSI) Technical
+# Guideline TR-03183-2 v2.1.0 specifies fields a Software Bill of Materials
+# must carry to be considered "compliant" for the German cybersecurity
+# procurement context: package identifiers (PURL/CPE), cryptographic hashes,
+# license declaration, supplier identity, plus an explicit separation of
+# vulnerability data into VEX documents (an SBOM that embeds vulnerabilities
+# is not BSI-compliant).
+#
+# The kit performs lightweight structural validation. Adopters that need
+# legal BSI conformance should run a dedicated BSI-conformance tool; this
+# check surfaces the most common gaps clone-side.
+# ---------------------------------------------------------------------------
+
+# Cached compiled regexes; declared at module scope so we do not recompile
+# on every evaluator invocation.
+_BSI_HASH_PATTERN = re.compile(r'"(hashes|sha\d+|checksums?)"', re.IGNORECASE)
+_BSI_PURL_PATTERN = re.compile(r'"(purl|packageURL)"', re.IGNORECASE)
+_BSI_CPE_PATTERN = re.compile(r'"(cpe|cpe22Type|cpe23Type)"')
+_BSI_LICENSE_PATTERN = re.compile(r'"(licenses?|licenseConcluded|licenseDeclared)"', re.IGNORECASE)
+_BSI_SUPPLIER_PATTERN = re.compile(r'"(supplier|originator|publisher|author)"', re.IGNORECASE)
+_BSI_VULN_PATTERN = re.compile(r'"vulnerabilities"\s*:\s*\[')
+
+
+def _validate_bsi_tr_03183_v2_1(content: str, fmt: str | None, version: str | None) -> dict[str, bool] | None:
+    """Validate an SBOM blob against BSI TR-03183-2 v2.1.0 required fields.
+
+    Returns ``None`` when the SBOM format/version is not in scope (BSI v2.1.0
+    targets CycloneDX 1.6+ and SPDX 3.0+; older versions are out of scope and
+    receive no verdict). Returns a dict otherwise with the following keys:
+
+    - ``identifiers_present`` (bool) — at least one of PURL or CPE detected.
+    - ``hashes_present`` (bool) — cryptographic hash field detected.
+    - ``licenses_present`` (bool) — license declaration detected.
+    - ``supplier_present`` (bool) — supplier / originator / author detected.
+    - ``vulnerability_data_separated`` (bool) — the SBOM does NOT embed a
+      ``vulnerabilities[]`` array (BSI requires VEX separation).
+
+    Heuristic: regex over the document text. The kit does not parse SPDX
+    JSON-LD or CycloneDX schema fully — adopters needing strict conformance
+    should pair this with a dedicated BSI conformance tool.
+    """
+
+    if fmt not in {"cyclonedx", "spdx"}:
+        return None
+    if fmt == "cyclonedx":
+        if version is None:
+            return None
+        try:
+            major, minor = version.split(".", 1)
+            if int(major) < 1 or (int(major) == 1 and int(minor) < 6):
+                return None
+        except (ValueError, AttributeError):
+            return None
+    if fmt == "spdx" and (version is None or not version.startswith("3.")):
+        return None
+
+    return {
+        "identifiers_present": bool(_BSI_PURL_PATTERN.search(content) or _BSI_CPE_PATTERN.search(content)),
+        "hashes_present": bool(_BSI_HASH_PATTERN.search(content)),
+        "licenses_present": bool(_BSI_LICENSE_PATTERN.search(content)),
+        "supplier_present": bool(_BSI_SUPPLIER_PATTERN.search(content)),
+        "vulnerability_data_separated": not bool(_BSI_VULN_PATTERN.search(content)),
+    }
+
+
 def _find_sbom_files(repo: Path) -> list[Path]:
     candidates: list[Path] = []
     for pat in ("*.spdx", "*.spdx.json", "*.cdx.json", "sbom.json", "sbom.xml", "bom.json", "bom.xml"):
@@ -3929,17 +4037,38 @@ def eval_build_sbom_qual_003(ctx: EvalContext) -> EvalOutcome:
     if sbom_files:
         valid: list[str] = []
         invalid: list[str] = []
+        bsi_notes: list[str] = []
         for p in sbom_files:
             with contextlib.suppress(OSError):
-                detected = _detect_sbom_format(p.read_text(encoding="utf-8", errors="replace"))
-                if detected:
-                    valid.append(f"{p.name} ({detected})")
+                content = p.read_text(encoding="utf-8", errors="replace")
+                fmt_detail, version = _detect_sbom_format_and_version(content)
+                if fmt_detail:
+                    label = f"{p.name} ({fmt_detail}{f' {version}' if version else ''})"
+                    valid.append(label)
+                    bsi = _validate_bsi_tr_03183_v2_1(content, fmt_detail, version)
+                    if bsi is not None:
+                        missing = [
+                            k.removesuffix("_present").removesuffix("_separated")
+                            for k, v in bsi.items()
+                            if not v
+                        ]
+                        if missing:
+                            bsi_notes.append(
+                                f"{p.name} BSI TR-03183-2 v2.1.0: missing {', '.join(missing)}"
+                            )
+                        else:
+                            bsi_notes.append(
+                                f"{p.name} BSI TR-03183-2 v2.1.0: all required fields present"
+                            )
                 else:
                     invalid.append(p.name)
         if valid:
+            reason = f"Valid SBOM format detected: {', '.join(valid[:3])}."
+            if bsi_notes:
+                reason = f"{reason} {' | '.join(bsi_notes[:3])}."
             return EvalOutcome(
                 status=ControlStatus.PASS,
-                reason=f"Valid SBOM format detected: {', '.join(valid[:3])}.",
+                reason=reason,
                 remediation="Keep SBOM files current with each release; sign and attest them for supply chain trust.",
                 evidence_sources=[str(p.resolve()) for p in sbom_files],
                 confidence="medium",
