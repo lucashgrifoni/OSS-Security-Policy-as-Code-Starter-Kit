@@ -94,7 +94,7 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@d7d6e4dc6b7022ec4adb70b8a8e9f72e1cdd0fe5 # v3
+        uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
         with:
           cosign-release: "v2.4.0"
 
@@ -110,7 +110,7 @@ jobs:
           done
 
       - name: Generate GitHub Artifact Attestation for image
-        uses: actions/attest-build-provenance@2ce9eaf73be86df0fa3f29c20a93927b89ad6c43 # v3
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
