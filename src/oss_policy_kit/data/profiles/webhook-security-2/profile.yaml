@@ -1,0 +1,42 @@
+id: webhook-security-2
+title: Webhook receiver hardening — expanded baseline (clone-side advisory)
+description: >
+  **Advisory profile (advisory only). Do not use as a hard release gate
+  in v6.0.0.** Successor to ``webhook-security-1`` that expands the
+  webhook-hardening checklist from 2 dimensions to 8 by adding 6 new
+  ``SEC-WEBHOOK-*`` controls. See ADR-004 for the design rationale and
+  the rejected alternatives. The original ``webhook-security-1`` is kept
+  in the catalog for adopters who opted in to the lighter posture; this
+  profile is what new adopters should choose.
+  Controls added in v6.0.0:
+  - ``SEC-WEBHOOK-HMAC-001`` — HMAC verification helper present.
+  - ``SEC-WEBHOOK-TIMING-002`` — timing-safe comparison primitive.
+  - ``SEC-WEBHOOK-REPLAY-003`` — timestamp tolerance or nonce window.
+  - ``SEC-WEBHOOK-BODY-004`` — request-body size cap at framework or proxy.
+  - ``SEC-WEBHOOK-IDEMP-005`` — idempotency-key extraction + dedupe.
+  - ``SEC-WEBHOOK-ROTATE-006`` — env / vault-sourced secret + rotation pattern.
+  All six controls ship as ``lifecycle: experimental``, ``assurance: signal``.
+  A PASS proves a primitive exists in the clone, not that the receiver is
+  correctly secured end-to-end. Pair with reviewer judgment.
+  **Posture:** advisory. **Recommended `--fail-on`:** ``degraded`` only.
+audience: >
+  Platform / AppSec teams maintaining services that expose webhook
+  endpoints (GitHub Apps, Stripe / Twilio / Slack / Shopify integrations,
+  custom integrations) and want a deeper baseline than
+  ``webhook-security-1``. Compose with ``appsec-sast-sca-1`` and an OSPS
+  or release-hardening profile for full release posture.
+controls:
+  # Legacy webhook signals (kept from webhook-security-1 for continuity)
+  - SEC-WEBHOOK-001
+  - SEC-WEBHOOK-002
+  # v6.0.0 additions (PR-5, ADR-004)
+  - SEC-WEBHOOK-HMAC-001
+  - SEC-WEBHOOK-TIMING-002
+  - SEC-WEBHOOK-REPLAY-003
+  - SEC-WEBHOOK-BODY-004
+  - SEC-WEBHOOK-IDEMP-005
+  - SEC-WEBHOOK-ROTATE-006
+  # Sustaining governance
+  - GOV-EVIDFRESH-054
+  - GOV-SEC-001
+  - GOV-DISC-013

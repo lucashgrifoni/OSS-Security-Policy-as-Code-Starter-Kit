@@ -974,3 +974,45 @@ controls:
     lifecycle: experimental
     assurance: signal
     weight: 2
+  - id: SEC-WEBHOOK-HMAC-001
+    title: Webhook receiver invokes an HMAC verification helper
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: SEC-WEBHOOK-TIMING-002
+    title: Webhook signature comparison uses a timing-safe primitive
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SEC-WEBHOOK-REPLAY-003
+    title: Webhook receiver enforces a timestamp tolerance or nonce window
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SEC-WEBHOOK-BODY-004
+    title: Webhook receiver caps request-body size at the framework or proxy layer
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  - id: SEC-WEBHOOK-IDEMP-005
+    title: Webhook receiver extracts an idempotency key and dedupes per delivery
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SEC-WEBHOOK-ROTATE-006
+    title: Webhook secret sourced from env/vault and supports rotation window
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
