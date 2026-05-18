@@ -1170,3 +1170,24 @@ controls:
     lifecycle: experimental
     assurance: signal
     weight: 1
+  - id: LLM-AI-ACT-001
+    title: Intended purpose / users / limitations documented (EU AI Act Annex IV §1)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: LLM-AI-ACT-002
+    title: Output filtering / content moderation pattern detected (EU AI Act Annex IV §3)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: LLM-AI-ACT-003
+    title: Risk management documentation present (EU AI Act Annex IV §5)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2

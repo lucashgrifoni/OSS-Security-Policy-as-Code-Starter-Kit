@@ -6099,6 +6099,151 @@ def eval_llm_218a_rv_001(ctx: EvalContext) -> EvalOutcome:
 
 
 # ---------------------------------------------------------------------------
+# LLM-AI-ACT-001..003 (PR-11, V6-02) — EU AI Act Article 11 + Annex IV signals.
+#
+# Advisory profile. The kit does NOT substitute for a conformity assessment
+# (Article 43); see docs/eu-ai-act-readiness.md for the explicit caveat.
+# ---------------------------------------------------------------------------
+
+_INTENDED_PURPOSE_HEADINGS: tuple[str, ...] = (
+    "intended purpose",
+    "intended use",
+    "intended users",
+    "limitations",
+    "foreseeable misuse",
+)
+
+_OUTPUT_FILTER_HINTS: tuple[str, ...] = (
+    "output_filter",
+    "output-filter",
+    "content_moderation",
+    "content-moderation",
+    "moderation_api",
+    "openai.moderations",
+    "guardrails",
+    "nemoguardrails",
+)
+
+_RISK_MGMT_PATHS: tuple[str, ...] = (
+    "risk-management.md",
+    "RISKS.md",
+    "docs/risk-management.md",
+    "docs/RISKS.md",
+)
+
+_RISK_MGMT_HEADINGS: tuple[str, ...] = (
+    "risk management",
+    "risk assessment",
+    "ai risk register",
+)
+
+
+def eval_llm_ai_act_001(ctx: EvalContext) -> EvalOutcome:
+    """LLM-AI-ACT-001: Intended purpose / users / limitations documented (Annex IV §1)."""
+    p = _scan_readme_for_section(ctx.repo_root, _INTENDED_PURPOSE_HEADINGS)
+    if p is None:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No 'Intended Purpose' / 'Intended Users' / 'Limitations' section found in "
+                "SECURITY.md or README.md (Annex IV §1)."
+            ),
+            remediation=(
+                "Add a section explicitly documenting the intended purpose, intended users, and "
+                "foreseeable limitations of the AI system. Required by EU AI Act Annex IV §1."
+            ),
+            evidence_sources=[],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"Intended purpose / users / limitations section detected in {p.name} (Annex IV §1).",
+        remediation=(
+            "Keep the section in sync with model upgrades. Conformity assessment by a notified body "
+            "is still required and out of scope for the kit."
+        ),
+        evidence_sources=[str(p.resolve())],
+        confidence="low",
+    )
+
+
+def eval_llm_ai_act_002(ctx: EvalContext) -> EvalOutcome:
+    """LLM-AI-ACT-002: Output filtering / content moderation pattern detected (Annex IV §3)."""
+    # Scan src/, tests/, or root code files for output-filter / moderation patterns.
+    matched: list[Path] = []
+    for ext in ("*.py", "*.js", "*.ts", "*.mjs"):
+        with contextlib.suppress(OSError):
+            for p in ctx.repo_root.rglob(ext):
+                if not p.is_file():
+                    continue
+                if any(skip in p.parts for skip in (".git", ".venv", "node_modules", "__pycache__")):
+                    continue
+                with contextlib.suppress(OSError):
+                    text = p.read_text(encoding="utf-8", errors="replace").lower()
+                    if any(h in text for h in _OUTPUT_FILTER_HINTS):
+                        matched.append(p)
+                        if len(matched) >= 5:
+                            break
+        if len(matched) >= 5:
+            break
+    if not matched:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No output-filtering / content-moderation reference found in source code "
+                "(Annex IV §3)."
+            ),
+            remediation=(
+                "Implement an output filter (e.g. OpenAI Moderations API, NVIDIA NeMo Guardrails, "
+                "or a custom classifier) and reference it in the AI pipeline."
+            ),
+            evidence_sources=[],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"Output-filtering / content-moderation pattern detected in {len(matched)} file(s) (Annex IV §3).",
+        remediation="Periodically review the moderation thresholds and the evaluation dataset.",
+        evidence_sources=[str(p.resolve()) for p in matched],
+        confidence="low",
+    )
+
+
+def eval_llm_ai_act_003(ctx: EvalContext) -> EvalOutcome:
+    """LLM-AI-ACT-003: Risk management documentation present (Annex IV §5)."""
+    for rel in _RISK_MGMT_PATHS:
+        p = ctx.repo_root / rel
+        if p.is_file():
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason=f"Risk-management documentation found at {rel} (Annex IV §5).",
+                remediation="Keep the risk register current with each release; review with a notified body.",
+                evidence_sources=[str(p.resolve())],
+                confidence="medium",
+            )
+    # Fall back to SECURITY.md section
+    section_match = _scan_readme_for_section(ctx.repo_root, _RISK_MGMT_HEADINGS)
+    if section_match is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Risk-management section detected in {section_match.name} (Annex IV §5).",
+            remediation="Consider extracting to a dedicated risk-management.md for clearer audit traceability.",
+            evidence_sources=[str(section_match.resolve())],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="No risk-management documentation found (risk-management.md, RISKS.md, or SECURITY.md section).",
+        remediation=(
+            "Document the AI risk-management process (hazard identification, residual risk, mitigation "
+            "measures) in risk-management.md. Required by EU AI Act Annex IV §5."
+        ),
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+# ---------------------------------------------------------------------------
 # PUBLISH-OIDC-001..003 (PR-9, V6-06).
 #
 # Signal-grade detection of Trusted Publishing posture across the major
@@ -6529,6 +6674,9 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "LLM-218A-PW-001": eval_llm_218a_pw_001,
     "LLM-218A-PW-002": eval_llm_218a_pw_002,
     "LLM-218A-RV-001": eval_llm_218a_rv_001,
+    "LLM-AI-ACT-001": eval_llm_ai_act_001,
+    "LLM-AI-ACT-002": eval_llm_ai_act_002,
+    "LLM-AI-ACT-003": eval_llm_ai_act_003,
     "GH-PLAT-024": eval_gh_plat_024,
     "GH-PLAT-025": eval_gh_plat_025,
     "GH-PLAT-026": eval_gh_plat_026,

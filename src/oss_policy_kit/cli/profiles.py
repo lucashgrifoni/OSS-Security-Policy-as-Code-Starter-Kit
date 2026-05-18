@@ -44,6 +44,7 @@ _FRAMEWORK_PROFILE_LABELS: dict[str, str] = {
     "oss-publish-readiness-1": "OSS publish-readiness Trusted Publishing baseline (advisory)",
     "gitlab-level-2": "GitLab CI stricter baseline (advisory ladder)",
     "appsec-llm-ssdf-218a-1": "framework-aligned advisory (NIST SP 800-218A LLM)",
+    "cra-eu-ai-act-art11-1": "framework-aligned advisory (regulatory, EU AI Act Art. 11)",
     "appsec-sast-sca-1": "AppSec native bundle (hard-gate-capable with scan-sast)",
     "iac-terraform-baseline-1": "IaC Terraform posture (advisory, paired with scan-iac)",
     "kubernetes-baseline-1": "Kubernetes manifest posture (advisory, paired with scan-k8s)",

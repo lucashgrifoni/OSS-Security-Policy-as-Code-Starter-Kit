@@ -1,0 +1,54 @@
+id: cra-eu-ai-act-art11-1
+title: EU AI Act Article 11 + Annex IV readiness (advisory, NOT a conformity assessment)
+description: >
+  **Advisory profile. Do NOT use as a release gate or as a conformity
+  assessment substitute.** EU AI Act Article 11 + Annex IV documentation
+  readiness signals — checks that a high-risk AI system maintains the
+  clone-visible technical documentation set required when the obligation
+  becomes enforceable on **2026-08-02**.
+  Controls (LLM-AI-ACT-* family, all signal-grade):
+  - ``LLM-AI-ACT-001`` — Intended purpose / users / limitations
+    documented (Annex IV §1).
+  - ``LLM-AI-ACT-002`` — Output-filtering / content-moderation pattern
+    detected (Annex IV §3).
+  - ``LLM-AI-ACT-003`` — Risk-management documentation present
+    (Annex IV §5).
+  Bundled controls (existing or from PR-10):
+  - ``AIBOM-PRESENT-001`` — AI Bill of Materials (training data
+    inventory signal, Annex IV §2).
+  - ``LLM-218A-PO-001`` — AI Security Considerations.
+  - ``LLM-218A-PS-001`` — LLM release integrity (evidence-backed).
+  - ``GOV-DISC-065`` — disclosure SLA documented (Annex IV §8
+    post-market monitoring proxy).
+  - ``REL-CHANGE-001`` — release change tracking.
+  - ``SAST-OSV-068`` — dependency CVE surface.
+  **Hard caveat (also in `docs/eu-ai-act-readiness.md`):** the kit does
+  NOT substitute for an EU AI Act conformity assessment (Article 43).
+  Conformity assessment requires a notified body (or internal control
+  under Annex VI where permitted) and is outside the kit's scope.
+  **Posture:** framework-aligned advisory (regulatory).
+  **Recommended `--fail-on`:** ``degraded`` only.
+  **Effective window:** 2026-08-02.
+audience: >
+  Teams shipping software that incorporates AI components which may
+  fall under EU AI Act Article 11 + Annex IV. Use the kit's PASS
+  signals as preparatory documentation evidence for a future notified-
+  body engagement; do not interpret them as a CE-marking outcome.
+controls:
+  # EU AI Act Annex IV documentation signals (v6.0.0)
+  - LLM-AI-ACT-001
+  - LLM-AI-ACT-002
+  - LLM-AI-ACT-003
+  # AI security baseline (from PR-10)
+  - AIBOM-PRESENT-001
+  - LLM-218A-PO-001
+  - LLM-218A-PS-001
+  # Post-market monitoring proxy + release tracking
+  - GOV-DISC-065
+  - REL-CHANGE-012
+  # Sustaining governance
+  - GOV-SEC-001
+  - GOV-DISC-013
+  - GOV-WAIV-014
+  # Supply chain hygiene
+  - SAST-OSV-068
