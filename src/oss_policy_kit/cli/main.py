@@ -19,6 +19,7 @@ from oss_policy_kit.cli import (  # noqa: F401  (import side-effects: command re
     emit_vex,
     evaluate,
     evidence,
+    export_evidence,
     init,
     profiles,
     recommend,

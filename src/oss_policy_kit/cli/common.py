@@ -214,6 +214,7 @@ def prepare_cli_args(args: list[str]) -> list[str]:
         "scan-bicep",
         "emit-vex",
         "emit-insights",
+        "export-evidence",
     }:
         return args
     if first in ("--help", "-h", "--version", "-V"):
