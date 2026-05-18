@@ -5569,6 +5569,219 @@ def eval_gh_egress_hrn_001(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+# ---------------------------------------------------------------------------
+# PUBLISH-OIDC-001..003 (PR-9, V6-06).
+#
+# Signal-grade detection of Trusted Publishing posture across the major
+# package registries that ship OIDC publishing as GA in 2025-2026 (PyPI,
+# npm, RubyGems, crates.io, plus GitLab OIDC publishing). The kit detects
+# the declarative intent in the workflow source; it does not verify the
+# publish actually succeeded.
+#
+# See ADR-014 for the design rationale and the rejected alternatives.
+# ---------------------------------------------------------------------------
+
+# Workflow keywords that indicate a registry-publish step. Case-insensitive.
+_PUBLISH_KEYWORDS: tuple[str, ...] = (
+    "pypi.org",
+    "pypi-publish",
+    "pypa/gh-action-pypi-publish",
+    "twine upload",
+    "npm publish",
+    "actions/setup-node",  # weak; refined by NPM_TOKEN absence in PUBLISH-OIDC-002
+    "gem push",
+    "rubygems-publish",
+    "cargo publish",
+    "rubygems_api_key",
+)
+
+_OIDC_TOKEN_PATTERN = re.compile(r"id-token:\s*write", re.IGNORECASE)
+_LONG_LIVED_PASSWORD_PATTERN = re.compile(
+    r"\b(NPM_TOKEN|PYPI_TOKEN|TWINE_PASSWORD|RUBYGEMS_API_KEY|CARGO_REGISTRY_TOKEN|password:\s*\$\{\{?\s*secrets\.)",
+    re.IGNORECASE,
+)
+_NPM_PROVENANCE_PATTERN = re.compile(r"(--provenance\b|provenance:\s*true)", re.IGNORECASE)
+
+
+def _publish_workflows(paths: list[Path]) -> list[Path]:
+    """Return the subset of workflow paths that look like publish workflows."""
+    out: list[Path] = []
+    for p in paths:
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            if any(kw in text for kw in _PUBLISH_KEYWORDS):
+                out.append(p)
+    return out
+
+
+def eval_publish_oidc_001(ctx: EvalContext) -> EvalOutcome:
+    """PUBLISH-OIDC-001: publish workflow declares ``permissions: id-token: write``."""
+    paths = list(ctx.workflows.workflow_paths)
+    if not paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitHub Actions workflows present.",
+            remediation="No action required. This control activates when a publish workflow is defined.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    publish = _publish_workflows(paths)
+    if not publish:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No publish workflow detected (no PyPI / npm / RubyGems / crates keyword in any workflow).",
+            remediation=(
+                "If this repo publishes to a package registry, the publish workflow should declare "
+                "``permissions: id-token: write`` so the registry can attest the build via OIDC."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    matched: list[Path] = []
+    for p in publish:
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace")
+            if _OIDC_TOKEN_PATTERN.search(text):
+                matched.append(p)
+    if not matched:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"{len(publish)} publish workflow(s) detected but none declare ``permissions: id-token: write``. "
+                "Trusted Publishing requires this permission for the runtime to mint the OIDC token."
+            ),
+            remediation=(
+                "Add ``permissions: { id-token: write }`` at the workflow or job level. "
+                "See PyPI Trusted Publishers docs / npm Trusted Publishers docs."
+            ),
+            evidence_sources=[str(p.resolve()) for p in publish],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=(
+            f"{len(matched)} of {len(publish)} publish workflow(s) declare ``permissions: id-token: write``."
+        ),
+        remediation=(
+            "Keep id-token: write scoped to the publish job, not the whole workflow, and pin the "
+            "publish action by SHA per CI-PIN-008."
+        ),
+        evidence_sources=[str(p.resolve()) for p in matched],
+        confidence="medium",
+    )
+
+
+def eval_publish_oidc_002(ctx: EvalContext) -> EvalOutcome:
+    """PUBLISH-OIDC-002: publish step omits long-lived registry token / password."""
+    paths = list(ctx.workflows.workflow_paths)
+    if not paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitHub Actions workflows present.",
+            remediation="No action required. This control activates when a publish workflow is defined.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    publish = _publish_workflows(paths)
+    if not publish:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No publish workflow detected.",
+            remediation="No action required.",
+            evidence_sources=[],
+            confidence="medium",
+        )
+    offenders: list[Path] = []
+    for p in publish:
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace")
+            if _LONG_LIVED_PASSWORD_PATTERN.search(text):
+                offenders.append(p)
+    if offenders:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"{len(offenders)} publish workflow(s) still reference a long-lived token "
+                "(NPM_TOKEN / PYPI_TOKEN / TWINE_PASSWORD / RUBYGEMS_API_KEY / CARGO_REGISTRY_TOKEN / "
+                "password: secrets.*). Trusted Publishing removes the need for these."
+            ),
+            remediation=(
+                "Migrate to Trusted Publishing (PyPI / npm / RubyGems / crates) and remove the "
+                "long-lived secret. Document the cut-over and rotate the legacy token out of the "
+                "registry afterward."
+            ),
+            evidence_sources=[str(p.resolve()) for p in offenders],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=(
+            f"None of the {len(publish)} publish workflow(s) reference a long-lived registry token; "
+            "Trusted Publishing posture is consistent."
+        ),
+        remediation="Confirm the legacy registry token was rotated out after the cut-over.",
+        evidence_sources=[str(p.resolve()) for p in publish],
+        confidence="medium",
+    )
+
+
+def eval_publish_oidc_003(ctx: EvalContext) -> EvalOutcome:
+    """PUBLISH-OIDC-003: npm publish step uses ``--provenance`` (or registry-equivalent)."""
+    paths = list(ctx.workflows.workflow_paths)
+    if not paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitHub Actions workflows present.",
+            remediation="No action required. This control activates when an npm publish workflow is defined.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    npm_publish: list[Path] = []
+    for p in paths:
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            if "npm publish" in text:
+                npm_publish.append(p)
+    if not npm_publish:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No npm publish step detected.",
+            remediation="No action required.",
+            evidence_sources=[],
+            confidence="medium",
+        )
+    with_provenance: list[Path] = []
+    for p in npm_publish:
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace")
+            if _NPM_PROVENANCE_PATTERN.search(text):
+                with_provenance.append(p)
+    if not with_provenance:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"{len(npm_publish)} npm publish workflow(s) found but none declare ``--provenance`` "
+                "or ``provenance: true``. Trusted Publishing on npm requires the flag for the provenance "
+                "attestation to be generated."
+            ),
+            remediation=(
+                "Add ``--provenance`` to the ``npm publish`` command, or set ``provenance: true`` on the "
+                "publish action input. See npm Trusted Publishers docs."
+            ),
+            evidence_sources=[str(p.resolve()) for p in npm_publish],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=(
+            f"{len(with_provenance)} of {len(npm_publish)} npm publish workflow(s) declare provenance."
+        ),
+        remediation="Keep the provenance flag enabled; remove if migrating off npm-trusted-publishing only.",
+        evidence_sources=[str(p.resolve()) for p in with_provenance],
+        confidence="medium",
+    )
+
+
 EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "GOV-SEC-001": eval_gov_sec_001,
     "GOV-CON-002": eval_gov_con_002,
@@ -5595,6 +5808,9 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "GH-DEPLOY-022": eval_gh_dep_022,
     "GH-PROV-023": eval_gh_prov_023,
     "GH-EGRESS-HRN-001": eval_gh_egress_hrn_001,
+    "PUBLISH-OIDC-001": eval_publish_oidc_001,
+    "PUBLISH-OIDC-002": eval_publish_oidc_002,
+    "PUBLISH-OIDC-003": eval_publish_oidc_003,
     "GH-PLAT-024": eval_gh_plat_024,
     "GH-PLAT-025": eval_gh_plat_025,
     "GH-PLAT-026": eval_gh_plat_026,

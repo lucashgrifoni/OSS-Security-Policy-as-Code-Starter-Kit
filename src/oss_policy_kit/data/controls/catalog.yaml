@@ -1016,3 +1016,24 @@ controls:
     lifecycle: experimental
     assurance: signal
     weight: 2
+  - id: PUBLISH-OIDC-001
+    title: Publish workflow declares OIDC id-token permission
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: PUBLISH-OIDC-002
+    title: PyPI / RubyGems / crates publish step omits long-lived password
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: PUBLISH-OIDC-003
+    title: npm publish step uses --provenance (or registry-equivalent flag)
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
