@@ -50,11 +50,20 @@ GENERIC_EVIDENCE_FILENAMES: frozenset[str] = frozenset(
 )
 
 
+# M-003 (v6.0.0, ADR-008): schema_version becomes an absolute URL.
+# The legacy shorthand is accepted by internal consumers for one minor
+# (v6.0.x) so adopters that string-match the value have time to migrate.
+PROFILE_RECOMMENDATION_V2_SCHEMA_URL = (
+    "https://schemas.lucashgrifoni.io/oss-policy-kit/recommend-profile/v2.json"
+)
+PROFILE_RECOMMENDATION_V2_LEGACY_SHORTHAND = "oss-policy-kit/profile-recommendation/v2"
+
+
 @dataclass(slots=True)
 class ProfileRecommendation:
     """Structured profile hints for CLI and automation."""
 
-    schema_version: str = "oss-policy-kit/profile-recommendation/v2"
+    schema_version: str = PROFILE_RECOMMENDATION_V2_SCHEMA_URL
     signals_detected: list[dict[str, str]] = field(default_factory=list)
     suggestions: list[dict[str, Any]] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
