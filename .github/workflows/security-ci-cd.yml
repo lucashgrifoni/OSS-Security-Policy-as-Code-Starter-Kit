@@ -3,7 +3,7 @@
 # Standard security pipeline covering:
 #   - SAST          : Semgrep, Snyk Code, CodeQL
 #   - SCA           : Snyk Open Source, Trivy (filesystem vuln), Dependency Review (PR)
-#   - IaC / Pipeline: Trivy (misconfig)
+#   - IaC / Pipeline: Trivy (misconfig), KICS (Checkmarx)
 #   - Secrets       : Trivy (secret), Gitleaks (git history)
 #   - Workflow lint : actionlint
 #
@@ -37,11 +37,6 @@
 # the workflow level and, when applicable, tightened at job level. On private
 # repositories, SARIF upload and Dependency Review require GitHub Advanced
 # Security; on public repositories both are free.
-#
-# Set repository variable ENABLE_CODE_SCANNING_UPLOAD=true only when GitHub
-# Code Scanning/SARIF uploads are available for the repository. Without it,
-# scanners still run, but SARIF upload jobs are skipped so validation remains
-# reproducible even when the Code Scanning upload API is unavailable.
 
 name: Security CI/CD
 
@@ -86,12 +81,12 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
@@ -115,8 +110,8 @@ jobs:
             .
 
       - name: Upload Semgrep SARIF
-        if: ${{ always() && vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' && hashFiles('semgrep.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        if: always()
+        uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
         with:
           sarif_file: semgrep.sarif
           category: semgrep
@@ -128,16 +123,14 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    env:
-      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
@@ -147,30 +140,30 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install Snyk CLI
-        if: ${{ env.SNYK_TOKEN != '' }}
         run: npm install -g snyk
 
-      - name: Skip Snyk Code when token is not configured
-        if: ${{ env.SNYK_TOKEN == '' }}
-        run: echo "SNYK_TOKEN is not configured; skipping Snyk Code scan."
+      - name: Authenticate Snyk
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk auth "$SNYK_TOKEN"
 
       - name: Run Snyk Code
-        if: ${{ env.SNYK_TOKEN != '' }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: >
           snyk code test
           --severity-threshold=${{ env.SNYK_SEVERITY_THRESHOLD }}
           --sarif-file-output=snyk-code.sarif
 
       - name: Upload Snyk Code SARIF
-        if: ${{ always() && vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' && env.SNYK_TOKEN != '' && hashFiles('snyk-code.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        if: always()
+        uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
         with:
           sarif_file: snyk-code.sarif
           category: snyk-code
 
   sast-codeql:
     name: SAST - CodeQL
-    if: ${{ vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -184,25 +177,25 @@ jobs:
           - python
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        uses: github/codeql-action/init@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        uses: github/codeql-action/autobuild@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        uses: github/codeql-action/analyze@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
         with:
           category: "/language:${{ matrix.language }}"
 
@@ -213,16 +206,14 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    env:
-      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
@@ -231,45 +222,26 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Setup Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
       - name: Install Snyk CLI
-        if: ${{ env.SNYK_TOKEN != '' }}
         run: npm install -g snyk
 
-      - name: Prepare Snyk Open Source manifest
-        if: ${{ env.SNYK_TOKEN != '' }}
-        run: |
-          set -euo pipefail
-          python -m venv .venv-snyk-oss
-          . .venv-snyk-oss/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install ".[all]"
-          python -m pip freeze --exclude-editable \
-            | grep -Ev '^oss-policy-kit(==| @ )' \
-            > .snyk-oss-requirements.txt
-          test -s .snyk-oss-requirements.txt
-
-      - name: Skip Snyk Open Source when token is not configured
-        if: ${{ env.SNYK_TOKEN == '' }}
-        run: echo "SNYK_TOKEN is not configured; skipping Snyk Open Source scan."
+      - name: Authenticate Snyk
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk auth "$SNYK_TOKEN"
 
       - name: Run Snyk Open Source scan
-        if: ${{ env.SNYK_TOKEN != '' }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: >
           snyk test
-          --file=.snyk-oss-requirements.txt
-          --package-manager=pip
-          --command=.venv-snyk-oss/bin/python
+          --all-projects
           --severity-threshold=${{ env.SNYK_SEVERITY_THRESHOLD }}
           --sarif-file-output=snyk-oss.sarif
 
       - name: Upload Snyk Open Source SARIF
-        if: ${{ always() && vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' && env.SNYK_TOKEN != '' && hashFiles('snyk-oss.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        if: always()
+        uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
         with:
           sarif_file: snyk-oss.sarif
           category: snyk-oss
@@ -283,17 +255,17 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
       - name: Scan dependencies for vulnerabilities
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           scan-type: fs
           scan-ref: .
@@ -306,8 +278,8 @@ jobs:
           skip-dirs: ${{ env.TRIVY_SKIP_DIRS }}
 
       - name: Upload Trivy dependency SARIF
-        if: ${{ always() && vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' && hashFiles('trivy-deps.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        if: always()
+        uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
         with:
           sarif_file: trivy-deps.sarif
           category: trivy-deps
@@ -321,17 +293,17 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
       - name: Scan IaC and workflow misconfigurations
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           scan-type: fs
           scan-ref: .
@@ -343,11 +315,47 @@ jobs:
           skip-dirs: ${{ env.TRIVY_SKIP_DIRS }}
 
       - name: Upload Trivy IaC SARIF
-        if: ${{ always() && vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' && hashFiles('trivy-iac.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        if: always()
+        uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
         with:
           sarif_file: trivy-iac.sarif
           category: trivy-iac
+
+  iac-kics:
+    name: IaC - KICS (Checkmarx)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Scan IaC with KICS
+        uses: Checkmarx/kics-github-action@05aa5eb70eede1355220f4ca5238d96b397e30a6 # v2.1.20
+        with:
+          path: "."
+          output_path: kics-results
+          output_formats: sarif
+          fail_on: medium,high,critical
+          enable_comments: false
+          enable_annotations: false
+          exclude_paths: ".git,node_modules,dist,build,coverage"
+
+      - name: Upload KICS SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
+        with:
+          sarif_file: kics-results/results.sarif
+          category: kics
 
   secrets-trivy:
     name: Secrets - Trivy
@@ -358,17 +366,17 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
       - name: Scan repository files for secrets
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           scan-type: fs
           scan-ref: .
@@ -380,8 +388,8 @@ jobs:
           skip-dirs: ${{ env.TRIVY_SKIP_DIRS }}
 
       - name: Upload Trivy secrets SARIF
-        if: ${{ always() && vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' && hashFiles('trivy-secrets.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        if: always()
+        uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
         with:
           sarif_file: trivy-secrets.sarif
           category: trivy-secrets
@@ -392,15 +400,14 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      pull-requests: read
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -410,7 +417,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
-          GITLEAKS_CONFIG: ".gitleaks.toml"
           GITLEAKS_ENABLE_COMMENTS: "false"
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
           GITLEAKS_ENABLE_SUMMARY: "true"
@@ -425,17 +431,16 @@ jobs:
       pull-requests: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
       - name: Review new dependencies introduced by the pull request
-        continue-on-error: ${{ github.event.repository.private }}
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
         with:
           fail-on-severity: moderate
@@ -449,14 +454,14 @@ jobs:
       contents: read
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
       - name: Lint GitHub Actions workflows
-        uses: devops-actions/actionlint@9fb9c192862f19e684586ca84b500461bcd8a541 # pinned
+        uses: devops-actions/actionlint@e7ee33fbf5aa8c9f9ee1145137f3e52e25d6a35b # pinned
