@@ -2,7 +2,7 @@
 
 The plan lists the canonical set of bundled advisory profiles that must
 trigger the ``[advisory profile]`` banner in interactive ``evaluate``
-output: ``cra-eu-ready-1``, ``github-aws-level-2``,
+output: ``ai-agent-baseline-1``, ``cra-eu-ready-1``, ``github-aws-level-2``,
 ``github-azure-level-2``, every ``iac-*-baseline-1``,
 ``container-baseline-1``, ``kubernetes-baseline-1``, and
 ``webhook-security-1``. Missing any of them would let an adopter wire a
@@ -19,6 +19,7 @@ from oss_policy_kit.cli.terminal_ui import _ADVISORY_ONLY_PROFILE_IDS
 
 EXPECTED_ADVISORY_PROFILE_IDS: frozenset[str] = frozenset(
     {
+        "ai-agent-baseline-1",
         "container-baseline-1",
         "cra-eu-ready-1",
         "cra-eu-reporting-1",

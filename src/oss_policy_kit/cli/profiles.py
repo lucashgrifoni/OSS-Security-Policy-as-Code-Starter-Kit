@@ -45,6 +45,7 @@ _FRAMEWORK_PROFILE_LABELS: dict[str, str] = {
     "gitlab-level-2": "GitLab CI stricter baseline (advisory ladder)",
     "appsec-llm-ssdf-218a-1": "framework-aligned advisory (NIST SP 800-218A LLM)",
     "cra-eu-ai-act-art11-1": "framework-aligned advisory (regulatory, EU AI Act Art. 11)",
+    "ai-agent-baseline-1": "AI agent source-side baseline (advisory)",
     "appsec-sast-sca-1": "AppSec native bundle (hard-gate-capable with scan-sast)",
     "iac-terraform-baseline-1": "IaC Terraform posture (advisory, paired with scan-iac)",
     "kubernetes-baseline-1": "Kubernetes manifest posture (advisory, paired with scan-k8s)",
@@ -77,6 +78,7 @@ _PROFILE_COMPACT_AUDIENCES = {
     "cra-eu-reporting-1": (
         "EU manufacturers preparing for the 2026-09-11 24h reporting deadline (advisory, multi-platform)."
     ),
+    "ai-agent-baseline-1": "Teams building AI agents or MCP servers (advisory, source-side).",
 }
 _PROFILE_COMPACT_DESCRIPTIONS = {
     "aws-level-1": "Starter AWS buildspec/pipeline signals (honest clone checks).",
@@ -104,6 +106,7 @@ _PROFILE_COMPACT_DESCRIPTIONS = {
     "cra-eu-reporting-1": (
         "EU CRA 24h reporting readiness (advisory) — 2026-09-11 deadline, technical preconditions only."
     ),
+    "ai-agent-baseline-1": "AI agent source-side baseline: MCP authn, tool allowlists, prompts, audit, memory.",
 }
 
 
