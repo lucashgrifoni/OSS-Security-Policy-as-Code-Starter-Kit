@@ -5015,6 +5015,41 @@ def eval_sast_semgrep_064(ctx: EvalContext) -> EvalOutcome:
 # ---------------------------------------------------------------------------
 
 
+# SARIF documents are shallow in practice (runs > results > locations > region
+# is on the order of ~15 levels). Reject pathological nesting before json.loads
+# to bound parsing cost and avoid a C-stack overflow: json.loads does not raise
+# RecursionError for deeply nested input on every platform (the CPython C
+# decoder recurses on the C stack), so a RecursionError guard alone is not
+# portable. This explicit pre-scan is deterministic across interpreters.
+_MAX_SARIF_JSON_DEPTH = 200
+
+
+def _max_json_nesting_depth(raw: str) -> int:
+    """Max bracket-nesting depth of a JSON text, ignoring brackets inside strings."""
+    depth = 0
+    max_depth = 0
+    in_string = False
+    escaped = False
+    for ch in raw:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{" or ch == "[":
+            depth += 1
+            if depth > max_depth:
+                max_depth = depth
+        elif ch == "}" or ch == "]":
+            depth -= 1
+    return max_depth
+
+
 def _parse_sarif_findings(
     sarif_path: Path,
 ) -> tuple[dict[str, int] | None, str | None]:
@@ -5032,6 +5067,8 @@ def _parse_sarif_findings(
         return None, f"Could not read SARIF file: {exc}"
     except UnicodeDecodeError as exc:
         return None, f"Could not decode SARIF file as UTF-8: {exc}"
+    if _max_json_nesting_depth(raw) > _MAX_SARIF_JSON_DEPTH:
+        return None, "Could not parse SARIF JSON: document is too deeply nested."
     try:
         doc = json.loads(raw)
     except json.JSONDecodeError as exc:
