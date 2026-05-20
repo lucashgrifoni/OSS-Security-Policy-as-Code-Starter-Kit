@@ -30,7 +30,12 @@ on:
     - cron: "0 4 * * 1"
   workflow_dispatch:
 
-permissions: read-all
+# Least-privilege default. The single `analysis` job below declares the
+# specific scopes Scorecard needs (security-events/id-token write, etc.),
+# which override this; a top-level `read-all` would be redundant and is
+# flagged by this kit's own CI-LEAST-009 control.
+permissions:
+  contents: read
 
 concurrency:
   group: scorecard-${{ github.workflow }}-${{ github.ref }}
