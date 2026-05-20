@@ -132,6 +132,7 @@ Verification commands and limits are in [docs/supply-chain-verification.md](docs
 | EU CRA readiness | [docs/cra-readiness.md](docs/cra-readiness.md) |
 | EU AI Act readiness | [docs/eu-ai-act-readiness.md](docs/eu-ai-act-readiness.md) |
 | MCP server security | [docs/mcp-server-security.md](docs/mcp-server-security.md) |
+| Release readiness | [docs/release-readiness.md](docs/release-readiness.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
 
 ## Repository Layout
