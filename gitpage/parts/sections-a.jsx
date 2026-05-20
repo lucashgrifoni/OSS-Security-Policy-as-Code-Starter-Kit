@@ -269,7 +269,7 @@ function CommandBlock({ cmd, copyable = true }) {
           </button>
         )}
       </div>
-      <div className="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-signal/40 to-transparent opacity-0 group-hover:opacity-100 transition" />
+      <div className="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-linear-to-r from-transparent via-signal/40 to-transparent opacity-0 group-hover:opacity-100 transition" />
     </div>
   );
 }
@@ -307,7 +307,7 @@ function QuickstartSection() {
       </div>
 
       <Reveal className="mt-10">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 md:p-8 backdrop-blur">
+        <div className="rounded-3xl border border-white/10 bg-white/3 p-6 md:p-8 backdrop-blur">
           <div className="flex items-center gap-3">
             <span className="font-mono text-xs uppercase tracking-[0.24em] text-steel">
               Also useful
