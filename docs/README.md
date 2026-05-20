@@ -10,7 +10,6 @@ Repository entry points:
 
 - [README.md](../README.md) - product overview, install paths, CLI contract, result interpretation
 - [CHANGELOG.md](../CHANGELOG.md) - released changes by version
-- [ROADMAP.md](../ROADMAP.md) - public Now / Next / Later direction without overclaiming shipped capability
 - [at-a-glance.md](at-a-glance.md) - compact public capability and v6 development-count snapshot
 - [release-state.md](release-state.md) - current public release line and v6.0.0 release boundary
 

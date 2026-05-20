@@ -50,3 +50,4 @@ gitpage/node_modules/
 .secrets/
 secrets/
 private-notes/
+ROADMAP.md
