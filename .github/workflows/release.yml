@@ -1,0 +1,177 @@
+# Release notes automation.
+#
+# On every pushed `v*` tag this generates a GitHub Release whose body ALWAYS
+# follows the project's standard template:
+#
+#   ## OSS Security Policy as Code Starter Kit vX.Y.Z
+#
+#   This release is ...
+#
+#   ---
+#   ## Highlights      (Conventional Commits: feat)
+#   ---
+#   ## Improvements    (fix / perf / refactor)
+#   ---
+#   ## Notes           (docs / build / ci / chore / other)
+#   ---
+#   **License:** Apache-2.0.
+#
+# Sections are populated from Conventional Commits since the previous tag. The
+# release is created as a DRAFT so the maintainer can refine the one-line
+# "This release is ..." summary and curate the bullets before publishing. A
+# published release is never overwritten (the workflow only edits drafts).
+#
+# Package / container publishing is handled separately by `publish-pypi.yml`
+# and `publish-container.yml` (also tag-triggered) — this workflow only owns
+# the GitHub Release notes.
+#
+# Modeled on the supply-chain-hardening conventions used across this repo's
+# workflows: harden-runner egress audit, actions pinned to immutable SHAs,
+# least-privilege GITHUB_TOKEN. Secrets: none.
+
+name: Release notes
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)generate draft release notes for"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-notes-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-notes:
+    name: Generate release notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create / update GitHub Releases
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout (full history for tag diff)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve tag and version
+        id: meta
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build release notes
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          PROJECT="OSS Security Policy as Code Starter Kit"
+
+          # Previous tag in semver order, excluding the current one.
+          PREV="$(git tag --sort=-version:refname | grep -vFx "${TAG}" | head -n1 || true)"
+          if [ -n "${PREV}" ]; then
+            RANGE="${PREV}..${TAG}"
+          else
+            RANGE="${TAG}"
+          fi
+          echo "Commit range: ${RANGE} (previous tag: ${PREV:-<none>})"
+
+          strip() {
+            sed -E 's/^(feat|fix|perf|refactor|docs|build|ci|chore|test|style|revert)(\([^)]*\))?!?: ?//'
+          }
+
+          hi=""; imp=""; notes=""
+          while IFS= read -r s; do
+            [ -z "${s}" ] && continue
+            type="${s%%:*}"     # "feat", "feat(scope)", "fix(x)!", or whole subject if no colon
+            type="${type%%(*}"  # drop "(scope"
+            type="${type%!}"    # drop trailing "!"
+            clean="$(printf '%s' "${s}" | strip)"
+            case "${type}" in
+              feat)
+                hi="${hi}- ${clean}"$'\n' ;;
+              fix|perf|refactor)
+                imp="${imp}- ${clean}"$'\n' ;;
+              *)
+                case "${s}" in
+                  "chore: release"*|"chore(release"*) : ;;  # skip release-prep noise
+                  *) notes="${notes}- ${clean}"$'\n' ;;
+                esac ;;
+            esac
+          done < <(git log --no-merges --pretty=format:'%s' "${RANGE}")
+
+          [ -z "${hi}" ]    && hi="- _No feature-level changes in this release._"$'\n'
+          [ -z "${imp}" ]   && imp="- _No fixes or performance changes in this release._"$'\n'
+          [ -z "${notes}" ] && notes="- _No additional notes._"$'\n'
+
+          {
+            echo "## ${PROJECT} v${VERSION}"
+            echo
+            echo "This release is _<one-line summary — edit before publishing>_."
+            echo
+            echo "---"
+            echo
+            echo "## Highlights"
+            echo
+            printf '%s' "${hi}"
+            echo
+            echo "---"
+            echo
+            echo "## Improvements"
+            echo
+            printf '%s' "${imp}"
+            echo
+            echo "---"
+            echo
+            echo "## Notes"
+            echo
+            printf '%s' "${notes}"
+            echo
+            echo "---"
+            echo
+            echo "**License:** Apache-2.0."
+          } > release-notes.md
+
+          echo "----- generated release-notes.md -----"
+          cat release-notes.md
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          TITLE="OSS Security Policy as Code Starter Kit v${VERSION}"
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            is_draft="$(gh release view "${TAG}" --json isDraft --jq .isDraft)"
+            if [ "${is_draft}" = "true" ]; then
+              gh release edit "${TAG}" --title "${TITLE}" --notes-file release-notes.md
+              echo "Updated existing DRAFT release ${TAG}."
+            else
+              echo "Release ${TAG} is already published; leaving its curated notes untouched."
+            fi
+          else
+            gh release create "${TAG}" --draft --verify-tag --title "${TITLE}" --notes-file release-notes.md
+            echo "Created DRAFT release ${TAG}. Review the summary line and publish when ready."
+          fi

@@ -1,0 +1,83 @@
+# OpenSSF Scorecard
+#
+# Continuously scores the repository's security posture (branch protection,
+# token permissions, pinned dependencies, dangerous workflow patterns, signed
+# releases, and more) and publishes the results to GitHub code scanning.
+#
+# Repository prerequisites:
+#   - Public repositories: no setup; results can be published to the public
+#     OpenSSF REST API (`publish_results: true`) to earn a Scorecard badge.
+#   - Private repositories: set `publish_results: false`.
+#
+# Supply-chain hardening:
+#   - Third-party and first-party actions are pinned to immutable commit SHAs.
+#   - The trailing comment records the semantic tag used to resolve the SHA.
+#   - Keep `.github/dependabot.yml` enabled for `github-actions` so Dependabot
+#     can refresh SHA pins through reviewable pull requests.
+#
+# Secrets: none (uses the short-lived GITHUB_TOKEN and OIDC via id-token).
+
+name: OpenSSF Scorecard
+
+on:
+  # Re-score whenever branch protection rules change.
+  branch_protection_rule:
+  push:
+    branches:
+      - main
+      - master
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: scorecard-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # Needed to upload SARIF results to code scanning.
+      security-events: write
+      # Needed to publish results and get a badge (OIDC).
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard analysis
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Publish to the public OpenSSF API to enable the badge.
+          # Set to false on private repositories.
+          publish_results: true
+
+      - name: Upload Scorecard artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: scorecard-results
+          path: results.sarif
+          if-no-files-found: error
+          retention-days: 5
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+        with:
+          sarif_file: results.sarif
+          category: scorecard
