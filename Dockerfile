@@ -24,7 +24,10 @@
 # ---------------------------------------------------------------------------
 # Stage 1: builder
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS builder
+# Base image pinned by digest (supply-chain hardening). The human-readable tag
+# is kept for clarity; .github/dependabot.yml (docker ecosystem) refreshes the
+# digest through reviewable pull requests.
+FROM python:3.12-slim-bookworm@sha256:93ab4b7fa528b25124c97bcc755415e60eb671a86b4dbe0328df2fe2d1c1193d AS builder
 
 # Build-time environment hygiene. PIP_NO_CACHE_DIR keeps the wheel cache
 # out of the final image; PYTHONDONTWRITEBYTECODE avoids stray __pycache__
@@ -69,7 +72,7 @@ RUN pip install --upgrade "pip==26.1.1" \
 # ---------------------------------------------------------------------------
 # Stage 2: runtime
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm@sha256:93ab4b7fa528b25124c97bcc755415e60eb671a86b4dbe0328df2fe2d1c1193d AS runtime
 
 # Container-baseline-1 expectations:
 # - non-root user

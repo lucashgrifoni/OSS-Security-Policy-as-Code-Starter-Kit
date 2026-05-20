@@ -2,6 +2,19 @@
 
 This project currently uses GitHub Artifact Attestations, PyPI Trusted Publishing attestations, and cosign keyless signing. It does not claim SLSA Build L3 on this branch because there is no `slsa-github-generator` provenance workflow and no successful `slsa-verifier` pre-release run recorded here.
 
+## Release assets
+
+From v6.0.1 onward, each tagged GitHub Release attaches:
+
+- the wheel and sdist (`oss_policy_kit-<version>-py3-none-any.whl`, `oss_policy_kit-<version>.tar.gz`),
+- a CycloneDX SBOM (`sbom.cyclonedx.json`),
+- the build provenance bundle (`oss-policy-kit.intoto.jsonl`).
+
+These are produced by the `publish-pypi` workflow on the release tag. The
+provenance bundle is the GitHub Artifact Attestation for the distributions; you
+can also verify the wheel/sdist directly with `gh attestation verify` as shown
+below without downloading the bundle.
+
 ## Verifying PyPI artifacts
 
 Download the wheel or sdist from the GitHub Release assets for the version you want to verify, then run:

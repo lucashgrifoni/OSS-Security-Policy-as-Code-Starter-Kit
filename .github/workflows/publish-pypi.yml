@@ -55,6 +55,7 @@ jobs:
         run: python scripts/twine_check_dist.py
 
       - name: Generate GitHub Artifact Attestation for distributions
+        id: attest
         uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
         with:
           subject-path: "dist/*"
@@ -65,6 +66,11 @@ jobs:
           mkdir -p artifacts
           python -m cyclonedx_py environment --of JSON -o artifacts/sbom.cyclonedx.json
 
+      - name: Stage provenance bundle for release assets
+        run: |
+          mkdir -p artifacts
+          cp "${{ steps.attest.outputs.bundle-path }}" artifacts/oss-policy-kit.intoto.jsonl
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: dist
@@ -74,6 +80,58 @@ jobs:
         with:
           name: sbom
           path: artifacts/sbom.cyclonedx.json
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: provenance
+          path: artifacts/oss-policy-kit.intoto.jsonl
+
+  release-assets:
+    name: Attach signed assets to GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    # Only on tag pushes: attach the built distributions, SBOM, and the
+    # provenance bundle to the GitHub Release so adopters can download and
+    # verify them (see docs/supply-chain-verification.md). OpenSSF Scorecard
+    # Signed-Releases looks for signed assets attached to releases.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: sbom
+          path: artifacts/
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: provenance
+          path: artifacts/
+
+      - name: Upload assets to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # The Release notes workflow creates the draft release; if this job
+          # wins the race, create the draft so the upload has a target.
+          if ! gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release create "${TAG}" --draft --verify-tag \
+              --title "OSS Security Policy as Code Starter Kit ${TAG}" \
+              --notes "Draft created by publish-pypi to attach signed assets; release notes are refined separately."
+          fi
+          gh release upload "${TAG}" \
+            dist/* \
+            artifacts/sbom.cyclonedx.json \
+            artifacts/oss-policy-kit.intoto.jsonl \
+            --clobber
 
   publish-testpypi:
     name: Publish to TestPyPI
