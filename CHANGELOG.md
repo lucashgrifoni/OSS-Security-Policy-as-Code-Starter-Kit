@@ -10,6 +10,37 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 _No changes yet._
 
+## [6.0.1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.0.0...v6.0.1) (2026-05-20)
+
+
+### Improvements
+
+* harden container image and clear IaC scanner gate findings ([2b132bf](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2b132bf8ccd26472bde4677ff7b59e8849761159))
+* make SARIF deep-nesting guard portable (deterministic depth pre-scan) ([9c1a216](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9c1a21616c9fb7d66e17ca134fc7deb69105be65))
+
+
+### Notes
+
+* add OpenSSF Scorecard workflow + automated release-notes workflow ([e6c4ffa](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e6c4ffa3767334edb08aea467ec37d56f1796c81))
+* add releasing guide (release-please + release.yml flow) ([0207187](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0207187789e98a6cff2c9586ddd97c75ad64ae46))
+* **changelog:** drop obsolete 'ADRs to be written before tagging' follow-up (PR-33 backfilled 009/010/013) ([386210d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/386210d66b16adaeb54089eb2ce58d099f78ee03))
+* **deps:** bump docker/build-push-action from 6.9.0 to 6.19.2 ([#15](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/15)) ([46b9bd5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/46b9bd5558f1263e5511bbbbd4ecc20cf2a1205e))
+* **deps:** bump docker/setup-buildx-action from 3.10.0 to 3.12.0 ([#16](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/16)) ([4b82b31](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4b82b31e39c54dddedcec278b84ad960a6464504))
+* **deps:** bump docker/setup-qemu-action from 3.6.0 to 3.7.0 ([#13](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/13)) ([337dc8f](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/337dc8fc75bbde68f708ea871d57c54b2bbc87dc))
+* **deps:** bump sigstore/cosign-installer from 3.9.2 to 3.10.1 ([#17](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/17)) ([0f35170](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0f35170578907c63e4d8cfcddd8d051f36fb9179))
+* **deps:** bump step-security/harden-runner from 2.19.0 to 2.19.3 ([#14](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/14)) ([44125cf](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/44125cf518d228c2bd36538a2696b36841396045))
+* harden v6.0.1 release maturity (release assets, image digest, CI fix) ([#21](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/21)) ([92ffd2f](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/92ffd2f177ad9b4aafa7a5877c54317d70f9a982))
+* keep release process notes local ([30391ab](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/30391abe55d17805528a589be38381ea130aa728))
+* keep roadmap local only ([edf692a](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/edf692a838cdcc058060c596a01fa7d6aca56cfb))
+* **kics:** accept apt-pin finding via exclude_queries (inline disable unreliable) ([fb82497](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/fb824970c045ae8dd82959003d992b969d29c9c1))
+* pin ruff and move remaining actions off Node 20 ([73761fd](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/73761fd3986dd7007ffd593a05454ed27c97a6d2))
+* **release:** add release-please (version-bump PR + tag) composing with release.yml ([b0daf36](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b0daf36d520de4126ef2e82d9362e2144fa17ff0))
+* **release:** bump release-please-action v4.1.3 -&gt; v5.0.0 (Node 24) ([a817689](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a817689f6be72802999338fda13239daa34fb613))
+* **release:** use create-github-app-token client-id input (app-id deprecated) ([0dcbe54](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0dcbe5450fc4b926ef07d5dfc272b2b4b33f7877))
+* **scorecard:** drop redundant top-level read-all permissions ([229e610](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/229e610c6d85c3d386122674a57f50cbfc88ac72))
+* simplify README structure ([ba765f1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/ba765f172761628ad57c454cb41773baf0a00c60))
+* trim repository layout ([e1c8483](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e1c84837ad6af08c3b20ce95badebdaeceb4dde6))
+
 ## [6.0.0] - 2026-05-20
 
 The v6.0.0 release (Cycle 1 + Cycle 2). Version `6.0.0` in `pyproject.toml` and `src/oss_policy_kit/__init__.py`. Tagged from `master`. See `docs/v6.0.0-migration-guide.md` for the three breaking changes (M-003, B-001, B-002).
