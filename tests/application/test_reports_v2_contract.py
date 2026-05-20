@@ -8,13 +8,17 @@ import sys
 from pathlib import Path
 
 import pytest
+from tests.conftest import EXAMPLE_HARDENED
 
 from oss_policy_kit.application.engine import (
     REPORT_JSON_SCHEMA_URL_V1_0,
     REPORT_JSON_SCHEMA_URL_V2_0,
+    evaluate_repository,
     map_status_to_reports_v2,
     report_json_schema_url,
 )
+from oss_policy_kit.application.loader import bundled_kit_root, load_catalog, load_profile_by_id
+from oss_policy_kit.application.reporting import report_to_dict
 from oss_policy_kit.domain.errors import LoadError
 
 # --- URL constants + resolver ----------------------------------------------
@@ -71,6 +75,30 @@ def test_status_mapping_handles_unknown_value() -> None:
 def test_status_mapping_case_insensitive() -> None:
     assert map_status_to_reports_v2("PASS") == ("PASS", None)
     assert map_status_to_reports_v2("Manual-Review-Required") == ("UNKNOWN", "manual-review-required")
+
+
+def test_evaluate_report_contract_2_0_emits_projected_controls() -> None:
+    root = bundled_kit_root()
+    catalog = load_catalog(root / "controls" / "catalog.yaml")
+    profile = load_profile_by_id(root, "github-level-1")
+    report = evaluate_repository(
+        repo_root=EXAMPLE_HARDENED,
+        profile=profile,
+        catalog=catalog,
+        waiver_outcome=None,
+        scorecard=None,
+        report_json_contract="2.0",
+    )
+    out = report_to_dict(report)
+    assert out["schema_version"] == REPORT_JSON_SCHEMA_URL_V2_0
+    assert out["contract_version"] == "reports/2.0"
+    assert "controls" in out
+    assert "results" not in out
+    assert set(out["summary_by_status"]) <= {"PASS", "FAIL", "UNKNOWN", "NOT_APPLICABLE", "ATTESTED"}
+    first = out["controls"][0]
+    assert "state" in first
+    assert first["state"] in {"PASS", "FAIL", "UNKNOWN", "NOT_APPLICABLE", "ATTESTED"}
+    assert "message" in first
 
 
 # --- migrate-1.0-to-2.0.py script ------------------------------------------

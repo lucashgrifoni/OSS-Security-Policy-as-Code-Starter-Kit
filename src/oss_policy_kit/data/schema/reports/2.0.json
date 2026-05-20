@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/schema/reports/2.0.json",
+  "title": "OSS Policy Kit evaluation report contract reports/2.0",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract_version",
+    "generated_at",
+    "kit_version",
+    "target_path",
+    "profile",
+    "summary_by_status",
+    "controls_total",
+    "controls",
+    "results_digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/2.0"
+    },
+    "contract_version": {
+      "const": "reports/2.0"
+    },
+    "evidence_provenance_version": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "kit_version": {
+      "type": "string"
+    },
+    "target_path": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "family": { "type": ["string", "null"] },
+        "level": { "type": ["string", "null"] },
+        "posture": { "type": ["string", "null"] },
+        "is_release_track": { "type": "boolean" },
+        "recommended_gate": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "summary_by_status": {
+      "type": "object",
+      "patternProperties": {
+        "^(PASS|FAIL|UNKNOWN|NOT_APPLICABLE|ATTESTED)$": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "controls_total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "state", "message", "remediation", "evidence", "finding_id"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "category": { "type": "string" },
+          "lifecycle": { "type": "string" },
+          "profile": { "type": "string" },
+          "state": {
+            "enum": ["PASS", "FAIL", "UNKNOWN", "NOT_APPLICABLE", "ATTESTED"]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "degraded": {
+            "type": "boolean"
+          },
+          "assurance": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "number"
+          },
+          "message": {
+            "type": "string"
+          },
+          "remediation": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "object"
+          },
+          "owner": {
+            "type": ["string", "null"]
+          },
+          "expires_at": {
+            "type": ["string", "null"]
+          },
+          "waiver": {
+            "type": ["object", "null"]
+          },
+          "extra": {
+            "type": "object"
+          },
+          "finding_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "results_digest": {
+      "type": "string"
+    },
+    "operational_warnings": {
+      "type": "array"
+    },
+    "scorecard": {
+      "type": "object"
+    },
+    "external_waiver_path": {
+      "type": ["string", "null"]
+    },
+    "action_insights": {
+      "type": "object"
+    },
+    "live_collection": {
+      "type": ["object", "null"]
+    },
+    "weighted_score": {
+      "type": ["object", "null"]
+    },
+    "migration": {
+      "type": ["object", "null"]
+    },
+    "extensions": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}
