@@ -6,9 +6,11 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
+# ROADMAP.md and docs/releasing.md are intentionally kept local-only (gitignored)
+# and are NOT part of the public/remote surface. The guardrails below assert the
+# public artifacts that must ship in the repository checkout.
 _REQUIRED_PUBLIC_ARTIFACTS: tuple[Path, ...] = (
     _REPO_ROOT / "README.md",
-    _REPO_ROOT / "ROADMAP.md",
     _REPO_ROOT / "CHANGELOG.md",
     _REPO_ROOT / "CONTRIBUTING.md",
     _REPO_ROOT / "SECURITY.md",
@@ -71,14 +73,6 @@ def test_public_docs_do_not_reference_non_public_launch_artifacts() -> None:
         text = path.read_text(encoding="utf-8")
         for reference in _NON_PUBLIC_ARTIFACT_REFERENCES:
             assert reference not in text, f"{path.relative_to(_REPO_ROOT)} references {reference}"
-
-
-def test_public_roadmap_uses_now_next_later_shape() -> None:
-    roadmap = (_REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
-    assert "## Now" in roadmap
-    assert "## Next" in roadmap
-    assert "## Later" in roadmap
-    assert "## Non-goals" in roadmap
 
 
 def test_false_positive_template_mentions_reproducibility() -> None:
