@@ -27,6 +27,10 @@
 #   - WARNING = medium-severity findings
 #   - ERROR   = high-severity findings
 #
+# kics-scan disable=baee238e-1921-4801-9c3f-79ae1d7b2cbc
+# ^ "Passwords And Secrets - Generic Token": false positive. The lines below
+#   document required secret NAMES; their values are never hardcoded here and
+#   are injected at runtime from GitHub Actions secrets (${{ secrets.* }}).
 # Required repository or organization secrets:
 #   - SNYK_TOKEN          : Snyk Code and Snyk Open Source scans
 #   - GITLEAKS_LICENSE    : required only for organizations using the paid

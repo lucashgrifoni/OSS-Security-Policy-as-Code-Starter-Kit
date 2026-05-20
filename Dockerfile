@@ -40,6 +40,13 @@ WORKDIR /build
 # install uses the package's `all` extra so adopters get a single image
 # capable of running every subcommand including collect-evidence and the
 # IaC scanners.
+#
+# kics-scan disable=965a08d7-ef86-4f14-8792-4a3b2098937e
+# ^ "Apt Get Install Pin Version Not Defined": accepted (not a vulnerability).
+#   These packages exist only in the discarded builder stage and are never
+#   shipped in the runtime image. Debian rotates point-release versions within
+#   weeks, so a hard `pkg=version` pin becomes uninstallable and breaks the
+#   build; pinning here trades a real availability risk for no security gain.
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         build-essential \
@@ -56,7 +63,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 ARG KIT_VERSION=5.9.0
 COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY src ./src
-RUN pip install --upgrade pip \
+RUN pip install --upgrade "pip==26.1.1" \
     && pip install ".[all]"
 
 # ---------------------------------------------------------------------------
@@ -94,6 +101,12 @@ LABEL org.opencontainers.image.title="oss-policy-kit" \
       org.opencontainers.image.source="https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.vendor="Lucas Henrique Grifoni"
+
+# Image self-test. The runtime container is one-shot (CLI), so this primarily
+# documents a working entrypoint and satisfies HEALTHCHECK posture checks
+# (Trivy DS-0026 / KICS). A long interval keeps it effectively free.
+HEALTHCHECK --interval=1h --timeout=10s --retries=1 \
+    CMD ["python", "-m", "oss_policy_kit", "--version"]
 
 ENTRYPOINT ["python", "-m", "oss_policy_kit"]
 CMD ["--help"]
