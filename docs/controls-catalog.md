@@ -1,31 +1,31 @@
-# Controls Catalog (181 controls)
+# Controls Catalog (212 controls)
 
 Single-page reference generated from the bundled control catalog and profiles. The authoritative source is [`src/oss_policy_kit/data/controls/catalog.yaml`](../src/oss_policy_kit/data/controls/catalog.yaml).
 
-Current bundled state: **181 controls** across **47 bundled profiles**. Regenerate this page whenever the catalog or profile membership changes.
+Current bundled state: **212 controls** across **52 bundled profiles**. Regenerate this page whenever the catalog or profile membership changes (`python scripts/generate-controls-catalog.py`).
 
 ## By Category
 
 | Category | Count |
 |---|---:|
-| `ci_cd` | 38 |
-| `container` | 6 |
-| `governance` | 10 |
+| `ci_cd` | 41 |
+| `container` | 7 |
+| `governance` | 15 |
 | `iac` | 30 |
 | `kubernetes` | 16 |
 | `platform` | 15 |
 | `release` | 3 |
-| `secure_development` | 29 |
-| `supply_chain` | 27 |
-| `vulnerability_management` | 7 |
+| `secure_development` | 45 |
+| `supply_chain` | 31 |
+| `vulnerability_management` | 9 |
 
 ## By Assurance
 
 | Assurance | Count | Meaning |
 |---|---:|---|
 | `deterministic` | 31 | Structural parse or file presence/absence with high confidence. |
-| `evidence-backed` | 77 | Depends on a local JSON evidence file or API-collected attestation. |
-| `signal` | 73 | Heuristic or directional signal; PASS is not proof of runtime behavior. |
+| `evidence-backed` | 89 | Depends on a local JSON evidence file or API-collected attestation. |
+| `signal` | 92 | Heuristic or directional signal; PASS is not proof of runtime behavior. |
 
 ## Full Catalog
 
@@ -33,28 +33,28 @@ Profile counts in the **Profiles** column reflect how many bundled profiles incl
 
 | Control ID | Category | Assurance | Weight | Profiles | Title |
 |---|---|---|---:|---:|---|
-| `GOV-SEC-001` | governance | deterministic | 3 | 36 | SECURITY.md present |
-| `GOV-CON-002` | governance | deterministic | 1 | 24 | CONTRIBUTING guide present |
-| `GOV-COWN-003` | governance | deterministic | 2 | 26 | CODEOWNERS configured |
-| `GOV-LIC-004` | governance | deterministic | 1 | 27 | LICENSE file present |
-| `CI-WF-005` | ci_cd | deterministic | 2 | 11 | GitHub Actions workflows exist |
-| `CI-PERM-006` | ci_cd | deterministic | 3 | 13 | Workflows declare explicit top-level permissions |
+| `GOV-SEC-001` | governance | deterministic | 3 | 41 | SECURITY.md present |
+| `GOV-CON-002` | governance | deterministic | 1 | 25 | CONTRIBUTING guide present |
+| `GOV-COWN-003` | governance | deterministic | 2 | 27 | CODEOWNERS configured |
+| `GOV-LIC-004` | governance | deterministic | 1 | 28 | LICENSE file present |
+| `CI-WF-005` | ci_cd | deterministic | 2 | 12 | GitHub Actions workflows exist |
+| `CI-PERM-006` | ci_cd | deterministic | 3 | 14 | Workflows declare explicit top-level permissions |
 | `CI-DANGER-007` | ci_cd | deterministic | 3 | 10 | No pull_request_target without strong justification |
-| `CI-PIN-008` | supply_chain | deterministic | 3 | 19 | Third-party actions pinned to immutable references |
+| `CI-PIN-008` | supply_chain | deterministic | 3 | 20 | Third-party actions pinned to immutable references |
 | `CI-LEAST-009` | ci_cd | signal | 2 | 10 | Workflow permissions are not obviously over-broad |
-| `SEC-CODEQL-010` | vulnerability_management | signal | 2 | 11 | CodeQL or equivalent security scanning in CI |
-| `SEC-DEPREV-011` | supply_chain | deterministic | 2 | 21 | Dependency review in pull requests |
-| `REL-CHANGE-012` | release | deterministic | 1 | 28 | Changelog or documented release notes |
-| `GOV-DISC-013` | governance | signal | 2 | 35 | Responsible disclosure channel documented |
-| `GOV-WAIV-014` | governance | deterministic | 1 | 34 | Versioned waiver policy file present in repository (not CLI-only waivers) |
-| `PLAT-BRPROT-015` | platform | evidence-backed | 3 | 9 | Default branch protection / rulesets (evidence-backed) |
+| `SEC-CODEQL-010` | vulnerability_management | signal | 2 | 12 | CodeQL or equivalent security scanning in CI |
+| `SEC-DEPREV-011` | supply_chain | deterministic | 2 | 22 | Dependency review in pull requests |
+| `REL-CHANGE-012` | release | deterministic | 1 | 30 | Changelog or documented release notes |
+| `GOV-DISC-013` | governance | signal | 2 | 40 | Responsible disclosure channel documented |
+| `GOV-WAIV-014` | governance | deterministic | 1 | 38 | Versioned waiver policy file present in repository (not CLI-only waivers) |
+| `PLAT-BRPROT-015` | platform | evidence-backed | 3 | 10 | Default branch protection / rulesets (evidence-backed) |
 | `GH-WF-018` | ci_cd | deterministic | 2 | 9 | Reusable workflows avoid secrets inherit |
 | `GH-WF-019` | ci_cd | deterministic | 2 | 9 | PR-triggered workflows avoid self-hosted runners |
 | `GH-WF-020` | ci_cd | deterministic | 2 | 8 | Job-level permissions avoid broad write scopes |
 | `GH-REL-021` | release | signal | 1 | 7 | Release/deploy workflows declare concurrency controls |
 | `GH-DEPLOY-022` | platform | signal | 2 | 5 | Cloud deployment workflows show OIDC posture |
-| `GH-PROV-023` | supply_chain | evidence-backed | 2 | 11 | Build provenance or artifact attestation signal in workflows (with optional verification-block confirmation) |
-| `GH-PLAT-024` | platform | evidence-backed | 3 | 8 | GitHub rulesets posture evidenced |
+| `GH-PROV-023` | supply_chain | evidence-backed | 2 | 12 | Build provenance or artifact attestation signal in workflows (with optional verification-block confirmation) |
+| `GH-PLAT-024` | platform | evidence-backed | 3 | 9 | GitHub rulesets posture evidenced |
 | `GH-PLAT-025` | platform | evidence-backed | 3 | 7 | GitHub environment protection posture evidenced |
 | `GH-PLAT-026` | platform | evidence-backed | 2 | 8 | GitHub secret scanning posture evidenced |
 | `AZ-PIPE-027` | ci_cd | deterministic | 2 | 7 | Azure Pipelines definitions exist in supported paths |
@@ -84,28 +84,28 @@ Profile counts in the **Profiles** column reflect how many bundled profiles incl
 | `AWS-CBIDENT-057` | platform | evidence-backed | 3 | 2 | CodeBuild project identity and credential boundary evidenced |
 | `AWS-SBOMART-058` | supply_chain | evidence-backed | 2 | 2 | SBOM attested against a concrete release artifact digest |
 | `AWS-PROVART-059` | supply_chain | evidence-backed | 2 | 2 | Provenance or attestation attested against a concrete release artifact digest |
-| `SEC-SECRETS-050` | vulnerability_management | signal | 2 | 10 | Secret scanning tool in CI |
+| `SEC-SECRETS-050` | vulnerability_management | signal | 2 | 11 | Secret scanning tool in CI |
 | `SEC-GITIGNORE-051` | governance | deterministic | 1 | 15 | .gitignore present with basic secret protection patterns |
 | `SEC-PINLOCK-052` | supply_chain | deterministic | 2 | 20 | Dependency lockfile or pinned dependencies present |
 | `GH-MERGEQ-053` | ci_cd | signal | 1 | 6 | GitHub merge queue or merge_group trigger posture |
 | `GOV-EVIDFRESH-054` | governance | deterministic | 2 | 20 | Collected evidence under .oss-policy-kit/evidence is not stale |
 | `CI-WFCALLSHA-055` | ci_cd | deterministic | 3 | 9 | Reusable workflow calls pinned to immutable commit SHAs |
-| `DEP-UPDATE-001` | supply_chain | deterministic | 2 | 27 | Automated dependency update tool configured (Dependabot or Renovate) |
+| `DEP-UPDATE-001` | supply_chain | deterministic | 2 | 28 | Automated dependency update tool configured (Dependabot or Renovate) |
 | `OSS-SCORECARD-001` | vulnerability_management | signal | 1 | 7 | OpenSSF Scorecard score meets minimum threshold |
 | `CONT-IMAGE-001` | supply_chain | deterministic | 2 | 15 | Dockerfile base images pinned to immutable digest |
 | `CONT-IMAGE-002` | ci_cd | deterministic | 2 | 15 | Dockerfile declares non-root USER |
 | `CONT-IMAGE-003` | vulnerability_management | signal | 1 | 15 | Container image scanning signal in CI |
-| `ORG-MFA-001` | platform | evidence-backed | 3 | 11 | Organization MFA enforcement posture evidenced |
-| `BUILD-SBOM-QUAL-003` | supply_chain | signal | 2 | 19 | SBOM format validity and completeness signal |
+| `ORG-MFA-001` | platform | evidence-backed | 3 | 12 | Organization MFA enforcement posture evidenced |
+| `BUILD-SBOM-QUAL-003` | supply_chain | signal | 2 | 20 | SBOM format validity and completeness signal |
 | `AUDIT-STREAM-060` | governance | evidence-backed | 2 | 12 | Audit log streaming to centralized SIEM/object store |
 | `PROV-VERIFY-061` | supply_chain | evidence-backed | 3 | 14 | Build provenance attestation is verifiable (sigstore / Artifact Attestations) |
 | `GH-RUNNER-062` | ci_cd | signal | 3 | 7 | Self-hosted runners are ephemeral and restricted from PR-triggered workflows |
 | `RELEASE-ARCHIVE-063` | release | signal | 2 | 6 | Release artifacts have an explicit archival/retention policy |
 | `SAST-SEMGREP-064` | ci_cd | evidence-backed | 3 | 1 | SAST scan evidence (Semgrep) is present and current |
-| `GOV-DISC-065` | governance | evidence-backed | 2 | 2 | Disclosure channel SLA documented (CRA reporting readiness) |
+| `GOV-DISC-065` | governance | evidence-backed | 2 | 3 | Disclosure channel SLA documented (CRA reporting readiness) |
 | `SAST-ZIZMOR-066` | ci_cd | evidence-backed | 2 | 1 | zizmor SARIF findings (GitHub Actions security AST analysis) |
 | `SAST-POUTINE-067` | ci_cd | evidence-backed | 2 | 1 | poutine SARIF findings (GitHub Actions / GitLab CI pipeline scanner) |
-| `SAST-OSV-068` | supply_chain | evidence-backed | 3 | 5 | OSV-Scanner v2 SARIF findings (reachability-aware SCA) |
+| `SAST-OSV-068` | supply_chain | evidence-backed | 3 | 6 | OSV-Scanner v2 SARIF findings (reachability-aware SCA) |
 | `SAST-GITLEAKS-069` | secure_development | evidence-backed | 3 | 2 | Gitleaks SARIF findings (secret leak detection) |
 | `GL-PIPE-001` | ci_cd | deterministic | 1 | 2 | GitLab CI pipeline files present and parseable |
 | `GL-PIPE-002` | ci_cd | signal | 2 | 2 | GitLab CI image references pinned to a tag or digest |
@@ -128,7 +128,7 @@ Profile counts in the **Profiles** column reflect how many bundled profiles incl
 | `SEC-FUZZ-001` | vulnerability_management | signal | 2 | 6 | Fuzzing presence (OSS-Fuzz / cifuzz / atheris / Scorecard Fuzzing) |
 | `CONT-RUNTIME-001` | container | signal | 2 | 1 | Container - multi-stage Dockerfile build |
 | `CONT-RUNTIME-002` | container | signal | 1 | 1 | Container - Dockerfile HEALTHCHECK declared |
-| `CONT-RUNTIME-003` | container | signal | 2 | 1 | Container - no curl\|bash / wget\|sh patterns in Dockerfile RUN |
+| `CONT-RUNTIME-003` | container | signal | 2 | 1 | Container - no curl|bash / wget|sh patterns in Dockerfile RUN |
 | `CONT-RUNTIME-004` | container | signal | 1 | 1 | Container - .dockerignore present |
 | `CONT-RUNTIME-005` | container | signal | 2 | 1 | Container - apt-get hygiene (--no-install-recommends or cache cleanup) |
 | `CONT-RUNTIME-006` | container | signal | 1 | 1 | Container - OS package versions pinned in apt/apk install |
@@ -179,11 +179,11 @@ Profile counts in the **Profiles** column reflect how many bundled profiles incl
 | `PUBLISH-OIDC-001` | ci_cd | signal | 3 | 1 | Publish workflow declares OIDC id-token permission |
 | `PUBLISH-OIDC-002` | ci_cd | signal | 2 | 1 | PyPI / RubyGems / crates publish step omits long-lived password |
 | `PUBLISH-OIDC-003` | ci_cd | signal | 2 | 1 | npm publish step uses --provenance (or registry-equivalent flag) |
-| `SLSA-SRC-001` | supply_chain | deterministic | 1 | 1 | Version-controlled source (SLSA Source Track L1 baseline) |
-| `SLSA-SRC-002` | supply_chain | signal | 2 | 1 | Commit-signature enforcement signal detected (SLSA Source verified history) |
-| `SLSA-SRC-003` | supply_chain | signal | 2 | 1 | Branch protection present (SLSA Source protected branches) |
-| `SLSA-SRC-004` | supply_chain | signal | 2 | 1 | Two-party review required on protected branches (SLSA Source) |
-| `SLSA-SRC-005` | supply_chain | signal | 2 | 1 | Audit log of source-changing events (SLSA Source auditability) |
+| `SLSA-SRC-001` | supply_chain | deterministic | 1 | 2 | Version-controlled source (SLSA Source Track L1 baseline) |
+| `SLSA-SRC-002` | supply_chain | signal | 2 | 2 | Commit-signature enforcement signal detected (SLSA Source verified history) |
+| `SLSA-SRC-003` | supply_chain | signal | 2 | 2 | Branch protection present (SLSA Source protected branches) |
+| `SLSA-SRC-004` | supply_chain | signal | 2 | 2 | Two-party review required on protected branches (SLSA Source) |
+| `SLSA-SRC-005` | supply_chain | signal | 2 | 2 | Audit log of source-changing events (SLSA Source auditability) |
 | `GL-PIPE-007` | ci_cd | signal | 3 | 1 | GitLab CI workflow uses OIDC (id_tokens) for cloud / registry access |
 | `GL-PIPE-008` | ci_cd | signal | 2 | 1 | GitLab CI restricts self-hosted runner usage via tags |
 | `GL-PIPE-009` | ci_cd | signal | 2 | 1 | GitLab project documents audit-event streaming or external export |
@@ -191,7 +191,7 @@ Profile counts in the **Profiles** column reflect how many bundled profiles incl
 | `GL-PIPE-011` | ci_cd | signal | 2 | 1 | GitLab CI merge-request rules enforce code-review approvals |
 | `GL-PIPE-012` | ci_cd | signal | 1 | 1 | GitLab CI artifact retention or signed-release posture documented |
 | `AIBOM-PRESENT-001` | supply_chain | signal | 2 | 2 | AI Bill of Materials present in evidence directory |
-| `LLM-218A-PO-001` | secure_development | signal | 2 | 2 | AI Security Considerations section present in SECURITY.md or README |
+| `LLM-218A-PO-001` | secure_development | signal | 2 | 4 | AI Security Considerations section present in SECURITY.md or README |
 | `LLM-218A-PO-002` | secure_development | signal | 1 | 1 | Prompt / system-instruction registry directory present |
 | `LLM-218A-PS-001` | secure_development | evidence-backed | 3 | 2 | LLM release-integrity evidence file populated |
 | `LLM-218A-PS-002` | secure_development | signal | 1 | 1 | Model versioning artifacts (semver tags or release matching model/*) |
@@ -204,8 +204,8 @@ Profile counts in the **Profiles** column reflect how many bundled profiles incl
 | `WORM-POSTINSTALL-001` | supply_chain | signal | 3 | 1 | package.json postinstall script free of credential-harvest primitives (Shai-Hulud defense) |
 | `WORM-LOCKFILE-DRIFT-001` | supply_chain | signal | 2 | 1 | package.json / pyproject.toml not modified more recently than lockfile (worm-rewrite signal) |
 | `WORM-PUBLISH-SCOPE-001` | ci_cd | signal | 2 | 1 | Publish workflow restricted to main/release branches with explicit scope |
-| `AI-AGENT-001` | secure_development | signal | 3 | 1 | MCP server authentication present |
-| `AI-AGENT-002` | secure_development | signal | 3 | 1 | Agent tool allowlist explicitly defined |
+| `AI-AGENT-001` | secure_development | signal | 3 | 2 | MCP server authentication present |
+| `AI-AGENT-002` | secure_development | signal | 3 | 2 | Agent tool allowlist explicitly defined |
 | `AI-AGENT-003` | secure_development | signal | 2 | 1 | System prompt registry is versioned and code-reviewed |
 | `AI-AGENT-004` | secure_development | signal | 2 | 1 | Prompt injection / adversarial agent tests present |
 | `AI-AGENT-005` | secure_development | evidence-backed | 2 | 1 | Agent output sanitization layer documented |
@@ -214,33 +214,64 @@ Profile counts in the **Profiles** column reflect how many bundled profiles incl
 | `AI-AGENT-008` | secure_development | signal | 2 | 1 | Dedicated agent identity or audience-bound authn configured |
 | `AI-AGENT-009` | secure_development | evidence-backed | 2 | 1 | Sensitive context excluded from long-term agent memory |
 | `AI-AGENT-010` | secure_development | signal | 3 | 1 | Model provider/version pinning enforced for agent runtime |
+| `OSPS-SCORECARD-V6-001` | supply_chain | evidence-backed | 2 | 1 | OpenSSF Scorecard v6 OSPS Baseline conformance evidence present |
+| `LLM-AI-ACT-DEV-002` | secure_development | evidence-backed | 2 | 1 | AI system development/design and training-data description documented (Annex IV section 2) |
+| `LLM-AI-ACT-PERF-004` | secure_development | evidence-backed | 2 | 1 | AI system performance metrics and accuracy documented (Annex IV section 4) |
+| `LLM-AI-ACT-CYBER-006` | secure_development | evidence-backed | 3 | 1 | AI system cybersecurity measures documented (Annex IV section 6) |
+| `LLM-AI-ACT-CHANGE-007` | secure_development | evidence-backed | 2 | 1 | AI system lifecycle change record documented (Annex IV section 7) |
+| `LLM-AI-ACT-STD-008` | secure_development | evidence-backed | 1 | 1 | Applied harmonised standards listed (Annex IV section 7) |
+| `LLM-AI-ACT-PMM-009` | secure_development | evidence-backed | 2 | 1 | Post-market monitoring plan documented (Annex IV section 8) |
+| `CRA-ART13-SBD-001` | governance | signal | 2 | 1 | Security-by-design intent declared (CRA Article 13) |
+| `CRA-ART13-DEFAULTS-002` | governance | signal | 2 | 1 | Secure-by-default configuration documented (CRA Article 13) |
+| `CRA-ART14-CSAF-001` | governance | signal | 2 | 1 | CSAF advisory feed present (CRA Article 14 reporting readiness) |
+| `CRA-ART14-COORD-002` | governance | signal | 2 | 1 | Coordinated vulnerability disclosure policy documented (CRA Article 14) |
+| `CRA-PRODUCT-CLASS-001` | governance | signal | 1 | 1 | CRA product classification declared (Implementing Reg (EU) 2025/2392) |
+| `SCA-KEV-001` | vulnerability_management | evidence-backed | 3 | 1 | No dependency CVE present in the CISA KEV catalog (SARIF kev property) |
+| `SCA-EPSS-001` | vulnerability_management | evidence-backed | 2 | 1 | No high-EPSS high-severity dependency CVE unaddressed (SARIF epss_score property) |
+| `SLSA-SRC-006` | supply_chain | evidence-backed | 3 | 1 | Signed commits required (SLSA Source L2) |
+| `SLSA-SRC-007` | supply_chain | evidence-backed | 2 | 1 | Two-party review threshold enforced (SLSA Source L2) |
+| `SLSA-SRC-008` | supply_chain | evidence-backed | 2 | 1 | Source-change audit log streamed externally (SLSA Source L2) |
+| `MCP-TOOL-HASH-001` | secure_development | signal | 3 | 2 | MCP tool descriptions hash-pinned (tool-poisoning defense) |
+| `MCP-CONFIRM-001` | secure_development | signal | 2 | 2 | MCP destructive operations require explicit confirmation |
+| `MCP-EGRESS-001` | secure_development | signal | 2 | 1 | MCP server egress allowlist documented |
+| `MCP-INJECTION-TEST-001` | secure_development | signal | 1 | 1 | MCP prompt-injection / tool-poisoning tests present |
+| `MCP-SCOPE-001` | secure_development | signal | 2 | 1 | MCP per-tool least-privilege scope documented |
+| `AGENT-ASI-GOAL-001` | secure_development | signal | 2 | 1 | Agent goal/system-prompt version-controlled and integrity-checked (ASI01) |
+| `AGENT-ASI-TOOL-002` | secure_development | signal | 2 | 1 | Agent tool allowlist with per-tool least privilege documented (ASI02) |
+| `AGENT-ASI-MEMORY-006` | secure_development | signal | 2 | 1 | Agent persistent-memory purge / poisoning policy documented (ASI06) |
+| `AGENT-ASI-INTER-007` | secure_development | signal | 2 | 1 | Inter-agent communication mutual authentication signal (ASI07) |
+| `AGENT-ASI-CONFIRM-009` | secure_development | signal | 2 | 1 | Human checkpoint required for destructive agent operations (ASI09) |
+| `GH-EGRESS-NATIVE-001` | ci_cd | signal | 2 | 1 | GitHub Actions native egress firewall policy declared |
+| `GH-WF-LOCKFILE-001` | ci_cd | signal | 2 | 1 | GitHub Actions workflow lockfile present (action SHA pinning) |
+| `CONT-DISTROLESS-001` | container | signal | 2 | 1 | Container base image is distroless / minimal (Chainguard, Wolfi, distroless, scratch) |
+| `SCANNER-INTEGRITY-001` | ci_cd | signal | 2 | 1 | Scanner actions pinned by SHA (post-Trivy supply-chain defense) |
 
 ## Per-Control Profile Membership
 
 Each control entry below lists which bundled profiles include it. Controls not present in any profile are marked `_not bundled in a profile_`.
 
-- `GOV-SEC-001`: `appsec-llm-ssdf-218a-1`, `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cra-eu-ai-act-art11-1`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `oss-publish-readiness-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-build-l2-1`, `slsa-source-l1-1`, `ssdf-baseline-1`, `webhook-security-2`
-- `GOV-CON-002`: `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `ssdf-baseline-1`
-- `GOV-COWN-003`: `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `owasp-cicd-top10-1`, `ssdf-baseline-1`
-- `GOV-LIC-004`: `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-build-l2-1`, `ssdf-baseline-1`
-- `CI-WF-005`: `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `osps-baseline-1`, `slsa-build-l2-1`
-- `CI-PERM-006`: `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `osps-baseline-1`, `oss-publish-readiness-1`, `owasp-cicd-top10-1`, `slsa-build-l2-1`
+- `GOV-SEC-001`: `appsec-agentic-asi-1`, `appsec-llm-ssdf-218a-1`, `appsec-mcp-server-1`, `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cra-eu-ai-act-art11-1`, `cra-eu-ready-1`, `cra-eu-ready-2-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `osps-baseline-2026-1`, `oss-publish-readiness-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-build-l2-1`, `slsa-source-l1-1`, `slsa-source-l2-1`, `ssdf-baseline-1`, `webhook-security-2`
+- `GOV-CON-002`: `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `osps-baseline-2026-1`, `ssdf-baseline-1`
+- `GOV-COWN-003`: `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `osps-baseline-2026-1`, `owasp-cicd-top10-1`, `ssdf-baseline-1`
+- `GOV-LIC-004`: `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `osps-baseline-2026-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-build-l2-1`, `ssdf-baseline-1`
+- `CI-WF-005`: `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `osps-baseline-1`, `osps-baseline-2026-1`, `slsa-build-l2-1`
+- `CI-PERM-006`: `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `osps-baseline-1`, `osps-baseline-2026-1`, `oss-publish-readiness-1`, `owasp-cicd-top10-1`, `slsa-build-l2-1`
 - `CI-DANGER-007`: `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `owasp-cicd-top10-1`
-- `CI-PIN-008`: `appsec-sast-sca-1`, `cis-supply-chain-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `osps-baseline-1`, `oss-publish-readiness-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-build-l2-1`, `ssdf-baseline-1`
+- `CI-PIN-008`: `appsec-sast-sca-1`, `cis-supply-chain-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `osps-baseline-1`, `osps-baseline-2026-1`, `oss-publish-readiness-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-build-l2-1`, `ssdf-baseline-1`
 - `CI-LEAST-009`: `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `owasp-cicd-top10-1`
-- `SEC-CODEQL-010`: `appsec-sast-sca-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `osps-baseline-1`, `ssdf-baseline-1`
-- `SEC-DEPREV-011`: `appsec-sast-sca-1`, `cis-supply-chain-1`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `ssdf-baseline-1`
-- `REL-CHANGE-012`: `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cra-eu-ai-act-art11-1`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `slsa-build-l2-1`
-- `GOV-DISC-013`: `appsec-llm-ssdf-218a-1`, `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cra-eu-ai-act-art11-1`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `oss-publish-readiness-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-source-l1-1`, `ssdf-baseline-1`, `webhook-security-2`
-- `GOV-WAIV-014`: `appsec-llm-ssdf-218a-1`, `appsec-sast-sca-1`, `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cra-eu-ai-act-art11-1`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `oss-publish-readiness-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-source-l1-1`, `ssdf-baseline-1`
-- `PLAT-BRPROT-015`: `cis-supply-chain-1`, `cra-eu-ready-1`, `cra-eu-strict-1`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `osps-baseline-1`, `owasp-cicd-top10-1`, `ssdf-baseline-1`
+- `SEC-CODEQL-010`: `appsec-sast-sca-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `osps-baseline-1`, `osps-baseline-2026-1`, `ssdf-baseline-1`
+- `SEC-DEPREV-011`: `appsec-sast-sca-1`, `cis-supply-chain-1`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `osps-baseline-2026-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `ssdf-baseline-1`
+- `REL-CHANGE-012`: `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cra-eu-ai-act-art11-1`, `cra-eu-ready-1`, `cra-eu-ready-2-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `osps-baseline-2026-1`, `slsa-build-l2-1`
+- `GOV-DISC-013`: `appsec-agentic-asi-1`, `appsec-llm-ssdf-218a-1`, `appsec-mcp-server-1`, `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cra-eu-ai-act-art11-1`, `cra-eu-ready-1`, `cra-eu-ready-2-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `osps-baseline-2026-1`, `oss-publish-readiness-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-source-l1-1`, `slsa-source-l2-1`, `ssdf-baseline-1`, `webhook-security-2`
+- `GOV-WAIV-014`: `appsec-agentic-asi-1`, `appsec-llm-ssdf-218a-1`, `appsec-mcp-server-1`, `appsec-sast-sca-1`, `aws-level-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cra-eu-ai-act-art11-1`, `cra-eu-ready-1`, `cra-eu-ready-2-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-1`, `github-level-2`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `oss-publish-readiness-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-source-l1-1`, `slsa-source-l2-1`, `ssdf-baseline-1`
+- `PLAT-BRPROT-015`: `cis-supply-chain-1`, `cra-eu-ready-1`, `cra-eu-strict-1`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `osps-baseline-1`, `osps-baseline-2026-1`, `owasp-cicd-top10-1`, `ssdf-baseline-1`
 - `GH-WF-018`: `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`, `owasp-cicd-top10-1`, `slsa-build-l2-1`
 - `GH-WF-019`: `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`, `owasp-cicd-top10-1`, `slsa-build-l2-1`
 - `GH-WF-020`: `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`, `owasp-cicd-top10-1`, `slsa-build-l2-1`
 - `GH-REL-021`: `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`
 - `GH-DEPLOY-022`: `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-release-hardening-2`
-- `GH-PROV-023`: `cis-supply-chain-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-release-hardening-2`, `osps-baseline-1`, `owasp-cicd-top10-1`, `s2c2f-l3-1`, `slsa-build-l2-1`, `ssdf-baseline-1`
-- `GH-PLAT-024`: `cis-supply-chain-1`, `cra-eu-strict-1`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`, `osps-baseline-1`, `owasp-cicd-top10-1`, `ssdf-baseline-1`
+- `GH-PROV-023`: `cis-supply-chain-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-release-hardening-2`, `osps-baseline-1`, `osps-baseline-2026-1`, `owasp-cicd-top10-1`, `s2c2f-l3-1`, `slsa-build-l2-1`, `ssdf-baseline-1`
+- `GH-PLAT-024`: `cis-supply-chain-1`, `cra-eu-strict-1`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`, `osps-baseline-1`, `osps-baseline-2026-1`, `owasp-cicd-top10-1`, `ssdf-baseline-1`
 - `GH-PLAT-025`: `cis-supply-chain-1`, `cra-eu-strict-1`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`, `owasp-cicd-top10-1`, `ssdf-baseline-1`
 - `GH-PLAT-026`: `appsec-sast-sca-1`, `cis-supply-chain-1`, `cra-eu-strict-1`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`, `owasp-cicd-top10-1`, `ssdf-baseline-1`
 - `AZ-PIPE-027`: `azure-level-1`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `github-azure-level-2`
@@ -270,28 +301,28 @@ Each control entry below lists which bundled profiles include it. Controls not p
 - `AWS-CBIDENT-057`: `aws-level-3`, `aws-release-hardening-3`
 - `AWS-SBOMART-058`: `aws-level-3`, `aws-release-hardening-3`
 - `AWS-PROVART-059`: `aws-level-3`, `aws-release-hardening-3`
-- `SEC-SECRETS-050`: `appsec-sast-sca-1`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `osps-baseline-1`, `owasp-cicd-top10-1`, `ssdf-baseline-1`
+- `SEC-SECRETS-050`: `appsec-sast-sca-1`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `osps-baseline-1`, `osps-baseline-2026-1`, `owasp-cicd-top10-1`, `ssdf-baseline-1`
 - `SEC-GITIGNORE-051`: `appsec-sast-sca-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-level-3`
 - `SEC-PINLOCK-052`: `appsec-sast-sca-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-1`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-1`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cis-supply-chain-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-level-3`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`
 - `GH-MERGEQ-053`: `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-level-3`, `github-release-hardening-3`, `owasp-cicd-top10-1`
 - `GOV-EVIDFRESH-054`: `aws-level-3`, `aws-release-hardening-3`, `azure-level-3`, `azure-release-hardening-2`, `azure-release-hardening-3`, `container-baseline-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-level-3`, `github-release-hardening-1`, `github-release-hardening-2`, `github-release-hardening-3`, `iac-bicep-baseline-1`, `iac-cfn-baseline-1`, `iac-pulumi-baseline-1`, `iac-terraform-baseline-1`, `kubernetes-baseline-1`, `ssdf-baseline-1`, `webhook-security-1`, `webhook-security-2`
 - `CI-WFCALLSHA-055`: `appsec-sast-sca-1`, `cis-supply-chain-1`, `github-level-3`, `github-release-hardening-3`, `owasp-cicd-top10-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-build-l2-1`, `ssdf-baseline-1`
-- `DEP-UPDATE-001`: `appsec-llm-ssdf-218a-1`, `appsec-sast-sca-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cis-supply-chain-1`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `ssdf-baseline-1`
+- `DEP-UPDATE-001`: `appsec-llm-ssdf-218a-1`, `appsec-sast-sca-1`, `aws-level-2`, `aws-level-3`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-2`, `azure-release-hardening-3`, `cis-supply-chain-1`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `osps-baseline-2026-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `ssdf-baseline-1`
 - `OSS-SCORECARD-001`: `github-level-2`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`
 - `CONT-IMAGE-001`: `aws-level-2`, `aws-level-3`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-2`, `azure-release-hardening-3`, `container-baseline-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`
 - `CONT-IMAGE-002`: `aws-level-2`, `aws-level-3`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-2`, `azure-release-hardening-3`, `container-baseline-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`
 - `CONT-IMAGE-003`: `aws-level-2`, `aws-level-3`, `aws-release-hardening-2`, `aws-release-hardening-3`, `azure-level-2`, `azure-level-3`, `azure-release-hardening-2`, `azure-release-hardening-3`, `container-baseline-1`, `github-aws-level-2`, `github-azure-level-2`, `github-level-2`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`
-- `ORG-MFA-001`: `aws-level-3`, `aws-release-hardening-3`, `azure-level-3`, `azure-release-hardening-3`, `cis-supply-chain-1`, `cra-eu-strict-1`, `github-level-3`, `github-release-hardening-3`, `osps-baseline-1`, `owasp-cicd-top10-1`, `ssdf-baseline-1`
-- `BUILD-SBOM-QUAL-003`: `aws-level-3`, `aws-release-hardening-3`, `azure-level-3`, `azure-release-hardening-3`, `cis-supply-chain-1`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-level-3`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-build-l2-1`, `ssdf-baseline-1`
+- `ORG-MFA-001`: `aws-level-3`, `aws-release-hardening-3`, `azure-level-3`, `azure-release-hardening-3`, `cis-supply-chain-1`, `cra-eu-strict-1`, `github-level-3`, `github-release-hardening-3`, `osps-baseline-1`, `osps-baseline-2026-1`, `owasp-cicd-top10-1`, `ssdf-baseline-1`
+- `BUILD-SBOM-QUAL-003`: `aws-level-3`, `aws-release-hardening-3`, `azure-level-3`, `azure-release-hardening-3`, `cis-supply-chain-1`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-level-3`, `github-release-hardening-3`, `gitlab-level-1`, `gitlab-level-2`, `osps-baseline-1`, `osps-baseline-2026-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`, `slsa-build-l2-1`, `ssdf-baseline-1`
 - `AUDIT-STREAM-060`: `aws-level-3`, `aws-release-hardening-3`, `azure-level-3`, `azure-release-hardening-3`, `cra-eu-ready-1`, `cra-eu-reporting-1`, `cra-eu-strict-1`, `github-level-3`, `github-release-hardening-3`, `owasp-cicd-top10-1`, `s2c2f-l3-1`, `ssdf-baseline-1`
 - `PROV-VERIFY-061`: `aws-level-3`, `aws-release-hardening-3`, `azure-level-3`, `azure-release-hardening-3`, `cis-supply-chain-1`, `cra-eu-ready-1`, `cra-eu-strict-1`, `github-level-3`, `github-release-hardening-3`, `oss-publish-readiness-1`, `owasp-cicd-top10-1`, `s2c2f-l3-1`, `slsa-build-l2-1`, `ssdf-baseline-1`
 - `GH-RUNNER-062`: `cis-supply-chain-1`, `github-level-2`, `github-level-3`, `github-release-hardening-2`, `github-release-hardening-3`, `owasp-cicd-top10-1`, `slsa-build-l2-1`
 - `RELEASE-ARCHIVE-063`: `aws-release-hardening-3`, `azure-release-hardening-3`, `cis-supply-chain-1`, `cra-eu-ready-1`, `cra-eu-strict-1`, `github-release-hardening-3`
 - `SAST-SEMGREP-064`: `appsec-sast-sca-1`
-- `GOV-DISC-065`: `cra-eu-ai-act-art11-1`, `cra-eu-reporting-1`
+- `GOV-DISC-065`: `cra-eu-ai-act-art11-1`, `cra-eu-ready-2-1`, `cra-eu-reporting-1`
 - `SAST-ZIZMOR-066`: `appsec-sast-sca-1`
 - `SAST-POUTINE-067`: `appsec-sast-sca-1`
-- `SAST-OSV-068`: `appsec-llm-ssdf-218a-1`, `appsec-sast-sca-1`, `cra-eu-ai-act-art11-1`, `s2c2f-l2-1`, `s2c2f-l3-1`
+- `SAST-OSV-068`: `appsec-llm-ssdf-218a-1`, `appsec-sast-sca-1`, `cra-eu-ai-act-art11-1`, `cra-eu-ready-2-1`, `s2c2f-l2-1`, `s2c2f-l3-1`
 - `SAST-GITLEAKS-069`: `appsec-sast-sca-1`, `s2c2f-l3-1`
 - `GL-PIPE-001`: `gitlab-level-1`, `gitlab-level-2`
 - `GL-PIPE-002`: `gitlab-level-1`, `gitlab-level-2`
@@ -365,11 +396,11 @@ Each control entry below lists which bundled profiles include it. Controls not p
 - `PUBLISH-OIDC-001`: `oss-publish-readiness-1`
 - `PUBLISH-OIDC-002`: `oss-publish-readiness-1`
 - `PUBLISH-OIDC-003`: `oss-publish-readiness-1`
-- `SLSA-SRC-001`: `slsa-source-l1-1`
-- `SLSA-SRC-002`: `slsa-source-l1-1`
-- `SLSA-SRC-003`: `slsa-source-l1-1`
-- `SLSA-SRC-004`: `slsa-source-l1-1`
-- `SLSA-SRC-005`: `slsa-source-l1-1`
+- `SLSA-SRC-001`: `slsa-source-l1-1`, `slsa-source-l2-1`
+- `SLSA-SRC-002`: `slsa-source-l1-1`, `slsa-source-l2-1`
+- `SLSA-SRC-003`: `slsa-source-l1-1`, `slsa-source-l2-1`
+- `SLSA-SRC-004`: `slsa-source-l1-1`, `slsa-source-l2-1`
+- `SLSA-SRC-005`: `slsa-source-l1-1`, `slsa-source-l2-1`
 - `GL-PIPE-007`: `gitlab-level-2`
 - `GL-PIPE-008`: `gitlab-level-2`
 - `GL-PIPE-009`: `gitlab-level-2`
@@ -377,7 +408,7 @@ Each control entry below lists which bundled profiles include it. Controls not p
 - `GL-PIPE-011`: `gitlab-level-2`
 - `GL-PIPE-012`: `gitlab-level-2`
 - `AIBOM-PRESENT-001`: `appsec-llm-ssdf-218a-1`, `cra-eu-ai-act-art11-1`
-- `LLM-218A-PO-001`: `appsec-llm-ssdf-218a-1`, `cra-eu-ai-act-art11-1`
+- `LLM-218A-PO-001`: `appsec-agentic-asi-1`, `appsec-llm-ssdf-218a-1`, `appsec-mcp-server-1`, `cra-eu-ai-act-art11-1`
 - `LLM-218A-PO-002`: `appsec-llm-ssdf-218a-1`
 - `LLM-218A-PS-001`: `appsec-llm-ssdf-218a-1`, `cra-eu-ai-act-art11-1`
 - `LLM-218A-PS-002`: `appsec-llm-ssdf-218a-1`
@@ -390,8 +421,8 @@ Each control entry below lists which bundled profiles include it. Controls not p
 - `WORM-POSTINSTALL-001`: `oss-publish-readiness-1`
 - `WORM-LOCKFILE-DRIFT-001`: `oss-publish-readiness-1`
 - `WORM-PUBLISH-SCOPE-001`: `oss-publish-readiness-1`
-- `AI-AGENT-001`: `ai-agent-baseline-1`
-- `AI-AGENT-002`: `ai-agent-baseline-1`
+- `AI-AGENT-001`: `ai-agent-baseline-1`, `appsec-mcp-server-1`
+- `AI-AGENT-002`: `ai-agent-baseline-1`, `appsec-agentic-asi-1`
 - `AI-AGENT-003`: `ai-agent-baseline-1`
 - `AI-AGENT-004`: `ai-agent-baseline-1`
 - `AI-AGENT-005`: `ai-agent-baseline-1`
@@ -400,3 +431,35 @@ Each control entry below lists which bundled profiles include it. Controls not p
 - `AI-AGENT-008`: `ai-agent-baseline-1`
 - `AI-AGENT-009`: `ai-agent-baseline-1`
 - `AI-AGENT-010`: `ai-agent-baseline-1`
+- `OSPS-SCORECARD-V6-001`: `osps-baseline-2026-1`
+- `LLM-AI-ACT-DEV-002`: `cra-eu-ai-act-art11-1`
+- `LLM-AI-ACT-PERF-004`: `cra-eu-ai-act-art11-1`
+- `LLM-AI-ACT-CYBER-006`: `cra-eu-ai-act-art11-1`
+- `LLM-AI-ACT-CHANGE-007`: `cra-eu-ai-act-art11-1`
+- `LLM-AI-ACT-STD-008`: `cra-eu-ai-act-art11-1`
+- `LLM-AI-ACT-PMM-009`: `cra-eu-ai-act-art11-1`
+- `CRA-ART13-SBD-001`: `cra-eu-ready-2-1`
+- `CRA-ART13-DEFAULTS-002`: `cra-eu-ready-2-1`
+- `CRA-ART14-CSAF-001`: `cra-eu-ready-2-1`
+- `CRA-ART14-COORD-002`: `cra-eu-ready-2-1`
+- `CRA-PRODUCT-CLASS-001`: `cra-eu-ready-2-1`
+- `SCA-KEV-001`: `appsec-sast-sca-1`
+- `SCA-EPSS-001`: `appsec-sast-sca-1`
+- `SLSA-SRC-006`: `slsa-source-l2-1`
+- `SLSA-SRC-007`: `slsa-source-l2-1`
+- `SLSA-SRC-008`: `slsa-source-l2-1`
+- `MCP-TOOL-HASH-001`: `appsec-agentic-asi-1`, `appsec-mcp-server-1`
+- `MCP-CONFIRM-001`: `appsec-agentic-asi-1`, `appsec-mcp-server-1`
+- `MCP-EGRESS-001`: `appsec-mcp-server-1`
+- `MCP-INJECTION-TEST-001`: `appsec-mcp-server-1`
+- `MCP-SCOPE-001`: `appsec-mcp-server-1`
+- `AGENT-ASI-GOAL-001`: `appsec-agentic-asi-1`
+- `AGENT-ASI-TOOL-002`: `appsec-agentic-asi-1`
+- `AGENT-ASI-MEMORY-006`: `appsec-agentic-asi-1`
+- `AGENT-ASI-INTER-007`: `appsec-agentic-asi-1`
+- `AGENT-ASI-CONFIRM-009`: `appsec-agentic-asi-1`
+- `GH-EGRESS-NATIVE-001`: `oss-publish-readiness-1`
+- `GH-WF-LOCKFILE-001`: `oss-publish-readiness-1`
+- `CONT-DISTROLESS-001`: `container-baseline-1`
+- `SCANNER-INTEGRITY-001`: `oss-publish-readiness-1`
+
