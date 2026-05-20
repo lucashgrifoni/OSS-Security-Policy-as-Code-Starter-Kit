@@ -1,0 +1,77 @@
+# release-please: automate version bumps + CHANGELOG from Conventional Commits.
+#
+# How it works:
+#   1. On every push to `master`, release-please scans commit messages since the
+#      last release.
+#   2. If it finds `feat:` / `fix:` / `BREAKING CHANGE:` commits, it opens (or
+#      updates) a "release PR" containing:
+#        - bumped version in pyproject.toml + src/oss_policy_kit/__init__.py
+#          (the latter via the `# x-release-please-version` marker)
+#        - a regenerated CHANGELOG.md entry (sections mapped to
+#          Highlights / Improvements / Notes — see release-please-config.json)
+#   3. Merging that PR triggers release-please again, which tags the commit and
+#      creates a GitHub Release (draft).
+#   4. The pushed `v*` tag fires the rest of the pipeline:
+#        - publish-pypi.yml      -> build, attest, publish to PyPI
+#        - publish-container.yml -> build, cosign sign, publish to GHCR
+#        - release.yml           -> rewrite the draft Release body into the
+#                                   standard template (## <full name> vX.Y.Z /
+#                                   This release is ... / Highlights /
+#                                   Improvements / Notes / License)
+#      The maintainer then refines the one-line summary and publishes the draft.
+#
+# Authentication: a short-lived GitHub App installation token (minted per run)
+# is used instead of the default GITHUB_TOKEN, for two reasons:
+#   1. Security — avoids enabling the broad repo setting "Allow GitHub Actions to
+#      create and approve pull requests". The App token is scoped to the App's
+#      permissions (contents / pull-requests / issues) and expires in ~1 hour.
+#   2. Cascade — tags/PRs created with the default GITHUB_TOKEN do NOT trigger
+#      other workflows, so the release tag would never fire publish-pypi.yml /
+#      publish-container.yml / release.yml. An App token is a distinct actor and
+#      does trigger the downstream release pipeline.
+# Setup: a GitHub App (Contents RW, Pull requests RW, Issues RW) installed on
+# this repo, with App ID and private key stored as the repository secrets
+# RELEASE_PLEASE_APP_ID and RELEASE_PLEASE_APP_PRIVATE_KEY.
+
+name: release-please
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# Least-privilege: the GITHUB_TOKEN stays read-only. The write scopes
+# release-please needs are carried by the GitHub App token minted below.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-please-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-please:
+    name: Open or update release PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # write scopes are supplied by the App token, not GITHUB_TOKEN
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2
+        with:
+          egress-policy: audit
+
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+
+      - name: Run release-please
+        uses: googleapis/release-please-action@a02a34c4d625f9be7cb89156071d8567266a2445 # v4.1.3
+        with:
+          config-file: .github/release-please-config.json
+          manifest-file: .github/.release-please-manifest.json
+          token: ${{ steps.app-token.outputs.token }}

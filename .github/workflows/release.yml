@@ -127,7 +127,7 @@ jobs:
           {
             echo "## ${PROJECT} v${VERSION}"
             echo
-            echo "This release is _<one-line summary — edit before publishing>_."
+            echo "This release is the v${VERSION} release of the ${PROJECT} (refine this line before publishing)."
             echo
             echo "---"
             echo

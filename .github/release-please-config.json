@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "python",
+  "include-component-in-tag": false,
+  "include-v-in-tag": true,
+  "draft": true,
+  "prerelease": false,
+  "changelog-sections": [
+    { "type": "feat",     "section": "Highlights",   "hidden": false },
+    { "type": "fix",      "section": "Improvements", "hidden": false },
+    { "type": "perf",     "section": "Improvements", "hidden": false },
+    { "type": "refactor", "section": "Improvements", "hidden": false },
+    { "type": "docs",     "section": "Notes",        "hidden": false },
+    { "type": "build",    "section": "Notes",        "hidden": false },
+    { "type": "ci",       "section": "Notes",        "hidden": false },
+    { "type": "chore",    "section": "Notes",        "hidden": true },
+    { "type": "test",     "section": "Notes",        "hidden": true }
+  ],
+  "packages": {
+    ".": {
+      "package-name": "oss-policy-kit",
+      "extra-files": [
+        "src/oss_policy_kit/__init__.py"
+      ]
+    }
+  }
+}
