@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/main/src/oss_policy_kit/data/schema/evidence-ai-system-technical-doc.schema.json",
+  "title": "EU AI Act Annex IV technical documentation evidence",
+  "description": "Clone-side evidence file capturing the nine Annex IV sections of EU AI Act technical documentation. Advisory only: presence of a section is a documentation-readiness signal, NOT a conformity assessment (Article 43). The kit does not certify any field. Added in Cycle 2 (PR-21).",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "general_description": {
+      "description": "Annex IV section 1 — intended purpose, developer, system version.",
+      "type": ["string", "object", "array"]
+    },
+    "development_design": {
+      "description": "Annex IV section 2 — development process, design choices, training/validation/test data description.",
+      "type": ["string", "object", "array"]
+    },
+    "monitoring_control": {
+      "description": "Annex IV section 3 — monitoring, functioning, and control of the AI system.",
+      "type": ["string", "object", "array"]
+    },
+    "performance_metrics": {
+      "description": "Annex IV section 4 — performance metrics, accuracy, robustness, and known limitations.",
+      "type": ["string", "object", "array"]
+    },
+    "risk_management": {
+      "description": "Annex IV section 5 — risk management system per Article 9.",
+      "type": ["string", "object", "array"]
+    },
+    "cybersecurity_measures": {
+      "description": "Annex IV section 6 — cybersecurity measures protecting the AI system.",
+      "type": ["string", "object", "array"]
+    },
+    "lifecycle_changes": {
+      "description": "Annex IV section 7 — changes made through the system's lifecycle.",
+      "type": ["string", "object", "array"]
+    },
+    "applied_standards": {
+      "description": "Annex IV section 7 — list of harmonised standards applied (e.g. prEN 18286).",
+      "type": ["string", "array"]
+    },
+    "eu_declaration_of_conformity": {
+      "description": "Annex IV — copy of the EU declaration of conformity.",
+      "type": ["string", "object"]
+    },
+    "post_market_monitoring_plan": {
+      "description": "Annex IV section 8 — post-market monitoring plan.",
+      "type": ["string", "object", "array"]
+    }
+  }
+}

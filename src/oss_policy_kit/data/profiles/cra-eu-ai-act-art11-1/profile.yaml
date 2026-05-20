@@ -39,6 +39,13 @@ controls:
   - LLM-AI-ACT-001
   - LLM-AI-ACT-002
   - LLM-AI-ACT-003
+  # EU AI Act Annex IV expansion (Cycle 2, PR-21 — evidence-backed)
+  - LLM-AI-ACT-DEV-002
+  - LLM-AI-ACT-PERF-004
+  - LLM-AI-ACT-CYBER-006
+  - LLM-AI-ACT-CHANGE-007
+  - LLM-AI-ACT-STD-008
+  - LLM-AI-ACT-PMM-009
   # AI security baseline (from PR-10)
   - AIBOM-PRESENT-001
   - LLM-218A-PO-001

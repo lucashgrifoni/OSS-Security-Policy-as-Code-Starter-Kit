@@ -35,13 +35,32 @@ The kit's planned coverage targets §1, §3, and §5 — the dimensions most obs
 | §1 (Annex IV "AI Security Considerations") | `LLM-218A-PO-001` (bundled from `appsec-llm-ssdf-218a-1`) | signal | NIST 218A heritage. |
 | §2 (training data inventory surface) | `AIBOM-PRESENT-001` | signal | CycloneDX ML-BOM or SPDX 3.0 AI components at `.oss-policy-kit/evidence/aibom/*.json`. |
 | §8 (post-market monitoring SLA documentation) | `GOV-DISC-065` | evidence-backed | Reused from v5.9.0 disclosure SLA work. |
-| Release change tracking | `REL-CHANGE-001` | signal | Reused from existing release-hardening work. |
+| Release change tracking | `REL-CHANGE-012` | signal | Reused from existing release-hardening work. |
 | Dependency CVE surface | `SAST-OSV-068` | signal/evidence-backed | OSV-Scanner SARIF ingest. |
 
-The remaining Annex IV requirements (§2 detailed architecture description, §4 performance metrics, §6 cybersecurity measures, §7 changes through the lifecycle) are explicitly **not** mapped:
+### Annex IV expansion (Cycle 2, PR-21 — evidence-backed)
 
-- §2, §4, §6 require artifacts the kit cannot observe from a clone (training pipelines, evaluation harness results, runtime security controls).
-- §7 requires an external change-management process the kit can only partially infer.
+Cycle 2 adds six **evidence-backed** controls that read a structured evidence
+file, `.oss-policy-kit/evidence/ai-system-technical-doc.json` (schema:
+`evidence-ai-system-technical-doc.schema.json`). Each control checks one Annex IV
+section: missing file → manual review; section populated → PASS; empty → FAIL.
+See ADR-019.
+
+| Annex IV section | Evidence field | Control |
+|---|---|---|
+| §2 development / design / training data | `development_design` | `LLM-AI-ACT-DEV-002` |
+| §4 performance metrics / accuracy | `performance_metrics` | `LLM-AI-ACT-PERF-004` |
+| §6 cybersecurity measures | `cybersecurity_measures` | `LLM-AI-ACT-CYBER-006` |
+| §7 lifecycle changes | `lifecycle_changes` | `LLM-AI-ACT-CHANGE-007` |
+| §7 applied harmonised standards | `applied_standards` | `LLM-AI-ACT-STD-008` |
+| §8 post-market monitoring plan | `post_market_monitoring_plan` | `LLM-AI-ACT-PMM-009` |
+
+These sections require structured artifacts the kit cannot infer from prose, so
+they are gated on the evidence file rather than README heuristics. The evidence
+schema is `additionalProperties: true` (v1) and will harden in a later release as
+harmonised standards (prEN 18286, AESIA guidance) stabilise. The conformity-
+assessment boundary is unchanged: a populated field is a documentation-readiness
+signal, not a conformity verdict.
 
 ## What the kit will not do (and what to do instead)
 
