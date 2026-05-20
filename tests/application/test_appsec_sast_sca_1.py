@@ -24,7 +24,8 @@ def test_appsec_sast_sca_1_profile_loads() -> None:
     assert spec.id == "appsec-sast-sca-1"
     # v5.9.0 (Fase 4): added 4 SARIF adapters (zizmor / poutine / OSV / gitleaks)
     # to the AppSec native bundle, taking the count from 11 to 15.
-    assert len(spec.control_ids) == 15
+    # v6.0.0 Cycle 2 (PR-23): added SCA-KEV-001 + SCA-EPSS-001, taking it to 17.
+    assert len(spec.control_ids) == 17
 
 
 def test_appsec_sast_sca_1_includes_sast_semgrep_064() -> None:
