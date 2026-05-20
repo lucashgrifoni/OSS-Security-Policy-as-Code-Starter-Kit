@@ -10,6 +10,16 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 _No changes yet._
 
+## [6.0.1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.0.0...v6.0.1) (2026-05-20)
+
+
+### Notes
+
+* add OpenSSF Scorecard workflow + automated release-notes workflow ([e6c4ffa](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e6c4ffa3767334edb08aea467ec37d56f1796c81))
+* add releasing guide (release-please + release.yml flow) ([0207187](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0207187789e98a6cff2c9586ddd97c75ad64ae46))
+* **changelog:** drop obsolete 'ADRs to be written before tagging' follow-up (PR-33 backfilled 009/010/013) ([386210d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/386210d66b16adaeb54089eb2ce58d099f78ee03))
+* **release:** add release-please (version-bump PR + tag) composing with release.yml ([b0daf36](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b0daf36d520de4126ef2e82d9362e2144fa17ff0))
+
 ## [6.0.0] - 2026-05-20
 
 The v6.0.0 release (Cycle 1 + Cycle 2). Version `6.0.0` in `pyproject.toml` and `src/oss_policy_kit/__init__.py`. Tagged from `master`. See `docs/v6.0.0-migration-guide.md` for the three breaking changes (M-003, B-001, B-002).
