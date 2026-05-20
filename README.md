@@ -1,149 +1,160 @@
-<p align="center">
-  <img src="screenshots/01-cli-help.png" alt="OSS Policy Kit CLI" width="600">
-</p>
+# OSS Security Policy as Code Starter Kit
 
-<h1 align="center">OSS Security Policy as Code Starter Kit</h1>
+Pass/fail security policy gates for OSS repositories, with explicit assurance grading and framework mappings.
 
-<p align="center">
-  <strong>Pass/fail security policy gates for your repository - with explicit trust grading.</strong><br>
-  Composes zizmor, OSV-Scanner, Gitleaks, Scorecard, Semgrep, and your multi-platform CI/CD signals into one regulatory-aware decision.
-</p>
+[![CI](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/actions/workflows/github-ci-cd.yml/badge.svg)](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/actions/workflows/github-ci-cd.yml)
+[![Security CI](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/actions/workflows/security-ci-cd.yml/badge.svg)](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/actions/workflows/security-ci-cd.yml)
+[![PyPI](https://img.shields.io/pypi/v/oss-policy-kit?label=PyPI&color=success)](https://pypi.org/project/oss-policy-kit/)
+[![Python](https://img.shields.io/pypi/pyversions/oss-policy-kit)](https://pypi.org/project/oss-policy-kit/)
+[![License](https://img.shields.io/github/license/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit?color=informational)](LICENSE)
 
-<p align="center">
-  <a href="https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/actions/workflows/github-ci-cd.yml"><img src="https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/actions/workflows/github-ci-cd.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/actions/workflows/security-ci-cd.yml"><img src="https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/actions/workflows/security-ci-cd.yml/badge.svg" alt="Security CI"></a>
-  <a href="https://pypi.org/project/oss-policy-kit/"><img src="https://img.shields.io/pypi/v/oss-policy-kit?label=PyPI&color=success" alt="PyPI"></a>
-  <a href="https://pypi.org/project/oss-policy-kit/"><img src="https://img.shields.io/pypi/pyversions/oss-policy-kit" alt="Python"></a>
-  <a href="https://pypi.org/project/oss-policy-kit/"><img src="https://img.shields.io/pypi/dm/oss-policy-kit?color=blue" alt="Downloads"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit?color=informational" alt="License"></a>
-  <a href="https://securityscorecards.dev/viewer/?uri=github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit"><img src="https://api.securityscorecards.dev/projects/github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/badge" alt="OpenSSF Scorecard"></a>
-  <a href="https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/releases/latest"><img src="https://img.shields.io/github/v/release/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit?label=release" alt="Release"></a>
-  <a href="docs/cra-readiness.md"><img src="https://img.shields.io/badge/EU%20CRA-ready-success" alt="CRA Ready"></a>
-</p>
+## At a Glance
 
-This is the **v6.0.0** release: **52 bundled profiles**, **212 controls**, and **17 CLI subcommands**. Supply-chain trust uses GitHub Artifact Attestations and PyPI Trusted Publishing (not a SLSA Build L3 claim — see [docs/supply-chain-verification.md](docs/supply-chain-verification.md)).
+`oss-policy-kit` evaluates a local repository clone plus optional evidence files, then emits Markdown, JSON, and optional SARIF reports for humans and CI gates.
 
-## Why use this
+| Current release | Bundled profiles | Controls | CLI commands | Python |
+|---|---:|---:|---:|---|
+| v6.0.0 | 52 | 212 | 17 | 3.12+ |
 
-- **One decision from many signals.** Composes SARIF and JSON evidence from zizmor, OSV-Scanner, Gitleaks, Scorecard, Semgrep, and the bundled evaluators into a single gate result.
-- **Multi-platform CI/CD in one report.** GitHub Actions, Azure Pipelines, AWS CodeBuild/CodePipeline, and GitLab CI signals are evaluated from a local clone plus optional evidence files.
-- **Regulatory-aware out of the box.** EU CRA, NIST SSDF, OSPS, SLSA, S2C2F, and OWASP CI/CD Top 10 mappings ship as profiles and docs, without requiring Rego.
-- **Honest about limits.** Each control is labelled `deterministic`, `signal`, or `evidence-backed`, so reviewers can see what was proven and what still needs platform evidence.
+Use it when you need a local-first gate that combines repository governance, CI/CD hardening, release posture, scanner evidence, waivers, and framework-oriented reporting. It is not a vulnerability scanner, certification engine, or legal compliance guarantee.
 
 ## Quickstart
-
-Python 3.12+ required.
 
 ```bash
 python -m pip install oss-policy-kit
 python -m oss_policy_kit init --target . --with-evidence --with-workflow
-python -m oss_policy_kit evaluate --target .
+python -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on fail
 ```
 
-You get `evaluation-report.md` and `evaluation-report.json` with pass/fail states, remediation text, waiver visibility, and trust grading per control. Optional SARIF output is available with `--sarif-output`.
+The evaluation writes:
 
-Full first-time adopter tutorial: [docs/tutorial-first-pr-gate.md](docs/tutorial-first-pr-gate.md). Existing compact quickstart: [docs/quickstart-15-min.md](docs/quickstart-15-min.md).
+- `evaluation-report.md` for review.
+- `evaluation-report.json` for automation.
+- `evaluation-report.sarif` when `--sarif-output` is set.
 
-### Use as a GitHub Action
+First-time tutorial: [docs/tutorial-first-pr-gate.md](docs/tutorial-first-pr-gate.md). Compact CLI reference: [docs/quickstart-15-min.md](docs/quickstart-15-min.md).
+
+## What It Does
+
+- Evaluates bundled policy profiles against a repository clone.
+- Uses optional evidence under `.oss-policy-kit/evidence/` for platform-only facts.
+- Composes signals from local files, workflows, SARIF/JSON scanner outputs, waivers, and release evidence.
+- Labels controls by assurance type: deterministic, signal, or evidence-backed.
+- Supports Markdown, JSON report contracts, and optional SARIF for code-scanning workflows.
+- Keeps waivers visible with owner, reason, and expiry metadata.
+
+## What It Does Not Do
+
+- It does not certify CRA, SLSA, OSPS, SSDF, or AI Act compliance.
+- It does not replace SAST, SCA, secrets scanning, threat modeling, secure code review, pentesting, or live platform review.
+- It does not prove branch protection, rulesets, MFA, cloud posture, or registry settings unless you provide API-backed evidence.
+- It does not claim SLSA Build L3. The current trust model is documented in [docs/supply-chain-verification.md](docs/supply-chain-verification.md).
+
+## Core Capabilities
+
+| Area | Included |
+|---|---|
+| Repository governance | LICENSE, SECURITY, CONTRIBUTING, CODEOWNERS, branch protection evidence, release hygiene |
+| CI/CD posture | GitHub Actions, Azure Pipelines, AWS CodeBuild/CodePipeline, GitLab CI signals |
+| Release hardening | OIDC publishing, provenance evidence, artifact verification, source-built container flow |
+| Scanner composition | SARIF/JSON ingestion for tools such as zizmor, OSV-Scanner, Gitleaks, Scorecard, and Semgrep |
+| Framework mapping | OSPS, NIST SSDF, SLSA, S2C2F, OWASP CI/CD, EU CRA, EU AI Act readiness signals |
+| AI and agent security | AI agent source-side checks, MCP server security, OWASP Agentic ASI mapping |
+| Exception handling | Waiver registry with reason, owner, scope, and expiry |
+
+## Profiles
+
+List bundled profiles:
+
+```bash
+python -m oss_policy_kit profiles
+```
+
+Common starting points:
+
+| Profile | Use when |
+|---|---|
+| `github-level-1` | First GitHub repository gate |
+| `github-level-2` | Stricter GitHub governance and CI/CD posture |
+| `oss-publish-readiness-1` | Release/publish readiness for OSS packages |
+| `appsec-sast-sca-1` | Compose SAST/SCA/secrets scanner evidence |
+| `osps-baseline-2026-1` | OpenSSF OSPS Baseline 2026-oriented review |
+| `cra-eu-ready-2-1` | EU CRA Article 13/14 readiness signals |
+| `ai-agent-baseline-1` | Source-side checks for AI agent repositories |
+| `appsec-mcp-server-1` | MCP server security readiness |
+
+Full profile guide: [docs/profiles/overview.md](docs/profiles/overview.md).
+
+## GitHub Action
 
 ```yaml
-- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v5
+- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v6.0.0
   with:
     profile: github-level-1
     fail-on: fail
 ```
 
-Inputs map 1:1 to CLI flags. See [docs/github-action.md](docs/github-action.md).
+Action reference: [docs/github-action.md](docs/github-action.md). Starter workflows live under [templates/workflows/](templates/workflows/).
 
-## Sample output
+## Reports and Contracts
 
-Hardened example on the `github-level-1` profile:
+By default, `evaluate` writes `reports/1.0` JSON. Older compatibility contracts and opt-in `reports/2.0` are documented here:
 
-<p align="center">
-  <img src="screenshots/05-example-hardened.png" alt="Hardened example output" width="700">
-</p>
+- [docs/reports-contract-v1.0.md](docs/reports-contract-v1.0.md)
+- [docs/reports-contract-v2.0.md](docs/reports-contract-v2.0.md)
+- [docs/sample-reports/](docs/sample-reports/README.md)
 
-Vulnerable example, same profile:
+Exit codes:
 
-<p align="center">
-  <img src="screenshots/06-example-vulnerable.png" alt="Vulnerable example output" width="700">
-</p>
+| Code | Meaning |
+|---:|---|
+| 0 | Success; configured fail threshold was not violated |
+| 1 | Evaluation completed and the fail threshold was violated |
+| 2 | Usage, validation, or load error |
+| 3 | Unexpected internal error |
 
-Browse full sample reports: [docs/sample-reports/](docs/sample-reports/README.md). Report schema: [docs/reports-contract-v1.0.md](docs/reports-contract-v1.0.md).
+## Supply Chain Verification
 
-## How it compares
+PyPI publication uses Trusted Publishing and registry attestations. Release artifacts also use GitHub Artifact Attestations. Container images are built from the checked-out release source tree, signed with cosign keyless, and attested.
 
-| Capability | OSS Policy Kit | Scorecard | zizmor / OSV / Gitleaks | Conftest / OPA | Kyverno |
-|---|:-:|:-:|:-:|:-:|:-:|
-| Multi-platform repository and CI/CD gate | Yes | GitHub-centric | Scanner-specific | Adopter writes | Kubernetes-focused |
-| Built-in regulatory and framework profiles | Yes | No | No | No | Policy-dependent |
-| Assurance grading per control | Yes | Score-based | No | No | Policy-dependent |
-| Composes scanner SARIF / JSON | Yes | No | n/a | No | No |
-| Waiver registry with owner, reason, expiry | Yes | No | No | Adopter writes | Policy-dependent |
-| CycloneDX VEX emission | Yes | No | No | No | No |
-| Local-first, no API key by default | Yes | Mostly | Yes | Yes | Yes |
+Verification commands and limits are in [docs/supply-chain-verification.md](docs/supply-chain-verification.md).
 
-Full positioning, including what this kit is not: [docs/positioning.md](docs/positioning.md).
+## Documentation Map
 
-## What this kit does
-
-The kit reads a repository clone and optional evidence files, evaluates bundled profiles, and emits Markdown, JSON (`reports/1.0` by default), and optional SARIF. v6.0.0 adds profiles and controls across AI/LLM advisory coverage, EU AI Act Article 11 + Annex IV readiness, EU CRA Article 13/14 signals, SLSA source checks (L1/L2), GitLab L2, OSS publish readiness, WORM publish-defense checks, AI agent source-side checks, OSPS Baseline 2026, MCP server security, and OWASP Agentic ASI.
-
-It is not a universal vulnerability scanner, an OSPS certification engine, a compliance guarantee, or a substitute for threat modeling, secure code review, pentesting, or live platform settings review. See [docs/results-guide.md](docs/results-guide.md).
-
-## CI/CD integration
-
-Starter workflows under [`templates/workflows/`](templates/workflows/):
-
-- [`github-oss-policy-check.yml`](templates/workflows/github-oss-policy-check.yml) - baseline `evaluate` against `github-level-1`.
-- [`github-oss-policy-check-with-waivers.yml`](templates/workflows/github-oss-policy-check-with-waivers.yml) - same baseline with waiver registry support.
-- [`github-oss-policy-check-level-2.yml`](templates/workflows/github-oss-policy-check-level-2.yml) - stricter `github-level-2`.
-- [`pipelines/azure/azure-pipelines.yml`](pipelines/azure/azure-pipelines.yml) - Azure Pipelines example.
-
-Typical CI command:
-
-```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on fail --output-dir ./oss-policy-reports
-```
-
-Exit codes: `0` success, `1` gate failed, `2` usage/load error, `3` unexpected internal error.
-
-## Outputs
-
-Each `evaluate` run writes `evaluation-report.md` for humans, `evaluation-report.json` for automation, and `evaluation-report.sarif` when `--sarif-output` is passed. Detailed schemas live in [docs/reports-contract-v1.0.md](docs/reports-contract-v1.0.md) and [docs/reports-contract-v2.0.md](docs/reports-contract-v2.0.md).
-
-## Supply chain verification
-
-PyPI publication uses Trusted Publishing and the PyPA publishing action's registry attestations, while the release build also generates GitHub Artifact Attestations for wheel/sdist files. Container images are built from the checked-out release source tree, signed with cosign keyless, and attested with GitHub Artifact Attestations.
-
-This branch does **not** claim SLSA Build L3. See [docs/supply-chain-verification.md](docs/supply-chain-verification.md) for exact verification commands and the current trust model.
-
-## Documentation
-
-| Topic | Doc |
+| Topic | Link |
 |---|---|
 | Documentation index | [docs/README.md](docs/README.md) |
-| At a glance | [docs/at-a-glance.md](docs/at-a-glance.md) |
-| Release state | [docs/release-state.md](docs/release-state.md) |
-| Quickstart tutorial | [docs/tutorial-first-pr-gate.md](docs/tutorial-first-pr-gate.md) |
+| Architecture | [docs/architecture.md](docs/architecture.md) |
 | CLI reference | [docs/cli-reference.md](docs/cli-reference.md) |
 | Results guide | [docs/results-guide.md](docs/results-guide.md) |
-| Profiles overview | [docs/profiles/overview.md](docs/profiles/overview.md) |
 | Framework alignment | [docs/framework-alignment.md](docs/framework-alignment.md) |
-| Positioning vs alternatives | [docs/positioning.md](docs/positioning.md) |
+| Positioning and limits | [docs/positioning.md](docs/positioning.md) |
 | EU CRA readiness | [docs/cra-readiness.md](docs/cra-readiness.md) |
-| Architecture | [docs/architecture.md](docs/architecture.md) |
-| Release and supply chain | [docs/release-readiness.md](docs/release-readiness.md) / [docs/supply-chain-verification.md](docs/supply-chain-verification.md) |
+| EU AI Act readiness | [docs/eu-ai-act-readiness.md](docs/eu-ai-act-readiness.md) |
+| MCP server security | [docs/mcp-server-security.md](docs/mcp-server-security.md) |
+| Release process | [docs/releasing.md](docs/releasing.md) |
 | Roadmap | [ROADMAP.md](ROADMAP.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
 
-## Community and contributing
+## Repository Layout
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) - how to propose changes.
-- [GOVERNANCE.md](GOVERNANCE.md) - maintainers, decision-making, and release process.
-- [SECURITY.md](SECURITY.md) - vulnerability reporting.
-- [GitHub Discussions](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/discussions) - Q&A, ideas, and show-and-tell.
-- [Issues](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues) - bugs, feature requests, and false positives.
+| Path | Purpose |
+|---|---|
+| `src/oss_policy_kit/` | Python package, CLI, evaluators, parsers, reporting |
+| `src/oss_policy_kit/data/` | Bundled controls, profiles, and schemas |
+| `templates/` | Starter workflows, waivers, docs, and ruleset examples |
+| `examples/` | Hardened and vulnerable example repositories |
+| `tests/` | Unit, application, integration, infrastructure, and property tests |
+| `docs/` | User docs, architecture, mappings, ADRs, and release notes |
+| `gitpage/` | Static GitHub Pages site source and built assets |
+
+## Contributing and Security
+
+- Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Governance: [GOVERNANCE.md](GOVERNANCE.md)
+- Vulnerability reporting: [SECURITY.md](SECURITY.md)
+- Discussions: <https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/discussions>
+- Issues: <https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues>
 
 ## License
 
