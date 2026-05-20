@@ -144,7 +144,6 @@ Verification commands and limits are in [docs/supply-chain-verification.md](docs
 | `examples/` | Hardened and vulnerable example repositories |
 | `tests/` | Unit, application, integration, infrastructure, and property tests |
 | `docs/` | User docs, architecture, mappings, ADRs, and release notes |
-| `gitpage/` | Static GitHub Pages site source and built assets |
 
 ## Contributing and Security
 
