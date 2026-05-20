@@ -16,7 +16,7 @@ This page keeps the detailed capability snapshot out of the root README so the f
 
 ## v6.0.0 development baseline
 
-| Area | v6.0.0.dev0 local branch |
+| Area | v6.0.0 |
 |---|---|
 | Profiles | 52 bundled profiles |
 | Controls | 212 bundled controls |

@@ -21,7 +21,7 @@
   <a href="docs/cra-readiness.md"><img src="https://img.shields.io/badge/EU%20CRA-ready-success" alt="CRA Ready"></a>
 </p>
 
-The current public package is `oss-policy-kit==5.9.1`. The active v6.0.0 development branch has landed locally with **52 bundled profiles**, **212 controls**, and **17 CLI subcommands**. v6 remains unreleased until maintainer review, remote push, release tagging, PyPI publish, and container publish complete.
+This is the **v6.0.0** release: **52 bundled profiles**, **212 controls**, and **17 CLI subcommands**. Supply-chain trust uses GitHub Artifact Attestations and PyPI Trusted Publishing (not a SLSA Build L3 claim — see [docs/supply-chain-verification.md](docs/supply-chain-verification.md)).
 
 ## Why use this
 
@@ -87,7 +87,7 @@ Full positioning, including what this kit is not: [docs/positioning.md](docs/pos
 
 ## What this kit does
 
-The kit reads a repository clone and optional evidence files, evaluates bundled profiles, and emits Markdown, JSON (`reports/1.0` by default), and optional SARIF. v6.0.0 development adds profiles and controls across AI/LLM advisory coverage, EU AI Act Article 11 readiness, SLSA source checks, GitLab L2, OSS publish readiness, WORM publish-defense checks, and AI agent source-side checks.
+The kit reads a repository clone and optional evidence files, evaluates bundled profiles, and emits Markdown, JSON (`reports/1.0` by default), and optional SARIF. v6.0.0 adds profiles and controls across AI/LLM advisory coverage, EU AI Act Article 11 + Annex IV readiness, EU CRA Article 13/14 signals, SLSA source checks (L1/L2), GitLab L2, OSS publish readiness, WORM publish-defense checks, AI agent source-side checks, OSPS Baseline 2026, MCP server security, and OWASP Agentic ASI.
 
 It is not a universal vulnerability scanner, an OSPS certification engine, a compliance guarantee, or a substitute for threat modeling, secure code review, pentesting, or live platform settings review. See [docs/results-guide.md](docs/results-guide.md).
 

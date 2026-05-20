@@ -6,9 +6,13 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
-## Unreleased — v6.0.0 (in development)
+## Unreleased — v6.x
 
-Work in progress on the `feat/v6.0.0-evolution` branch. This section captures changes that have landed on the branch but have not yet been released. Version bumped to `6.0.0.dev0` in `pyproject.toml` and `src/oss_policy_kit/__init__.py` (PR-18) to signal the in-development state; the `v6.0.0` tag itself is created at release-prep time after maintainer review.
+_No changes yet._
+
+## [6.0.0] - 2026-05-20
+
+The v6.0.0 release (Cycle 1 + Cycle 2). Version `6.0.0` in `pyproject.toml` and `src/oss_policy_kit/__init__.py`. Tagged from `master`. See `docs/v6.0.0-migration-guide.md` for the three breaking changes (M-003, B-001, B-002).
 
 ### Highlights — full v6.0.0 scope (14 base PRs + Cycle 2 PR-19..PR-33 + AI agent baseline landed locally)
 
@@ -30,7 +34,7 @@ Work in progress on the `feat/v6.0.0-evolution` branch. This section captures ch
 
 **Breaking changes**:
 - **M-003** — `recommend-profile/v2.schema_version` is now an absolute URL. Legacy shorthand accepted for one minor (removed in v6.1.0). See ADR-008, PR-15.
-- **B-001** — `reports/2.0` contract registered with the Scorecard-v6-aligned 5-state vocabulary (`PASS / FAIL / UNKNOWN / NOT_APPLICABLE / ATTESTED`). Default REMAINS `1.0` in v6.0.0.dev0; default-switch deferred to a v6.x point release per ADR-013. Standalone `scripts/migrate-1.0-to-2.0.py` converts offline reports.
+- **B-001** — `reports/2.0` contract registered with the Scorecard-v6-aligned 5-state vocabulary (`PASS / FAIL / UNKNOWN / NOT_APPLICABLE / ATTESTED`). Default REMAINS `1.0` in v6.0.0; default-switch deferred to a v6.x point release per ADR-013. Standalone `scripts/migrate-1.0-to-2.0.py` converts offline reports.
 - **B-002** — `export-evidence --format chainloop` is **experimental**; output shape may change inside the v6.0.x line. See ADR-012, PR-17.
 
 **Assurance-mix shift (A-001)**: `GH-PROV-023` promoted from `signal` to `evidence-backed` (catalog), with backward-compat runtime fallback (signal PASS when no evidence file is present). Affected profiles: `github-release-hardening-1/2/3`, `slsa-build-l2-1`. See ADR-007, PR-12.
@@ -142,7 +146,7 @@ Work in progress on the `feat/v6.0.0-evolution` branch. This section captures ch
 ### Notes
 
 - This is still an unreleased development branch. Public release remains `v5.9.x` until maintainer review, remote push, release tagging, PyPI publish, and container publish complete.
-- `reports/2.0` exists as an opt-in contract in this development line; `reports/1.0` remains the default during `6.0.0.dev0`.
+- `reports/2.0` exists as an opt-in contract; `reports/1.0` remains the default during the `6.0.0` line.
 - Test, lint, type-check, hygiene-scan, and bundled-profile-validation must remain green before tagging; the validation summary above captures the latest local full-suite signal for this branch.
 
 ---
