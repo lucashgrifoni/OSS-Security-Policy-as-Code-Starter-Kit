@@ -96,7 +96,6 @@ The v6.0.0 release (Cycle 1 + Cycle 2). Version `6.0.0` in `pyproject.toml` and 
 ### Known follow-ups (not blocking v6.0.0 GA)
 
 - `reports/2.0` default-switch (currently 1.0 remains default; snapshots will be regenerated when the switch lands).
-- ADR-009 (LLM-218A), ADR-010 (EU AI Act), ADR-013 (reports/2.0) decision-of-record texts to be written before tagging `v6.0.0` (the docs are present as design stubs in `docs/`).
 - External launch content and community activation remain pending product/DX work before broad v6.0.0 promotion.
 
 ### Docs
