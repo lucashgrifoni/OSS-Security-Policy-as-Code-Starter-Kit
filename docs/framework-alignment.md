@@ -396,7 +396,7 @@ area an ASVS / 800-53 audit needs to cover), but it does not claim to **prove** 
 
 ## See also
 
-- [controls-catalog.md](controls-catalog.md) — full catalog of 65 controls with profile
+- [controls-catalog.md](controls-catalog.md) — generated bundled controls catalog with profile
   membership.
 - [collector-parity.md](collector-parity.md) — what each platform collector retrieves today.
 - [scorecard-mapping.md](scorecard-mapping.md) — Scorecard-specific mapping detail.
@@ -420,6 +420,8 @@ Maps the kit's controls to SLSA v1.1 Build Track Level 2 expectations: build aut
 ### `ssdf-baseline-1` — NIST SP 800-218 (Secure Software Development Framework)
 
 Maps the kit's controls to the four practice groups of NIST SSDF SP 800-218: Prepare Organization (PO), Protect Software (PS), Produce Well-Secured Software (PW), Respond to Vulnerabilities (RV). 22 controls, advisory mapping. Federal suppliers under OMB M-22-18 / EO 14028 should treat this as discovery-grade evidence, **not** as the formal SSDF self-attestation form (which remains a manual process outside the kit's scope). Recommended `--fail-on degraded` only. Coverage is deepest in PS and PW (the kit's natural strengths); PO and RV are shallower because they cover organizational and incident-response practices that go beyond what a clone-side tool can verify.
+
+> **Note (2026):** OMB Memo **M-26-05 (2026-01-23)** rescinded the CISA Common Form / centralized secure-software attestation requirement. Federal agencies now define their own SSDF attestation approach on a risk basis. The kit's NIST SSDF mapping remains the technical baseline regardless; it was never tied to the Common Form. See ADR-025 for the broader 2026 ecosystem refresh.
 
 ### `cis-supply-chain-1` — CIS Software Supply Chain Security Benchmark v1.0
 
@@ -445,7 +447,11 @@ Multi-platform profile aimed at AppSec teams using the kit as part of pipeline A
 
 # Roadmap — frameworks planned for v6.0.0
 
-The three sections below describe **planned** coverage on the `feat/v6.0.0-evolution` branch. **None of the controls, profiles, or CLI subcommands referenced below exist in v5.9.x.** They land incrementally with their corresponding v6.0.0 PRs. See [`positioning.md`](positioning.md) → *Roadmap (v6.0.0 — in development)* for the broader v6.0.0 scope.
+The sections below describe **planned or development-branch** coverage on the
+`feat/v6.0.0-evolution` branch. These controls, profiles, or CLI subcommands do
+not exist in v5.9.x. They land incrementally with their corresponding v6.0.0
+PRs. See [`positioning.md`](positioning.md) → *Roadmap (v6.0.0 — in
+development)* for the broader v6.0.0 scope.
 
 ## NIST SP 800-218A — Generative AI SSDF Community Profile (planned v6.0.0)
 
@@ -464,6 +470,31 @@ The three sections below describe **planned** coverage on the `feat/v6.0.0-evolu
 Also planned: `AIBOM-PRESENT-001` (signal) — detects AIBOM in CycloneDX ML-BOM or SPDX 3.0 AI components format at `.oss-policy-kit/evidence/aibom/*.json` or `aibom/*.json`. Bundled into `appsec-llm-ssdf-218a-1` and `cra-eu-ai-act-art11-1`.
 
 **Coverage estimate at v6.0.0 GA**: 7 advisory controls + 1 AIBOM signal. Profile is advisory (`--fail-on degraded`). The kit does **not** verify the runtime behavior of an AI system — coverage is clone-side / evidence-side only. See [`positioning.md`](positioning.md) and the planned `eu-ai-act-readiness.md` for explicit caveats. ADR-009 documents the design rationale.
+
+## AI agent / MCP source-side baseline (development branch)
+
+`ai-agent-baseline-1` covers repository-side posture for teams building AI
+agents or MCP servers. It is intentionally advisory and does not enforce runtime
+agent policy. The profile maps to source-detectable concerns from OWASP agentic
+application risks, MCP security best practices, and NIST AI 600-1 risk-management
+framing.
+
+| Source-side concern | Kit control | Coverage | Notes |
+|---|---|---|---|
+| MCP authn and token audience separation | `AI-AGENT-001` | signal | Detects authn signals in MCP config and rejects explicit auth-disabled patterns. |
+| Tool misuse / over-broad tool access | `AI-AGENT-002` | signal | Requires named tool allowlist rather than allow-all patterns. |
+| Prompt governance | `AI-AGENT-003` | signal | Requires prompt registry plus CODEOWNERS coverage. |
+| Prompt-injection testing | `AI-AGENT-004` | signal | Detects adversarial / jailbreak / prompt-injection tests. |
+| Output handling | `AI-AGENT-005` | evidence-backed | Requires `output-sanitization.json`. |
+| Abuse throttling | `AI-AGENT-006` | signal | Detects rate-limit, quota, or token-budget config. |
+| Tool-call accountability | `AI-AGENT-007` | evidence-backed | Requires `audit-log-config.json`. |
+| Agent identity | `AI-AGENT-008` | signal | Detects dedicated identity and flags token-passthrough anti-patterns. |
+| Memory poisoning / context leakage | `AI-AGENT-009` | evidence-backed | Requires `memory-policy.json`. |
+| Model drift | `AI-AGENT-010` | signal | Requires dated or versioned model identifiers. |
+
+**Coverage estimate at v6.0.0 GA**: 10 advisory controls, 7 signal-grade and 3
+evidence-backed. See [`profiles/ai-agent.md`](profiles/ai-agent.md) and
+ADR-016.
 
 ## EU AI Act — Article 11 + Annex IV (planned v6.0.0)
 
@@ -507,6 +538,6 @@ referenced for the framework summaries is **January 2026**; framework owners sho
 consulted upstream for the current canonical text. Prior framework releases (Scorecard v3,
 SLSA v0.1, SSDF SP 800-218 1.0, etc.) are not listed; only current major-line text is mapped.
 
-The three v6.0.0 roadmap sections above will be promoted out of *Roadmap* and into the main
+The v6.0.0 roadmap sections above will be promoted out of *Roadmap* and into the main
 mapping body once their corresponding PRs land (PR-8 for Insights emit; PR-10 for NIST 218A;
-PR-11 for EU AI Act Art. 11).
+PR-11 for EU AI Act Art. 11, and the AI agent profile once the v6 branch is tagged).

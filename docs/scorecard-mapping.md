@@ -103,7 +103,7 @@ this kit's `*-level-3` or `*-release-hardening-3` profiles to gate on platform-e
 ## See also
 
 - [framework-alignment.md](framework-alignment.md) — master cross-framework mapping.
-- [controls-catalog.md](controls-catalog.md) — full catalog of 65 controls.
+- [controls-catalog.md](controls-catalog.md) — generated bundled controls catalog.
 - [signal-controls-audit.md](signal-controls-audit.md) — why signal-grade controls cannot
   project to `verified`.
 - [results-guide.md](results-guide.md) — interpreting result statuses (`pass`, `fail`,

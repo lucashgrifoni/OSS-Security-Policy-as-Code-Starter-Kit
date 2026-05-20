@@ -10,19 +10,27 @@ Repository entry points:
 
 - [README.md](../README.md) - product overview, install paths, CLI contract, result interpretation
 - [CHANGELOG.md](../CHANGELOG.md) - released changes by version
+- [ROADMAP.md](../ROADMAP.md) - public Now / Next / Later direction without overclaiming shipped capability
+- [at-a-glance.md](at-a-glance.md) - compact public capability and v6 development-count snapshot
+- [release-state.md](release-state.md) - current public release line and v6.0.0 release boundary
 
 ## For Users
 
+- [tutorial-first-pr-gate.md](tutorial-first-pr-gate.md) - first-time adopter path from install to a PR gate
+- [quickstart-15-min.md](quickstart-15-min.md) - compact quickstart and compatibility notes
 - [validation-walkthrough.md](validation-walkthrough.md) - full step-by-step demo with screenshots (CLI help, profile discovery, fixture comparison, controls table, CI gating)
+- [sample-reports/](sample-reports/README.md) - generated hardened and vulnerable example reports
 - [cli-reference.md](cli-reference.md) - full CLI reference (subcommands, flags, exit codes, examples)
 - [results-guide.md](results-guide.md) - how to interpret report statuses (`pass`, `fail`, `manual-review-required`, `self-attested`, ...)
 - [adoption-guide.md](adoption-guide.md) - choose a baseline and understand expected outcomes
 - [recommended-adoption-playbook.md](recommended-adoption-playbook.md) - copy/paste adoption path for a standard Python repository
 - [profiles/overview.md](profiles/overview.md) - bundled profiles matrix, assurance mix, daily/extreme/advisory usage classes, and **zero `fail`** vs **all-pass**
 - [profiles/github.md](profiles/github.md) / [profiles/aws.md](profiles/aws.md) / [profiles/azure.md](profiles/azure.md) - operator guides by platform family
+- [profiles/ai-agent.md](profiles/ai-agent.md) - advisory source-side baseline for AI agent and MCP server repositories
 - [release-playbook-hardgate.md](release-playbook-hardgate.md) - evaluate a release hard-gate with real CLI commands
 - [profiles/deferred-followups.md](profiles/deferred-followups.md) - items intentionally left out of this phase (flags, schema, new controls)
 - [packaging-and-release.md](packaging-and-release.md) - supported distribution channels and local install/build commands
+- [supply-chain-verification.md](supply-chain-verification.md) - PyPI, GHCR, cosign, and attestation verification commands
 - [scorecard-mapping.md](scorecard-mapping.md) - how Scorecard fits as supplemental evidence
 - [osps-mapping.md](osps-mapping.md) - mapping notes between this kit and OSS baseline concepts
 
@@ -34,7 +42,7 @@ Repository entry points:
 ## Reference
 
 - [architecture.md](architecture.md) - package structure, trust model, and evidence boundaries
-- [controls-catalog.md](controls-catalog.md) - full catalog of 65 controls in one page (category, assurance, weight, profile membership)
+- [controls-catalog.md](controls-catalog.md) - generated bundled controls catalog (category, assurance, weight, profile membership)
 - [collector-parity.md](collector-parity.md) - what each platform collector retrieves today (GitHub vs Azure vs AWS) and what intentionally stays self-attested
 - [framework-alignment.md](framework-alignment.md) - master cross-framework mapping (Scorecard, OSPS, OWASP CICD Top 10, SLSA v1.0, NIST SSDF, S2C2F, CIS SSCS, AWS Well-Architected, Azure DevOps Security)
 - [policy-data-lifecycle.md](policy-data-lifecycle.md) - lifecycle states for controls and profiles

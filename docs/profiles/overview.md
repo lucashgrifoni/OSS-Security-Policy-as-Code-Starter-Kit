@@ -6,6 +6,11 @@ This page summarizes the **38 bundled profiles** in this kit build (v5.9.0): det
 >
 > The non-hybrid `*-level-2` profiles (`github-level-2`, `azure-level-2`, `aws-level-2`) are also advisory-only by design (`posture: advisory`). They include several `signal` controls whose PASS is directional, not verified. Use them as scorecards, not as gates.
 
+> **v6.0.0 development note.** The development branch also includes
+> `ai-agent-baseline-1`, an advisory source-side profile for repositories that
+> build AI agents or MCP servers. It adds ten `AI-AGENT-*` controls and three
+> `ai-agent-baseline/v1` evidence files. See [ai-agent.md](ai-agent.md).
+
 ## Assurance vocabulary
 
 The **catalog `assurance` field** classifies how a control proves its conclusion:
@@ -49,6 +54,7 @@ Use this matrix as an operator shortcut (derived from current bundled profile in
 | Daily baseline | `*-level-1`, `*-level-2`, `*-release-hardening-1`, `*-release-hardening-2` | Best for routine triage and incremental hardening. |
 | Extreme hard-gate | `*-level-3`, `*-release-hardening-3` (single-platform) | Evidence-first posture; treat non-pass rows and warnings as real work. |
 | Advisory-only | `github-aws-level-2`, `github-azure-level-2` | Multi-platform guidance; **not** a hard-gate replacement. |
+| AI agent source-side advisory | `ai-agent-baseline-1` | Checks MCP authn, tool allowlists, prompt review, audit, memory, and model-pinning evidence. |
 | Legacy id (removed) | `github-release-hardening` | **Removed in v5.0.0.** Returns a migration error. Use `github-release-hardening-1`. |
 
 ## `maturity_label` glossary and recommended `--fail-on`
@@ -95,7 +101,11 @@ If `evaluation-batch.md` shows several targets failing the same set — typicall
 
 ## Profile maturity tier (read before choosing a hard gate)
 
-The 32 bundled profiles are not equally mature in **operational fit**. Most of the catalog is `lifecycle: stable`; the 12 v5.5.0 `IAC-TF-*` controls (Terraform / OpenTofu rule pack), the 16 v5.6.0 `K8S-*` controls (Kubernetes manifest pack), the 7 v5.6.0 `CONT-RUNTIME-*` / `CONT-SIGN-*` controls (container hardening pack), and the v5.6.0 `SEC-FUZZ-001` control are the non-stable entries. Two practical things differ between profiles:
+The bundled profiles are not equally mature in **operational fit**. Most stable
+daily/release profiles rely on clone-visible governance and CI/CD signals, while
+the IaC, Kubernetes, container, webhook, AI/LLM, and AI-agent profiles include
+newer experimental controls and evidence-backed expectations. Two practical
+things differ between profiles:
 
 1. how much **evidence-template work** the operator must do up front, and
 2. how complete the **collector** is for the platform.
@@ -121,7 +131,13 @@ These tiers are **not** evidence of catalog immaturity — they reflect the limi
 
 ### Framework alignment
 
-Each bundled profile description (`profiles --format detailed`) now ends with a **Framework alignment** sentence pointing operators at [framework-alignment.md](../framework-alignment.md), which maps the **130 catalog controls (v5.9.0)** to OpenSSF Scorecard, OSPS Baseline, OWASP CI/CD Top 10, SLSA v1.1, NIST SSDF SP 800-218, Microsoft S2C2F, CIS Software Supply Chain Security Benchmark, AWS Well-Architected (Security Pillar), Azure DevOps Security Best Practices, and EU Cyber Resilience Act. The page documents YES / PARTIAL / OUT / GAP coverage per framework requirement.
+Each bundled profile description (`profiles --format detailed`) points operators
+at [framework-alignment.md](../framework-alignment.md), which maps the bundled
+catalog to OpenSSF Scorecard, OSPS Baseline, OWASP CI/CD Top 10, SLSA, NIST SSDF
+SP 800-218, Microsoft S2C2F, CIS Software Supply Chain Security Benchmark, AWS
+Well-Architected (Security Pillar), Azure DevOps Security Best Practices, EU
+Cyber Resilience Act, and v6 AI-security roadmap surfaces. The page documents
+YES / PARTIAL / OUT / GAP coverage per framework requirement.
 
 Starting in v5.4.0 the kit also ships **bundled framework alignment profiles** (`osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, `cra-eu-strict-1`). They are multi-platform mappings that combine existing controls into framework-specific bundles - operators who used to rely on the mapping documentation alone can now also `evaluate --profile <id>` to get a framework-shaped report. None of these profiles introduces a new control; they reuse the existing catalog. See the per-profile mapping in [framework-alignment.md](../framework-alignment.md).
 
@@ -159,6 +175,7 @@ Starting in v5.4.0 the kit also ships **bundled framework alignment profiles** (
 | owasp-cicd-top10-1 | 23 | framework alignment (advisory) | no | see JSON |
 | s2c2f-l1-1 | 9 | framework alignment (advisory, OSS consumption) | no | see JSON |
 | appsec-sast-sca-1 | 15 | AppSec native bundle (hard-gate-capable with scan-sast + SARIF adapters) | **yes (with scan-sast)** | see JSON |
+| ai-agent-baseline-1 | 10 | AI agent source-side baseline (advisory) | no | 0 / 7 / 3 |
 | iac-terraform-baseline-1 | 15 | IaC Terraform / OpenTofu baseline (advisory) | no | see JSON |
 | iac-cfn-baseline-1 | 7 | CloudFormation posture (advisory, paired with scan-cfn) | no | 1 / 0 / 6 |
 | iac-pulumi-baseline-1 | 7 | Pulumi Python posture (advisory, paired with scan-pulumi) | no | 1 / 0 / 6 |
