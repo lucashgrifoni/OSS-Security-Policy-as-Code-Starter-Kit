@@ -99,9 +99,7 @@ def _build() -> str:
     lines.append("|---|---|---|---:|---:|---|")
     for cid, spec in catalog.items():
         count = len(membership[cid])
-        lines.append(
-            f"| `{cid}` | {spec.category} | {spec.assurance} | {spec.weight} | {count} | {spec.title} |"
-        )
+        lines.append(f"| `{cid}` | {spec.category} | {spec.assurance} | {spec.weight} | {count} | {spec.title} |")
     lines.append("")
     lines.append("## Per-Control Profile Membership")
     lines.append("")

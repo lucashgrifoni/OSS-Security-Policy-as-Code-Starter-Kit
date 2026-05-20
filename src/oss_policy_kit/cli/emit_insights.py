@@ -152,9 +152,7 @@ def _build_insights_document(target: Path) -> dict[str, Any]:
 
     if codeowners is not None:
         project_admins = doc.setdefault("project-administrators", [])
-        project_admins.append(
-            {"name": "see CODEOWNERS", "affiliation": codeowners.relative_to(root).as_posix()}
-        )
+        project_admins.append({"name": "see CODEOWNERS", "affiliation": codeowners.relative_to(root).as_posix()})
 
     if security_md is not None:
         email = _security_md_email(security_md)

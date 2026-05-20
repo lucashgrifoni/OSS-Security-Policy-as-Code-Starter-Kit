@@ -93,11 +93,7 @@ def test_worm_publish_scope_fails_on_unscoped_publish_workflow(tmp_path: Path) -
     workflow = tmp_path / ".github" / "workflows" / "publish.yml"
     workflow.parent.mkdir(parents=True)
     workflow.write_text(
-        "on: push\n"
-        "jobs:\n"
-        "  publish:\n"
-        "    steps:\n"
-        "      - run: npm publish\n",
+        "on: push\njobs:\n  publish:\n    steps:\n      - run: npm publish\n",
         encoding="utf-8",
     )
 
@@ -111,14 +107,7 @@ def test_worm_publish_scope_passes_on_tag_scoped_workflow(tmp_path: Path) -> Non
     workflow = tmp_path / ".github" / "workflows" / "publish.yml"
     workflow.parent.mkdir(parents=True)
     workflow.write_text(
-        "on:\n"
-        "  push:\n"
-        "    tags:\n"
-        "      - 'v*'\n"
-        "jobs:\n"
-        "  publish:\n"
-        "    steps:\n"
-        "      - run: twine upload dist/*\n",
+        "on:\n  push:\n    tags:\n      - 'v*'\njobs:\n  publish:\n    steps:\n      - run: twine upload dist/*\n",
         encoding="utf-8",
     )
 

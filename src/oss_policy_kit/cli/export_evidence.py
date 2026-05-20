@@ -150,7 +150,12 @@ def _render_sarif(report: dict[str, Any]) -> dict[str, Any]:
         "version": "2.1.0",
         "runs": [
             {
-                "tool": {"driver": {"name": "oss-policy-kit", "informationUri": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit"}},
+                "tool": {
+                    "driver": {
+                        "name": "oss-policy-kit",
+                        "informationUri": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit",
+                    }
+                },
                 "results": results,
             }
         ],

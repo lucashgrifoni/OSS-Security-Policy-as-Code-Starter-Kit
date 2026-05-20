@@ -111,9 +111,7 @@ def _cyclonedx_16_with_vex_inside() -> str:
                 "supplier": {"name": "X"},
             }
         ],
-        "vulnerabilities": [
-            {"id": "CVE-2024-12345", "source": {"name": "NVD"}, "ratings": []}
-        ],
+        "vulnerabilities": [{"id": "CVE-2024-12345", "source": {"name": "NVD"}, "ratings": []}],
     }
     return json.dumps(doc)
 

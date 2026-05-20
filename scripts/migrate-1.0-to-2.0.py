@@ -50,9 +50,7 @@ def _map_status(status: str) -> tuple[str, str | None]:
 def _convert(doc: dict) -> dict:
     out = dict(doc)
     # Replace top-level schema_version.
-    out["schema_version"] = (
-        "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/2.0"
-    )
+    out["schema_version"] = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/2.0"
     out["contract_version"] = "reports/2.0"
     # Remap per-control status.
     controls = doc.get("controls")

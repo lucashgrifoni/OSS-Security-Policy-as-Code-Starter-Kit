@@ -140,6 +140,7 @@ def test_cisa_metadata_timestamp_present_and_iso8601(tmp_path: Path) -> None:
     assert isinstance(ts, str) and ts.endswith("Z")
     # Minimal ISO-8601 check: YYYY-MM-DDTHH:MM:SSZ
     from datetime import datetime
+
     datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ")
 
 

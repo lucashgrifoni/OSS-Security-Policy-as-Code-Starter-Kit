@@ -1665,9 +1665,8 @@ def eval_gh_prov_023(ctx: EvalContext) -> EvalOutcome:
                     "(evidence-backed per ADR-007)."
                 ),
                 remediation="Re-verify on every release and keep verification.verified_at within the freshness window.",
-                evidence_sources=[
-                    str(p.resolve()) for p in ctx.workflows.workflow_paths
-                ] + [str(evidence_path.resolve())],
+                evidence_sources=[str(p.resolve()) for p in ctx.workflows.workflow_paths]
+                + [str(evidence_path.resolve())],
                 confidence="high",
                 evidence_collection_method=EvidenceCollectionMethod.LIVE,
             )
@@ -4087,18 +4086,12 @@ def eval_build_sbom_qual_003(ctx: EvalContext) -> EvalOutcome:
                     bsi = _validate_bsi_tr_03183_v2_1(content, fmt_detail, version)
                     if bsi is not None:
                         missing = [
-                            k.removesuffix("_present").removesuffix("_separated")
-                            for k, v in bsi.items()
-                            if not v
+                            k.removesuffix("_present").removesuffix("_separated") for k, v in bsi.items() if not v
                         ]
                         if missing:
-                            bsi_notes.append(
-                                f"{p.name} BSI TR-03183-2 v2.1.0: missing {', '.join(missing)}"
-                            )
+                            bsi_notes.append(f"{p.name} BSI TR-03183-2 v2.1.0: missing {', '.join(missing)}")
                         else:
-                            bsi_notes.append(
-                                f"{p.name} BSI TR-03183-2 v2.1.0: all required fields present"
-                            )
+                            bsi_notes.append(f"{p.name} BSI TR-03183-2 v2.1.0: all required fields present")
                 else:
                     invalid.append(p.name)
         if valid:
@@ -5650,10 +5643,7 @@ def eval_gl_pipe_009(ctx: EvalContext) -> EvalOutcome:
     if not matched:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=(
-                "No audit-event streaming / external export reference found in pipelines or "
-                "common doc locations."
-            ),
+            reason=("No audit-event streaming / external export reference found in pipelines or common doc locations."),
             remediation=(
                 "Document the project-level audit-event streaming destination (e.g. SIEM, "
                 "object store) in AUDIT.md or .gitlab/audit-streaming.yml so reviewers can "
@@ -5722,8 +5712,7 @@ def eval_gl_pipe_011(ctx: EvalContext) -> EvalOutcome:
             "cannot be verified from a clone."
         ),
         remediation=(
-            "Document the project's MR approval rules (min approvers, code owner approval) in "
-            "the evidence file."
+            "Document the project's MR approval rules (min approvers, code owner approval) in the evidence file."
         ),
         evidence_sources=[],
         confidence="medium",
@@ -5824,12 +5813,9 @@ def eval_gh_egress_hrn_001(ctx: EvalContext) -> EvalOutcome:
         )
     return EvalOutcome(
         status=ControlStatus.PASS,
-        reason=(
-            f"Harden-Runner egress control detected in {len(matched)} of {len(paths)} workflow file(s)."
-        ),
+        reason=(f"Harden-Runner egress control detected in {len(matched)} of {len(paths)} workflow file(s)."),
         remediation=(
-            "Keep Harden-Runner pinned by SHA and review the audit-mode allowlist before "
-            "tightening to block-mode."
+            "Keep Harden-Runner pinned by SHA and review the audit-mode allowlist before tightening to block-mode."
         ),
         evidence_sources=[str(p.resolve()) for p in matched],
         confidence="medium",
@@ -5958,8 +5944,7 @@ def eval_llm_218a_po_002(ctx: EvalContext) -> EvalOutcome:
         status=ControlStatus.MANUAL_REVIEW_REQUIRED,
         reason="No prompt registry directory found (prompts/, system_prompts/, prompt-registry/).",
         remediation=(
-            "Maintain prompts under version control in a dedicated directory so audit and rollback "
-            "are possible."
+            "Maintain prompts under version control in a dedicated directory so audit and rollback are possible."
         ),
         evidence_sources=[],
         confidence="low",
@@ -5988,9 +5973,7 @@ def eval_llm_218a_ps_001(ctx: EvalContext) -> EvalOutcome:
         if isinstance(data, dict) and data.get("model_sha") and data.get("model_version"):
             return EvalOutcome(
                 status=ControlStatus.PASS,
-                reason=(
-                    f"LLM release-integrity evidence present (model_version={data.get('model_version')})."
-                ),
+                reason=(f"LLM release-integrity evidence present (model_version={data.get('model_version')})."),
                 remediation="Refresh per release; keep eval_suite_results_path pointing to current results.",
                 evidence_sources=[str(evidence.resolve())],
                 confidence="medium",
@@ -6109,9 +6092,7 @@ def eval_llm_218a_rv_001(ctx: EvalContext) -> EvalOutcome:
     return EvalOutcome(
         status=ControlStatus.MANUAL_REVIEW_REQUIRED,
         reason="Dependency-update config does not explicitly reference an LLM SDK.",
-        remediation=(
-            "Add an explicit package-ecosystem entry covering the LLM SDK(s) used by this project."
-        ),
+        remediation=("Add an explicit package-ecosystem entry covering the LLM SDK(s) used by this project."),
         evidence_sources=[],
         confidence="low",
     )
@@ -6271,7 +6252,8 @@ def eval_worm_publish_scope_001(ctx: EvalContext) -> EvalOutcome:
             text = p.read_text(encoding="utf-8", errors="replace").lower()
             # Look for tag-only or branch-restricted triggers.
             has_branch_restriction = any(
-                pat in text for pat in (
+                pat in text
+                for pat in (
                     "branches: [main",
                     "branches: [master",
                     "branches: ['main'",
@@ -6398,10 +6380,7 @@ def eval_llm_ai_act_002(ctx: EvalContext) -> EvalOutcome:
     if not matched:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=(
-                "No output-filtering / content-moderation reference found in source code "
-                "(Annex IV §3)."
-            ),
+            reason=("No output-filtering / content-moderation reference found in source code (Annex IV §3)."),
             remediation=(
                 "Implement an output filter (e.g. OpenAI Moderations API, NVIDIA NeMo Guardrails, "
                 "or a custom classifier) and reference it in the AI pipeline."
@@ -6666,12 +6645,16 @@ def _load_ai_agent_evidence(
 ) -> tuple[Path, dict[str, Any] | None, EvalOutcome | None]:
     evidence = _ai_agent_evidence_path(ctx, filename)
     if not evidence.is_file():
-        return evidence, None, EvalOutcome(
-            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=f"No .oss-policy-kit/evidence/ai-agent/{filename} evidence file present.",
-            remediation=f"Create {filename} using schema_version=ai-agent-baseline/v1.",
-            evidence_sources=[],
-            confidence="medium",
+        return (
+            evidence,
+            None,
+            EvalOutcome(
+                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                reason=f"No .oss-policy-kit/evidence/ai-agent/{filename} evidence file present.",
+                remediation=f"Create {filename} using schema_version=ai-agent-baseline/v1.",
+                evidence_sources=[],
+                confidence="medium",
+            ),
         )
     data, error, placeholders = _validate_json_evidence(
         evidence,
@@ -6679,12 +6662,16 @@ def _load_ai_agent_evidence(
         evidence_name=evidence_name,
     )
     if error:
-        return evidence, None, EvalOutcome(
-            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=error,
-            remediation="Fix the evidence JSON to match evidence-ai-agent-baseline.schema.json.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="low",
+        return (
+            evidence,
+            None,
+            EvalOutcome(
+                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                reason=error,
+                remediation="Fix the evidence JSON to match evidence-ai-agent-baseline.schema.json.",
+                evidence_sources=[str(evidence.resolve())],
+                confidence="low",
+            ),
         )
     ph = _evidence_placeholder_outcome(evidence, placeholders)
     if ph is not None:
@@ -7106,9 +7093,7 @@ def eval_publish_oidc_001(ctx: EvalContext) -> EvalOutcome:
         )
     return EvalOutcome(
         status=ControlStatus.PASS,
-        reason=(
-            f"{len(matched)} of {len(publish)} publish workflow(s) declare ``permissions: id-token: write``."
-        ),
+        reason=(f"{len(matched)} of {len(publish)} publish workflow(s) declare ``permissions: id-token: write``."),
         remediation=(
             "Keep id-token: write scoped to the publish job, not the whole workflow, and pin the "
             "publish action by SHA per CI-PIN-008."
@@ -7220,9 +7205,7 @@ def eval_publish_oidc_003(ctx: EvalContext) -> EvalOutcome:
         )
     return EvalOutcome(
         status=ControlStatus.PASS,
-        reason=(
-            f"{len(with_provenance)} of {len(npm_publish)} npm publish workflow(s) declare provenance."
-        ),
+        reason=(f"{len(with_provenance)} of {len(npm_publish)} npm publish workflow(s) declare provenance."),
         remediation="Keep the provenance flag enabled; remove if migrating off npm-trusted-publishing only.",
         evidence_sources=[str(p.resolve()) for p in with_provenance],
         confidence="medium",
@@ -7451,9 +7434,7 @@ def eval_osps_scorecard_v6_001(ctx: EvalContext) -> EvalOutcome:
     with contextlib.suppress(OSError, json.JSONDecodeError):
         data = json.loads(evidence.read_text(encoding="utf-8"))
         if isinstance(data, dict):
-            verdict = str(
-                data.get("conformance") or data.get("result") or data.get("overall") or ""
-            ).strip().lower()
+            verdict = str(data.get("conformance") or data.get("result") or data.get("overall") or "").strip().lower()
             if verdict in {"pass", "passed", "conformant", "true"}:
                 return EvalOutcome(
                     status=ControlStatus.PASS,
@@ -7507,10 +7488,7 @@ def _annex_iv_section(ctx: EvalContext, field: str, label: str, remediation: str
             confidence="medium",
         )
     value = data.get(field)
-    populated = (
-        (isinstance(value, str) and value.strip() != "")
-        or (isinstance(value, (list, dict)) and len(value) > 0)
-    )
+    populated = (isinstance(value, str) and value.strip() != "") or (isinstance(value, (list, dict)) and len(value) > 0)
     if populated:
         return EvalOutcome(
             status=ControlStatus.PASS,
@@ -7597,10 +7575,11 @@ def eval_cra_art13_sbd_001(ctx: EvalContext) -> EvalOutcome:
     section = _scan_readme_for_section(
         ctx.repo_root, ("security by design", "secure by design", "security-by-design", "secure-by-design")
     )
-    adr_hit = any(
-        adr.is_file()
-        for adr in (ctx.repo_root / "docs" / "decisions").glob("*.md")
-    ) if (ctx.repo_root / "docs" / "decisions").is_dir() else False
+    adr_hit = (
+        any(adr.is_file() for adr in (ctx.repo_root / "docs" / "decisions").glob("*.md"))
+        if (ctx.repo_root / "docs" / "decisions").is_dir()
+        else False
+    )
     if section is not None:
         return EvalOutcome(
             status=ControlStatus.PASS,
@@ -7714,8 +7693,13 @@ def eval_cra_product_class_001(ctx: EvalContext) -> EvalOutcome:
         ctx.repo_root, ("cra-classification.md", "docs/cra-classification.md", "docs/cra-readiness.md")
     )
     class_terms = (
-        "important product", "critical product", "default category",
-        "class i", "class ii", "annex iii", "annex iv",
+        "important product",
+        "critical product",
+        "default category",
+        "class i",
+        "class ii",
+        "annex iii",
+        "annex iv",
     )
     if p is not None and any(t in text for t in class_terms):
         return EvalOutcome(
@@ -7950,7 +7934,12 @@ def eval_slsa_src_008(ctx: EvalContext) -> EvalOutcome:
 # --- PR-27: MCP server security -------------------------------------------
 _MCP_CONFIG_FILES: tuple[str, ...] = ("mcp.json", ".mcp.json", "mcp_server.json", "server.json")
 _MCP_DEP_HINTS: tuple[str, ...] = (
-    "modelcontextprotocol", "model-context-protocol", "fastmcp", "mcp-server", '"mcp"', "mcp[",
+    "modelcontextprotocol",
+    "model-context-protocol",
+    "fastmcp",
+    "mcp-server",
+    '"mcp"',
+    "mcp[",
 )
 
 
@@ -8034,10 +8023,15 @@ def eval_mcp_confirm_001(ctx: EvalContext) -> EvalOutcome:
     if not applicable:
         return _mcp_na("destructive-confirmation")
     hit = _mcp_text_signal(
-        ctx.repo_root, found,
+        ctx.repo_root,
+        found,
         (
-            "requires confirmation", "require confirmation", "human_in_the_loop",
-            "human-in-the-loop", "confirm before", "destructive",
+            "requires confirmation",
+            "require confirmation",
+            "human_in_the_loop",
+            "human-in-the-loop",
+            "confirm before",
+            "destructive",
         ),
     )
     if hit is not None:
@@ -8063,7 +8057,8 @@ def eval_mcp_egress_001(ctx: EvalContext) -> EvalOutcome:
     if not applicable:
         return _mcp_na("egress-allowlist")
     hit = _mcp_text_signal(
-        ctx.repo_root, found,
+        ctx.repo_root,
+        found,
         ("egress allowlist", "egress allow-list", "allowed_hosts", "allowed-hosts", "allowlist", "outbound allowlist"),
     )
     if hit is not None:
@@ -8123,7 +8118,8 @@ def eval_mcp_scope_001(ctx: EvalContext) -> EvalOutcome:
     if not applicable:
         return _mcp_na("per-tool scope")
     hit = _mcp_text_signal(
-        ctx.repo_root, found,
+        ctx.repo_root,
+        found,
         ("least privilege", "least-privilege", '"scope"', "permissions", "scopes", "read-only", "readonly"),
     )
     if hit is not None:
@@ -8145,8 +8141,17 @@ def eval_mcp_scope_001(ctx: EvalContext) -> EvalOutcome:
 
 # --- PR-28: OWASP Top 10 for Agentic Applications (ASI01-10) ---------------
 _AGENT_DEP_HINTS: tuple[str, ...] = (
-    "langchain", "langgraph", "autogen", "crewai", "llama-index", "llamaindex",
-    "openai-agents", "semantic-kernel", "agno", "pydantic-ai", "smolagents",
+    "langchain",
+    "langgraph",
+    "autogen",
+    "crewai",
+    "llama-index",
+    "llamaindex",
+    "openai-agents",
+    "semantic-kernel",
+    "agno",
+    "pydantic-ai",
+    "smolagents",
 )
 _AGENT_PATH_HINTS: tuple[str, ...] = ("agents", "agent.py", "agent.ts", "system_prompt", "prompts")
 
@@ -8234,10 +8239,15 @@ def eval_agent_asi_tool_002(ctx: EvalContext) -> EvalOutcome:
     if not applicable:
         return _agentic_na("ASI02 tool-misuse")
     hit = _agentic_signal(
-        ctx.repo_root, found,
+        ctx.repo_root,
+        found,
         (
-            "tool allowlist", "tool allow-list", "allowed tools",
-            "least privilege", "least-privilege", "tool permissions",
+            "tool allowlist",
+            "tool allow-list",
+            "allowed tools",
+            "least privilege",
+            "least-privilege",
+            "tool permissions",
         ),
     )
     if hit is not None:
@@ -8263,7 +8273,8 @@ def eval_agent_asi_memory_006(ctx: EvalContext) -> EvalOutcome:
     if not applicable:
         return _agentic_na("ASI06 memory-poisoning")
     hit = _agentic_signal(
-        ctx.repo_root, found,
+        ctx.repo_root,
+        found,
         ("memory purge", "memory retention", "memory poisoning", "memory hygiene", "purge policy", "clear memory"),
     )
     if hit is not None:
@@ -8289,7 +8300,8 @@ def eval_agent_asi_inter_007(ctx: EvalContext) -> EvalOutcome:
     if not applicable:
         return _agentic_na("ASI07 inter-agent communication")
     hit = _agentic_signal(
-        ctx.repo_root, found,
+        ctx.repo_root,
+        found,
         ("mutual auth", "mtls", "mutual tls", "agent-to-agent auth", "signed messages", "message signing"),
     )
     if hit is not None:
@@ -8315,10 +8327,15 @@ def eval_agent_asi_confirm_009(ctx: EvalContext) -> EvalOutcome:
     if not applicable:
         return _agentic_na("ASI09 human-agent trust")
     hit = _agentic_signal(
-        ctx.repo_root, found,
+        ctx.repo_root,
+        found,
         (
-            "human approval", "human-in-the-loop", "human in the loop",
-            "human checkpoint", "requires approval", "manual approval",
+            "human approval",
+            "human-in-the-loop",
+            "human in the loop",
+            "human checkpoint",
+            "requires approval",
+            "manual approval",
         ),
     )
     if hit is not None:
@@ -8410,8 +8427,13 @@ def eval_gh_wf_lockfile_001(ctx: EvalContext) -> EvalOutcome:
 
 
 _DISTROLESS_MARKERS: tuple[str, ...] = (
-    "gcr.io/distroless", "cgr.dev/chainguard", "chainguard/", "wolfi-base", "chainguard-base",
-    "scratch", "distroless",
+    "gcr.io/distroless",
+    "cgr.dev/chainguard",
+    "chainguard/",
+    "wolfi-base",
+    "chainguard-base",
+    "scratch",
+    "distroless",
 )
 
 
@@ -8468,9 +8490,18 @@ def eval_cont_distroless_001(ctx: EvalContext) -> EvalOutcome:
 
 
 _SCANNER_ACTION_HINTS: tuple[str, ...] = (
-    "aquasecurity/trivy-action", "trivy-action", "anchore/scan-action", "anchore/sbom-action",
-    "github/codeql-action", "returntocorp/semgrep", "semgrep/semgrep", "snyk/actions",
-    "checkmarx", "gitleaks/gitleaks-action", "zaproxy", "grype",
+    "aquasecurity/trivy-action",
+    "trivy-action",
+    "anchore/scan-action",
+    "anchore/sbom-action",
+    "github/codeql-action",
+    "returntocorp/semgrep",
+    "semgrep/semgrep",
+    "snyk/actions",
+    "checkmarx",
+    "gitleaks/gitleaks-action",
+    "zaproxy",
+    "grype",
 )
 _SHA_PIN_PATTERN = re.compile(r"@[0-9a-f]{40}\b")
 

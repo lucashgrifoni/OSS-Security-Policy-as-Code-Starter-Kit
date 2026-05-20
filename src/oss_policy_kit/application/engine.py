@@ -136,9 +136,7 @@ def report_json_schema_url(contract: str) -> str:
             "Report JSON contract '0.1' was removed in v5.0.0. Use '1.0' (default), '2.0', '0.3', or '0.2'. "
             "See docs/v5.0.0-migration-guide.md."
         )
-    raise LoadError(
-        f"Unknown report JSON contract {contract!r}; expected '1.0', '2.0', '0.3', or '0.2'."
-    )
+    raise LoadError(f"Unknown report JSON contract {contract!r}; expected '1.0', '2.0', '0.3', or '0.2'.")
 
 
 def _apply_waiver(

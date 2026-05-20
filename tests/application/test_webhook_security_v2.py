@@ -158,8 +158,7 @@ def test_rotate_manual_review_when_env_only_without_rotation(tmp_path: Path) -> 
     _write_py(
         tmp_path,
         "main.py",
-        _WEBHOOK_ROUTE_PY
-        + "\nimport os\nsecret = os.environ['WEBHOOK_SECRET']\n",
+        _WEBHOOK_ROUTE_PY + "\nimport os\nsecret = os.environ['WEBHOOK_SECRET']\n",
     )
     out = eval_sec_webhook_rotate_006(_Ctx(tmp_path))
     assert out.status == ControlStatus.MANUAL_REVIEW_REQUIRED

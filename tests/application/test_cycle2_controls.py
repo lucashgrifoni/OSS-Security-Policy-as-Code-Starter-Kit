@@ -278,9 +278,7 @@ def test_scanner_integrity_pass_on_pinned_scanner(tmp_path: Path) -> None:
     wf = tmp_path / ".github" / "workflows" / "scan.yml"
     wf.parent.mkdir(parents=True)
     sha = "a" * 40
-    wf.write_text(
-        f"jobs:\n  s:\n    steps:\n      - uses: aquasecurity/trivy-action@{sha}\n", encoding="utf-8"
-    )
+    wf.write_text(f"jobs:\n  s:\n    steps:\n      - uses: aquasecurity/trivy-action@{sha}\n", encoding="utf-8")
     ctx = SimpleNamespace(repo_root=tmp_path, workflows=SimpleNamespace(workflow_paths=(wf,)))
     out = eval_scanner_integrity_001(ctx)
     assert out.status is ControlStatus.PASS

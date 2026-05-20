@@ -114,9 +114,7 @@ def cli_root(
     report_json_contract: str = typer.Option(
         "1.0",
         "--report-json-contract",
-        help=(
-            "evaluation-report.json contract: 1.0 (default), 2.0, 0.3, or 0.2. '0.1' was removed in v5."
-        ),
+        help=("evaluation-report.json contract: 1.0 (default), 2.0, 0.3, or 0.2. '0.1' was removed in v5."),
         case_sensitive=False,
     ),
     sarif_output: Path | None = typer.Option(
@@ -258,9 +256,7 @@ def evaluate_cmd(
     report_json_contract: str = typer.Option(
         "1.0",
         "--report-json-contract",
-        help=(
-            "evaluation-report.json contract: 1.0 (default), 2.0, 0.3, or 0.2. '0.1' was removed in v5."
-        ),
+        help=("evaluation-report.json contract: 1.0 (default), 2.0, 0.3, or 0.2. '0.1' was removed in v5."),
         case_sensitive=False,
     ),
     sarif_output: Path | None = typer.Option(

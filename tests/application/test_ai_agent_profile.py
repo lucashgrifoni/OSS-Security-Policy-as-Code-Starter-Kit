@@ -163,6 +163,4 @@ def test_ai_agent_fixture_passes_profile() -> None:
     report = evaluate_repository(repo, spec, catalog, waiver_outcome=None, scorecard=None)
     statuses = {r.control_id: r.status for r in report.results}
 
-    assert {cid: statuses[cid] for cid in AI_AGENT_CONTROLS} == {
-        cid: ControlStatus.PASS for cid in AI_AGENT_CONTROLS
-    }
+    assert {cid: statuses[cid] for cid in AI_AGENT_CONTROLS} == {cid: ControlStatus.PASS for cid in AI_AGENT_CONTROLS}

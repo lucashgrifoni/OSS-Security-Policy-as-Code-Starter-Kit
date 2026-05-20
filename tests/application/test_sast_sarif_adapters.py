@@ -201,10 +201,7 @@ def test_adapter_manual_review_on_malformed_sarif(fn, filename, name, tmp_path: 
 # --- O-11: zizmor severity-properties extension -----------------------------
 
 _FIXTURE_ZIZMOR_PROPS = (
-    Path(__file__).resolve().parents[1]
-    / "fixtures"
-    / "sarif"
-    / "zizmor-with-zizmor-properties.sarif.json"
+    Path(__file__).resolve().parents[1] / "fixtures" / "sarif" / "zizmor-with-zizmor-properties.sarif.json"
 )
 
 

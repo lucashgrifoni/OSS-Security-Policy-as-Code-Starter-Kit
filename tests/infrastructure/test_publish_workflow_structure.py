@@ -10,9 +10,7 @@ from pathlib import Path
 import yaml
 
 _WORKFLOW_PATH = Path(__file__).parents[2] / ".github" / "workflows" / "publish-pypi.yml"
-_CONTAINER_WORKFLOW_PATH = (
-    Path(__file__).parents[2] / ".github" / "workflows" / "publish-container.yml"
-)
+_CONTAINER_WORKFLOW_PATH = Path(__file__).parents[2] / ".github" / "workflows" / "publish-container.yml"
 _DOCKERFILE_PATH = Path(__file__).parents[2] / "Dockerfile"
 _DOCKERIGNORE_PATH = Path(__file__).parents[2] / ".dockerignore"
 

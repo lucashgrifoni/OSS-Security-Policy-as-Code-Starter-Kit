@@ -425,9 +425,7 @@ def _focused_check(
         )
     return EvalOutcome(
         status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-        reason=(
-            f"Webhook route detected ({route_hint!r}) but the {title} primitive did not surface from a clone."
-        ),
+        reason=(f"Webhook route detected ({route_hint!r}) but the {title} primitive did not surface from a clone."),
         remediation=review_remediation,
         evidence_sources=[],
         confidence="medium",
@@ -476,8 +474,7 @@ def eval_sec_webhook_replay_003(ctx: Any) -> EvalOutcome:
         title="replay defense",
         primitive_hints=_REPLAY_PRIMITIVE_HINTS,
         pass_remediation=(
-            "Keep the replay tolerance short (recommended <= 5 minutes) and document it "
-            "in the webhook receiver README."
+            "Keep the replay tolerance short (recommended <= 5 minutes) and document it in the webhook receiver README."
         ),
         review_remediation=(
             "Reject events with timestamps outside a short tolerance window (Stripe-style "
