@@ -34,6 +34,14 @@ controls:
   - CI-PERM-006
   # Post-publish verification
   - PROV-VERIFY-061
+  # Shai-Hulud / TeamPCP worm defense (Cycle 2, PR-19)
+  - WORM-POSTINSTALL-001
+  - WORM-LOCKFILE-DRIFT-001
+  - WORM-PUBLISH-SCOPE-001
+  # Post-Trivy scanner integrity + GitHub Actions 2026 signals (Cycle 2, PR-29/30/32)
+  - SCANNER-INTEGRITY-001
+  - GH-EGRESS-NATIVE-001
+  - GH-WF-LOCKFILE-001
   # Sustaining governance
   - GOV-SEC-001
   - GOV-DISC-013

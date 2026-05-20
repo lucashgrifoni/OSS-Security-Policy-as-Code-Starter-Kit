@@ -26,6 +26,8 @@ controls:
   - CONT-IMAGE-001
   - CONT-IMAGE-002
   - CONT-IMAGE-003
+  # Distroless / minimal base image signal (Cycle 2, PR-31)
+  - CONT-DISTROLESS-001
   # Container runtime hardening (6)
   - CONT-RUNTIME-001
   - CONT-RUNTIME-002
