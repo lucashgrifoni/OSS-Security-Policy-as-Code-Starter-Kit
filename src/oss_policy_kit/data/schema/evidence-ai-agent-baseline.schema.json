@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/schema/evidence-ai-agent-baseline.schema.json",
+  "title": "AI agent baseline evidence",
+  "description": "Versioned evidence used by AI-AGENT-005, AI-AGENT-007, and AI-AGENT-009. Place files under .oss-policy-kit/evidence/ai-agent/.",
+  "type": "object",
+  "required": ["schema_version", "control_id", "attested_at", "attested_by"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "ai-agent-baseline/v1"
+    },
+    "control_id": {
+      "type": "string",
+      "enum": ["AI-AGENT-005", "AI-AGENT-007", "AI-AGENT-009"]
+    },
+    "attested_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "attested_by": {
+      "type": "string"
+    },
+    "method": {
+      "type": "string"
+    },
+    "applied_to": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "bypass_review_process": {
+      "type": "string"
+    },
+    "destination": {
+      "type": "string"
+    },
+    "retention_days": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "pii_redaction": {
+      "type": "boolean"
+    },
+    "excluded_context_types": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "retention_policy": {
+      "type": "string"
+    },
+    "review_cadence": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

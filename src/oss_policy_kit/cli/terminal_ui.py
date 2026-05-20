@@ -577,6 +577,7 @@ def _print_health_strip(
 #: visible at the top of every interactive evaluate run.
 _ADVISORY_ONLY_PROFILE_IDS: frozenset[str] = frozenset(
     {
+        "ai-agent-baseline-1",
         "container-baseline-1",
         "cra-eu-ready-1",
         "cra-eu-reporting-1",

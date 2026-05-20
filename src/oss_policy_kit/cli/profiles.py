@@ -33,10 +33,19 @@ _REGULATORY_PROFILE_IDS: frozenset[str] = frozenset({"cra-eu-ready-1", "cra-eu-r
 _FRAMEWORK_PROFILE_LABELS: dict[str, str] = {
     "osps-baseline-1": "framework-aligned advisory (OSPS Baseline)",
     "slsa-build-l2-1": "framework-aligned hard-gate-capable (SLSA Build L2)",
+    "slsa-source-l1-1": "framework-aligned advisory (SLSA Source L1)",
     "ssdf-baseline-1": "framework-aligned advisory (NIST SSDF)",
     "cis-supply-chain-1": "framework-aligned advisory (CIS Supply Chain)",
     "owasp-cicd-top10-1": "framework-aligned advisory (OWASP CICD Top 10)",
     "s2c2f-l1-1": "framework-aligned advisory (Microsoft S2C2F L1)",
+    "s2c2f-l2-1": "framework-aligned advisory (Microsoft S2C2F L2)",
+    "s2c2f-l3-1": "framework-aligned advisory (Microsoft S2C2F L3)",
+    "webhook-security-2": "Webhook receiver hardening expanded baseline (advisory)",
+    "oss-publish-readiness-1": "OSS publish-readiness Trusted Publishing baseline (advisory)",
+    "gitlab-level-2": "GitLab CI stricter baseline (advisory ladder)",
+    "appsec-llm-ssdf-218a-1": "framework-aligned advisory (NIST SP 800-218A LLM)",
+    "cra-eu-ai-act-art11-1": "framework-aligned advisory (regulatory, EU AI Act Art. 11)",
+    "ai-agent-baseline-1": "AI agent source-side baseline (advisory)",
     "appsec-sast-sca-1": "AppSec native bundle (hard-gate-capable with scan-sast)",
     "iac-terraform-baseline-1": "IaC Terraform posture (advisory, paired with scan-iac)",
     "kubernetes-baseline-1": "Kubernetes manifest posture (advisory, paired with scan-k8s)",
@@ -69,6 +78,7 @@ _PROFILE_COMPACT_AUDIENCES = {
     "cra-eu-reporting-1": (
         "EU manufacturers preparing for the 2026-09-11 24h reporting deadline (advisory, multi-platform)."
     ),
+    "ai-agent-baseline-1": "Teams building AI agents or MCP servers (advisory, source-side).",
 }
 _PROFILE_COMPACT_DESCRIPTIONS = {
     "aws-level-1": "Starter AWS buildspec/pipeline signals (honest clone checks).",
@@ -96,6 +106,7 @@ _PROFILE_COMPACT_DESCRIPTIONS = {
     "cra-eu-reporting-1": (
         "EU CRA 24h reporting readiness (advisory) — 2026-09-11 deadline, technical preconditions only."
     ),
+    "ai-agent-baseline-1": "AI agent source-side baseline: MCP authn, tool allowlists, prompts, audit, memory.",
 }
 
 

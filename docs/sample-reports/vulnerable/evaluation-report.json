@@ -1,0 +1,599 @@
+{
+  "schema_version": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/1.0",
+  "evidence_provenance_version": "evidence/2.0",
+  "generated_at": "2026-05-19T16:49:49+00:00",
+  "kit_version": "6.0.0.dev0",
+  "target_path": "vulnerable-repo",
+  "profile": {
+    "id": "github-level-1",
+    "title": "GitHub OSS starter baseline (level 1)",
+    "family": "github",
+    "level": "L1",
+    "posture": "starter",
+    "is_release_track": false,
+    "recommended_gate": "--fail-on fail"
+  },
+  "summary_by_status": {
+    "fail": 11,
+    "manual-review-required": 1,
+    "pass": 2
+  },
+  "controls_total": 14,
+  "summary_by_gate_role": {
+    "ci_blocking_fail": 11,
+    "human_review_gate": 1,
+    "passed_observation": 2
+  },
+  "gate_execution_model": {
+    "model_version": 2,
+    "report_contract": "reports/1.0",
+    "fail_on_semantics": {
+      "none": {
+        "exit_1_from_results": false
+      },
+      "fail": {
+        "exit_1_when": "ci_blocking_fail > 0",
+        "maps_to_summary_status": "fail"
+      },
+      "degraded": {
+        "exit_1_when": "ci_blocking_fail > 0 OR human_review_gate > 0",
+        "maps_to_summary_statuses": [
+          "fail",
+          "manual-review-required"
+        ]
+      }
+    },
+    "trust_boundary_notes": [
+      "`not-evaluated` never triggers fail-on by itself - it signals evaluation limits or missing evidence.",
+      "`self-attested` is declarative and is not the same as verifier-backed pass.",
+      "Waivers may convert `fail` to `waived` before summaries are computed.",
+      "`assurance: signal` controls cannot project to `trust_level: verified` in the v1 evidence model.",
+      "`evidence.freshness_status: stale` reduces trust to `declared` even when collection method is live."
+    ]
+  },
+  "results": [
+    {
+      "control_id": "GOV-SEC-001",
+      "title": "SECURITY.md present",
+      "category": "governance",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "fail",
+      "gate_role": "ci_blocking_fail",
+      "assurance": "deterministic",
+      "confidence": "high",
+      "weight": 3,
+      "reason": "SECURITY.md not found at repository root.",
+      "remediation": "Add SECURITY.md describing supported versions and how to report vulnerabilities.",
+      "evidence": {
+        "source_type": "static_clone",
+        "trust_level": "declared",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [],
+        "limitations": [],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "GOV-SEC-001@github-level-1"
+    },
+    {
+      "control_id": "GOV-CON-002",
+      "title": "CONTRIBUTING guide present",
+      "category": "governance",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "fail",
+      "gate_role": "ci_blocking_fail",
+      "assurance": "deterministic",
+      "confidence": "high",
+      "weight": 1,
+      "reason": "CONTRIBUTING guide not found.",
+      "remediation": "Add CONTRIBUTING.md with workflow, review expectations, and security notes.",
+      "evidence": {
+        "source_type": "static_clone",
+        "trust_level": "declared",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [],
+        "limitations": [],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "GOV-CON-002@github-level-1"
+    },
+    {
+      "control_id": "GOV-COWN-003",
+      "title": "CODEOWNERS configured",
+      "category": "governance",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "fail",
+      "gate_role": "ci_blocking_fail",
+      "assurance": "deterministic",
+      "confidence": "high",
+      "weight": 2,
+      "reason": "CODEOWNERS not found at .github/CODEOWNERS or repository root.",
+      "remediation": "Add CODEOWNERS to route reviews for sensitive areas.",
+      "evidence": {
+        "source_type": "static_clone",
+        "trust_level": "declared",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [],
+        "limitations": [],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "GOV-COWN-003@github-level-1"
+    },
+    {
+      "control_id": "GOV-LIC-004",
+      "title": "LICENSE file present",
+      "category": "governance",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "fail",
+      "gate_role": "ci_blocking_fail",
+      "assurance": "deterministic",
+      "confidence": "high",
+      "weight": 1,
+      "reason": "No LICENSE file detected at repository root.",
+      "remediation": "Add a LICENSE file consistent with your SPDX identifier.",
+      "evidence": {
+        "source_type": "static_clone",
+        "trust_level": "declared",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [],
+        "limitations": [],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "GOV-LIC-004@github-level-1"
+    },
+    {
+      "control_id": "CI-WF-005",
+      "title": "GitHub Actions workflows exist",
+      "category": "ci_cd",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "pass",
+      "gate_role": "passed_observation",
+      "assurance": "deterministic",
+      "confidence": "high",
+      "weight": 2,
+      "reason": "Found 1 workflow file(s).",
+      "remediation": "Keep CI workflows minimal, pinned, and least-privilege.",
+      "evidence": {
+        "source_type": "static_clone",
+        "trust_level": "declared",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [
+          {
+            "kind": "path",
+            "value": "<redacted-absolute>/Projects List - Andamento\\1.Projeto - OSS Security Policy as Code Starter Kit\\examples\\vulnerable-repo\\.github\\workflows\\unsafe.yml",
+            "redacted": true
+          }
+        ],
+        "limitations": [],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "CI-WF-005@github-level-1"
+    },
+    {
+      "control_id": "CI-PERM-006",
+      "title": "Workflows declare explicit top-level permissions",
+      "category": "ci_cd",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "fail",
+      "gate_role": "ci_blocking_fail",
+      "assurance": "deterministic",
+      "confidence": "medium",
+      "weight": 3,
+      "reason": "Workflows missing top-level permissions: unsafe.yml",
+      "remediation": "Declare top-level `permissions:` with the narrowest scope required.",
+      "evidence": {
+        "source_type": "static_clone",
+        "trust_level": "declared",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [
+          {
+            "kind": "path",
+            "value": "<redacted-absolute>/Projects List - Andamento\\1.Projeto - OSS Security Policy as Code Starter Kit\\examples\\vulnerable-repo\\.github\\workflows\\unsafe.yml",
+            "redacted": true
+          }
+        ],
+        "limitations": [],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "CI-PERM-006@github-level-1"
+    },
+    {
+      "control_id": "CI-DANGER-007",
+      "title": "No pull_request_target without strong justification",
+      "category": "ci_cd",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "fail",
+      "gate_role": "ci_blocking_fail",
+      "assurance": "deterministic",
+      "confidence": "medium",
+      "weight": 3,
+      "reason": "pull_request_target detected in: unsafe.yml",
+      "remediation": "Remove pull_request_target or restrict to audited, minimal patterns; prefer pull_request.",
+      "evidence": {
+        "source_type": "static_clone",
+        "trust_level": "declared",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [
+          {
+            "kind": "path",
+            "value": "<redacted-absolute>/Projects List - Andamento\\1.Projeto - OSS Security Policy as Code Starter Kit\\examples\\vulnerable-repo\\.github\\workflows\\unsafe.yml",
+            "redacted": true
+          }
+        ],
+        "limitations": [],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "CI-DANGER-007@github-level-1"
+    },
+    {
+      "control_id": "CI-PIN-008",
+      "title": "Third-party actions pinned to immutable references",
+      "category": "supply_chain",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "fail",
+      "gate_role": "ci_blocking_fail",
+      "assurance": "deterministic",
+      "confidence": "medium",
+      "weight": 3,
+      "reason": "Mutable action references (tags/branches) detected.",
+      "remediation": "Pin actions to immutable SHAs (40-char commit) from trusted repos.",
+      "evidence": {
+        "source_type": "static_clone",
+        "trust_level": "declared",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [
+          {
+            "kind": "path",
+            "value": "unsafe.yml: actions/checkout@v4",
+            "redacted": false
+          }
+        ],
+        "limitations": [],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "CI-PIN-008@github-level-1"
+    },
+    {
+      "control_id": "CI-LEAST-009",
+      "title": "Workflow permissions are not obviously over-broad",
+      "category": "ci_cd",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "pass",
+      "gate_role": "passed_observation",
+      "assurance": "signal",
+      "confidence": "medium",
+      "weight": 2,
+      "reason": "No obviously over-broad workflow permissions detected.",
+      "remediation": "Review permissions when adding publishing or release jobs.",
+      "evidence": {
+        "source_type": "heuristic_signal",
+        "trust_level": "inferred",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [],
+        "limitations": [
+          "Result is backed by keyword/heuristic matches; absence of match is not absence of control.",
+          "Catalog assurance is 'signal'; trust_level cannot exceed 'inferred' for this control."
+        ],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "CI-LEAST-009@github-level-1"
+    },
+    {
+      "control_id": "SEC-CODEQL-010",
+      "title": "CodeQL or equivalent security scanning in CI",
+      "category": "vulnerability_management",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "fail",
+      "gate_role": "ci_blocking_fail",
+      "assurance": "signal",
+      "confidence": "medium",
+      "weight": 2,
+      "reason": "No CodeQL (or equivalent) signal in local workflows.",
+      "remediation": "Add GitHub CodeQL workflow or equivalent SAST in CI.",
+      "evidence": {
+        "source_type": "heuristic_signal",
+        "trust_level": "inferred",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [],
+        "limitations": [
+          "Result is backed by keyword/heuristic matches; absence of match is not absence of control.",
+          "Catalog assurance is 'signal'; trust_level cannot exceed 'inferred' for this control."
+        ],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "SEC-CODEQL-010@github-level-1"
+    },
+    {
+      "control_id": "SEC-DEPREV-011",
+      "title": "Dependency review in pull requests",
+      "category": "supply_chain",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "fail",
+      "gate_role": "ci_blocking_fail",
+      "assurance": "deterministic",
+      "confidence": "medium",
+      "weight": 2,
+      "reason": "No dependency-review-action detected in workflows.",
+      "remediation": "Add GitHub Dependency Review to pull request workflows.",
+      "evidence": {
+        "source_type": "static_clone",
+        "trust_level": "declared",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [],
+        "limitations": [],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "SEC-DEPREV-011@github-level-1"
+    },
+    {
+      "control_id": "REL-CHANGE-012",
+      "title": "Changelog or documented release notes",
+      "category": "release",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "fail",
+      "gate_role": "ci_blocking_fail",
+      "assurance": "deterministic",
+      "confidence": "high",
+      "weight": 1,
+      "reason": "No CHANGELOG-style file detected.",
+      "remediation": "Add CHANGELOG.md and reference it from releases.",
+      "evidence": {
+        "source_type": "static_clone",
+        "trust_level": "declared",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [],
+        "limitations": [],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "REL-CHANGE-012@github-level-1"
+    },
+    {
+      "control_id": "GOV-DISC-013",
+      "title": "Responsible disclosure channel documented",
+      "category": "governance",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "fail",
+      "gate_role": "ci_blocking_fail",
+      "assurance": "signal",
+      "confidence": "high",
+      "weight": 2,
+      "reason": "Disclosure reporting mechanism not implemented (SECURITY.md missing at repository root).",
+      "remediation": "Add SECURITY.md with a clear reporting channel (email or form).",
+      "evidence": {
+        "source_type": "heuristic_signal",
+        "trust_level": "inferred",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "none",
+        "references": [],
+        "limitations": [
+          "Result is backed by keyword/heuristic matches; absence of match is not absence of control.",
+          "Catalog assurance is 'signal'; trust_level cannot exceed 'inferred' for this control."
+        ],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "GOV-DISC-013@github-level-1"
+    },
+    {
+      "control_id": "GOV-WAIV-014",
+      "title": "Versioned waiver policy file present in repository (not CLI-only waivers)",
+      "category": "governance",
+      "lifecycle": "stable",
+      "profile": "github-level-1",
+      "status": "manual-review-required",
+      "gate_role": "human_review_gate",
+      "assurance": "deterministic",
+      "confidence": "medium",
+      "weight": 1,
+      "reason": "No versioned waiver policy file found in repository. If waivers are not applicable, create a waivers/ directory with a documented policy statement or use an empty waivers file.",
+      "remediation": "Create waivers/policy.yaml or waivers/README.md documenting the waiver governance approach.",
+      "evidence": {
+        "source_type": "manual_review",
+        "trust_level": "inferred",
+        "collection_method": "static",
+        "collected_at": null,
+        "source_platform": "local",
+        "freshness_status": "not_applicable",
+        "attestation_status": "not_applicable",
+        "references": [],
+        "limitations": [],
+        "digest": null,
+        "evidence_schema_id": null
+      },
+      "owner": null,
+      "expires_at": null,
+      "waiver": null,
+      "extra": {},
+      "finding_id": "GOV-WAIV-014@github-level-1"
+    }
+  ],
+  "results_digest": "sha256:ec6c0010cbd0248d6f2419352415277969ff250cbd5a7379cd735b55d6386d8c",
+  "operational_warnings": [],
+  "scorecard": {
+    "path": null,
+    "supplemental": null
+  },
+  "external_waiver_path": null,
+  "action_insights": {
+    "top_structural_causes": [
+      {
+        "bucket": "Governance and release artifacts (README, LICENSE, SECURITY, changelog)",
+        "count": 7
+      },
+      {
+        "bucket": "GitHub Actions CI/CD (workflows, permissions, pins)",
+        "count": 3
+      },
+      {
+        "bucket": "Security scanning and vulnerability management in CI",
+        "count": 2
+      }
+    ],
+    "recommended_actions": [
+      "Add SECURITY.md at the repo root with a monitored private reporting channel.",
+      "Add a recognizable LICENSE file at the repository root.",
+      "Add CONTRIBUTING.md aligned with security expectations.",
+      "Add SAST or code scanning in CI (CodeQL, Semgrep, Bandit, etc.).",
+      "Declare explicit permissions at the top of workflows."
+    ],
+    "failing_controls_by_category": {
+      "governance": [
+        "GOV-CON-002",
+        "GOV-COWN-003",
+        "GOV-DISC-013",
+        "GOV-LIC-004",
+        "GOV-SEC-001",
+        "GOV-WAIV-014"
+      ],
+      "ci_cd": [
+        "CI-DANGER-007",
+        "CI-PERM-006"
+      ],
+      "supply_chain": [
+        "CI-PIN-008",
+        "SEC-DEPREV-011"
+      ],
+      "vulnerability_management": [
+        "SEC-CODEQL-010"
+      ],
+      "release": [
+        "REL-CHANGE-012"
+      ]
+    }
+  },
+  "live_collection": null,
+  "weighted_score": {
+    "earned": 4,
+    "possible": 28,
+    "percent": 14.3
+  },
+  "migration": null,
+  "extensions": {}
+}

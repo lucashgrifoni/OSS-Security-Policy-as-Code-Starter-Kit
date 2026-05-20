@@ -1,0 +1,9 @@
+{
+  "schema_version": "ai-agent-baseline/v1",
+  "control_id": "AI-AGENT-005",
+  "attested_at": "2026-05-19",
+  "attested_by": "fixture-maintainer",
+  "method": "central output_filter function redacts tokens before responses are returned",
+  "applied_to": ["final_answer", "tool_result_summary"],
+  "bypass_review_process": "changes require CODEOWNERS review and security test updates"
+}

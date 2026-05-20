@@ -9,7 +9,7 @@
 # - Non-root user: `appuser` (uid 10001). Required by container-baseline-1.
 # - Read-only-friendly: nothing writes to the image filesystem at runtime;
 #   adopters mount their repo and an output volume.
-# - No build tools in the runtime image: `pip install` happens in the
+# - No build tools in the runtime image: source install happens in the
 #   builder stage so the runtime stays minimal.
 #
 # Example usage (adopter side):
@@ -18,8 +18,8 @@
 #   docker run --rm -v "$(pwd):/work" -w /work oss-policy-kit:5.9.0 \
 #     evaluate --target . --profile github-level-1 --summary-only
 #
-# A published image at ghcr.io/lucashgrifoni/oss-policy-kit is planned
-# for v5.9.x (release engineering — separate from this Dockerfile).
+# The publish workflow builds from the checked-out tag instead of installing
+# from PyPI, avoiding a tag-push race between package and container release.
 
 # ---------------------------------------------------------------------------
 # Stage 1: builder
@@ -50,11 +50,14 @@ RUN apt-get update \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install the package. Pinning the exact version makes the image
-# reproducible; CI can override with --build-arg KIT_VERSION=...
+# Install the package from the checked-out source tree. This keeps the
+# release image bound to the Git tag being built and removes any dependency
+# on PyPI propagation timing.
 ARG KIT_VERSION=5.9.0
+COPY pyproject.toml README.md LICENSE NOTICE ./
+COPY src ./src
 RUN pip install --upgrade pip \
-    && pip install "oss-policy-kit[all]==${KIT_VERSION}"
+    && pip install ".[all]"
 
 # ---------------------------------------------------------------------------
 # Stage 2: runtime

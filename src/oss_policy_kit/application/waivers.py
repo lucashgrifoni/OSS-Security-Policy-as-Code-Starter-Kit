@@ -72,7 +72,11 @@ def parse_waivers_file(path: Path) -> WaiverParseOutcome:
             warnings.append(f"Waiver for {cid} ignored: empty owner")
             continue
         status = str(item.get("status", "approved")).strip() or "approved"
-        expires_at = _parse_date(item.get("expires_at"))
+        try:
+            expires_at = _parse_date(item.get("expires_at"))
+        except ValueError as exc:
+            warnings.append(f"Waiver for {cid} ignored: invalid expires_at ({exc})")
+            continue
         if expires_at is not None and expires_at < today:
             warnings.append(f"Waiver for {cid} ignored: expired at {expires_at.isoformat()}")
             continue

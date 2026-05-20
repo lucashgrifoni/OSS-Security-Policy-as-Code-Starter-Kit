@@ -270,8 +270,324 @@ def eval_sec_webhook_002(ctx: Any) -> EvalOutcome:
     )
 
 
+# ---------------------------------------------------------------------------
+# v6.0.0 — SEC-WEBHOOK-HMAC-001..ROTATE-006 family (PR-5).
+#
+# Six new signal-grade controls bundled into webhook-security-2. Each control
+# scans the repo for a focused hint set. Routing is shared: every control
+# returns NOT_APPLICABLE when no webhook route is detected; PASS when the
+# control's primitive is found; MANUAL_REVIEW_REQUIRED when the route exists
+# but the primitive does not.
+#
+# See ADR-004 for the design rationale.
+# ---------------------------------------------------------------------------
+
+_HMAC_PRIMITIVE_HINTS: tuple[str, ...] = (
+    "hmac.new",
+    "createhmac",
+    "crypto.createhmac",
+    "hmac.compare_digest",
+    "hmac_sha256",
+    "hmacsha256",
+    "compute_signature",
+    "verify_signature",
+    "verifysignature",
+    "validate_signature",
+)
+
+_TIMING_SAFE_HINTS: tuple[str, ...] = (
+    "hmac.compare_digest",
+    "compare_digest",
+    "constant_time_compare",
+    "constanttimecompare",
+    "crypto.timingsafeequal",
+    "timingsafeequal",
+    "subtle.timingsafeequal",
+    "secrets.compare_digest",
+)
+
+_REPLAY_PRIMITIVE_HINTS: tuple[str, ...] = (
+    "x-webhook-timestamp",
+    "webhook_timestamp",
+    "replay_window",
+    "tolerance",
+    "max_age",
+    "x-github-delivery",
+    "event_id",
+    "nonce",
+)
+
+_BODY_CAP_HINTS: tuple[str, ...] = (
+    "content-length",
+    "content_length",
+    "max_body_size",
+    "max-body-size",
+    "request_max_size",
+    "client_max_body_size",
+    "body_limit",
+    "limits.max_body",
+    "bodylimit",
+    "bodyparser.json({ limit",
+    "express.json({ limit",
+    "request.body.size",
+)
+
+_IDEMP_HINTS: tuple[str, ...] = (
+    "idempotency",
+    "idempotency_key",
+    "idempotency-key",
+    "x-idempotency-key",
+    "deliveryid",
+    "delivery_id",
+    "x-github-delivery",
+    "setnx",
+    "set_nx",
+    "redis.set",
+    "redis.setex",
+    "client.setex",
+)
+
+_ROTATE_ENV_HINTS: tuple[str, ...] = (
+    "os.environ",
+    "process.env.",
+    "getenv(",
+    "config.get(",
+    "secrets.get(",
+    "vault.read",
+    "vault.kv",
+    "azure.identity",
+    "secretsmanager",
+    "aws_secretsmanager",
+)
+
+_ROTATE_MULTI_SECRET_HINTS: tuple[str, ...] = (
+    "old_secret",
+    "previous_secret",
+    "secret_rotation",
+    "secrets_rotation",
+    "rotation_window",
+    "rotation_period",
+    "rotated_secret",
+    "_secret_v1",
+    "_secret_v2",
+    "current_secret",
+)
+
+
+def _scan_for_any(repo_root: Path, hints: tuple[str, ...]) -> str | None:
+    """Return the first repo-relative POSIX path containing any of ``hints``, or None."""
+    for path in _iter_candidate_paths(repo_root):
+        try:
+            head = path.read_bytes()[:_SCAN_BYTES_PER_FILE].decode("utf-8", errors="ignore").lower()
+        except OSError:
+            continue
+        if any(h in head for h in hints):
+            return path.relative_to(repo_root).as_posix()
+    return None
+
+
+def _webhook_route_check(ctx: Any) -> tuple[Path, str | None]:
+    """Return (repo_root, route_hint_or_None)."""
+    repo_root: Path = ctx.repo_root
+    return repo_root, _scan_for_any(repo_root, _WEBHOOK_ROUTE_HINTS)
+
+
+def _focused_check(
+    ctx: Any,
+    *,
+    control_id: str,
+    title: str,
+    primitive_hints: tuple[str, ...],
+    pass_remediation: str,
+    review_remediation: str,
+) -> EvalOutcome:
+    """Shared scaffold for the v6 SEC-WEBHOOK-* family."""
+    repo_root, route_hint = _webhook_route_check(ctx)
+    if route_hint is None:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason=f"No webhook route or handler detected; {control_id} is not applicable.",
+            remediation="No action required. This control activates when a webhook receiver is present.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    primitive_hint = _scan_for_any(repo_root, primitive_hints)
+    if primitive_hint is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=(
+                f"Detected webhook route (e.g. {route_hint!r}) alongside the {title} primitive "
+                f"(e.g. {primitive_hint!r})."
+            ),
+            remediation=pass_remediation,
+            evidence_sources=[],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            f"Webhook route detected ({route_hint!r}) but the {title} primitive did not surface from a clone."
+        ),
+        remediation=review_remediation,
+        evidence_sources=[],
+        confidence="medium",
+    )
+
+
+def eval_sec_webhook_hmac_001(ctx: Any) -> EvalOutcome:
+    """SEC-WEBHOOK-HMAC-001: HMAC verification helper detected alongside webhook route."""
+    return _focused_check(
+        ctx,
+        control_id="SEC-WEBHOOK-HMAC-001",
+        title="HMAC verification",
+        primitive_hints=_HMAC_PRIMITIVE_HINTS,
+        pass_remediation="Keep the HMAC verification step ahead of any business logic in the handler.",
+        review_remediation=(
+            "Call an HMAC helper (e.g. hmac.new + hmac.compare_digest in Python, "
+            "crypto.createHmac in Node) before processing the webhook payload."
+        ),
+    )
+
+
+def eval_sec_webhook_timing_002(ctx: Any) -> EvalOutcome:
+    """SEC-WEBHOOK-TIMING-002: timing-safe comparison helper detected."""
+    return _focused_check(
+        ctx,
+        control_id="SEC-WEBHOOK-TIMING-002",
+        title="timing-safe comparison",
+        primitive_hints=_TIMING_SAFE_HINTS,
+        pass_remediation=(
+            "Confirm the timing-safe comparison is used on the HMAC verification path, "
+            "not only on session-token paths elsewhere in the codebase."
+        ),
+        review_remediation=(
+            "Replace == on the signature comparison with hmac.compare_digest (Python), "
+            "crypto.timingSafeEqual (Node), or the equivalent constant-time primitive for "
+            "the runtime."
+        ),
+    )
+
+
+def eval_sec_webhook_replay_003(ctx: Any) -> EvalOutcome:
+    """SEC-WEBHOOK-REPLAY-003: timestamp or nonce-based replay defense detected."""
+    return _focused_check(
+        ctx,
+        control_id="SEC-WEBHOOK-REPLAY-003",
+        title="replay defense",
+        primitive_hints=_REPLAY_PRIMITIVE_HINTS,
+        pass_remediation=(
+            "Keep the replay tolerance short (recommended <= 5 minutes) and document it "
+            "in the webhook receiver README."
+        ),
+        review_remediation=(
+            "Reject events with timestamps outside a short tolerance window (Stripe-style "
+            "t=<unix> or X-Webhook-Timestamp), or maintain a TTL-bounded seen-event store "
+            "keyed by event id."
+        ),
+    )
+
+
+def eval_sec_webhook_body_004(ctx: Any) -> EvalOutcome:
+    """SEC-WEBHOOK-BODY-004: explicit body-size cap detected at framework or proxy level."""
+    return _focused_check(
+        ctx,
+        control_id="SEC-WEBHOOK-BODY-004",
+        title="body-size cap",
+        primitive_hints=_BODY_CAP_HINTS,
+        pass_remediation=(
+            "Confirm the body cap is at a layer the attacker cannot bypass (proxy-side or "
+            "framework-side, not application-side after the buffer fills)."
+        ),
+        review_remediation=(
+            "Cap the webhook body size at the framework or reverse-proxy layer (e.g. "
+            "express.json({ limit: '1mb' }), starlette / fastapi max_request_size, "
+            "Nginx client_max_body_size). Default to 1-2 MB unless the payload type "
+            "demands more."
+        ),
+    )
+
+
+def eval_sec_webhook_idemp_005(ctx: Any) -> EvalOutcome:
+    """SEC-WEBHOOK-IDEMP-005: idempotency key extraction or seen-event store detected."""
+    return _focused_check(
+        ctx,
+        control_id="SEC-WEBHOOK-IDEMP-005",
+        title="idempotency / dedupe",
+        primitive_hints=_IDEMP_HINTS,
+        pass_remediation=(
+            "Persist the idempotency / event-id store across restarts (DB, Redis with TTL, "
+            "or DynamoDB). In-memory dedupe loses entries on cold start."
+        ),
+        review_remediation=(
+            "Extract a per-event identifier (X-GitHub-Delivery, Stripe event.id, "
+            "X-Idempotency-Key) and check / insert into a TTL-bounded dedupe store before "
+            "executing any side effect."
+        ),
+    )
+
+
+def eval_sec_webhook_rotate_006(ctx: Any) -> EvalOutcome:
+    """SEC-WEBHOOK-ROTATE-006: secret sourced from env/vault + multi-secret rotation signal."""
+    repo_root, route_hint = _webhook_route_check(ctx)
+    if route_hint is None:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No webhook route or handler detected; SEC-WEBHOOK-ROTATE-006 is not applicable.",
+            remediation="No action required. This control activates when a webhook receiver is present.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    env_hint = _scan_for_any(repo_root, _ROTATE_ENV_HINTS)
+    rotation_hint = _scan_for_any(repo_root, _ROTATE_MULTI_SECRET_HINTS)
+    if env_hint is not None and rotation_hint is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=(
+                f"Webhook route ({route_hint!r}): secret sourced from environment / vault "
+                f"({env_hint!r}) and a multi-secret rotation pattern ({rotation_hint!r}) was detected."
+            ),
+            remediation="Document the rotation window and the cut-over procedure in the receiver README.",
+            evidence_sources=[],
+            confidence="low",
+        )
+    if env_hint is not None:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"Webhook route ({route_hint!r}): secret appears env-sourced ({env_hint!r}) but no "
+                "multi-secret rotation signal (old_secret / previous_secret / rotated_secret) was found."
+            ),
+            remediation=(
+                "Accept both the current and previous secret during a documented rotation window so "
+                "in-flight deliveries do not break. Remove the previous secret after the window."
+            ),
+            evidence_sources=[],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            f"Webhook route ({route_hint!r}) but the secret does not appear to be env / vault-sourced; "
+            "no rotation pattern detected either."
+        ),
+        remediation=(
+            "Load the webhook secret from a runtime secret manager (env, Vault, AWS Secrets Manager, "
+            "Azure Key Vault) rather than from source, and accept multiple secrets during a documented "
+            "rotation window."
+        ),
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
 def build_webhook_evaluators() -> dict[str, Callable[[Any], EvalOutcome]]:
     return {
         "SEC-WEBHOOK-001": eval_sec_webhook_001,
         "SEC-WEBHOOK-002": eval_sec_webhook_002,
+        "SEC-WEBHOOK-HMAC-001": eval_sec_webhook_hmac_001,
+        "SEC-WEBHOOK-TIMING-002": eval_sec_webhook_timing_002,
+        "SEC-WEBHOOK-REPLAY-003": eval_sec_webhook_replay_003,
+        "SEC-WEBHOOK-BODY-004": eval_sec_webhook_body_004,
+        "SEC-WEBHOOK-IDEMP-005": eval_sec_webhook_idemp_005,
+        "SEC-WEBHOOK-ROTATE-006": eval_sec_webhook_rotate_006,
     }

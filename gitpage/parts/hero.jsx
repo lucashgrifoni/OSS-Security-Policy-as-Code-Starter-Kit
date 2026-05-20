@@ -316,30 +316,27 @@ function Hero() {
                 <span className="absolute inline-flex h-full w-full rounded-full bg-signal/40 blur-[3px]" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-signal shadow-[0_0_14px_rgba(8,185,139,0.9)]" />
               </span>
-              <span>Python CLI · GitHub / Azure / AWS profiles · evidence-first</span>
+              <span>Python CLI · GitHub / Azure / AWS / GitLab signals · evidence-first</span>
             </div>
           </Reveal>
 
           <Reveal delay={80}>
             <h1 className="headline-shadow mt-8 max-w-4xl text-4xl font-semibold leading-[1.04] tracking-tight text-mist md:text-6xl lg:text-7xl">
-              Evaluate OSS repository governance
+              Pass/fail policy gates
               <br />
-              and{" "}
-              <span style={{ color: "#08b98b" }}>CI/CD security</span>{" "}
+              for your repository.
               <br className="hidden md:block" />
-              from the clone you already have.
+              With{" "}
+              <span style={{ color: "#08b98b" }}>explicit trust grading</span>.
             </h1>
           </Reveal>
 
           <Reveal delay={150}>
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate md:text-xl">
-              The OSS Security Policy as Code Starter Kit is a Python toolkit
-              with{" "}
-              <strong className="font-medium text-mist">versioned controls</strong>,{" "}
-              <strong className="font-medium text-mist">staged profiles</strong>,
-              optional evidence inputs, and{" "}
-              <strong className="font-medium text-mist">Markdown + JSON</strong>{" "}
-              reports for repositories and pipelines.
+              Composes zizmor, OSV-Scanner, Gitleaks, Scorecard, Semgrep, and
+              your multi-platform CI/CD signals into one regulatory-aware
+              decision without pretending clone-only data proves remote platform
+              settings.
             </p>
           </Reveal>
 

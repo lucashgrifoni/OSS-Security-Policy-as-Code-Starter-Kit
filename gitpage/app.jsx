@@ -8,8 +8,10 @@ function App() {
       <main className="relative z-10">
         <Hero />
         <ProblemSection />
+        <ComparisonSection />
         <ScopeSection />
         <WorkflowSection />
+        <SampleOutputSection />
         <QuickstartSection />
         <CapabilitiesSection />
         <FrameworksSection />

@@ -1,5 +1,9 @@
 # Quickstart in 15 minutes
 
+For a first-time adopter flow that ends with a pull request gate, use
+[`tutorial-first-pr-gate.md`](tutorial-first-pr-gate.md). This page remains a
+compact reference for example runs and existing adopters.
+
 This guide takes a fresh clone of any public repository to a first
 `evaluation-report.md` in under 15 minutes. It assumes only Python 3.12+
 and `pip`. No GitHub token, no AWS credentials, no Azure login is

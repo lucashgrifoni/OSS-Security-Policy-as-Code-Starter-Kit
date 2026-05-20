@@ -1,0 +1,32 @@
+id: slsa-source-l2-1
+title: SLSA v1.2 Source Track Level 2 (clone-side advisory)
+description: >
+  **Advisory profile (advisory only).** Builds on ``slsa-source-l1-1`` with
+  the stricter SLSA v1.2 Source Track Level 2 requirements:
+  - ``SLSA-SRC-006`` — required signed commits enforced (evidence-backed).
+  - ``SLSA-SRC-007`` — two-party review threshold >= 2 approvers (L2).
+  - ``SLSA-SRC-008`` — source-change audit log streamed externally
+    (delegates to ``AUDIT-STREAM-060``).
+  Includes the full ``SLSA-SRC-001..005`` L1 baseline so the profile is a
+  self-contained L2 posture. Pair with ``slsa-build-l2-1`` for combined
+  Source + Build assurance.
+  **Posture:** advisory. **Recommended `--fail-on`:** ``degraded`` only.
+audience: >
+  Teams that already meet SLSA Source L1 (``slsa-source-l1-1``) and want to
+  document the L2 posture: enforced signed commits, >=2 reviewer approval,
+  and externally streamed source audit logs.
+controls:
+  # SLSA Source L1 baseline
+  - SLSA-SRC-001
+  - SLSA-SRC-002
+  - SLSA-SRC-003
+  - SLSA-SRC-004
+  - SLSA-SRC-005
+  # SLSA Source L2 additions
+  - SLSA-SRC-006
+  - SLSA-SRC-007
+  - SLSA-SRC-008
+  # Sustaining governance
+  - GOV-SEC-001
+  - GOV-DISC-013
+  - GOV-WAIV-014

@@ -1,6 +1,5 @@
-# Keep the build context small. The Dockerfile installs from PyPI so
-# we do not need the source tree inside the build context — only the
-# Dockerfile itself.
+# Keep the build context small. The Dockerfile installs from the checked-out
+# source tree so container publication does not race PyPI availability.
 .git/
 .github/
 .gitignore
@@ -26,10 +25,5 @@ pipelines/
 reports/
 waivers/
 scripts/
-src/
 CHANGELOG.md
-README.md
 SECURITY.md
-NOTICE
-LICENSE
-pyproject.toml

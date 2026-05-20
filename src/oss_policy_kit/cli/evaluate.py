@@ -115,7 +115,7 @@ def cli_root(
         "1.0",
         "--report-json-contract",
         help=(
-            "evaluation-report.json contract: 1.0 (default, structured evidence), 0.3, or 0.2. '0.1' was removed in v5."
+            "evaluation-report.json contract: 1.0 (default), 2.0, 0.3, or 0.2. '0.1' was removed in v5."
         ),
         case_sensitive=False,
     ),
@@ -259,7 +259,7 @@ def evaluate_cmd(
         "1.0",
         "--report-json-contract",
         help=(
-            "evaluation-report.json contract: 1.0 (default, structured evidence), 0.3, or 0.2. '0.1' was removed in v5."
+            "evaluation-report.json contract: 1.0 (default), 2.0, 0.3, or 0.2. '0.1' was removed in v5."
         ),
         case_sensitive=False,
     ),

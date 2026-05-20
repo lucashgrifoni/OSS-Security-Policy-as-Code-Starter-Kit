@@ -1,0 +1,10 @@
+{
+  "schema_version": "ai-agent-baseline/v1",
+  "control_id": "AI-AGENT-007",
+  "attested_at": "2026-05-19",
+  "attested_by": "fixture-maintainer",
+  "destination": "security-log-sink",
+  "retention_days": 90,
+  "pii_redaction": true,
+  "notes": "Tool calls are logged without prompt bodies."
+}

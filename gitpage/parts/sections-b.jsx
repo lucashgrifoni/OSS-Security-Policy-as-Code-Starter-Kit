@@ -1,5 +1,64 @@
 // Sections B: Capabilities, Profiles (Frameworks), Evaluation states
 
+const COMPARISON_ROWS = [
+  ["Multi-platform CI/CD", "Partial", "Scanner-specific", "Generic", "Kubernetes", "Yes"],
+  ["Built-in profiles", "Score model", "No", "No", "Policy-dependent", "47 dev / 38 public"],
+  ["Assurance grading", "No", "No", "No", "Policy-dependent", "Yes"],
+  ["Composes SARIF / JSON", "No", "n/a", "No", "No", "Yes"],
+  ["Waiver registry", "No", "No", "Adopter writes", "Policy-dependent", "Yes"],
+  ["CycloneDX VEX", "No", "No", "No", "No", "Yes"],
+  ["Local-first default", "Mostly", "Yes", "Yes", "Yes", "Yes"],
+];
+
+function ComparisonSection() {
+  const columns = ["Capability", "Scorecard", "zizmor / OSV / Gitleaks", "Conftest / OPA", "Kyverno", "OSS Policy Kit"];
+  return (
+    <SectionShell
+      id="comparison"
+      eyebrow="Comparison"
+      title="The kit is a gate and composition layer, not a replacement for scanners or policy engines."
+      subtitle="Scorecard, zizmor, OSV-Scanner, Gitleaks, OPA, and Kyverno remain useful. The kit sits above them when a maintainer needs one reviewable repository decision."
+    >
+      <Reveal>
+        <div className="overflow-x-auto rounded-3xl border border-white/10 bg-white/[0.035]">
+          <table className="min-w-[880px] w-full text-left text-sm">
+            <thead className="border-b border-white/10 bg-ink-deep/70 text-mist">
+              <tr>
+                {columns.map((c, i) => (
+                  <th
+                    key={c}
+                    scope="col"
+                    className={`px-4 py-4 font-semibold ${i === columns.length - 1 ? "bg-signal/10 text-signal" : ""}`}
+                  >
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARISON_ROWS.map((row) => (
+                <tr key={row[0]} className="border-b border-white/5 last:border-0">
+                  <th scope="row" className="px-4 py-4 font-medium text-mist">
+                    {row[0]}
+                  </th>
+                  {row.slice(1).map((cell, i) => (
+                    <td
+                      key={`${row[0]}-${i}`}
+                      className={`px-4 py-4 text-slate ${i === row.length - 2 ? "bg-signal/10 font-medium text-signal" : ""}`}
+                    >
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Reveal>
+    </SectionShell>
+  );
+}
+
 const CAPABILITIES = [
   { icon: "clipboard", title: "Bundled control catalog", body: "Versioned YAML control data and staged profiles define what the kit checks without hiding policy behind hard-coded heuristics." },
   { icon: "book", title: "Documented CLI surface", body: "The public contract includes evaluate, profiles, recommend-profile, evaluate-many, and scaffold-evidence." },
@@ -79,9 +138,9 @@ function FrameworksSection() {
   return (
     <SectionShell
       id="profiles"
-      eyebrow="Bundled profiles · 18 total"
+      eyebrow="Bundled profiles"
       title="Profile families let teams start small and harden posture without changing tools."
-      subtitle="GitHub support is the strongest path today. Azure and AWS are intentionally clone-based and evidence-driven rather than remote platform verification."
+      subtitle="The public release line ships the v5 profile set; the v6 development branch has 47 profiles across platform, regulatory, supply-chain, AI, and release-hardening lanes."
     >
       <div className="grid gap-5 md:grid-cols-2 perspective-1800">
         {FRAMEWORKS.map((f, i) => (
@@ -210,5 +269,6 @@ function EvaluationStatesSection() {
 }
 
 window.CapabilitiesSection = CapabilitiesSection;
+window.ComparisonSection = ComparisonSection;
 window.FrameworksSection = FrameworksSection;
 window.EvaluationStatesSection = EvaluationStatesSection;

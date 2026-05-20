@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "zizmor",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/zizmorcore/zizmor",
+          "rules": [
+            {
+              "id": "template-injection",
+              "shortDescription": {"text": "Workflow uses template expression in run: step from user-controlled source."}
+            },
+            {
+              "id": "unpinned-uses",
+              "shortDescription": {"text": "third-party action used without commit SHA pinning."}
+            },
+            {
+              "id": "excessive-permissions",
+              "shortDescription": {"text": "workflow grants more permissions than needed."}
+            },
+            {
+              "id": "obfuscation",
+              "shortDescription": {"text": "step contains obfuscated content."}
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "template-injection",
+          "level": "error",
+          "message": {"text": "User-controlled value flows into run: step."},
+          "properties": {
+            "security_severity_level": "Critical",
+            "audit_id": "template-injection"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {"uri": ".github/workflows/ci.yml"},
+                "region": {"startLine": 12}
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "unpinned-uses",
+          "level": "warning",
+          "message": {"text": "actions/checkout@v4 — use commit SHA."},
+          "properties": {
+            "security_severity_level": "High",
+            "audit_id": "unpinned-uses"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {"uri": ".github/workflows/ci.yml"},
+                "region": {"startLine": 8}
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "excessive-permissions",
+          "level": "warning",
+          "message": {"text": "workflow grants contents: write at top level."},
+          "properties": {
+            "security_severity_level": "Medium",
+            "audit_id": "excessive-permissions"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {"uri": ".github/workflows/release.yml"},
+                "region": {"startLine": 5}
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "obfuscation",
+          "level": "note",
+          "message": {"text": "step contains base64-decoded content."},
+          "properties": {
+            "security_severity_level": "Low",
+            "audit_id": "obfuscation"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {"uri": ".github/workflows/deploy.yml"},
+                "region": {"startLine": 22}
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

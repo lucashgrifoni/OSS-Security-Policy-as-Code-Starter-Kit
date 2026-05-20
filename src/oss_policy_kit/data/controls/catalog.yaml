@@ -155,11 +155,11 @@ controls:
     assurance: signal
     weight: 2
   - id: GH-PROV-023
-    title: Build provenance or artifact attestation signal in workflows
+    title: Build provenance or artifact attestation signal in workflows (with optional verification-block confirmation)
     category: supply_chain
     automation: partially_observable
     lifecycle: stable
-    assurance: signal
+    assurance: evidence-backed
     weight: 2
   - id: GH-PLAT-024
     title: GitHub rulesets posture evidenced
@@ -963,6 +963,547 @@ controls:
   - id: SEC-WEBHOOK-002
     title: Webhook receiver implements replay defense (timestamp / nonce / idempotency)
     category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GH-EGRESS-HRN-001
+    title: GitHub Actions workflows declare Harden-Runner egress controls
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SEC-WEBHOOK-HMAC-001
+    title: Webhook receiver invokes an HMAC verification helper
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: SEC-WEBHOOK-TIMING-002
+    title: Webhook signature comparison uses a timing-safe primitive
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SEC-WEBHOOK-REPLAY-003
+    title: Webhook receiver enforces a timestamp tolerance or nonce window
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SEC-WEBHOOK-BODY-004
+    title: Webhook receiver caps request-body size at the framework or proxy layer
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  - id: SEC-WEBHOOK-IDEMP-005
+    title: Webhook receiver extracts an idempotency key and dedupes per delivery
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SEC-WEBHOOK-ROTATE-006
+    title: Webhook secret sourced from env/vault and supports rotation window
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: PUBLISH-OIDC-001
+    title: Publish workflow declares OIDC id-token permission
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: PUBLISH-OIDC-002
+    title: PyPI / RubyGems / crates publish step omits long-lived password
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: PUBLISH-OIDC-003
+    title: npm publish step uses --provenance (or registry-equivalent flag)
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SLSA-SRC-001
+    title: Version-controlled source (SLSA Source Track L1 baseline)
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: deterministic
+    weight: 1
+  - id: SLSA-SRC-002
+    title: Commit-signature enforcement signal detected (SLSA Source verified history)
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SLSA-SRC-003
+    title: Branch protection present (SLSA Source protected branches)
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SLSA-SRC-004
+    title: Two-party review required on protected branches (SLSA Source)
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SLSA-SRC-005
+    title: Audit log of source-changing events (SLSA Source auditability)
+    category: supply_chain
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GL-PIPE-007
+    title: GitLab CI workflow uses OIDC (id_tokens) for cloud / registry access
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: GL-PIPE-008
+    title: GitLab CI restricts self-hosted runner usage via tags
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GL-PIPE-009
+    title: GitLab project documents audit-event streaming or external export
+    category: ci_cd
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GL-PIPE-010
+    title: GitLab CI environment approval rules declared for protected envs
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GL-PIPE-011
+    title: GitLab CI merge-request rules enforce code-review approvals
+    category: ci_cd
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GL-PIPE-012
+    title: GitLab CI artifact retention or signed-release posture documented
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  - id: AIBOM-PRESENT-001
+    title: AI Bill of Materials present in evidence directory
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: LLM-218A-PO-001
+    title: AI Security Considerations section present in SECURITY.md or README
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: LLM-218A-PO-002
+    title: Prompt / system-instruction registry directory present
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  - id: LLM-218A-PS-001
+    title: LLM release-integrity evidence file populated
+    category: secure_development
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: LLM-218A-PS-002
+    title: Model versioning artifacts (semver tags or release matching model/*)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  - id: LLM-218A-PW-001
+    title: LLM SDK dependencies declared (transformers / openai / anthropic / langchain)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: LLM-218A-PW-002
+    title: Prompt-injection or adversarial test file present
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: LLM-218A-RV-001
+    title: Dependabot or Renovate config explicitly lists LLM SDKs
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  - id: LLM-AI-ACT-001
+    title: Intended purpose / users / limitations documented (EU AI Act Annex IV §1)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: LLM-AI-ACT-002
+    title: Output filtering / content moderation pattern detected (EU AI Act Annex IV §3)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: LLM-AI-ACT-003
+    title: Risk management documentation present (EU AI Act Annex IV §5)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: WORM-POSTINSTALL-001
+    title: package.json postinstall script free of credential-harvest primitives (Shai-Hulud defense)
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: WORM-LOCKFILE-DRIFT-001
+    title: package.json / pyproject.toml not modified more recently than lockfile (worm-rewrite signal)
+    category: supply_chain
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: WORM-PUBLISH-SCOPE-001
+    title: Publish workflow restricted to main/release branches with explicit scope
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: AI-AGENT-001
+    title: MCP server authentication present
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: AI-AGENT-002
+    title: Agent tool allowlist explicitly defined
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: AI-AGENT-003
+    title: System prompt registry is versioned and code-reviewed
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: AI-AGENT-004
+    title: Prompt injection / adversarial agent tests present
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: AI-AGENT-005
+    title: Agent output sanitization layer documented
+    category: secure_development
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: AI-AGENT-006
+    title: Agent rate limiting or quota configuration present
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: AI-AGENT-007
+    title: Agent tool-call audit logging configured
+    category: secure_development
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: AI-AGENT-008
+    title: Dedicated agent identity or audience-bound authn configured
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: AI-AGENT-009
+    title: Sensitive context excluded from long-term agent memory
+    category: secure_development
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: AI-AGENT-010
+    title: Model provider/version pinning enforced for agent runtime
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  # --- Cycle 2 (v6.0.0) ---------------------------------------------------
+  # PR-20 — OSPS Baseline v2026.02.19 + OpenSSF Scorecard v6 conformance.
+  - id: OSPS-SCORECARD-V6-001
+    title: OpenSSF Scorecard v6 OSPS Baseline conformance evidence present
+    category: supply_chain
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  # PR-21 — EU AI Act Annex IV expansion (advisory; NOT a conformity assessment).
+  - id: LLM-AI-ACT-DEV-002
+    title: AI system development/design and training-data description documented (Annex IV section 2)
+    category: secure_development
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: LLM-AI-ACT-PERF-004
+    title: AI system performance metrics and accuracy documented (Annex IV section 4)
+    category: secure_development
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: LLM-AI-ACT-CYBER-006
+    title: AI system cybersecurity measures documented (Annex IV section 6)
+    category: secure_development
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: LLM-AI-ACT-CHANGE-007
+    title: AI system lifecycle change record documented (Annex IV section 7)
+    category: secure_development
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: LLM-AI-ACT-STD-008
+    title: Applied harmonised standards listed (Annex IV section 7)
+    category: secure_development
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 1
+  - id: LLM-AI-ACT-PMM-009
+    title: Post-market monitoring plan documented (Annex IV section 8)
+    category: secure_development
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  # PR-22 — EU CRA Article 13 + 14 + product classification signals.
+  - id: CRA-ART13-SBD-001
+    title: Security-by-design intent declared (CRA Article 13)
+    category: governance
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: CRA-ART13-DEFAULTS-002
+    title: Secure-by-default configuration documented (CRA Article 13)
+    category: governance
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: CRA-ART14-CSAF-001
+    title: CSAF advisory feed present (CRA Article 14 reporting readiness)
+    category: governance
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: CRA-ART14-COORD-002
+    title: Coordinated vulnerability disclosure policy documented (CRA Article 14)
+    category: governance
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: CRA-PRODUCT-CLASS-001
+    title: CRA product classification declared (Implementing Reg (EU) 2025/2392)
+    category: governance
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  # PR-23 — EPSS + CISA KEV prioritization in SCA.
+  - id: SCA-KEV-001
+    title: No dependency CVE present in the CISA KEV catalog (SARIF kev property)
+    category: vulnerability_management
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: SCA-EPSS-001
+    title: No high-EPSS high-severity dependency CVE unaddressed (SARIF epss_score property)
+    category: vulnerability_management
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  # PR-25 — SLSA v1.2 Source Track Level 2.
+  - id: SLSA-SRC-006
+    title: Signed commits required (SLSA Source L2)
+    category: supply_chain
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 3
+  - id: SLSA-SRC-007
+    title: Two-party review threshold enforced (SLSA Source L2)
+    category: supply_chain
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  - id: SLSA-SRC-008
+    title: Source-change audit log streamed externally (SLSA Source L2)
+    category: supply_chain
+    automation: not_observable_locally
+    lifecycle: experimental
+    assurance: evidence-backed
+    weight: 2
+  # PR-27 — MCP server security profile family.
+  - id: MCP-TOOL-HASH-001
+    title: MCP tool descriptions hash-pinned (tool-poisoning defense)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 3
+  - id: MCP-CONFIRM-001
+    title: MCP destructive operations require explicit confirmation
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: MCP-EGRESS-001
+    title: MCP server egress allowlist documented
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: MCP-INJECTION-TEST-001
+    title: MCP prompt-injection / tool-poisoning tests present
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 1
+  - id: MCP-SCOPE-001
+    title: MCP per-tool least-privilege scope documented
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  # PR-28 — OWASP Top 10 for Agentic Applications (ASI01-10).
+  - id: AGENT-ASI-GOAL-001
+    title: Agent goal/system-prompt version-controlled and integrity-checked (ASI01)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: AGENT-ASI-TOOL-002
+    title: Agent tool allowlist with per-tool least privilege documented (ASI02)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: AGENT-ASI-MEMORY-006
+    title: Agent persistent-memory purge / poisoning policy documented (ASI06)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: AGENT-ASI-INTER-007
+    title: Inter-agent communication mutual authentication signal (ASI07)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: AGENT-ASI-CONFIRM-009
+    title: Human checkpoint required for destructive agent operations (ASI09)
+    category: secure_development
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  # PR-29..32 — GitHub Actions 2026 + container + scanner integrity signals.
+  - id: GH-EGRESS-NATIVE-001
+    title: GitHub Actions native egress firewall policy declared
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: GH-WF-LOCKFILE-001
+    title: GitHub Actions workflow lockfile present (action SHA pinning)
+    category: ci_cd
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: CONT-DISTROLESS-001
+    title: Container base image is distroless / minimal (Chainguard, Wolfi, distroless, scratch)
+    category: container
+    automation: deterministic
+    lifecycle: experimental
+    assurance: signal
+    weight: 2
+  - id: SCANNER-INTEGRITY-001
+    title: Scanner actions pinned by SHA (post-Trivy supply-chain defense)
+    category: ci_cd
     automation: deterministic
     lifecycle: experimental
     assurance: signal

@@ -6,6 +6,147 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## Unreleased — v6.0.0 (in development)
+
+Work in progress on the `feat/v6.0.0-evolution` branch. This section captures changes that have landed on the branch but have not yet been released. Version bumped to `6.0.0.dev0` in `pyproject.toml` and `src/oss_policy_kit/__init__.py` (PR-18) to signal the in-development state; the `v6.0.0` tag itself is created at release-prep time after maintainer review.
+
+### Highlights — full v6.0.0 scope (14 base PRs + Cycle 2 PR-19..PR-33 + AI agent baseline landed locally)
+
+**+14 profiles, +76 controls, +2 CLI subcommands, 3 breaking changes, 22 new ADRs, 12+ new docs.**
+
+| | v5.9.x | v6.0.0 (this branch) |
+|---|---|---|
+| Profiles | 38 | **52** |
+| Controls | 136 | **212** |
+| CLI subcommands | 15 | **17** |
+| Breaking changes | 0 | **3** (M-003, B-001, B-002) |
+| ADRs | 3 | **25** (3 existing + 22 new) |
+
+**New profiles**: `webhook-security-2`, `s2c2f-l2-1`, `s2c2f-l3-1`, `oss-publish-readiness-1`, `slsa-source-l1-1`, `gitlab-level-2`, `appsec-llm-ssdf-218a-1`, `cra-eu-ai-act-art11-1`, `ai-agent-baseline-1`, `osps-baseline-2026-1`, `cra-eu-ready-2-1`, `slsa-source-l2-1`, `appsec-mcp-server-1`, `appsec-agentic-asi-1`.
+
+**New control families**: `SEC-WEBHOOK-HMAC..ROTATE-006` (6), `GH-EGRESS-HRN-001` (1), `PUBLISH-OIDC-001..003` (3), `SLSA-SRC-001..008` (8), `GL-PIPE-007..012` (6), `AIBOM-PRESENT-001` (1), `LLM-218A-PO..RV-001` (7), `LLM-AI-ACT-001..003` + `LLM-AI-ACT-{DEV,PERF,CYBER,CHANGE,STD,PMM}-*` (9), `WORM-*` (3), `AI-AGENT-001..010` (10), `OSPS-SCORECARD-V6-001` (1), `CRA-ART13/14/PRODUCT-*` (5), `SCA-EPSS/KEV-*` (2), `MCP-*` (5), `AGENT-ASI-*` (5), `GH-EGRESS-NATIVE-001`, `GH-WF-LOCKFILE-001`, `CONT-DISTROLESS-001`, `SCANNER-INTEGRITY-001`.
+
+**New CLI subcommands**: `emit-insights` (OpenSSF Security Insights 1.0 YAML emission), `export-evidence --format chainloop|sarif` (experimental format registry).
+
+**Breaking changes**:
+- **M-003** — `recommend-profile/v2.schema_version` is now an absolute URL. Legacy shorthand accepted for one minor (removed in v6.1.0). See ADR-008, PR-15.
+- **B-001** — `reports/2.0` contract registered with the Scorecard-v6-aligned 5-state vocabulary (`PASS / FAIL / UNKNOWN / NOT_APPLICABLE / ATTESTED`). Default REMAINS `1.0` in v6.0.0.dev0; default-switch deferred to a v6.x point release per ADR-013. Standalone `scripts/migrate-1.0-to-2.0.py` converts offline reports.
+- **B-002** — `export-evidence --format chainloop` is **experimental**; output shape may change inside the v6.0.x line. See ADR-012, PR-17.
+
+**Assurance-mix shift (A-001)**: `GH-PROV-023` promoted from `signal` to `evidence-backed` (catalog), with backward-compat runtime fallback (signal PASS when no evidence file is present). Affected profiles: `github-release-hardening-1/2/3`, `slsa-build-l2-1`. See ADR-007, PR-12.
+
+**Window-blocking content (EU AI Act Article 11 + Annex IV — effective 2026-08-02)**: both `appsec-llm-ssdf-218a-1` (PR-10, NIST 800-218A) and `cra-eu-ai-act-art11-1` (PR-11, EU AI Act) are advisory profiles. The kit does NOT substitute for a conformity assessment — see `docs/eu-ai-act-readiness.md`.
+
+### PR-by-PR delta
+
+| Wave | PR | Title | Delta |
+|---|---|---|---|
+| 1 | PR-1 | docs: correct v6 positioning and public hygiene | docs only |
+| 1 | PR-2 | docs(framework-alignment): +3 Roadmap sections | docs only |
+| 1 | PR-3 | feat(adapters,emit-vex): zizmor severity properties + CISA VEX minimum tests | +24 tests |
+| 1 | PR-4 | feat(sbom): SPDX 3.0.1 detection + BSI TR-03183-2 v2.1.0 validation | +19 tests |
+| 2 | PR-5 | feat(webhook): webhook-security-2 + 6 SEC-WEBHOOK-* dimensions | +1 profile, +6 controls |
+| 2 | PR-6 | feat(profiles): s2c2f-l2-1 + s2c2f-l3-1 (recomposition only) | +2 profiles |
+| 2 | PR-7 | feat(evaluators,schemas): GH-EGRESS-HRN-001 + verification.source enum | +1 control |
+| 2 | PR-8 | feat(cli): emit-insights subcommand | +1 subcommand |
+| 2 | PR-9 | feat(profiles,evaluators): oss-publish-readiness-1 + PUBLISH-OIDC-* | +1 profile, +3 controls |
+| 3 | PR-12 | feat(controls): GH-PROV-023 promotion signal→evidence-backed | assurance shift |
+| 3 | PR-13 | feat(profiles,evaluators): slsa-source-l1-1 + SLSA-SRC-* | +1 profile, +5 controls |
+| 3 | PR-14 | feat(profiles,evaluators): gitlab-level-2 + GL-PIPE-007..012 | +1 profile, +6 controls |
+| 3 | PR-10 | feat(profiles,evaluators): appsec-llm-ssdf-218a-1 + LLM-218A-* + AIBOM | +1 profile, +8 controls |
+| 3 | PR-11 | feat(profiles,evaluators): cra-eu-ai-act-art11-1 + LLM-AI-ACT-* | +1 profile, +3 controls |
+| 4 | PR-15 | feat(recommend): recommend-profile/v2 schema_version → absolute URL | breaking M-003 |
+| 4 | PR-17 | feat(cli): export-evidence --format chainloop (experimental) | +1 subcommand |
+| 4 | PR-16 | feat(reports): reports/2.0 contract URL + status mapping + migration | breaking B-001 |
+| 4 | PR-18 | release prep: version bump + counts refresh + CHANGELOG summary | this entry |
+| C2 | PR-19 | feat(profiles,evaluators): WORM-* publish-defense controls | +3 controls, +1 ADR, +1 doc |
+| C2 | AI agent baseline | feat(profiles,evaluators): ai-agent-baseline-1 source-side checks | +1 profile, +10 controls, +1 ADR, +1 doc |
+| C2 | Supply-chain hardening | chore(release): PyPI dist attestations + source-built container image | closes PyPI/GHCR race |
+| C2 | Public launch assets | docs: README rewrite, public ROADMAP, sample reports, first-PR tutorial | P0 product/DX |
+| C2 | GitHub Pages hardening | docs(site): bundled Tailwind CSS + static JS bundle with pinned npm dependencies plus comparison/sample/roadmap sections | removes runtime Tailwind and Babel CDN dependencies |
+| C2 | Property testing | test(property): Hypothesis coverage for waivers, profile/catalog loading, EvalOutcome roundtrip, and report contracts | adds edge-case coverage for v6.x hardening |
+| C2 | PR-20 | feat(profiles,evaluators): osps-baseline-2026-1 + OSPS-SCORECARD-V6-001 | +1 profile, +1 control, ADR-018 |
+| C2 | PR-21 | feat(evaluators,schema): EU AI Act Annex IV expansion (LLM-AI-ACT-{DEV,PERF,CYBER,CHANGE,STD,PMM}) | +6 controls, +1 schema, ADR-019 |
+| C2 | PR-22 | feat(profiles,evaluators): cra-eu-ready-2-1 + CRA-ART13/14/PRODUCT-* | +1 profile, +5 controls, ADR-020 |
+| C2 | PR-23 | feat(evaluators): SCA-KEV-001 + SCA-EPSS-001 (SARIF property triage) | +2 controls, ADR-021 |
+| C2 | PR-24 | feat(schema): verification.source += rekor-v2-tile-inclusion | enum + doc, ADR-025 |
+| C2 | PR-25 | feat(profiles,evaluators): slsa-source-l2-1 + SLSA-SRC-006..008 | +1 profile, +3 controls, ADR-022 |
+| C2 | PR-26 | feat(evaluators): CycloneDX 1.7 + ML-BOM recognition in AIBOM-PRESENT-001 | additive, ADR-025 |
+| C2 | PR-27 | feat(profiles,evaluators): appsec-mcp-server-1 + MCP-* | +1 profile, +5 controls, ADR-023 |
+| C2 | PR-28 | feat(profiles,evaluators): appsec-agentic-asi-1 + AGENT-ASI-* | +1 profile, +5 controls, ADR-024 |
+| C2 | PR-29..32 | feat(evaluators): GH-EGRESS-NATIVE-001, GH-WF-LOCKFILE-001, CONT-DISTROLESS-001, SCANNER-INTEGRITY-001 | +4 controls, ADR-025 |
+| C2 | PR-33 | docs(adr,framework): ADR-009/010/013 backfill + 8 Cycle 2 ADRs + OSPS/CRA/MCP/EPSS/Rekor docs | docs + ADRs |
+
+### Validation summary (end of this PR)
+
+- `ruff check src/ tests/`                                       All checks passed
+- `mypy src/`                                                    Success (93 source files)
+- `scripts/check_public_hygiene.py`                              OK
+- `scripts/validate-bundled-profiles.py`                         OK
+- `yamllint` on publish/security workflows from prompt scope       OK
+- `npm run build` in `gitpage/`                                   OK
+- GitPage Lighthouse (local JSON report)                          87 perf / 100 accessibility / 100 best-practices / 100 SEO
+- `pytest -q --tb=no -p no:cacheprovider`                        2994 passed, 1 skipped, 0 failed
+                                                                 (+519 over v5.9.x baseline of 2191)
+
+### Known follow-ups (not blocking v6.0.0 GA)
+
+- `reports/2.0` default-switch (currently 1.0 remains default; snapshots will be regenerated when the switch lands).
+- ADR-009 (LLM-218A), ADR-010 (EU AI Act), ADR-013 (reports/2.0) decision-of-record texts to be written before tagging `v6.0.0` (the docs are present as design stubs in `docs/`).
+- External launch content and community activation remain pending product/DX work before broad v6.0.0 promotion.
+
+### Docs
+
+- **`docs/positioning.md`** — rewritten to (a) describe only capabilities present in the v5.9.x build, (b) list v6.0.0 plans explicitly under a `Roadmap (v6.0.0 — in development)` section so adopters can see direction without confusing roadmap with shipped capability, (c) correct the SARIF-adapter inventory (`SAST-SEMGREP-064`, `SAST-ZIZMOR-066`, `SAST-POUTINE-067`, `SAST-OSV-068`, `SAST-GITLEAKS-069`; no Trivy adapter is shipped today), (d) describe the actual `PROV-VERIFY-061` `verification:` block schema (`method`, `verified_at`, `transparency_log_inclusion`, optional `issuer` / `subject_alternative_name` / `bundle_digest` / `tool_version`) and place the planned `verification.source` enum under Roadmap, (e) correct `--fail-on` to the implemented values `none / fail / degraded`, and (f) remove links to documents that do not exist yet.
+- **`README.md`** — rewritten for the v6 launch surface: hero, concise value proposition, public badges, factual v6.0.0 counts (52 profiles, 212 controls, 17 CLI subcommands), inline comparison table, sample output embeds, supply-chain verification wording, and links to moved detail pages.
+- **`docs/at-a-glance.md` / `docs/release-state.md`** — moved detailed snapshot and release-state material out of the root README.
+- **`ROADMAP.md`** — new public Now / Next / Later roadmap with explicit non-goals and no shipped-capability overclaims.
+- **`docs/sample-reports/`** — generated hardened and vulnerable `github-level-1` Markdown/JSON example reports with local paths sanitized for public viewing.
+- **`docs/tutorial-first-pr-gate.md`** — new first-time adopter tutorial from install to pull-request gate, with screenshot references and troubleshooting.
+- **`docs/supply-chain-verification.md`** — new verifier guide for PyPI artifacts, GHCR images, cosign, GitHub Artifact Attestations, and the current non-SLSA-L3 trust model.
+- **`gitpage/`** — removed the runtime Tailwind CDN and Babel standalone dependencies. Tailwind and JSX are now built locally through pinned npm dependencies into committed `site.css` and `bundle.js`, with the build boundary documented in `gitpage/README.md`.
+- **`docs/profiles/ai-agent.md`** — new adopter guide for `ai-agent-baseline-1`, with evidence paths and explicit runtime-enforcement caveats.
+- **`docs/framework-alignment.md`** — refresh stale counts (now `136 controls` / `38 profiles`); add three `Roadmap` sections for v6.0.0 framework expansion: NIST SP 800-218A (Generative AI SSDF), EU AI Act Article 11 + Annex IV, and OpenSSF Security Insights 1.0 emit. Every planned control / profile / subcommand is explicitly tagged as not present in v5.9.x.
+- **`docs/decisions/adr-001-sca-scanner-choice.md`** and **`docs/framework-alignment.md`** — removed references to the project-local planning directory name from public-facing prose. The local planning artifacts remain gitignored and are not part of the public repository; the prose now says so without naming the directory.
+- **New ADRs** under `docs/decisions/`:
+  - **`adr-004-webhook-security-baseline-expansion.md`** — design rationale for `webhook-security-2` profile + `SEC-WEBHOOK-*` family (six new signal-grade controls).
+  - **`adr-005-s2c2f-l2-l3-recomposition.md`** — decision to ship `s2c2f-l2-1` and `s2c2f-l3-1` as recomposition of existing controls, zero new evaluators.
+  - **`adr-006-slsa-source-l1-profile.md`** — design rationale for `slsa-source-l1-1` profile + `SLSA-SRC-*` family (5–6 controls).
+  - **`adr-007-gh-prov-023-evidence-backed-promotion.md`** — `GH-PROV-023` promotion from `signal` to `evidence-backed`; assurance-mix shift documented (A-001).
+  - **`adr-008-recommend-profile-v2-schema-url.md`** — `recommend-profile/v2.schema_version` becomes an absolute URL (breaking, M-003).
+  - **`adr-011-emit-insights-subcommand.md`** — design rationale for `emit-insights` subcommand emitting OpenSSF Security Insights 1.0 YAML.
+  - **`adr-012-export-evidence-chainloop-experimental.md`** — design rationale for `export-evidence --format chainloop` (experimental in v6.0.0).
+  - **`adr-014-oss-publish-readiness.md`** — design rationale for `oss-publish-readiness-1` profile + `PUBLISH-OIDC-*` family (three signal-grade controls).
+  - **`adr-015-worm-aware-publish-defense.md`** — design rationale for `WORM-*` publish-defense controls in `oss-publish-readiness-1`.
+  - **`adr-016-ai-agent-baseline-source-side.md`** — design rationale for `ai-agent-baseline-1` and its source-side/runtime-boundary posture.
+  - **`adr-017-source-built-container-release.md`** — decision to build GHCR images from the checked-out release source tree instead of waiting on PyPI propagation.
+- **Six new doc stubs** under `docs/` describing v6.0.0 features marked clearly as in-development:
+  - **`docs/eu-ai-act-readiness.md`** — adopter guide for the planned `cra-eu-ai-act-art11-1` profile; explicit caveat that the kit does not substitute for a conformity assessment.
+  - **`docs/insights-emission.md`** — design and adopter guide for the planned `emit-insights` subcommand.
+  - **`docs/evidence-export.md`** — design and adopter guide for the planned `export-evidence` subcommand, including Chainloop experimental-format details.
+  - **`docs/reports-contract-v2.0.md`** — full spec for the planned `reports/2.0` contract (five-state vocabulary aligned with Scorecard v6).
+  - **`docs/v6.0.0-migration-guide.md`** — consolidated migration guide for the three v6.0.0 breaking changes (M-003, B-001, B-002) plus the `GH-PROV-023` assurance-mix shift (A-001).
+  - **`docs/shai-hulud-defense.md`** — adopter guide for the `WORM-*` controls added to `oss-publish-readiness-1`.
+
+### Repository hygiene
+
+- **`.gitignore`** — added `.tmp/` so local snapshots such as `.tmp/profiles-v5.9.0.json` are not surfaced as untracked. The earlier `.tmp-v6/` entry was replaced with the more general `.tmp/`, which subsumes the v6.0.0 execution-plan use case.
+- **`.dockerignore` / `Dockerfile`** — container publication now installs from the checked-out release source tree instead of PyPI, eliminating the tag-push race where GHCR build could start before the PyPI artifact was visible.
+- **`.github/workflows/publish-pypi.yml`** — distribution artifacts under `dist/*` now receive GitHub Artifact Attestations before the publish jobs upload them to TestPyPI/PyPI; PyPA Trusted Publishing attestations are explicitly enabled for both TestPyPI and PyPI publish jobs.
+- **`.github/workflows/security-ci-cd.yml`** — refreshed `github/codeql-action/*` pins to the current `v3` peeled commit after API validation showed the previous SHA did not resolve.
+- **`.yamllint`** — added a repository-level YAML lint profile so workflow validation accepts pinned-action SHA line lengths and existing mixed line endings while still enforcing YAML checks.
+- **`src/oss_policy_kit/__init__.py`** — bumped `__version__` from `5.9.0` to `5.9.1` to match `pyproject.toml` and the published `v5.9.1` tag. This corrects a version-drift the public hygiene review surfaced; it is not a release in itself.
+- **`scripts/check_public_hygiene.py`** — added narrow allowlist entries for `.dockerignore` (the exclusion rule for the project-local planning directory is protective, not a leaked path) and `Dockerfile` (the conventional non-root home under the standard POSIX system user tree is a generic container pattern, not a real maintainer home directory). Allowlist comments explain the justification so the scanner does not weaken its detection of real sensitive paths.
+- **`README.md`** — corrected three stale references that still pointed at v5.9.0 after v5.9.1 shipped: the "Current release" table row, the "Package" / "GitHub Release" rows in *Current Release State*, the "Two-line bootstrap (v5.4.0+; available in current v5.9.x)" wording, and the CLI subcommand count (now 15, was 13). Added a one-line "In development" note at the top pointing to the positioning Roadmap.
+
+### Notes
+
+- This is still an unreleased development branch. Public release remains `v5.9.x` until maintainer review, remote push, release tagging, PyPI publish, and container publish complete.
+- `reports/2.0` exists as an opt-in contract in this development line; `reports/1.0` remains the default during `6.0.0.dev0`.
+- Test, lint, type-check, hygiene-scan, and bundled-profile-validation must remain green before tagging; the validation summary above captures the latest local full-suite signal for this branch.
+
+---
+
 ## OSS Security Policy as Code Starter Kit v5.9.1 — 2026-05-18
 
 A patch release that fixes two invalid action SHAs in `.github/workflows/publish-container.yml`. The v5.9.0 container publish workflow was discovered, after release, to pin two action SHAs that do not exist in the upstream repositories:

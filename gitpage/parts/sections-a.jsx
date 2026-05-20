@@ -183,26 +183,29 @@ function WorkflowSection() {
         />
         <ol className="space-y-8 md:space-y-10">
           {FLOW_STEPS.map((s, i) => (
-            <Reveal key={s.title} delay={i * 70}>
-              <li className="relative flex flex-col gap-5 md:flex-row md:gap-8">
-                <div className="flex items-start gap-4 md:w-44 md:shrink-0 md:flex-col md:items-center">
-                  <span className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-signal/40 bg-signal/10 text-signal shadow-glow-sm">
-                    <Icon name={s.icon} className="h-5 w-5" />
-                    <span className="absolute -inset-1 rounded-2xl border border-signal/15" />
-                  </span>
-                  <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-steel md:text-center">
-                    Step {String(i + 1).padStart(2, "0")}
-                  </span>
-                </div>
-                <TiltCard className="flex-1" intensity={4}>
-                  <h3 className="text-lg font-semibold text-mist md:text-xl">
-                    {s.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate md:text-base">
-                    {s.body}
-                  </p>
-                </TiltCard>
-              </li>
+            <Reveal
+              key={s.title}
+              delay={i * 70}
+              as="li"
+              className="relative flex flex-col gap-5 md:flex-row md:gap-8"
+            >
+              <div className="flex items-start gap-4 md:w-44 md:shrink-0 md:flex-col md:items-center">
+                <span className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-signal/40 bg-signal/10 text-signal shadow-glow-sm">
+                  <Icon name={s.icon} className="h-5 w-5" />
+                  <span className="absolute -inset-1 rounded-2xl border border-signal/15" />
+                </span>
+                <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-steel md:text-center">
+                  Step {String(i + 1).padStart(2, "0")}
+                </span>
+              </div>
+              <TiltCard className="flex-1" intensity={4}>
+                <h3 className="text-lg font-semibold text-mist md:text-xl">
+                  {s.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate md:text-base">
+                  {s.body}
+                </p>
+              </TiltCard>
             </Reveal>
           ))}
         </ol>

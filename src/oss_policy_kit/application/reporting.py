@@ -24,6 +24,19 @@ REPORT_JSON_SCHEMA_URL_V0_1 = "https://github.com/lucashgrifoni/OSS-Security-Pol
 REPORT_JSON_SCHEMA_URL_V0_2 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.2"
 REPORT_JSON_SCHEMA_URL_V0_3 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.3"
 REPORT_JSON_SCHEMA_URL_V1_0 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/1.0"
+REPORT_JSON_SCHEMA_URL_V2_0 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/2.0"
+
+REPORTS_V2_STATUS_MAP: dict[str, tuple[str, str | None]] = {
+    "pass": ("PASS", None),
+    "fail": ("FAIL", None),
+    "degraded": ("FAIL", None),
+    "manual-review-required": ("UNKNOWN", "manual-review-required"),
+    "not-applicable": ("NOT_APPLICABLE", None),
+    "skipped": ("UNKNOWN", "skipped-by-flag"),
+    "error": ("UNKNOWN", "evaluator-error"),
+    "attested": ("ATTESTED", None),
+    "waived": ("UNKNOWN", "waived"),
+}
 
 
 def _sanitize_target_path_for_payload(absolute: str, *, include_absolute: bool) -> str:
@@ -77,6 +90,17 @@ def _emit_contract_v3(schema_version_effective: str) -> bool:
 
 def _emit_contract_v1_0(schema_version_effective: str) -> bool:
     return "reports/1.0" in schema_version_effective
+
+
+def _emit_contract_v2_0(schema_version_effective: str) -> bool:
+    return "reports/2.0" in schema_version_effective
+
+
+def _map_status_to_reports_v2(status: str) -> tuple[str, str | None]:
+    key = status.strip().lower()
+    if key in REPORTS_V2_STATUS_MAP:
+        return REPORTS_V2_STATUS_MAP[key]
+    return ("UNKNOWN", "unmapped-source-status")
 
 
 def compute_summary_by_gate_role(summary_by_status: dict[str, int]) -> dict[str, int]:
@@ -437,6 +461,107 @@ def report_to_dict_v1(
     return payload
 
 
+def _result_to_dict_v2_0(r: ControlResult) -> dict[str, Any]:
+    state, reason = _map_status_to_reports_v2(r.status.value)
+    payload: dict[str, Any] = {
+        "id": r.control_id,
+        "title": r.title,
+        "category": r.category,
+        "lifecycle": r.lifecycle,
+        "profile": r.profile,
+        "state": state,
+        "assurance": r.assurance,
+        "confidence": normalize_confidence(r.confidence),
+        "weight": r.weight,
+        "message": r.reason,
+        "remediation": r.remediation,
+        "evidence": project_evidence(r),
+        "owner": r.owner,
+        "expires_at": r.expires_at.isoformat() if r.expires_at else None,
+        "waiver": None,
+        "extra": dict(r.extra) if isinstance(r.extra, dict) else {},
+        "finding_id": f"{r.control_id}@{r.profile}",
+    }
+    if reason is not None:
+        payload["reason"] = reason
+    if r.status.value == "degraded":
+        payload["degraded"] = True
+    if r.waiver:
+        payload["waiver"] = {
+            "control_id": r.waiver.control_id,
+            "justification": r.waiver.justification,
+            "owner": r.waiver.owner,
+            "status": r.waiver.status,
+            "expires_at": r.waiver.expires_at.isoformat() if r.waiver.expires_at else None,
+            "applies_to": r.waiver.applies_to,
+        }
+    if r.deprecation_note is not None:
+        payload["deprecation_note"] = r.deprecation_note
+    return payload
+
+
+def _summary_to_reports_v2(summary_by_status: dict[str, int]) -> dict[str, int]:
+    mapped: dict[str, int] = {}
+    for status, count in summary_by_status.items():
+        state, _ = _map_status_to_reports_v2(status)
+        mapped[state] = mapped.get(state, 0) + count
+    return dict(sorted(mapped.items()))
+
+
+def report_to_dict_v2_0(
+    report: ExecutionReport,
+    *,
+    include_absolute_path: bool = False,
+) -> dict[str, Any]:
+    profile_meta = derive_profile_metadata(report.profile_id)
+    profile_block = {
+        "id": report.profile_id,
+        "title": report.profile_title,
+        "family": profile_meta["family"],
+        "level": profile_meta["level"],
+        "posture": profile_meta["posture"],
+        "is_release_track": profile_meta["is_release_track"],
+        "recommended_gate": profile_meta["recommended_gate"],
+    }
+
+    weighted_score_block: dict[str, Any] | None = None
+    if report.weighted_score is not None:
+        weighted_score_block = {
+            "earned": report.weighted_score.earned,
+            "possible": report.weighted_score.possible,
+            "percent": report.weighted_score.percent,
+        }
+
+    controls = [_result_to_dict_v2_0(r) for r in report.results]
+    return {
+        "schema_version": REPORT_JSON_SCHEMA_URL_V2_0,
+        "contract_version": "reports/2.0",
+        "evidence_provenance_version": EVIDENCE_PROVENANCE_VERSION,
+        "generated_at": report.generated_at,
+        "kit_version": report.kit_version,
+        "target_path": _sanitize_target_path_for_payload(report.target_path, include_absolute=include_absolute_path),
+        "profile": profile_block,
+        "summary_by_status": _summary_to_reports_v2(report.summary_by_status),
+        "controls_total": sum(report.summary_by_status.values()),
+        "controls": controls,
+        "results_digest": compute_results_digest(report.results),
+        "operational_warnings": report.operational_warnings,
+        "scorecard": {
+            "path": report.scorecard_path,
+            "supplemental": report.scorecard_supplemental,
+        },
+        "external_waiver_path": report.external_waiver_path,
+        "action_insights": compute_priority_insights(report),
+        "live_collection": _live_collection_dict(report.live_collection),
+        "weighted_score": weighted_score_block,
+        "migration": {
+            "from": "reports/1.0",
+            "status_mapping": "docs/reports-contract-v2.0.md#mapping-from-reports10-to-reports20",
+        },
+        "extensions": {},
+    }
+
+
 def report_to_dict(
     report: ExecutionReport,
     *,
@@ -458,6 +583,8 @@ def report_to_dict(
     """
 
     effective = _effective_schema_version(report, schema_version_override)
+    if _emit_contract_v2_0(effective):
+        return report_to_dict_v2_0(report, include_absolute_path=include_absolute_path)
     if _emit_contract_v1_0(effective):
         return report_to_dict_v1(report, include_absolute_path=include_absolute_path)
     contract_v2 = _emit_contract_v2(effective)

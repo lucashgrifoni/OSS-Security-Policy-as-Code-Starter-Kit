@@ -1,0 +1,30 @@
+id: slsa-source-l1-1
+title: SLSA v1.0 Source Track Level 1 (clone-side advisory)
+description: >
+  **Advisory profile (advisory only).** First profile in the SLSA Source
+  Track family, complementing the existing ``slsa-build-l2-1``. Bundles
+  the five ``SLSA-SRC-*`` controls plus the supporting sustaining
+  governance.
+  Controls:
+  - ``SLSA-SRC-001`` — version-controlled source (deterministic).
+  - ``SLSA-SRC-002`` — commit-signature enforcement signal (verified history).
+  - ``SLSA-SRC-003`` — branch protection present (evidence-backed).
+  - ``SLSA-SRC-004`` — two-party review required on protected branches.
+  - ``SLSA-SRC-005`` — audit log of source-changing events (delegates to
+    ``AUDIT-STREAM-060``).
+  Pair with ``slsa-build-l2-1`` for the paired Source + Build posture.
+  **Posture:** advisory. **Recommended `--fail-on`:** ``degraded`` only.
+audience: >
+  Teams that already adopted SLSA Build Track L2 (via ``slsa-build-l2-1``)
+  and want to document the parallel Source Track posture. Future
+  ``slsa-source-l2-1`` and ``slsa-source-l3-1`` will share the same
+  ``SLSA-SRC-*`` family with stricter thresholds.
+controls:
+  - SLSA-SRC-001
+  - SLSA-SRC-002
+  - SLSA-SRC-003
+  - SLSA-SRC-004
+  - SLSA-SRC-005
+  - GOV-SEC-001
+  - GOV-DISC-013
+  - GOV-WAIV-014

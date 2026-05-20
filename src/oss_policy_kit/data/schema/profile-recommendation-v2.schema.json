@@ -6,7 +6,11 @@
   "required": ["schema_version", "signals_detected", "suggestions", "notes"],
   "properties": {
     "schema_version": {
-      "const": "oss-policy-kit/profile-recommendation/v2"
+      "description": "v6.0.0 (M-003): absolute URL preferred. Legacy shorthand 'oss-policy-kit/profile-recommendation/v2' accepted until v6.1.0.",
+      "enum": [
+        "https://schemas.lucashgrifoni.io/oss-policy-kit/recommend-profile/v2.json",
+        "oss-policy-kit/profile-recommendation/v2"
+      ]
     },
     "signals_detected": {
       "type": "array",

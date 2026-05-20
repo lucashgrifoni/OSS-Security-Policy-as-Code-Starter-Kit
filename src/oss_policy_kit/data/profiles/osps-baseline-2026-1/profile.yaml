@@ -1,0 +1,42 @@
+id: osps-baseline-2026-1
+title: OSPS Baseline v2026.02.19 alignment + Scorecard v6 conformance (advisory)
+description: >
+  **Advisory mapping (advisory only). Do not use as a release gate. Not a
+  compliance certification.** Snapshot-pinned successor to ``osps-baseline-1``,
+  aligned to the OpenSSF Open Source Project Security Baseline release
+  **v2026.02.19**. Adds ``OSPS-SCORECARD-V6-001``, which consumes an OpenSSF
+  Scorecard v6 OSPS conformance report (``scorecard --format=osps``) when
+  present and falls back to manual review otherwise. The original
+  ``osps-baseline-1`` is retained for compatibility; this profile is the
+  canonical 2026 snapshot.
+  **Posture:** advisory. **Recommended `--fail-on`:** ``degraded`` only.
+  **Framework alignment:** see ``docs/osps-baseline-2026-mapping.md``.
+audience: >
+  OSS maintainers tracking the rolling OSPS Baseline who want a snapshot
+  pinned to v2026.02.19 plus Scorecard v6 conformance evidence. Use for
+  self-assessment and procurement discovery, not for hard release gating.
+controls:
+  # Scorecard v6 OSPS conformance (Cycle 2)
+  - OSPS-SCORECARD-V6-001
+  # Access Control
+  - GOV-COWN-003
+  - PLAT-BRPROT-015
+  - ORG-MFA-001
+  - GH-PLAT-024
+  # Build & Release
+  - CI-WF-005
+  - CI-PIN-008
+  - CI-PERM-006
+  - REL-CHANGE-012
+  - BUILD-SBOM-QUAL-003
+  - GH-PROV-023
+  # Documentation
+  - GOV-SEC-001
+  - GOV-CON-002
+  - GOV-LIC-004
+  - GOV-DISC-013
+  # Quality & Security Assessment
+  - SEC-CODEQL-010
+  - SEC-DEPREV-011
+  - SEC-SECRETS-050
+  - DEP-UPDATE-001

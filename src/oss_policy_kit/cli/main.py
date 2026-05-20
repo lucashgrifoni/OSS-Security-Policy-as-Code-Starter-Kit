@@ -15,9 +15,11 @@ from contextlib import suppress
 # Importing each module triggers Typer command registration via decorators.
 from oss_policy_kit.cli import (  # noqa: F401  (import side-effects: command registration)
     batch,
+    emit_insights,
     emit_vex,
     evaluate,
     evidence,
+    export_evidence,
     init,
     profiles,
     recommend,

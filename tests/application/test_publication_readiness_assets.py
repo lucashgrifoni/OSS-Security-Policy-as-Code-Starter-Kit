@@ -8,6 +8,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _REQUIRED_PUBLIC_ARTIFACTS: tuple[Path, ...] = (
     _REPO_ROOT / "README.md",
+    _REPO_ROOT / "ROADMAP.md",
     _REPO_ROOT / "CHANGELOG.md",
     _REPO_ROOT / "CONTRIBUTING.md",
     _REPO_ROOT / "SECURITY.md",
@@ -25,7 +26,6 @@ _PUBLIC_DOCS: tuple[Path, ...] = (
 )
 
 _NON_PUBLIC_ARTIFACT_REFERENCES: tuple[str, ...] = (
-    "ROADMAP.md",
     "docs/public-launch-checklist.md",
     "docs/public-release-readiness.md",
     "docs/publication-traceability-matrix.md",
@@ -53,7 +53,6 @@ def test_public_docs_reference_supported_release_artifacts_only() -> None:
 
 def test_non_public_launch_artifacts_are_not_exposed() -> None:
     removed_paths = (
-        _REPO_ROOT / "ROADMAP.md",
         _REPO_ROOT / "docs" / "public-launch-checklist.md",
         _REPO_ROOT / "docs" / "public-release-readiness.md",
         _REPO_ROOT / "docs" / "publication-traceability-matrix.md",
@@ -72,6 +71,14 @@ def test_public_docs_do_not_reference_non_public_launch_artifacts() -> None:
         text = path.read_text(encoding="utf-8")
         for reference in _NON_PUBLIC_ARTIFACT_REFERENCES:
             assert reference not in text, f"{path.relative_to(_REPO_ROOT)} references {reference}"
+
+
+def test_public_roadmap_uses_now_next_later_shape() -> None:
+    roadmap = (_REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+    assert "## Now" in roadmap
+    assert "## Next" in roadmap
+    assert "## Later" in roadmap
+    assert "## Non-goals" in roadmap
 
 
 def test_false_positive_template_mentions_reproducibility() -> None:

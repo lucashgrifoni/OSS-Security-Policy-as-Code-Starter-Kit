@@ -93,5 +93,5 @@ Use it to explain **alignment** and **coverage gaps** to stakeholders. Specifica
 ## See also
 
 - [framework-alignment.md](framework-alignment.md) — master cross-framework mapping.
-- [controls-catalog.md](controls-catalog.md) — full catalog of 65 controls.
+- [controls-catalog.md](controls-catalog.md) — generated bundled controls catalog.
 - [profiles/overview.md](profiles/overview.md) — profile maturity tier discussion.

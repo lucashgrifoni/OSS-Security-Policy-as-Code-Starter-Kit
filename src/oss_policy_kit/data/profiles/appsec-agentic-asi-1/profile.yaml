@@ -1,0 +1,37 @@
+id: appsec-agentic-asi-1
+title: OWASP Top 10 for Agentic Applications (ASI01-10) baseline (advisory)
+description: >
+  **Advisory profile (advisory only).** Clone-side signals mapped to the
+  OWASP Top 10 for Agentic Applications (2026, ASI01-10). Each ``AGENT-ASI-*``
+  control is a pattern match for the OWASP-named risk family, NOT a verdict on
+  exploitability, and returns NOT_APPLICABLE when no agentic-AI framework is
+  detected:
+  - ``AGENT-ASI-GOAL-001`` (ASI01) — goal/system-prompt version-controlled.
+  - ``AGENT-ASI-TOOL-002`` (ASI02) — tool allowlist + least privilege.
+  - ``AGENT-ASI-MEMORY-006`` (ASI06) — memory purge / poisoning policy.
+  - ``AGENT-ASI-INTER-007`` (ASI07) — inter-agent mutual authentication.
+  - ``AGENT-ASI-CONFIRM-009`` (ASI09) — human checkpoint for destructive ops.
+  Bundled supporting controls: ``LLM-218A-PO-001`` (AI security
+  considerations), ``MCP-TOOL-HASH-001`` and ``MCP-CONFIRM-001`` (tool
+  surface), ``AI-AGENT-002`` (tool allowlist).
+  **Posture:** advisory. **Recommended `--fail-on`:** ``degraded`` only.
+audience: >
+  Teams shipping AI agents (LangChain/LangGraph, AutoGen, CrewAI, MCP-based,
+  or similar) who want a clone-side hygiene baseline against the OWASP Agentic
+  Top 10 risk families.
+controls:
+  # OWASP Agentic ASI family
+  - AGENT-ASI-GOAL-001
+  - AGENT-ASI-TOOL-002
+  - AGENT-ASI-MEMORY-006
+  - AGENT-ASI-INTER-007
+  - AGENT-ASI-CONFIRM-009
+  # Tool surface (MCP) + AI baseline
+  - MCP-TOOL-HASH-001
+  - MCP-CONFIRM-001
+  - LLM-218A-PO-001
+  - AI-AGENT-002
+  # Sustaining governance
+  - GOV-SEC-001
+  - GOV-DISC-013
+  - GOV-WAIV-014

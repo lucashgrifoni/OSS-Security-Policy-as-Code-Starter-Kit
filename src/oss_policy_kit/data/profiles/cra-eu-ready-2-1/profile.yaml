@@ -1,0 +1,41 @@
+id: cra-eu-ready-2-1
+title: EU CRA readiness v2 — Article 11 + 13 + 14 signals (advisory, NOT a conformity assessment)
+description: >
+  **Advisory profile. Do NOT use as a release gate or as a conformity
+  assessment substitute.** Successor to ``cra-eu-ready-1`` that bundles the
+  EU Cyber Resilience Act readiness signals added in Cycle 2:
+  - ``CRA-ART13-SBD-001`` — security-by-design intent declared (Article 13).
+  - ``CRA-ART13-DEFAULTS-002`` — secure-by-default configuration documented.
+  - ``CRA-ART14-CSAF-001`` — CSAF advisory feed present (Article 14 reporting).
+  - ``CRA-ART14-COORD-002`` — coordinated disclosure policy documented.
+  - ``CRA-PRODUCT-CLASS-001`` — product classification per Implementing Reg
+    (EU) 2025/2392 (important / critical / default).
+  Bundled supporting controls: ``GOV-DISC-065`` (disclosure SLA),
+  ``REL-CHANGE-012`` (release change tracking), ``SAST-OSV-068``
+  (dependency CVE surface).
+  **Hard caveat:** the kit does NOT certify CRA conformity. Article 14
+  reporting obligations apply from **2026-09-11**; the kit surfaces
+  clone-visible readiness signals only. See ``docs/cra-readiness.md``.
+  **Posture:** framework-aligned advisory (regulatory).
+  **Recommended `--fail-on`:** ``degraded`` only.
+audience: >
+  Manufacturers preparing for EU CRA obligations who want a clone-side
+  readiness snapshot across Articles 11, 13, and 14. ``cra-eu-ready-1``
+  remains for compatibility; this v2 profile is the canonical CRA bundle.
+controls:
+  # CRA Article 13 — security by design / default
+  - CRA-ART13-SBD-001
+  - CRA-ART13-DEFAULTS-002
+  # CRA Article 14 — reporting / disclosure
+  - CRA-ART14-CSAF-001
+  - CRA-ART14-COORD-002
+  - GOV-DISC-065
+  # CRA product classification
+  - CRA-PRODUCT-CLASS-001
+  # Release + dependency hygiene
+  - REL-CHANGE-012
+  - SAST-OSV-068
+  # Sustaining governance
+  - GOV-SEC-001
+  - GOV-DISC-013
+  - GOV-WAIV-014

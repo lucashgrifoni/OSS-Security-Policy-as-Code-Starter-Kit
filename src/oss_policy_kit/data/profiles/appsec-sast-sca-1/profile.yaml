@@ -25,6 +25,9 @@ controls:
   - DEP-UPDATE-001
   - SEC-PINLOCK-052
   - SAST-OSV-068
+  # EPSS + CISA KEV prioritization (Cycle 2, PR-23)
+  - SCA-KEV-001
+  - SCA-EPSS-001
   # Secret scanning
   - SEC-SECRETS-050
   - SEC-GITIGNORE-051

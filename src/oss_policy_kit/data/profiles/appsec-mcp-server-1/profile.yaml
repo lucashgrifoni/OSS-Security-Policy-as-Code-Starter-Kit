@@ -1,0 +1,37 @@
+id: appsec-mcp-server-1
+title: MCP server security baseline (advisory)
+description: >
+  **Advisory profile (advisory only).** Clone-side security signals for
+  Model Context Protocol (MCP) servers, responding to the 2026 tool-poisoning
+  and indirect prompt-injection threat landscape. All ``MCP-*`` controls are
+  signal-grade pattern matches and return NOT_APPLICABLE when no MCP server is
+  detected:
+  - ``MCP-TOOL-HASH-001`` — tool descriptions hash-pinned (tool-poisoning
+    defense).
+  - ``MCP-CONFIRM-001`` — destructive operations require confirmation.
+  - ``MCP-EGRESS-001`` — egress allowlist documented.
+  - ``MCP-INJECTION-TEST-001`` — prompt-injection / tool-poisoning tests
+    present.
+  - ``MCP-SCOPE-001`` — per-tool least-privilege scope documented.
+  Bundled supporting controls: ``LLM-218A-PO-001`` (AI security
+  considerations) and ``AI-AGENT-001`` (MCP authentication).
+  **Posture:** advisory. **Recommended `--fail-on`:** ``degraded`` only.
+  See ``docs/mcp-server-security.md``.
+audience: >
+  Teams building or hosting MCP servers that want a clone-side hygiene
+  baseline against tool poisoning, indirect prompt injection, over-broad
+  tool scope, and unrestricted egress.
+controls:
+  # MCP server security family
+  - MCP-TOOL-HASH-001
+  - MCP-CONFIRM-001
+  - MCP-EGRESS-001
+  - MCP-INJECTION-TEST-001
+  - MCP-SCOPE-001
+  # AI security baseline
+  - LLM-218A-PO-001
+  - AI-AGENT-001
+  # Sustaining governance
+  - GOV-SEC-001
+  - GOV-DISC-013
+  - GOV-WAIV-014

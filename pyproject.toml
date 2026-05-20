@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oss-policy-kit"
-version = "5.9.1"
+version = "6.0.0.dev0"
 description = "Open source starter kit for adopting OSS security baselines via policy packs, templates, evidence, and remediation."
 readme = "README.md"
 license = "Apache-2.0"
@@ -33,9 +33,10 @@ aws = ["boto3>=1.34", "botocore>=1.34"]
 iac = ["python-hcl2>=6.1"]
 all = ["httpx>=0.27", "boto3>=1.34", "botocore>=1.34", "python-hcl2>=6.1"]
 dev = [
-  "pytest>=8.0",
-  "pytest-cov>=4.1",
-  "ruff>=0.6",
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "hypothesis>=6.0,<7",
+    "ruff>=0.6",
   "mypy>=1.11",
   "bandit>=1.7.9",
   "pip-audit>=2.7",
@@ -110,6 +111,8 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 "src/oss_policy_kit/cli/recommend.py" = ["B008"]
 "src/oss_policy_kit/cli/reports.py" = ["B008"]
 "src/oss_policy_kit/cli/emit_vex.py" = ["B008"]
+"src/oss_policy_kit/cli/emit_insights.py" = ["B008"]
+"src/oss_policy_kit/cli/export_evidence.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.12"

@@ -1,0 +1,48 @@
+id: oss-publish-readiness-1
+title: OSS publish readiness — Trusted Publishing detection (clone-side advisory)
+description: >
+  **Advisory profile (advisory only).** Detects the workflow-side posture
+  for **Trusted Publishing** across the major package registries that
+  shipped OIDC publishing as GA in 2025-2026 (PyPI, npm, RubyGems,
+  crates.io). The kit reads only the workflow source; it does not verify
+  a publish actually succeeded.
+  Controls (all signal-grade, lifecycle experimental):
+  - ``PUBLISH-OIDC-001`` — publish workflow declares
+    ``permissions: id-token: write``.
+  - ``PUBLISH-OIDC-002`` — publish step does NOT reference a long-lived
+    registry token (``NPM_TOKEN`` / ``PYPI_TOKEN`` / ``TWINE_PASSWORD`` /
+    ``RUBYGEMS_API_KEY`` / ``CARGO_REGISTRY_TOKEN``).
+  - ``PUBLISH-OIDC-003`` — npm publish step uses ``--provenance``
+    (or registry-equivalent provenance flag).
+  Also bundles the existing pinning and permissions controls that
+  underpin a trustworthy publish path (``CI-PIN-008``, ``CI-PERM-006``),
+  and ``PROV-VERIFY-061`` for the post-publish verification step
+  (extended in v6.0.0 to surface ``verification.source`` — see V6-10).
+  **Posture:** advisory. **Recommended `--fail-on`:** ``degraded`` only.
+audience: >
+  OSS maintainers publishing to PyPI, npm, RubyGems, or crates.io who
+  want a one-command checklist for Trusted Publishing posture. Pair
+  with ``github-release-hardening-1`` or higher for the broader
+  release posture.
+controls:
+  # Trusted Publishing (v6.0.0)
+  - PUBLISH-OIDC-001
+  - PUBLISH-OIDC-002
+  - PUBLISH-OIDC-003
+  # Supporting CI/CD discipline
+  - CI-PIN-008
+  - CI-PERM-006
+  # Post-publish verification
+  - PROV-VERIFY-061
+  # Shai-Hulud / TeamPCP worm defense (Cycle 2, PR-19)
+  - WORM-POSTINSTALL-001
+  - WORM-LOCKFILE-DRIFT-001
+  - WORM-PUBLISH-SCOPE-001
+  # Post-Trivy scanner integrity + GitHub Actions 2026 signals (Cycle 2, PR-29/30/32)
+  - SCANNER-INTEGRITY-001
+  - GH-EGRESS-NATIVE-001
+  - GH-WF-LOCKFILE-001
+  # Sustaining governance
+  - GOV-SEC-001
+  - GOV-DISC-013
+  - GOV-WAIV-014

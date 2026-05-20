@@ -413,7 +413,12 @@ def test_subprocess_recommend_profile_json_schema_v2() -> None:
     proc = _run_module(["recommend-profile", "--target", str(EXAMPLE_HARDENED), "--format", "json"])
     assert proc.returncode == 0, proc.stderr + proc.stdout
     data = json.loads(proc.stdout)
-    assert data["schema_version"] == "oss-policy-kit/profile-recommendation/v2"
+    # M-003 (v6.0.0, ADR-008): schema_version is now an absolute URL.
+    # The legacy shorthand is still accepted by internal consumers for one
+    # minor; this test asserts the new canonical value.
+    assert data["schema_version"] == (
+        "https://schemas.lucashgrifoni.io/oss-policy-kit/recommend-profile/v2.json"
+    )
     assert "signals_detected" in data
     assert "suggestions" in data
     assert "notes" in data

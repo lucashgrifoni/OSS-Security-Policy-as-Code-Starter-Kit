@@ -83,27 +83,62 @@ REPORT_JSON_SCHEMA_URL_V0_1 = "https://github.com/lucashgrifoni/OSS-Security-Pol
 REPORT_JSON_SCHEMA_URL_V0_2 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.2"
 REPORT_JSON_SCHEMA_URL_V0_3 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.3"
 REPORT_JSON_SCHEMA_URL_V1_0 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/1.0"
+REPORT_JSON_SCHEMA_URL_V2_0 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/2.0"
+
+
+# v6.0.0 (V6-05, ADR-013): reports/2.0 contract maps the v5.x seven-state
+# vocabulary into the Scorecard-v6 five-state vocabulary. The mapping is
+# documented in docs/reports-contract-v2.0.md.
+#
+# v5.x status -> (v2.0 STATE, optional reason sub-field)
+REPORTS_V2_STATUS_MAP: dict[str, tuple[str, str | None]] = {
+    "pass": ("PASS", None),
+    "fail": ("FAIL", None),
+    "degraded": ("FAIL", None),  # consumers also read per-control 'degraded' flag
+    "manual-review-required": ("UNKNOWN", "manual-review-required"),
+    "not-applicable": ("NOT_APPLICABLE", None),
+    "skipped": ("UNKNOWN", "skipped-by-flag"),
+    "error": ("UNKNOWN", "evaluator-error"),
+    "attested": ("ATTESTED", None),  # reserved for evidence-backed PROV-VERIFY-061 PASS in v6.0.0
+}
+
+
+def map_status_to_reports_v2(status: str) -> tuple[str, str | None]:
+    """Map a v5.x status string to the (state, reason) pair of reports/2.0.
+
+    See docs/reports-contract-v2.0.md for the full mapping table and the
+    deprecation timeline (reports/1.0 is selectable in v6.0.x, removed in v6.1.0).
+    """
+    key = status.strip().lower()
+    if key in REPORTS_V2_STATUS_MAP:
+        return REPORTS_V2_STATUS_MAP[key]
+    return ("UNKNOWN", "unmapped-source-status")
 
 
 def report_json_schema_url(contract: str) -> str:
     """Return the full ``schema_version`` URL for an evaluation JSON report contract.
 
     v5.0.0 default: ``1.0``. Selectable: ``1.0``, ``0.3``, ``0.2``. Removed: ``0.1``.
+    v6.0.0 (PR-16, V6-05): ``2.0`` selectable; planned default in a future v6.x.
     """
 
     c = contract.strip().lower().removeprefix("v")
     if c in {"", "1.0"}:
         return REPORT_JSON_SCHEMA_URL_V1_0
+    if c == "2.0":
+        return REPORT_JSON_SCHEMA_URL_V2_0
     if c == "0.3":
         return REPORT_JSON_SCHEMA_URL_V0_3
     if c == "0.2":
         return REPORT_JSON_SCHEMA_URL_V0_2
     if c == "0.1":
         raise LoadError(
-            "Report JSON contract '0.1' was removed in v5.0.0. Use '1.0' (default), '0.3', or '0.2'. "
+            "Report JSON contract '0.1' was removed in v5.0.0. Use '1.0' (default), '2.0', '0.3', or '0.2'. "
             "See docs/v5.0.0-migration-guide.md."
         )
-    raise LoadError(f"Unknown report JSON contract {contract!r}; expected '1.0', '0.3', or '0.2'.")
+    raise LoadError(
+        f"Unknown report JSON contract {contract!r}; expected '1.0', '2.0', '0.3', or '0.2'."
+    )
 
 
 def _apply_waiver(

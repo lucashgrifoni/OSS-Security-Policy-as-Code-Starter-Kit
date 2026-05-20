@@ -1,0 +1,27 @@
+id: ai-agent-baseline-1
+title: AI agent source-side security baseline
+description: >
+  Advisory profile for repositories that build AI agents or MCP servers.
+  It focuses on source-time and build-time controls: MCP authn signals,
+  tool allowlists, reviewed prompt registries, adversarial tests, output
+  sanitization evidence, rate limits, tool-call audit logging, dedicated
+  agent identity, memory policy, and model-version pinning.
+  This profile is NOT a runtime policy enforcer and does not claim that an
+  agent is safe in production. Pair it with runtime controls, red-team
+  testing, and platform authorization.
+audience: >
+  Teams building AI agents, tool-using LLM applications, or MCP servers who
+  want an advisory pre-release check over clone-visible source posture and
+  versioned evidence files. Recommended gate: --fail-on degraded, not a
+  release hard gate by itself.
+controls:
+  - AI-AGENT-001
+  - AI-AGENT-002
+  - AI-AGENT-003
+  - AI-AGENT-004
+  - AI-AGENT-005
+  - AI-AGENT-006
+  - AI-AGENT-007
+  - AI-AGENT-008
+  - AI-AGENT-009
+  - AI-AGENT-010

@@ -1,0 +1,9 @@
+{
+  "schema_version": "ai-agent-baseline/v1",
+  "control_id": "AI-AGENT-009",
+  "attested_at": "2026-05-19",
+  "attested_by": "fixture-maintainer",
+  "excluded_context_types": ["secrets", "tokens", "personal_data", "raw_tool_credentials"],
+  "retention_policy": "No long-term memory is persisted by default.",
+  "review_cadence": "per release"
+}
