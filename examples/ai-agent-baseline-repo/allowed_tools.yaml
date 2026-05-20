@@ -1,0 +1,6 @@
+allowed_tools:
+  - read_report
+  - summarize_findings
+denied_tools:
+  - shell
+  - write_file

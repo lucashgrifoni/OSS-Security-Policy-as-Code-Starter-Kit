@@ -1,0 +1,6 @@
+[project]
+name = "ai-agent-baseline-fixture"
+version = "0.0.0"
+dependencies = [
+  "openai==1.82.0"
+]

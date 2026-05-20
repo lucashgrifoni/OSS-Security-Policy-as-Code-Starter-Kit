@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "release-readiness": {
+      "transport": "stdio",
+      "auth": {
+        "type": "oauth",
+        "token_audience": "urn:oss-policy-kit:agent"
+      },
+      "tools": ["read_report", "summarize_findings"]
+    }
+  }
+}
