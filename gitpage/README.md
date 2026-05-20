@@ -1,8 +1,9 @@
 # gitpage - optional GitHub Pages site
 
-This directory contains the optional front-end site for the project. It is a static
-single-page React app served as plain files; **no build step is required**. It is **not**
-part of the Python package published as `oss-policy-kit`.
+This directory contains the optional front-end site for the project. It is a
+static single-page React app served as plain files after the committed CSS and
+JavaScript bundle are built. It is **not** part of the Python package published
+as `oss-policy-kit`.
 
 ## What it is for
 
@@ -16,15 +17,47 @@ part of the Python package published as `oss-policy-kit`.
 - Not required to use the CLI
 - Not required for the Python test suite
 
-## Toolchain (none required to deploy)
+## Toolchain
 
-The page loads React + Babel + Tailwind via CDN at runtime. There is no `npm install`,
-no compile step, no bundler. Files served as-is:
+The page serves committed static files. Tailwind is built locally into
+`tailwind.css` and JSX is bundled into `bundle.js` instead of loading build
+tools in the browser.
 
-- `index.html` - entry point (loads CDN scripts and registers `<script type="text/babel">` parts)
+- `index.html` - entry point (loads committed CSS, pinned React/ReactDOM CDN scripts, and committed `bundle.js`)
+- `tailwind.css` - generated Tailwind utilities, committed for traceability
+- `site.css` - generated combined/minified CSS loaded by `index.html`
+- `tailwind.config.js` / `tailwind.input.css` - Tailwind build inputs
+- `build-js.mjs` - esbuild transform for the static JSX bundle
+- `bundle.js` - generated site JavaScript, committed for GitHub Pages
 - `app.jsx` - top-level React app
 - `parts/*.jsx` - section components (background, header, hero, sections-a/b/c, footer-cta, primitives)
-- `styles.css` - additional styles on top of Tailwind CDN
+- `styles.css` - additional custom styles on top of generated Tailwind CSS
+- `screenshots/*.png` - copied public report screenshots used by the Sample Output section
+
+When changing Tailwind classes or JSX, rebuild the generated static assets:
+
+```bash
+cd gitpage
+npm ci
+npm run build
+```
+
+The npm scripts call Node entrypoints directly so they work from Windows paths
+that contain `&`.
+
+## Content sections
+
+The site order is:
+
+1. Hero with pass/fail policy-gate value proposition.
+2. Problem statement.
+3. Comparison matrix.
+4. Scope and workflow.
+5. Sample output screenshots.
+6. Quickstart, capabilities, profiles, evaluation states, differentiators, signals.
+7. Roadmap and final CTA.
+
+Keep comparison wording factual and non-adversarial. Do not add SLSA L3 wording unless the release workflow produces verifier-backed SLSA provenance.
 
 ## Local usage
 
@@ -40,15 +73,15 @@ cd gitpage
 npx --yes http-server -p 8080
 ```
 
-Opening `gitpage/index.html` directly via `file://` may fail because some browsers refuse to
-load `<script src="parts/...jsx">` from the local filesystem; an HTTP server is the simplest
-fix.
+Opening `gitpage/index.html` directly via `file://` is not the recommended
+preview path; an HTTP server mirrors the GitHub Pages deployment shape.
 
 ## CI behavior
 
 The site is deployed by `.github/workflows/deploy-github-pages.yml`. The workflow uploads
 `gitpage/` directly as a Pages artifact on push to `master` (paths-filtered to `gitpage/**`).
-No build job is needed; no Node toolchain is invoked.
+No Node toolchain is invoked during deploy; `site.css` and `bundle.js` must
+already be committed.
 
 Important boundaries:
 
@@ -58,19 +91,18 @@ Important boundaries:
 
 ## Residual risks
 
-The gitpage site is a static marketing surface. It is intentionally decoupled from the
-Python package and CI merge gates, and ships with two acknowledged supply-chain risks
-that downstream consumers should be aware of:
+The gitpage site is a static marketing surface. It is intentionally decoupled
+from the Python package and CI merge gates. Runtime CDN exposure is limited to
+React and ReactDOM:
 
-- **Tailwind CDN is unpinned.** `index.html` loads `https://cdn.tailwindcss.com` without a
-  fixed version and without Subresource Integrity. This is a CDN-trust risk on the marketing
-  page only. It does not affect the Python wheel/sdist, the CLI, the SARIF/JSON reports, or
-  any CI gate. Pinning Tailwind to a specific version with SRI is tracked as a `v5.x.y`
-  follow-up and explicitly **not** a v5.0.0 hard requirement.
-- **React, ReactDOM, and Babel standalone are pinned.** `index.html` loads them via `unpkg.com`
-  at fixed versions (React 18.3.1, Babel standalone 7.29.0) and ships SRI `integrity`
-  attributes on each script tag, so those CDN fetches fail closed if upstream content
-  changes.
+- **Tailwind is bundled.** `index.html` loads committed `site.css`; no Tailwind runtime CDN is used.
+- **Runtime CSS is combined.** `index.html` loads committed `site.css`, which
+  combines the generated Tailwind output and local custom CSS.
+- **JSX is bundled.** `index.html` loads committed `bundle.js`; Babel standalone
+  is not loaded at runtime.
+- **React and ReactDOM are pinned.** `index.html` loads them via `unpkg.com` at
+  fixed React 18.3.1 URLs and ships SRI `integrity` attributes on each script
+  tag, so those CDN fetches fail closed if upstream content changes.
 
 If you are evaluating this kit for adoption, the trust boundary that matters is the wheel
 and sdist signed/checked under `dist/`, the CycloneDX SBOM under `artifacts/sbom.cyclonedx.json`,

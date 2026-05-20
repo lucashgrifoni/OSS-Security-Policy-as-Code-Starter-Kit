@@ -3,8 +3,10 @@
 const NAV = [
   { id: "hero", label: "Overview" },
   { id: "problem", label: "Problem" },
+  { id: "comparison", label: "Compare" },
   { id: "scope", label: "Scope" },
   { id: "flow", label: "Workflow" },
+  { id: "sample-output", label: "Output" },
   { id: "quickstart", label: "Quickstart" },
   { id: "capabilities", label: "Capabilities" },
   { id: "profiles", label: "Profiles" },
@@ -117,6 +119,7 @@ function SiteHeader() {
           <button
             type="button"
             className="inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-mist lg:hidden"
+            aria-label={open ? "Close navigation" : "Open navigation"}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           >

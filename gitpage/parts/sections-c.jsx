@@ -1,5 +1,69 @@
 // Sections C: Differentiators, Signals (control examples), Roadmap, Repo anatomy
 
+const SAMPLE_REPORTS = [
+  {
+    title: "Hardened repository",
+    caption: "github-level-1 profile, 14/14 pass in the bundled hardened fixture.",
+    src: "screenshots/05-example-hardened.png",
+    width: 1551,
+    height: 1571,
+    alt: "Hardened repository report output",
+    tone: "text-signal",
+  },
+  {
+    title: "Vulnerable repository",
+    caption: "Same profile against the vulnerable fixture, with multiple failing controls.",
+    src: "screenshots/06-example-vulnerable.png",
+    width: 2201,
+    height: 1094,
+    alt: "Vulnerable repository report output",
+    tone: "text-red-200",
+  },
+];
+
+function SampleOutputSection() {
+  return (
+    <SectionShell
+      id="sample-output"
+      eyebrow="Sample output"
+      title="The report is meant to be read by humans and kept by CI."
+      subtitle="The same evaluation produces Markdown for reviewers, JSON for automation, and optional SARIF for code-scanning workflows."
+    >
+      <div className="grid gap-6 lg:grid-cols-2">
+        {SAMPLE_REPORTS.map((item, i) => (
+          <Reveal key={item.title} delay={i * 80}>
+            <div className="h-full overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-floor">
+              <div className="border-b border-white/10 px-5 py-4">
+                <h3 className={`text-lg font-semibold ${item.tone}`}>{item.title}</h3>
+                <p className="mt-1 text-sm text-slate">{item.caption}</p>
+              </div>
+              <img
+                src={item.src}
+                alt={item.alt}
+                width={item.width}
+                height={item.height}
+                className="block w-full bg-ink-deep object-cover"
+                loading="lazy"
+              />
+            </div>
+          </Reveal>
+        ))}
+      </div>
+      <Reveal className="mt-8">
+        <a
+          href="https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/tree/master/docs/sample-reports"
+          target="_blank"
+          rel="noreferrer noopener"
+          className="inline-flex items-center gap-2 rounded-lg border border-signal/40 bg-signal/10 px-4 py-3 text-sm font-medium text-signal transition hover:bg-signal/20"
+        >
+          Browse full sample reports
+          <Icon name="arrow" className="h-4 w-4" />
+        </a>
+      </Reveal>
+    </SectionShell>
+  );
+}
+
 const DIFFS = [
   { icon: "layers", title: "Honest trust model", body: "The kit distinguishes clone-visible truth, self-attested evidence, and platform-only reality instead of collapsing them into one confidence claim." },
   { icon: "cpu", title: "Useful command surface", body: "The CLI does more than one demo command: it supports profile discovery, recommendation, batch evaluation, evidence scaffolding, summaries, and CI thresholds." },
@@ -93,38 +157,40 @@ function SignalsSection() {
 const MILESTONES = [
   {
     id: "current",
-    title: "Shipped today",
+    title: "Now",
     icon: "rocket",
-    era: "Current state",
+    era: "v6.0.0 GA",
     bullets: [
-      "Packaged Python CLI with evaluate, profiles, recommend-profile, evaluate-many, scaffold-evidence",
-      "Eighteen bundled profiles across GitHub, Azure, and AWS",
-      "Markdown + JSON reports, optional waivers, optional Scorecard JSON, schema-shaped evidence inputs",
-      "Examples, tests, documentation, screenshots, and the public GitHub Pages site in the same repository",
+      "Finish local v6.0.0 branch review and push strategy",
+      "Keep reports/1.0 as default while shipping opt-in reports/2.0",
+      "Ship the landed v6 profile expansion: AI/LLM, EU AI Act, SLSA Source L1, GitLab L2, OSS publish readiness",
+      "Publish release evidence: PyPI attestations, signed GHCR image, SBOM, changelog, migration guide, sample reports",
     ],
   },
   {
     id: "next",
-    title: "Hardening next",
+    title: "Next",
     icon: "shield",
-    era: "Near term",
+    era: "v6.x",
     bullets: [
-      "Richer documentation and better evidence-pack guidance for release-hardening flows",
-      "Additional controls only where static analysis can remain reliable and explainable",
-      "More parser edge-case coverage and regression tests around workflow and pipeline semantics",
-      "Sharper examples for self-check, CI-gating, and package-consumer installation paths",
+      "Refactor the large evaluator module into smaller family modules",
+      "Add property-based tests for control/profile YAML, waivers, and report schema edge cases",
+      "Add a navigable control catalog on GitHub Pages",
+      "Expand public comparison docs and first-adopter tutorial assets",
+      "Publish threat model and supply-chain pipeline audit evidence",
     ],
   },
   {
     id: "later",
-    title: "Selective depth",
+    title: "Later",
     icon: "satellite",
-    era: "Later",
+    era: "v7+",
     bullets: [
-      "Security-insights validation only if ecosystem semantics become stable enough to support it honestly",
-      "Narrow remote adapters for a small set of platform signals where trust boundaries can stay explicit",
-      "Better aggregated views on top of evaluate-many without turning the project into a dashboard product",
-      "Incremental improvements to cross-platform parity without pretending every forge exposes the same truth model",
+      "Explore CEL/Rego export as an integration layer for policy engines",
+      "Add SPDX SBOM export alongside CycloneDX-focused flows",
+      "Add diff-catalogs for control/profile deltas between kit versions",
+      "Add optional structured JSON logging and richer CLI explain commands",
+      "Publish maintainer/community signals when there is real adoption evidence",
     ],
   },
   {
@@ -259,6 +325,7 @@ function RepoAnatomySection() {
   );
 }
 
+window.SampleOutputSection = SampleOutputSection;
 window.DifferentiatorsSection = DifferentiatorsSection;
 window.SignalsSection = SignalsSection;
 window.RoadmapSection = RoadmapSection;
