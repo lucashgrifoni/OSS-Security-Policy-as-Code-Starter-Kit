@@ -1,6 +1,6 @@
 # Container image
 
-v5.9.0 ships:
+v5.9.0+ ships:
 
 1. A `Dockerfile` at the repository root (multi-stage, non-root, container-baseline-1-compliant).
 2. The `.github/workflows/publish-container.yml` workflow that publishes signed multi-arch images to `ghcr.io/<owner>/oss-policy-kit` on `v*` tag pushes.
@@ -13,7 +13,7 @@ Adopters can build locally today; CI automation activates when a tag is pushed.
 docker build -t oss-policy-kit:5.9.0 .
 ```
 
-Override the installed kit version with a build arg:
+The image installs from the checked-out source tree. The build arg is retained for image labels and release tag plumbing:
 
 ```bash
 docker build --build-arg KIT_VERSION=5.9.0 -t oss-policy-kit:5.9.0 .
@@ -57,9 +57,10 @@ docker run --rm \
 - **Multi-stage build.** Builder stage installs the wheel into a venv; runtime stage copies only the venv. Keeps the final image small.
 - **Pinned Python 3.12.** The kit declares `requires-python >=3.12` in `pyproject.toml`; the image matches.
 - **Non-root user `appuser` (uid 10001).** Required by `container-baseline-1`'s `CONT-IMAGE-001..003` controls.
-- **No build tools in the runtime image.** `pip install` happens in the builder stage.
+- **No build tools in the runtime image.** Source install happens in the builder stage, then only the venv is copied.
 - **`[all]` extras installed by default.** A single image supports every subcommand including `collect-evidence` (GitHub / Azure / AWS) and the IaC scanners.
 - **OCI labels** for `image.title`, `image.description`, `image.source`, `image.licenses`, `image.vendor` — feeds Sigstore Cosign provenance, image SBOM tooling, and registry discovery.
+- **No PyPI race.** The release workflow builds the container from the checked-out tag instead of waiting for the package to appear on PyPI. See [ADR-017](decisions/adr-017-source-built-container-release.md).
 
 ## CI publication (v5.9.0+)
 
@@ -69,7 +70,7 @@ The `publish-container` workflow handles the release flow on `v*` tag pushes:
 - **Signed**: `cosign sign --yes` (keyless via Sigstore Public Good + GitHub OIDC). Verify with `cosign verify`.
 - **Provenance**: `actions/attest-build-provenance` pushes a GitHub Artifact Attestation to the registry. Verify with `gh attestation verify oci://...`.
 - **SBOM attached**: `sbom: true` on the Buildx build action; resulting SBOM is part of the OCI index.
-- **Reproducible-ish**: pinned base image (`python:3.12-slim-bookworm`), pinned action SHAs, build-arg-controlled kit version.
+- **Reproducible-ish**: pinned base image (`python:3.12-slim-bookworm`), pinned action SHAs, source-tree install from the release tag, and build-arg-controlled image version.
 - **Tags**: `<version>` and `latest` on tagged releases; `edge` on manual `workflow_dispatch` runs.
 
 To verify a published image:

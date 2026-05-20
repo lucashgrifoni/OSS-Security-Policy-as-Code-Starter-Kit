@@ -25,6 +25,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: publish-container-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     name: Build, sign, publish
