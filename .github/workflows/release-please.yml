@@ -30,8 +30,10 @@
 #      publish-container.yml / release.yml. An App token is a distinct actor and
 #      does trigger the downstream release pipeline.
 # Setup: a GitHub App (Contents RW, Pull requests RW, Issues RW) installed on
-# this repo, with App ID and private key stored as the repository secrets
-# RELEASE_PLEASE_APP_ID and RELEASE_PLEASE_APP_PRIVATE_KEY.
+# this repo, with the App's Client ID and private key stored as the repository
+# secrets RELEASE_PLEASE_APP_ID (holds the Client ID, e.g. Iv23...) and
+# RELEASE_PLEASE_APP_PRIVATE_KEY. (create-github-app-token deprecated app-id in
+# favor of client-id; the secret name is kept for continuity.)
 
 name: release-please
 
@@ -66,7 +68,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          app-id: ${{ secrets.RELEASE_PLEASE_APP_ID }}
+          client-id: ${{ secrets.RELEASE_PLEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
 
       - name: Run release-please
