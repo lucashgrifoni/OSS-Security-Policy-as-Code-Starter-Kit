@@ -72,7 +72,7 @@ jobs:
           private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
 
       - name: Run release-please
-        uses: googleapis/release-please-action@a02a34c4d625f9be7cb89156071d8567266a2445 # v4.1.3
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
