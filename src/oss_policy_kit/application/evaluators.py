@@ -191,6 +191,11 @@ def _release_archival_policy_schema() -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(raw))
 
 
+def _ai_agent_baseline_schema() -> dict[str, Any]:
+    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-ai-agent-baseline.schema.json").read_bytes()
+    return cast(dict[str, Any], json.loads(raw))
+
+
 def _disclosure_policy_schema() -> dict[str, Any]:
     raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-disclosure-policy.schema.json").read_bytes()
     return cast(dict[str, Any], json.loads(raw))
@@ -5032,10 +5037,14 @@ def _parse_sarif_findings(
         raw = sarif_path.read_text(encoding="utf-8")
     except OSError as exc:
         return None, f"Could not read SARIF file: {exc}"
+    except UnicodeDecodeError as exc:
+        return None, f"Could not decode SARIF file as UTF-8: {exc}"
     try:
         doc = json.loads(raw)
     except json.JSONDecodeError as exc:
         return None, f"Could not parse SARIF JSON: {exc}"
+    except RecursionError as exc:
+        return None, f"Could not parse SARIF JSON: document is too deeply nested ({exc})"
     if (
         not isinstance(doc, dict) or doc.get("$schema", "").endswith("sarif-schema-2.1.0.json") is False
     ) and "runs" not in doc:
@@ -5865,6 +5874,16 @@ def eval_aibom_present_001(ctx: EvalContext) -> EvalOutcome:
         if d.is_dir():
             with contextlib.suppress(OSError):
                 candidates.extend(p for p in d.glob("*.json") if p.is_file())
+    # Cycle 2 (PR-26): also recognise a CycloneDX 1.7 ML-BOM anywhere in the
+    # repo via the machine-learning-model component marker.
+    if not candidates:
+        with contextlib.suppress(OSError):
+            for p in list(ctx.repo_root.rglob("*.cdx.json")) + list(ctx.repo_root.rglob("bom.json")):
+                if not p.is_file() or ".git" in p.parts:
+                    continue
+                sample = p.read_text(encoding="utf-8", errors="replace")[:8000].lower()
+                if "machine-learning-model" in sample or "modelcard" in sample or "ml-bom" in sample:
+                    candidates.append(p)
     if not candidates:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -6099,6 +6118,196 @@ def eval_llm_218a_rv_001(ctx: EvalContext) -> EvalOutcome:
 
 
 # ---------------------------------------------------------------------------
+# WORM-* family (PR-19, Cycle 2) — Shai-Hulud / TeamPCP defense layer.
+#
+# Detects clone-side signals of npm/PyPI worm activity. All signal-grade.
+# See docs/shai-hulud-defense.md and ADR-015.
+# ---------------------------------------------------------------------------
+
+_POSTINSTALL_DANGER_HINTS: tuple[str, ...] = (
+    "curl ",
+    "wget ",
+    "| sh",
+    "| bash",
+    "base64 -d",
+    "base64 --decode",
+    "process.env",
+    "os.environ",
+    "eval(",
+    "exec(",
+    "nc -e",
+    "powershell -encoded",
+    "iwr ",
+    "invoke-webrequest",
+)
+
+
+def eval_worm_postinstall_001(ctx: EvalContext) -> EvalOutcome:
+    """WORM-POSTINSTALL-001: package.json postinstall script lacks credential-harvest primitives."""
+    pkg = ctx.repo_root / "package.json"
+    if not pkg.is_file():
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No package.json present; postinstall worm pattern does not apply.",
+            remediation="No action required.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    with contextlib.suppress(OSError, json.JSONDecodeError):
+        data = json.loads(pkg.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            raw_scripts = data.get("scripts")
+            scripts = cast(dict[str, Any], raw_scripts) if isinstance(raw_scripts, dict) else {}
+            postinstall = str(scripts.get("postinstall", "")).lower()
+            if not postinstall:
+                return EvalOutcome(
+                    status=ControlStatus.PASS,
+                    reason="No postinstall script declared in package.json.",
+                    remediation="Continue avoiding postinstall hooks unless strictly required.",
+                    evidence_sources=[str(pkg.resolve())],
+                    confidence="high",
+                )
+            hits = [h for h in _POSTINSTALL_DANGER_HINTS if h in postinstall]
+            if hits:
+                return EvalOutcome(
+                    status=ControlStatus.FAIL,
+                    reason=(
+                        f"package.json postinstall contains credential-harvest primitives "
+                        f"({', '.join(hits[:3])}). Pattern observed in Shai-Hulud / TeamPCP attacks 2026."
+                    ),
+                    remediation=(
+                        "Audit the postinstall script; remove network egress + env-var dumps. "
+                        "See docs/shai-hulud-defense.md."
+                    ),
+                    evidence_sources=[str(pkg.resolve())],
+                    confidence="high",
+                )
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason="package.json postinstall present but no credential-harvest primitive detected.",
+                remediation="Periodically audit postinstall content; pin it via a separate version-controlled file.",
+                evidence_sources=[str(pkg.resolve())],
+                confidence="medium",
+            )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="package.json present but unparseable.",
+        remediation="Fix package.json JSON syntax.",
+        evidence_sources=[str(pkg.resolve())],
+        confidence="low",
+    )
+
+
+def eval_worm_lockfile_drift_001(ctx: EvalContext) -> EvalOutcome:
+    """WORM-LOCKFILE-DRIFT-001: manifest not modified more recently than lockfile."""
+    pairs: list[tuple[Path, Path]] = []
+    for manifest, lockfile in (
+        ("package.json", "package-lock.json"),
+        ("package.json", "yarn.lock"),
+        ("pyproject.toml", "poetry.lock"),
+        ("pyproject.toml", "uv.lock"),
+        ("requirements.txt", "requirements.lock"),
+    ):
+        m = ctx.repo_root / manifest
+        lk = ctx.repo_root / lockfile
+        if m.is_file() and lk.is_file():
+            pairs.append((m, lk))
+    if not pairs:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No manifest + lockfile pair detected; lockfile drift check does not apply.",
+            remediation="Adopt a lockfile (package-lock.json, poetry.lock, uv.lock) to enable this check.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    drifted: list[tuple[Path, Path]] = []
+    for m, lk in pairs:
+        with contextlib.suppress(OSError):
+            if m.stat().st_mtime > lk.stat().st_mtime + 60:
+                drifted.append((m, lk))
+    if drifted:
+        sample = ", ".join(f"{m.name}>{lk.name}" for m, lk in drifted[:3])
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"Manifest modified more recently than lockfile ({sample}). "
+                "Shai-Hulud worm rewrites manifests; verify the diff is intentional."
+            ),
+            remediation=(
+                "Regenerate the lockfile (npm install, poetry lock, uv lock) and commit it together "
+                "with the manifest change. Investigate any unexplained drift."
+            ),
+            evidence_sources=[str(p.resolve()) for pair in drifted for p in pair],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"Lockfile is at least as fresh as the manifest for {len(pairs)} pair(s).",
+        remediation="Keep lockfile updates atomic with manifest changes.",
+        evidence_sources=[str(p.resolve()) for pair in pairs for p in pair],
+        confidence="medium",
+    )
+
+
+def eval_worm_publish_scope_001(ctx: EvalContext) -> EvalOutcome:
+    """WORM-PUBLISH-SCOPE-001: publish workflow scoped to main/release branches."""
+    publish_paths: list[Path] = []
+    for p in ctx.workflows.workflow_paths:
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            if "npm publish" in text or "twine upload" in text or "pypi-publish" in text or "cargo publish" in text:
+                publish_paths.append(p)
+    if not publish_paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No publish workflow detected.",
+            remediation="No action required.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    risky: list[Path] = []
+    for p in publish_paths:
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            # Look for tag-only or branch-restricted triggers.
+            has_branch_restriction = any(
+                pat in text for pat in (
+                    "branches: [main",
+                    "branches: [master",
+                    "branches: ['main'",
+                    'branches: ["main"',
+                    "branches: [release",
+                    "tags:",
+                    "tags: ['v",
+                    'tags: ["v',
+                )
+            )
+            if not has_branch_restriction:
+                risky.append(p)
+    if risky:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"{len(risky)} publish workflow(s) lack explicit branch / tag scope. "
+                "Shai-Hulud-style worms exploit unscoped publish triggers to push poisoned versions."
+            ),
+            remediation=(
+                "Restrict the publish workflow to `on: { push: { tags: ['v*'] } }` or "
+                "`on: { push: { branches: [main] } }` plus an environment with required approvers."
+            ),
+            evidence_sources=[str(p.resolve()) for p in risky],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"{len(publish_paths)} publish workflow(s) scoped to main/release branches or tags.",
+        remediation="Keep the scope tight; require environment approvals for production publishes.",
+        evidence_sources=[str(p.resolve()) for p in publish_paths],
+        confidence="medium",
+    )
+
+
+# ---------------------------------------------------------------------------
 # LLM-AI-ACT-001..003 (PR-11, V6-02) — EU AI Act Article 11 + Annex IV signals.
 #
 # Advisory profile. The kit does NOT substitute for a conformity assessment
@@ -6238,6 +6447,570 @@ def eval_llm_ai_act_003(ctx: EvalContext) -> EvalOutcome:
             "Document the AI risk-management process (hazard identification, residual risk, mitigation "
             "measures) in risk-management.md. Required by EU AI Act Annex IV §5."
         ),
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+# ---------------------------------------------------------------------------
+# AI-AGENT-001..010 — source-side and build-time baseline for AI agents.
+#
+# These controls are intentionally clone/evidence focused. They do not enforce
+# runtime agent policy; use them as source-time posture signals before pairing
+# with a runtime policy/enforcement layer.
+# ---------------------------------------------------------------------------
+
+_AI_AGENT_SKIP_DIRS: frozenset[str] = frozenset(
+    {".git", ".hg", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tox", ".venv", "__pycache__", "node_modules"}
+)
+
+_AI_AGENT_TEXT_PATTERNS: tuple[str, ...] = (
+    "*.py",
+    "*.js",
+    "*.ts",
+    "*.tsx",
+    "*.mjs",
+    "*.json",
+    "*.yaml",
+    "*.yml",
+    "*.toml",
+    "*.md",
+)
+
+_MCP_CONFIG_PATHS: tuple[str, ...] = (
+    "mcp.json",
+    "mcp.config.json",
+    ".mcp.json",
+    ".mcp/config.json",
+    ".cursor/mcp.json",
+    ".vscode/mcp.json",
+)
+
+_MCP_AUTH_HINTS: tuple[str, ...] = (
+    "bearer",
+    "oauth",
+    "oidc",
+    "jwt",
+    "mtls",
+    "mTLS",
+    "api_key",
+    "authorization",
+    "token_audience",
+    "validate_token",
+)
+
+_MCP_AUTH_DISABLED_HINTS: tuple[str, ...] = (
+    '"auth": "none"',
+    '"auth": none',
+    "auth: none",
+    "authn: none",
+    "no_auth",
+    "disable_auth",
+    "token_passthrough",
+    "token passthrough",
+)
+
+_AI_AGENT_TOOL_ALLOWLIST_PATHS: tuple[str, ...] = (
+    "allowed_tools.yaml",
+    "allowed_tools.yml",
+    "allowed_tools.json",
+    "tools.allowlist.yaml",
+    "tools.allowlist.yml",
+    "tools.yaml",
+    "tools.yml",
+    "tools.json",
+    "agent-tools.yaml",
+    "agent-tools.yml",
+)
+
+_AI_AGENT_TOOL_WILDCARD_HINTS: tuple[str, ...] = (
+    "all_available_tools",
+    "allow_all_tools",
+    "tools: all",
+    '"tools": "*"',
+    '"tools": ["*"]',
+    "tool_choice: auto_all",
+)
+
+_AI_AGENT_PROMPT_DIRS: tuple[str, ...] = ("prompts", "system_prompts", "system-prompts", "prompt-registry")
+
+_AI_AGENT_HARDCODED_PROMPT_HINTS: tuple[str, ...] = (
+    "system_prompt =",
+    "systemprompt =",
+    '"role": "system"',
+    "'role': 'system'",
+    "system_instruction =",
+)
+
+_AI_AGENT_TEST_PATTERNS: tuple[str, ...] = (
+    "test_*prompt*injection*.*",
+    "test_*jailbreak*.*",
+    "test_*red_team*.*",
+    "test_*redteam*.*",
+    "test_*adversarial*.*",
+)
+
+_AI_AGENT_RATE_LIMIT_HINTS: tuple[str, ...] = (
+    "rate_limit",
+    "ratelimit",
+    "quota",
+    "max_requests",
+    "requests_per_minute",
+    "tokens_per_minute",
+    "throttle",
+)
+
+_AI_AGENT_IDENTITY_HINTS: tuple[str, ...] = (
+    "agent_identity",
+    "service_account",
+    "workload_identity",
+    "managed_identity",
+    "client_id",
+    "oidc_audience",
+    "token_audience",
+    "subject_token",
+)
+
+_AI_AGENT_IDENTITY_ANTIPATTERNS: tuple[str, ...] = (
+    "use_user_credentials",
+    "user_token_passthrough",
+    "token_passthrough",
+    "pass_through_token",
+)
+
+_AI_AGENT_MODEL_HINTS: tuple[str, ...] = (
+    "model",
+    "openai",
+    "anthropic",
+    "claude",
+    "gpt-",
+    "gemini",
+    "mistral",
+    "llama",
+)
+
+_AI_AGENT_PINNED_MODEL_RE = re.compile(
+    r"\b(?:claude-[\w.-]+-\d{8}|gpt-[\w.-]+-\d{4}-\d{2}-\d{2}|gemini-[\w.-]+-\d{8}|"
+    r"mistral-[\w.-]+-\d{8}|llama-[\w.-]+(?:-\d+(?:\.\d+){1,2}|-v\d+))\b",
+    re.IGNORECASE,
+)
+
+
+def _iter_ai_agent_text_files(repo: Path) -> list[Path]:
+    found: list[Path] = []
+    for pat in _AI_AGENT_TEXT_PATTERNS:
+        with contextlib.suppress(OSError):
+            for p in repo.rglob(pat):
+                if not p.is_file():
+                    continue
+                if any(part in _AI_AGENT_SKIP_DIRS for part in p.parts):
+                    continue
+                found.append(p)
+                if len(found) >= 200:
+                    return found
+    return found
+
+
+def _read_lower(path: Path) -> str:
+    with contextlib.suppress(OSError):
+        return path.read_text(encoding="utf-8", errors="replace").lower()
+    return ""
+
+
+def _find_any_text_hint(repo: Path, hints: tuple[str, ...]) -> list[Path]:
+    matched: list[Path] = []
+    normalized = tuple(h.lower() for h in hints)
+    for p in _iter_ai_agent_text_files(repo):
+        text = _read_lower(p)
+        if text and any(h in text for h in normalized):
+            matched.append(p)
+            if len(matched) >= 5:
+                break
+    return matched
+
+
+def _find_prompt_registry(repo: Path) -> Path | None:
+    for rel in _AI_AGENT_PROMPT_DIRS:
+        p = repo / rel
+        if p.is_dir():
+            return p
+    return None
+
+
+def _codeowners_text(repo: Path) -> tuple[Path, str] | None:
+    for rel in ("CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS"):
+        p = repo / rel
+        if p.is_file():
+            text = _read_lower(p)
+            return p, text
+    return None
+
+
+def _codeowners_covers_prompt_path(repo: Path, prompt_dir: Path) -> tuple[Path, bool] | None:
+    entry = _codeowners_text(repo)
+    if entry is None:
+        return None
+    owner_file, text = entry
+    rel = prompt_dir.relative_to(repo).as_posix().lower()
+    return owner_file, rel in text or f"/{rel}" in text or "*" in text
+
+
+def _ai_agent_evidence_path(ctx: EvalContext, filename: str) -> Path:
+    return ctx.repo_root / ".oss-policy-kit" / "evidence" / "ai-agent" / filename
+
+
+def _load_ai_agent_evidence(
+    ctx: EvalContext,
+    filename: str,
+    evidence_name: str,
+) -> tuple[Path, dict[str, Any] | None, EvalOutcome | None]:
+    evidence = _ai_agent_evidence_path(ctx, filename)
+    if not evidence.is_file():
+        return evidence, None, EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=f"No .oss-policy-kit/evidence/ai-agent/{filename} evidence file present.",
+            remediation=f"Create {filename} using schema_version=ai-agent-baseline/v1.",
+            evidence_sources=[],
+            confidence="medium",
+        )
+    data, error, placeholders = _validate_json_evidence(
+        evidence,
+        schema_loader=_ai_agent_baseline_schema,
+        evidence_name=evidence_name,
+    )
+    if error:
+        return evidence, None, EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=error,
+            remediation="Fix the evidence JSON to match evidence-ai-agent-baseline.schema.json.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    ph = _evidence_placeholder_outcome(evidence, placeholders)
+    if ph is not None:
+        return evidence, None, ph
+    return evidence, data, None
+
+
+def eval_ai_agent_001(ctx: EvalContext) -> EvalOutcome:
+    """AI-AGENT-001: MCP server authentication present."""
+    configs = [ctx.repo_root / rel for rel in _MCP_CONFIG_PATHS if (ctx.repo_root / rel).is_file()]
+    if not configs:
+        with contextlib.suppress(OSError):
+            configs.extend(p for p in ctx.repo_root.rglob("*.mcp.yaml") if p.is_file())
+            configs.extend(p for p in ctx.repo_root.rglob("*.mcp.yml") if p.is_file())
+    if not configs:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No MCP server configuration file detected.",
+            remediation="No MCP-specific action required unless this repository ships an MCP server.",
+            evidence_sources=[],
+            confidence="medium",
+        )
+    disabled: list[Path] = []
+    authenticated: list[Path] = []
+    for p in configs:
+        text = _read_lower(p)
+        if any(h in text for h in _MCP_AUTH_DISABLED_HINTS):
+            disabled.append(p)
+        elif any(h.lower() in text for h in _MCP_AUTH_HINTS):
+            authenticated.append(p)
+    if disabled:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=f"MCP configuration disables or bypasses authentication in {len(disabled)} file(s).",
+            remediation=(
+                "Require OAuth/OIDC, bearer-token validation, mTLS, or an equivalent authn layer for MCP access."
+            ),
+            evidence_sources=[str(p.resolve()) for p in disabled],
+            confidence="medium",
+        )
+    if authenticated:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"MCP authentication signal detected in {len(authenticated)} config file(s).",
+            remediation="Validate tokens are issued for this MCP server and avoid token passthrough.",
+            evidence_sources=[str(p.resolve()) for p in authenticated],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="MCP configuration is present but no authentication signal was detected.",
+        remediation="Document the MCP authentication mode in mcp.json or an evidence file.",
+        evidence_sources=[str(p.resolve()) for p in configs],
+        confidence="low",
+    )
+
+
+def eval_ai_agent_002(ctx: EvalContext) -> EvalOutcome:
+    """AI-AGENT-002: Tool allowlist explicitly defined."""
+    candidates = [ctx.repo_root / rel for rel in _AI_AGENT_TOOL_ALLOWLIST_PATHS if (ctx.repo_root / rel).is_file()]
+    candidates.extend(ctx.repo_root / rel for rel in _MCP_CONFIG_PATHS if (ctx.repo_root / rel).is_file())
+    if not candidates:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="No explicit agent tool allowlist file found.",
+            remediation="Add allowed_tools.yaml/json or document allowed MCP tools in mcp.json.",
+            evidence_sources=[],
+            confidence="low",
+        )
+    wildcard = [p for p in candidates if any(h in _read_lower(p) for h in _AI_AGENT_TOOL_WILDCARD_HINTS)]
+    if wildcard:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason="Agent tool allowlist uses an allow-all or wildcard pattern.",
+            remediation="Replace allow-all tool selection with a named, least-privilege allowlist.",
+            evidence_sources=[str(p.resolve()) for p in wildcard],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"Explicit agent tool allowlist/config detected in {len(candidates)} file(s).",
+        remediation="Review the allowlist as tools are added or removed.",
+        evidence_sources=[str(p.resolve()) for p in candidates[:5]],
+        confidence="low",
+    )
+
+
+def eval_ai_agent_003(ctx: EvalContext) -> EvalOutcome:
+    """AI-AGENT-003: System prompt versioned and reviewed."""
+    prompt_dir = _find_prompt_registry(ctx.repo_root)
+    if prompt_dir is None:
+        hardcoded = _find_any_text_hint(ctx.repo_root, _AI_AGENT_HARDCODED_PROMPT_HINTS)
+        if hardcoded:
+            return EvalOutcome(
+                status=ControlStatus.FAIL,
+                reason="System prompt appears hardcoded in source and no prompt registry directory exists.",
+                remediation="Move system prompts into prompts/ and require CODEOWNERS review for that path.",
+                evidence_sources=[str(p.resolve()) for p in hardcoded],
+                confidence="low",
+            )
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="No prompts/, system_prompts/, or prompt-registry/ directory found.",
+            remediation="Store system prompts in a versioned prompt registry and cover it with CODEOWNERS.",
+            evidence_sources=[],
+            confidence="low",
+        )
+    owner = _codeowners_covers_prompt_path(ctx.repo_root, prompt_dir)
+    if owner is None:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=f"Prompt registry detected at {prompt_dir.name}/ but no CODEOWNERS file was found.",
+            remediation="Add CODEOWNERS coverage for the prompt registry so prompt changes are reviewed.",
+            evidence_sources=[str(prompt_dir.resolve())],
+            confidence="low",
+        )
+    owner_file, covered = owner
+    if not covered:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=f"CODEOWNERS exists but does not cover {prompt_dir.name}/.",
+            remediation="Add a CODEOWNERS entry for the prompt registry path.",
+            evidence_sources=[str(prompt_dir.resolve()), str(owner_file.resolve())],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"Prompt registry {prompt_dir.name}/ is versioned and covered by CODEOWNERS.",
+        remediation="Keep prompt changes in normal review flow.",
+        evidence_sources=[str(prompt_dir.resolve()), str(owner_file.resolve())],
+        confidence="medium",
+    )
+
+
+def eval_ai_agent_004(ctx: EvalContext) -> EvalOutcome:
+    """AI-AGENT-004: Prompt injection test fixtures present."""
+    found: list[Path] = []
+    for pat in _AI_AGENT_TEST_PATTERNS:
+        with contextlib.suppress(OSError):
+            for p in (ctx.repo_root / "tests").rglob(pat):
+                if p.is_file():
+                    found.append(p)
+    security_tests = ctx.repo_root / "tests" / "security"
+    if security_tests.is_dir():
+        with contextlib.suppress(OSError):
+            found.extend(p for p in security_tests.rglob("*") if p.is_file())
+    if not found:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="No prompt-injection, jailbreak, red-team, or adversarial test fixture found.",
+            remediation="Add security tests covering prompt injection and tool-misuse cases.",
+            evidence_sources=[],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"{len(found)} agent adversarial/security test file(s) detected.",
+        remediation="Refresh the corpus as agent capabilities and tools change.",
+        evidence_sources=[str(p.resolve()) for p in found[:5]],
+        confidence="low",
+    )
+
+
+def eval_ai_agent_005(ctx: EvalContext) -> EvalOutcome:
+    """AI-AGENT-005: Output sanitization layer documented."""
+    evidence, data, outcome = _load_ai_agent_evidence(ctx, "output-sanitization.json", "AI agent output sanitization")
+    if outcome is not None:
+        return outcome
+    assert data is not None
+    applied_to = data.get("applied_to")
+    if data.get("method") and isinstance(applied_to, list) and applied_to and data.get("bypass_review_process"):
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason="Output sanitization evidence documents method, covered surfaces, and bypass review process.",
+            remediation="Refresh this evidence when output channels or bypass criteria change.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="output-sanitization.json is missing method, applied_to, or bypass_review_process.",
+        remediation="Populate all required output-sanitization fields.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="low",
+    )
+
+
+def eval_ai_agent_006(ctx: EvalContext) -> EvalOutcome:
+    """AI-AGENT-006: Rate limiting / quota config present."""
+    matched = _find_any_text_hint(ctx.repo_root, _AI_AGENT_RATE_LIMIT_HINTS)
+    if not matched:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="No agent rate-limit, quota, throttle, or token budget signal detected.",
+            remediation="Document or configure per-agent rate limits and token/request quotas.",
+            evidence_sources=[],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"Rate-limit / quota signal detected in {len(matched)} file(s).",
+        remediation="Keep quotas aligned with model/provider limits and abuse cases.",
+        evidence_sources=[str(p.resolve()) for p in matched],
+        confidence="low",
+    )
+
+
+def eval_ai_agent_007(ctx: EvalContext) -> EvalOutcome:
+    """AI-AGENT-007: Audit log of tool calls implemented."""
+    evidence, data, outcome = _load_ai_agent_evidence(ctx, "audit-log-config.json", "AI agent audit log")
+    if outcome is not None:
+        return outcome
+    assert data is not None
+    retention = data.get("retention_days")
+    if data.get("destination") and isinstance(retention, int) and retention > 0 and data.get("pii_redaction") is True:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Tool-call audit logging evidence present with {retention} day retention and PII redaction.",
+            remediation="Verify the destination is monitored and access-controlled.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="audit-log-config.json is missing destination, positive retention_days, or pii_redaction=true.",
+        remediation="Populate audit-log evidence with destination, retention_days, and pii_redaction.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="low",
+    )
+
+
+def eval_ai_agent_008(ctx: EvalContext) -> EvalOutcome:
+    """AI-AGENT-008: Agent identity / authn configured."""
+    antipatterns = _find_any_text_hint(ctx.repo_root, _AI_AGENT_IDENTITY_ANTIPATTERNS)
+    if antipatterns:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason="Agent identity anti-pattern detected (user credential or token passthrough).",
+            remediation="Use a dedicated agent identity or service account with audience-bound tokens.",
+            evidence_sources=[str(p.resolve()) for p in antipatterns],
+            confidence="medium",
+        )
+    matched = _find_any_text_hint(ctx.repo_root, _AI_AGENT_IDENTITY_HINTS)
+    if not matched:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="No dedicated agent identity, service account, OIDC, or audience-bound token signal detected.",
+            remediation="Configure agent identity separately from end-user credentials.",
+            evidence_sources=[],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"Dedicated agent identity/authn signal detected in {len(matched)} file(s).",
+        remediation="Keep agent credentials least-privileged and rotate them through platform identity.",
+        evidence_sources=[str(p.resolve()) for p in matched],
+        confidence="low",
+    )
+
+
+def eval_ai_agent_009(ctx: EvalContext) -> EvalOutcome:
+    """AI-AGENT-009: Sensitive context not in agent memory."""
+    evidence, data, outcome = _load_ai_agent_evidence(ctx, "memory-policy.json", "AI agent memory policy")
+    if outcome is not None:
+        return outcome
+    assert data is not None
+    excluded = data.get("excluded_context_types")
+    retention = str(data.get("retention_policy", "")).strip()
+    if isinstance(excluded, list) and excluded and retention:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Memory policy excludes {len(excluded)} sensitive context type(s).",
+            remediation="Review the excluded context list when new tools or memory stores are added.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="memory-policy.json is missing excluded_context_types or retention_policy.",
+        remediation="Document what must never enter long-term agent memory and how memory is retained/purged.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="low",
+    )
+
+
+def eval_ai_agent_010(ctx: EvalContext) -> EvalOutcome:
+    """AI-AGENT-010: Model + version pinning enforced."""
+    model_files: list[Path] = []
+    unpinned: list[Path] = []
+    for p in _iter_ai_agent_text_files(ctx.repo_root):
+        text = _read_lower(p)
+        if not text or not any(h in text for h in _AI_AGENT_MODEL_HINTS):
+            continue
+        model_files.append(p)
+        if _AI_AGENT_PINNED_MODEL_RE.search(text):
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason=f"Version-pinned model identifier detected in {p.name}.",
+                remediation="Review model pins intentionally; avoid floating aliases in release branches.",
+                evidence_sources=[str(p.resolve())],
+                confidence="medium",
+            )
+        if "model" in text and any(h in text for h in ("gpt-", "claude", "gemini", "mistral", "llama")):
+            unpinned.append(p)
+    if unpinned:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                "Model configuration appears to use floating provider/model aliases without a dated or versioned pin."
+            ),
+            remediation="Pin the model identifier to a dated/versioned provider release where supported.",
+            evidence_sources=[str(p.resolve()) for p in unpinned[:5]],
+            confidence="medium",
+        )
+    if model_files:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="Model-related files exist but no recognizable version-pinned model identifier was detected.",
+            remediation="Document the model version in config or evidence so releases are reproducible.",
+            evidence_sources=[str(p.resolve()) for p in model_files[:5]],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="No model configuration or pinned model identifier detected.",
+        remediation="Add a model config that pins the provider/model version used by the agent.",
         evidence_sources=[],
         confidence="low",
     )
@@ -6626,6 +7399,1138 @@ def eval_slsa_src_005(ctx: EvalContext) -> EvalOutcome:
     return eval_audit_stream_060(ctx)
 
 
+# ===========================================================================
+# Cycle 2 (v6.0.0) evaluators — PR-20 .. PR-32.
+#
+# Market signals: Shai-Hulud worm campaign (PR-19, shipped), OSPS Baseline
+# v2026.02.19, EU AI Act Annex IV (effective 2026-08-02), EU CRA Art. 13/14,
+# EPSS+KEV triage, SLSA v1.2 Source L2, MCP tool poisoning, OWASP Agentic
+# Top 10, GitHub Actions 2026 roadmap, distroless base images, post-Trivy
+# scanner integrity. See docs/decisions/ ADRs and the Cycle 2 plan.
+# ===========================================================================
+
+
+def _read_first_existing(repo: Path, relpaths: tuple[str, ...]) -> tuple[Path | None, str]:
+    """Return ``(path, lowercased_text)`` for the first readable file, else ``(None, "")``."""
+    for rel in relpaths:
+        p = repo / rel
+        if p.is_file():
+            with contextlib.suppress(OSError):
+                return p, p.read_text(encoding="utf-8", errors="replace").lower()
+    return None, ""
+
+
+# --- PR-20: OSPS Baseline v2026.02.19 + Scorecard v6 conformance ----------
+def eval_osps_scorecard_v6_001(ctx: EvalContext) -> EvalOutcome:
+    """OSPS-SCORECARD-V6-001: Scorecard v6 OSPS Baseline conformance evidence."""
+    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "scorecard-osps.json"
+    if not evidence.is_file():
+        legacy = ctx.repo_root / ".oss-policy-kit" / "evidence" / "scorecard.json"
+        if legacy.is_file():
+            return EvalOutcome(
+                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                reason=(
+                    "Classic Scorecard result present but no OSPS Baseline conformance "
+                    "(scorecard-osps.json). Scorecard v6 emits a PASS/FAIL/UNKNOWN conformance "
+                    "verdict aligned to OSPS Baseline v2026.02.19."
+                ),
+                remediation="Run `scorecard --format=osps` once Scorecard v6 ships (writes scorecard-osps.json).",
+                evidence_sources=[str(legacy.resolve())],
+                confidence="medium",
+            )
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="No Scorecard OSPS conformance evidence at .oss-policy-kit/evidence/scorecard-osps.json.",
+            remediation=(
+                "Run `scorecard --format=osps --repo=<url> > scorecard-osps.json` and drop it under "
+                ".oss-policy-kit/evidence/. See docs/osps-baseline-2026-mapping.md."
+            ),
+            evidence_sources=[],
+            confidence="medium",
+        )
+    with contextlib.suppress(OSError, json.JSONDecodeError):
+        data = json.loads(evidence.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            verdict = str(
+                data.get("conformance") or data.get("result") or data.get("overall") or ""
+            ).strip().lower()
+            if verdict in {"pass", "passed", "conformant", "true"}:
+                return EvalOutcome(
+                    status=ControlStatus.PASS,
+                    reason="Scorecard v6 reports OSPS Baseline conformance (PASS).",
+                    remediation="Re-run Scorecard on each release to keep the conformance verdict current.",
+                    evidence_sources=[str(evidence.resolve())],
+                    confidence="high",
+                    evidence_collection_method=EvidenceCollectionMethod.LIVE,
+                )
+            if verdict in {"fail", "failed", "non-conformant", "false"}:
+                return EvalOutcome(
+                    status=ControlStatus.FAIL,
+                    reason="Scorecard v6 reports OSPS Baseline non-conformance (FAIL).",
+                    remediation="Address the failing OSPS Baseline checks reported by Scorecard.",
+                    evidence_sources=[str(evidence.resolve())],
+                    confidence="high",
+                    evidence_collection_method=EvidenceCollectionMethod.LIVE,
+                )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="scorecard-osps.json present but no recognisable conformance verdict (pass/fail).",
+        remediation="Regenerate the OSPS conformance report with Scorecard v6 (`--format=osps`).",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="low",
+    )
+
+
+# --- PR-21: EU AI Act Annex IV expansion (advisory) -----------------------
+def _load_ai_system_doc(ctx: EvalContext) -> tuple[dict[str, Any] | None, Path]:
+    p = ctx.repo_root / ".oss-policy-kit" / "evidence" / "ai-system-technical-doc.json"
+    if not p.is_file():
+        return None, p
+    with contextlib.suppress(OSError, json.JSONDecodeError):
+        data = json.loads(p.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return cast(dict[str, Any], data), p
+    return None, p
+
+
+def _annex_iv_section(ctx: EvalContext, field: str, label: str, remediation: str) -> EvalOutcome:
+    data, p = _load_ai_system_doc(ctx)
+    if data is None:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"No ai-system-technical-doc.json evidence; Annex IV {label} cannot be verified. "
+                "Advisory only — the kit does NOT substitute for an EU AI Act conformity assessment."
+            ),
+            remediation=remediation,
+            evidence_sources=[],
+            confidence="medium",
+        )
+    value = data.get(field)
+    populated = (
+        (isinstance(value, str) and value.strip() != "")
+        or (isinstance(value, (list, dict)) and len(value) > 0)
+    )
+    if populated:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Annex IV {label} documented in ai-system-technical-doc.json (field '{field}').",
+            remediation="Keep the technical documentation current as the AI system evolves.",
+            evidence_sources=[str(p.resolve())],
+            confidence="medium",
+            evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+        )
+    return EvalOutcome(
+        status=ControlStatus.FAIL,
+        reason=f"ai-system-technical-doc.json present but Annex IV {label} (field '{field}') is empty or missing.",
+        remediation=remediation,
+        evidence_sources=[str(p.resolve())],
+        confidence="medium",
+        evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+    )
+
+
+def eval_llm_ai_act_dev_002(ctx: EvalContext) -> EvalOutcome:
+    """LLM-AI-ACT-DEV-002: development/design + training-data description (Annex IV section 2)."""
+    return _annex_iv_section(
+        ctx,
+        "development_design",
+        "section 2 (development, design choices, training/validation/test data)",
+        "Populate 'development_design' in ai-system-technical-doc.json. See docs/eu-ai-act-readiness.md.",
+    )
+
+
+def eval_llm_ai_act_perf_004(ctx: EvalContext) -> EvalOutcome:
+    """LLM-AI-ACT-PERF-004: performance metrics + accuracy (Annex IV section 4)."""
+    return _annex_iv_section(
+        ctx,
+        "performance_metrics",
+        "section 4 (performance metrics, accuracy, robustness)",
+        "Populate 'performance_metrics' in ai-system-technical-doc.json.",
+    )
+
+
+def eval_llm_ai_act_cyber_006(ctx: EvalContext) -> EvalOutcome:
+    """LLM-AI-ACT-CYBER-006: cybersecurity measures (Annex IV section 6)."""
+    return _annex_iv_section(
+        ctx,
+        "cybersecurity_measures",
+        "section 6 (cybersecurity measures)",
+        "Populate 'cybersecurity_measures' in ai-system-technical-doc.json.",
+    )
+
+
+def eval_llm_ai_act_change_007(ctx: EvalContext) -> EvalOutcome:
+    """LLM-AI-ACT-CHANGE-007: lifecycle change record (Annex IV section 7)."""
+    return _annex_iv_section(
+        ctx,
+        "lifecycle_changes",
+        "section 7 (lifecycle changes through the system's life)",
+        "Populate 'lifecycle_changes' in ai-system-technical-doc.json.",
+    )
+
+
+def eval_llm_ai_act_std_008(ctx: EvalContext) -> EvalOutcome:
+    """LLM-AI-ACT-STD-008: applied harmonised standards (Annex IV section 7)."""
+    return _annex_iv_section(
+        ctx,
+        "applied_standards",
+        "applied harmonised standards (e.g. prEN 18286)",
+        "Populate 'applied_standards' in ai-system-technical-doc.json.",
+    )
+
+
+def eval_llm_ai_act_pmm_009(ctx: EvalContext) -> EvalOutcome:
+    """LLM-AI-ACT-PMM-009: post-market monitoring plan (Annex IV section 8)."""
+    return _annex_iv_section(
+        ctx,
+        "post_market_monitoring_plan",
+        "section 8 (post-market monitoring plan)",
+        "Populate 'post_market_monitoring_plan' in ai-system-technical-doc.json.",
+    )
+
+
+# --- PR-22: EU CRA Article 13 + 14 + product classification ---------------
+def eval_cra_art13_sbd_001(ctx: EvalContext) -> EvalOutcome:
+    """CRA-ART13-SBD-001: security-by-design intent declared."""
+    p, _ = _read_first_existing(ctx.repo_root, ("SECURITY.md", "README.md", "docs/security.md"))
+    section = _scan_readme_for_section(
+        ctx.repo_root, ("security by design", "secure by design", "security-by-design", "secure-by-design")
+    )
+    adr_hit = any(
+        adr.is_file()
+        for adr in (ctx.repo_root / "docs" / "decisions").glob("*.md")
+    ) if (ctx.repo_root / "docs" / "decisions").is_dir() else False
+    if section is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Security-by-design intent documented in {section.name} (CRA Article 13).",
+            remediation="Keep the security-by-design statement aligned with the threat model.",
+            evidence_sources=[str(section.resolve())],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            "No explicit security-by-design statement found in SECURITY.md / README"
+            + (" (ADR directory present — document the intent there)." if adr_hit else ".")
+        ),
+        remediation="Add a 'Security by design' section to SECURITY.md or an ADR (CRA Art. 13). See cra-readiness.md.",
+        evidence_sources=[str(p.resolve())] if p else [],
+        confidence="medium",
+    )
+
+
+def eval_cra_art13_defaults_002(ctx: EvalContext) -> EvalOutcome:
+    """CRA-ART13-DEFAULTS-002: secure-by-default configuration documented."""
+    section = _scan_readme_for_section(
+        ctx.repo_root, ("secure default", "secure-by-default", "default configuration", "hardened default")
+    )
+    if section is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Secure-by-default configuration documented in {section.name} (CRA Article 13).",
+            remediation="Review defaults each release; ensure ship-secure (no permissive fallback).",
+            evidence_sources=[str(section.resolve())],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="No secure-by-default configuration statement found in SECURITY.md / README.",
+        remediation="Document the secure default configuration (CRA Article 13). See docs/cra-readiness.md.",
+        evidence_sources=[],
+        confidence="medium",
+    )
+
+
+def eval_cra_art14_csaf_001(ctx: EvalContext) -> EvalOutcome:
+    """CRA-ART14-CSAF-001: CSAF advisory feed present."""
+    candidates = (
+        ".well-known/csaf",
+        ".well-known/csaf/provider-metadata.json",
+        "csaf",
+        "advisories.json",
+        "security/advisories.json",
+    )
+    for rel in candidates:
+        p = ctx.repo_root / rel
+        if p.exists():
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason=f"CSAF advisory feed signal present ({rel}) — CRA Article 14 reporting readiness.",
+                remediation="Keep the CSAF feed populated with machine-readable advisories per release.",
+                evidence_sources=[str(p.resolve())],
+                confidence="medium",
+            )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="No CSAF advisory feed detected (.well-known/csaf, csaf/, or advisories.json).",
+        remediation=(
+            "Publish CSAF advisories (.well-known/csaf/provider-metadata.json) to support CRA Article 14 "
+            "machine-readable reporting. See docs/cra-readiness.md."
+        ),
+        evidence_sources=[],
+        confidence="medium",
+    )
+
+
+def eval_cra_art14_coord_002(ctx: EvalContext) -> EvalOutcome:
+    """CRA-ART14-COORD-002: coordinated vulnerability disclosure policy documented."""
+    disclosure = ctx.repo_root / ".oss-policy-kit" / "evidence" / "disclosure-policy.json"
+    if disclosure.is_file():
+        with contextlib.suppress(OSError, json.JSONDecodeError):
+            data = json.loads(disclosure.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and data.get("coordinated_disclosure") is True:
+                return EvalOutcome(
+                    status=ControlStatus.PASS,
+                    reason="disclosure-policy.json declares coordinated_disclosure: true (CRA Article 14).",
+                    remediation="Keep the disclosure SLA and contact current.",
+                    evidence_sources=[str(disclosure.resolve())],
+                    confidence="high",
+                )
+    section = _scan_readme_for_section(
+        ctx.repo_root, ("coordinated disclosure", "coordinated vulnerability disclosure", "responsible disclosure")
+    )
+    if section is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Coordinated disclosure policy documented in {section.name} (CRA Article 14).",
+            remediation="Mirror the policy into disclosure-policy.json (coordinated_disclosure: true) for machine use.",
+            evidence_sources=[str(section.resolve())],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="No coordinated vulnerability disclosure policy found in SECURITY.md or disclosure-policy.json.",
+        remediation="Document a coordinated disclosure policy (CRA Article 14). See docs/cra-readiness.md.",
+        evidence_sources=[],
+        confidence="medium",
+    )
+
+
+def eval_cra_product_class_001(ctx: EvalContext) -> EvalOutcome:
+    """CRA-PRODUCT-CLASS-001: CRA product classification declared."""
+    p, text = _read_first_existing(
+        ctx.repo_root, ("cra-classification.md", "docs/cra-classification.md", "docs/cra-readiness.md")
+    )
+    class_terms = (
+        "important product", "critical product", "default category",
+        "class i", "class ii", "annex iii", "annex iv",
+    )
+    if p is not None and any(t in text for t in class_terms):
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"CRA product classification declared in {p.name} (Implementing Reg (EU) 2025/2392).",
+            remediation="Re-check the classification when scope or features change.",
+            evidence_sources=[str(p.resolve())],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="No CRA product classification declared (important / critical / default per Impl. Reg (EU) 2025/2392).",
+        remediation="Add docs/cra-classification.md declaring the product class. See docs/cra-readiness.md.",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+# --- PR-23: EPSS + CISA KEV prioritization in SCA -------------------------
+_OSV_SARIF_RELPATH = ".oss-policy-kit/evidence/sast/osv-scanner.sarif.json"
+
+
+def _scan_sarif_epss_kev(
+    sarif_path: Path, *, epss_threshold: float = 0.5, cvss_threshold: float = 7.0
+) -> tuple[list[str], list[str], str | None]:
+    """Return ``(kev_ids, high_epss_ids, error)`` from SARIF result.properties."""
+    try:
+        doc = json.loads(sarif_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError) as exc:
+        return [], [], f"Could not read SARIF: {exc}"
+    except json.JSONDecodeError as exc:
+        return [], [], f"Could not parse SARIF JSON: {exc}"
+    if not isinstance(doc, dict):
+        return [], [], "SARIF top-level is not an object."
+    kev: list[str] = []
+    high_epss: list[str] = []
+    runs = doc.get("runs")
+    for run in runs if isinstance(runs, list) else []:
+        if not isinstance(run, dict):
+            continue
+        results = run.get("results")
+        for result in results if isinstance(results, list) else []:
+            if not isinstance(result, dict):
+                continue
+            props = result.get("properties")
+            if not isinstance(props, dict):
+                continue
+            ident = str(result.get("ruleId") or props.get("cve") or props.get("id") or "finding")
+            kev_flag = props.get("kev")
+            kev_str = kev_flag.strip().lower() if isinstance(kev_flag, str) else ""
+            if kev_flag in (True, 1) or kev_str in {"true", "yes", "1"}:
+                kev.append(ident)
+            epss_raw = props.get("epss_score", props.get("epss"))
+            cvss_raw = props.get("cvss_score", props.get("security-severity"))
+            epss_val: float | None = None
+            cvss_val: float | None = None
+            with contextlib.suppress(TypeError, ValueError):
+                if epss_raw is not None:
+                    epss_val = float(epss_raw)
+            with contextlib.suppress(TypeError, ValueError):
+                if cvss_raw is not None:
+                    cvss_val = float(cvss_raw)
+            if epss_val is not None and epss_val >= epss_threshold and (cvss_val is None or cvss_val >= cvss_threshold):
+                high_epss.append(ident)
+    return kev, high_epss, None
+
+
+def eval_sca_kev_001(ctx: EvalContext) -> EvalOutcome:
+    """SCA-KEV-001: no dependency CVE present in CISA KEV (SARIF kev property)."""
+    evidence = ctx.repo_root / _OSV_SARIF_RELPATH
+    if not evidence.is_file():
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=f"No OSV-Scanner SARIF at {_OSV_SARIF_RELPATH}; KEV status cannot be verified.",
+            remediation="Run OSV-Scanner v2+ with KEV enrichment, attach the SARIF. See docs/triage-cvss-epss-kev.md.",
+            evidence_sources=[],
+            confidence="medium",
+        )
+    kev, _, err = _scan_sarif_epss_kev(evidence)
+    if err is not None:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=err,
+            remediation="Regenerate the OSV-Scanner SARIF.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    if kev:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"{len(kev)} dependency CVE(s) present in the CISA KEV catalog "
+                f"({', '.join(sorted(set(kev))[:3])}). KEV = confirmed active exploitation."
+            ),
+            remediation="Patch or remove KEV-listed dependencies immediately; KEV overrides standard severity.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+            evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason="No dependency CVE flagged as CISA KEV in the OSV-Scanner SARIF.",
+        remediation="Keep dependencies current; re-scan on each release with KEV enrichment.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="high",
+        evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+    )
+
+
+def eval_sca_epss_001(ctx: EvalContext) -> EvalOutcome:
+    """SCA-EPSS-001: no high-EPSS high-severity dependency CVE unaddressed."""
+    evidence = ctx.repo_root / _OSV_SARIF_RELPATH
+    if not evidence.is_file():
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=f"No OSV-Scanner SARIF at {_OSV_SARIF_RELPATH}; EPSS prioritization cannot be verified.",
+            remediation="Run OSV-Scanner v2+ with EPSS enrichment, attach the SARIF. See docs/triage-cvss-epss-kev.md.",
+            evidence_sources=[],
+            confidence="medium",
+        )
+    _, high_epss, err = _scan_sarif_epss_kev(evidence)
+    if err is not None:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=err,
+            remediation="Regenerate the OSV-Scanner SARIF.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+    if high_epss:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"{len(high_epss)} dependency CVE(s) with EPSS >= 0.5 and CVSS >= 7.0 "
+                f"({', '.join(sorted(set(high_epss))[:3])}). High exploit probability."
+            ),
+            remediation="Prioritise patching high-EPSS high-severity CVEs ahead of the standard backlog.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+            evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason="No high-EPSS high-severity dependency CVE detected in the OSV-Scanner SARIF.",
+        remediation="Re-evaluate EPSS scores periodically; they change as exploit telemetry evolves.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="high",
+        evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+    )
+
+
+# --- PR-25: SLSA v1.2 Source Track Level 2 --------------------------------
+def _branch_protection_evidence(ctx: EvalContext) -> tuple[dict[str, Any] | None, Path]:
+    p = ctx.repo_root / ".oss-policy-kit" / "evidence" / "branch-protection.json"
+    if not p.is_file():
+        return None, p
+    with contextlib.suppress(OSError, json.JSONDecodeError):
+        data = json.loads(p.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return cast(dict[str, Any], data), p
+    return None, p
+
+
+def eval_slsa_src_006(ctx: EvalContext) -> EvalOutcome:
+    """SLSA-SRC-006: signed commits required (SLSA Source L2)."""
+    data, p = _branch_protection_evidence(ctx)
+    if data is None:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="No branch-protection.json evidence; required-signed-commits enforcement cannot be verified.",
+            remediation="Run `oss-policy-kit collect-evidence --platform github`; ensure required_signatures: true.",
+            evidence_sources=[],
+            confidence="medium",
+        )
+    if data.get("required_signatures") is True or data.get("required_signed_commits") is True:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason="branch-protection.json enforces required signed commits (SLSA Source L2).",
+            remediation="Keep required signatures attached to all protected branches.",
+            evidence_sources=[str(p.resolve())],
+            confidence="high",
+            evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+        )
+    return EvalOutcome(
+        status=ControlStatus.FAIL,
+        reason="branch-protection.json present but required_signatures is off (SLSA Source L2 needs signed commits).",
+        remediation="Enable required signed commits via repository ruleset and refresh the evidence file.",
+        evidence_sources=[str(p.resolve())],
+        confidence="high",
+        evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+    )
+
+
+def eval_slsa_src_007(ctx: EvalContext) -> EvalOutcome:
+    """SLSA-SRC-007: two-party review threshold enforced (SLSA Source L2)."""
+    data, p = _branch_protection_evidence(ctx)
+    if data is None:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="No branch-protection.json evidence; two-party L2 review threshold cannot be verified.",
+            remediation="Run `collect-evidence --platform github`; set required_approving_review_count >= 2.",
+            evidence_sources=[],
+            confidence="medium",
+        )
+    count = data.get("required_approving_review_count")
+    if isinstance(count, int) and count >= 2:
+        codeowner = data.get("require_code_owner_reviews") is True
+        suffix = " with codeowner approval" if codeowner else ""
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Branch protection requires {count} approving reviews{suffix} (SLSA Source L2).",
+            remediation="Maintain the >=2 reviewer threshold; require codeowner approval for sensitive paths.",
+            evidence_sources=[str(p.resolve())],
+            confidence="high",
+            evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+        )
+    return EvalOutcome(
+        status=ControlStatus.FAIL,
+        reason=f"required_approving_review_count is {count!r}; SLSA Source L2 requires >= 2 approvers.",
+        remediation="Raise required_approving_review_count to >= 2 on protected branches.",
+        evidence_sources=[str(p.resolve())],
+        confidence="high",
+        evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+    )
+
+
+def eval_slsa_src_008(ctx: EvalContext) -> EvalOutcome:
+    """SLSA-SRC-008: source-change audit log streamed externally (delegates to AUDIT-STREAM-060)."""
+    return eval_audit_stream_060(ctx)
+
+
+# --- PR-27: MCP server security -------------------------------------------
+_MCP_CONFIG_FILES: tuple[str, ...] = ("mcp.json", ".mcp.json", "mcp_server.json", "server.json")
+_MCP_DEP_HINTS: tuple[str, ...] = (
+    "modelcontextprotocol", "model-context-protocol", "fastmcp", "mcp-server", '"mcp"', "mcp[",
+)
+
+
+def _mcp_applicable(repo: Path) -> tuple[bool, list[Path]]:
+    found: list[Path] = []
+    for rel in _MCP_CONFIG_FILES:
+        p = repo / rel
+        if p.is_file():
+            found.append(p)
+    for rel in ("pyproject.toml", "package.json", "requirements.txt"):
+        p = repo / rel
+        if p.is_file():
+            with contextlib.suppress(OSError):
+                text = p.read_text(encoding="utf-8", errors="replace").lower()
+                if any(h in text for h in _MCP_DEP_HINTS):
+                    found.append(p)
+    if (repo / ".mcp").is_dir():
+        found.append(repo / ".mcp")
+    return (len(found) > 0, found)
+
+
+def _mcp_na(reason_kind: str) -> EvalOutcome:
+    return EvalOutcome(
+        status=ControlStatus.NOT_APPLICABLE,
+        reason=f"No MCP server detected (no mcp.json / MCP dependency); {reason_kind} check does not apply.",
+        remediation="No action required unless this repository hosts an MCP server.",
+        evidence_sources=[],
+        confidence="high",
+    )
+
+
+def eval_mcp_tool_hash_001(ctx: EvalContext) -> EvalOutcome:
+    """MCP-TOOL-HASH-001: MCP tool descriptions hash-pinned (tool-poisoning defense)."""
+    applicable, found = _mcp_applicable(ctx.repo_root)
+    if not applicable:
+        return _mcp_na("tool-description hash")
+    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "mcp-tool-descriptions.json"
+    if evidence.is_file():
+        with contextlib.suppress(OSError, json.JSONDecodeError):
+            data = json.loads(evidence.read_text(encoding="utf-8"))
+            text = json.dumps(data).lower() if data is not None else ""
+            if "sha256" in text or "hash" in text:
+                return EvalOutcome(
+                    status=ControlStatus.PASS,
+                    reason="mcp-tool-descriptions.json pins tool-description hashes (tool-poisoning defense).",
+                    remediation="Recompute and compare the hashes in CI on every MCP server change.",
+                    evidence_sources=[str(evidence.resolve())],
+                    confidence="medium",
+                )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="MCP server detected but no hash-pinned tool descriptions (mcp-tool-descriptions.json with sha256).",
+        remediation=(
+            "Record SHA-256 hashes of each MCP tool description in "
+            ".oss-policy-kit/evidence/mcp-tool-descriptions.json and verify in CI. See docs/mcp-server-security.md."
+        ),
+        evidence_sources=[str(p.resolve()) for p in found[:2]],
+        confidence="medium",
+    )
+
+
+def _mcp_text_signal(repo: Path, found: list[Path], needles: tuple[str, ...]) -> Path | None:
+    scan: list[Path] = list(found)
+    for rel in ("README.md", "SECURITY.md", "docs/mcp-server-security.md", "mcp.json", ".mcp.json"):
+        p = repo / rel
+        if p.is_file() and p not in scan:
+            scan.append(p)
+    for p in scan:
+        if p.is_dir():
+            continue
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            if any(n in text for n in needles):
+                return p
+    return None
+
+
+def eval_mcp_confirm_001(ctx: EvalContext) -> EvalOutcome:
+    """MCP-CONFIRM-001: destructive operations require explicit confirmation."""
+    applicable, found = _mcp_applicable(ctx.repo_root)
+    if not applicable:
+        return _mcp_na("destructive-confirmation")
+    hit = _mcp_text_signal(
+        ctx.repo_root, found,
+        (
+            "requires confirmation", "require confirmation", "human_in_the_loop",
+            "human-in-the-loop", "confirm before", "destructive",
+        ),
+    )
+    if hit is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Destructive-operation confirmation signal detected in {hit.name}.",
+            remediation="Ensure every state-changing MCP tool enforces an explicit confirmation step.",
+            evidence_sources=[str(hit.resolve())],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="MCP server detected but no destructive-operation confirmation pattern found.",
+        remediation="Require explicit user confirmation for destructive MCP tools. See docs/mcp-server-security.md.",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+def eval_mcp_egress_001(ctx: EvalContext) -> EvalOutcome:
+    """MCP-EGRESS-001: MCP server egress allowlist documented."""
+    applicable, found = _mcp_applicable(ctx.repo_root)
+    if not applicable:
+        return _mcp_na("egress-allowlist")
+    hit = _mcp_text_signal(
+        ctx.repo_root, found,
+        ("egress allowlist", "egress allow-list", "allowed_hosts", "allowed-hosts", "allowlist", "outbound allowlist"),
+    )
+    if hit is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"MCP egress allowlist signal detected in {hit.name}.",
+            remediation="Keep the egress allowlist tight; deny by default.",
+            evidence_sources=[str(hit.resolve())],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="MCP server detected but no egress allowlist documented.",
+        remediation="Document an egress allowlist for the MCP server (deny-by-default). See docs/mcp-server-security.",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+def eval_mcp_injection_test_001(ctx: EvalContext) -> EvalOutcome:
+    """MCP-INJECTION-TEST-001: prompt-injection / tool-poisoning tests present."""
+    applicable, _ = _mcp_applicable(ctx.repo_root)
+    if not applicable:
+        return _mcp_na("injection-test")
+    matches: list[Path] = []
+    for base in ("tests", "test", "."):
+        d = ctx.repo_root / base
+        if not d.is_dir():
+            continue
+        with contextlib.suppress(OSError):
+            for f in d.rglob("*.py"):
+                name = f.name.lower()
+                is_injection = "mcp" in name and "injection" in name
+                is_poison = "tool_poison" in name or "tool-poison" in name or ("poisoning" in name and "tool" in name)
+                if is_injection or is_poison:
+                    matches.append(f)
+    if matches:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"{len(matches)} MCP prompt-injection / tool-poisoning test file(s) detected.",
+            remediation="Keep the injection test corpus updated with new attack patterns.",
+            evidence_sources=[str(m.resolve()) for m in matches[:3]],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="MCP server detected but no prompt-injection / tool-poisoning tests found.",
+        remediation="Add tests like test_mcp_injection.py / test_tool_poisoning.py. See docs/mcp-server-security.",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+def eval_mcp_scope_001(ctx: EvalContext) -> EvalOutcome:
+    """MCP-SCOPE-001: per-tool least-privilege scope documented."""
+    applicable, found = _mcp_applicable(ctx.repo_root)
+    if not applicable:
+        return _mcp_na("per-tool scope")
+    hit = _mcp_text_signal(
+        ctx.repo_root, found,
+        ("least privilege", "least-privilege", '"scope"', "permissions", "scopes", "read-only", "readonly"),
+    )
+    if hit is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"MCP per-tool scope / least-privilege signal detected in {hit.name}.",
+            remediation="Document explicit scope per tool; avoid broad write/admin grants.",
+            evidence_sources=[str(hit.resolve())],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="MCP server detected but no per-tool least-privilege scope documented.",
+        remediation="Document least-privilege scope per MCP tool. See docs/mcp-server-security.md.",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+# --- PR-28: OWASP Top 10 for Agentic Applications (ASI01-10) ---------------
+_AGENT_DEP_HINTS: tuple[str, ...] = (
+    "langchain", "langgraph", "autogen", "crewai", "llama-index", "llamaindex",
+    "openai-agents", "semantic-kernel", "agno", "pydantic-ai", "smolagents",
+)
+_AGENT_PATH_HINTS: tuple[str, ...] = ("agents", "agent.py", "agent.ts", "system_prompt", "prompts")
+
+
+def _agentic_applicable(repo: Path) -> tuple[bool, list[Path]]:
+    found: list[Path] = []
+    for rel in ("pyproject.toml", "package.json", "requirements.txt"):
+        p = repo / rel
+        if p.is_file():
+            with contextlib.suppress(OSError):
+                text = p.read_text(encoding="utf-8", errors="replace").lower()
+                if any(h in text for h in _AGENT_DEP_HINTS):
+                    found.append(p)
+    for rel in _AGENT_PATH_HINTS:
+        p = repo / rel
+        if p.exists():
+            found.append(p)
+    mcp_applicable, mcp_found = _mcp_applicable(repo)
+    if mcp_applicable:
+        found.extend(mcp_found)
+    return (len(found) > 0, found)
+
+
+def _agentic_na(asi: str) -> EvalOutcome:
+    return EvalOutcome(
+        status=ControlStatus.NOT_APPLICABLE,
+        reason=f"No agentic-AI framework detected; {asi} check does not apply.",
+        remediation="No action required unless this repository ships an AI agent.",
+        evidence_sources=[],
+        confidence="high",
+    )
+
+
+def _agentic_signal(
+    repo: Path, found: list[Path], needles: tuple[str, ...], extra_docs: tuple[str, ...] = ()
+) -> Path | None:
+    scan: list[Path] = []
+    for rel in ("README.md", "SECURITY.md", *extra_docs):
+        p = repo / rel
+        if p.is_file():
+            scan.append(p)
+    for p in found:
+        if p.is_file() and p not in scan:
+            scan.append(p)
+    for p in scan:
+        with contextlib.suppress(OSError):
+            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            if any(n in text for n in needles):
+                return p
+    return None
+
+
+def eval_agent_asi_goal_001(ctx: EvalContext) -> EvalOutcome:
+    """AGENT-ASI-GOAL-001 (ASI01): goal/system-prompt version-controlled + integrity-checked."""
+    applicable, found = _agentic_applicable(ctx.repo_root)
+    if not applicable:
+        return _agentic_na("ASI01 goal-manipulation")
+    prompt_locations = [
+        ctx.repo_root / "prompts",
+        ctx.repo_root / "system_prompt.md",
+        ctx.repo_root / "system_prompt.txt",
+        ctx.repo_root / "SYSTEM_PROMPT.md",
+    ]
+    present = [p for p in prompt_locations if p.exists()]
+    if present:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Version-controlled system prompt / goal definition detected ({present[0].name}).",
+            remediation="Sign or hash the system prompt and verify integrity at load time (ASI01).",
+            evidence_sources=[str(p.resolve()) for p in present[:2]],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="Agentic framework detected but no version-controlled system prompt / goal file found.",
+        remediation="Store the agent goal/system prompt under version control and integrity-check it (OWASP ASI01).",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+def eval_agent_asi_tool_002(ctx: EvalContext) -> EvalOutcome:
+    """AGENT-ASI-TOOL-002 (ASI02): tool allowlist + per-tool least privilege documented."""
+    applicable, found = _agentic_applicable(ctx.repo_root)
+    if not applicable:
+        return _agentic_na("ASI02 tool-misuse")
+    hit = _agentic_signal(
+        ctx.repo_root, found,
+        (
+            "tool allowlist", "tool allow-list", "allowed tools",
+            "least privilege", "least-privilege", "tool permissions",
+        ),
+    )
+    if hit is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Agent tool allowlist / least-privilege signal detected in {hit.name} (ASI02).",
+            remediation="Keep the tool allowlist tight; scope each tool to least privilege.",
+            evidence_sources=[str(hit.resolve())],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="Agentic framework detected but no tool allowlist / least-privilege documentation found.",
+        remediation="Document the agent tool allowlist with per-tool least privilege (OWASP ASI02).",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+def eval_agent_asi_memory_006(ctx: EvalContext) -> EvalOutcome:
+    """AGENT-ASI-MEMORY-006 (ASI06): persistent-memory purge / poisoning policy documented."""
+    applicable, found = _agentic_applicable(ctx.repo_root)
+    if not applicable:
+        return _agentic_na("ASI06 memory-poisoning")
+    hit = _agentic_signal(
+        ctx.repo_root, found,
+        ("memory purge", "memory retention", "memory poisoning", "memory hygiene", "purge policy", "clear memory"),
+    )
+    if hit is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Agent memory purge / poisoning policy signal detected in {hit.name} (ASI06).",
+            remediation="Enforce the memory purge policy; validate writes to long-term memory.",
+            evidence_sources=[str(hit.resolve())],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="Agentic framework detected but no memory purge / poisoning policy documented.",
+        remediation="Document a persistent-memory purge / poisoning-resistance policy (OWASP ASI06).",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+def eval_agent_asi_inter_007(ctx: EvalContext) -> EvalOutcome:
+    """AGENT-ASI-INTER-007 (ASI07): inter-agent communication mutual authentication signal."""
+    applicable, found = _agentic_applicable(ctx.repo_root)
+    if not applicable:
+        return _agentic_na("ASI07 inter-agent communication")
+    hit = _agentic_signal(
+        ctx.repo_root, found,
+        ("mutual auth", "mtls", "mutual tls", "agent-to-agent auth", "signed messages", "message signing"),
+    )
+    if hit is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Inter-agent mutual authentication signal detected in {hit.name} (ASI07).",
+            remediation="Ensure all agent-to-agent channels enforce mutual authentication.",
+            evidence_sources=[str(hit.resolve())],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="Agentic framework detected but no inter-agent mutual authentication signal found.",
+        remediation="Use mutual authentication (mTLS / signed messages) for inter-agent traffic (OWASP ASI07).",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+def eval_agent_asi_confirm_009(ctx: EvalContext) -> EvalOutcome:
+    """AGENT-ASI-CONFIRM-009 (ASI09): human checkpoint required for destructive operations."""
+    applicable, found = _agentic_applicable(ctx.repo_root)
+    if not applicable:
+        return _agentic_na("ASI09 human-agent trust")
+    hit = _agentic_signal(
+        ctx.repo_root, found,
+        (
+            "human approval", "human-in-the-loop", "human in the loop",
+            "human checkpoint", "requires approval", "manual approval",
+        ),
+    )
+    if hit is not None:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Human-checkpoint signal for destructive operations detected in {hit.name} (ASI09).",
+            remediation="Require a human checkpoint for irreversible / high-impact agent actions.",
+            evidence_sources=[str(hit.resolve())],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="Agentic framework detected but no human-checkpoint signal for destructive operations found.",
+        remediation="Require human approval for destructive agent operations (OWASP ASI09).",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+# --- PR-29..32: GitHub Actions 2026 + container + scanner integrity --------
+def eval_gh_egress_native_001(ctx: EvalContext) -> EvalOutcome:
+    """GH-EGRESS-NATIVE-001: GitHub Actions native egress firewall policy declared."""
+    paths = list(ctx.workflows.workflow_paths)
+    if not paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitHub Actions workflows detected; native egress firewall check does not apply.",
+            remediation="No action required.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    needles = ("firewall:", "network-configuration", "egress-policy", "network_policy", "actions/network")
+    matched: list[Path] = []
+    for p in paths:
+        text = _workflow_text(p).lower()
+        if any(n in text for n in needles):
+            matched.append(p)
+    if matched:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Native egress firewall policy declared in {len(matched)} workflow(s).",
+            remediation="Keep the egress allowlist minimal; pair with Harden-Runner for defense in depth.",
+            evidence_sources=[str(p.resolve()) for p in matched[:3]],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="No GitHub Actions native egress firewall policy detected (preview feature, 2026 roadmap).",
+        remediation="Adopt the native egress firewall (or Harden-Runner GH-EGRESS-HRN-001) to restrict runner egress.",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+def eval_gh_wf_lockfile_001(ctx: EvalContext) -> EvalOutcome:
+    """GH-WF-LOCKFILE-001: GitHub Actions workflow lockfile present (action SHA pinning)."""
+    wf_dir = ctx.repo_root / ".github" / "workflows"
+    if not wf_dir.is_dir():
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No .github/workflows directory; workflow lockfile check does not apply.",
+            remediation="No action required.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    candidates = [
+        wf_dir / "lockfile.yml",
+        wf_dir / "lockfile.yaml",
+        wf_dir / "actions.lock",
+        ctx.repo_root / ".github" / "actions.lock",
+        ctx.repo_root / ".github" / "workflows.lock",
+    ]
+    present = [p for p in candidates if p.is_file()]
+    if present:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"GitHub Actions workflow lockfile present ({present[0].name}).",
+            remediation="Regenerate the lockfile whenever action references change.",
+            evidence_sources=[str(p.resolve()) for p in present[:2]],
+            confidence="low",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason="No GitHub Actions workflow lockfile detected (preview feature, 2026 roadmap).",
+        remediation="Adopt the workflow lockfile to pin action SHAs between runs once it reaches GA.",
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+_DISTROLESS_MARKERS: tuple[str, ...] = (
+    "gcr.io/distroless", "cgr.dev/chainguard", "chainguard/", "wolfi-base", "chainguard-base",
+    "scratch", "distroless",
+)
+
+
+def eval_cont_distroless_001(ctx: EvalContext) -> EvalOutcome:
+    """CONT-DISTROLESS-001: container base image is distroless / minimal."""
+    dockerfiles: list[Path] = []
+    for name in ("Dockerfile", "Containerfile"):
+        p = ctx.repo_root / name
+        if p.is_file():
+            dockerfiles.append(p)
+    with contextlib.suppress(OSError):
+        for p in ctx.repo_root.glob("**/Dockerfile"):
+            if p not in dockerfiles and ".git" not in p.parts:
+                dockerfiles.append(p)
+    if not dockerfiles:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No Dockerfile / Containerfile detected; distroless base check does not apply.",
+            remediation="No action required.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    from_lines: list[str] = []
+    for p in dockerfiles:
+        with contextlib.suppress(OSError):
+            for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
+                stripped = line.strip().lower()
+                if stripped.startswith("from "):
+                    from_lines.append(stripped)
+    if not from_lines:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="Dockerfile present but no FROM line parsed.",
+            remediation="Ensure the Dockerfile declares a base image.",
+            evidence_sources=[str(dockerfiles[0].resolve())],
+            confidence="low",
+        )
+    final_from = from_lines[-1]
+    if any(m in line for line in from_lines for m in _DISTROLESS_MARKERS):
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason="Container build uses a distroless / minimal base image (Chainguard, Wolfi, distroless, scratch).",
+            remediation="Keep using minimal bases; rebuild regularly to inherit upstream CVE fixes.",
+            evidence_sources=[str(p.resolve()) for p in dockerfiles[:2]],
+            confidence="medium",
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=f"Final base image does not appear distroless/minimal ({final_from[:80]}).",
+        remediation="Consider a distroless / Chainguard / Wolfi / scratch base to reduce attack surface.",
+        evidence_sources=[str(p.resolve()) for p in dockerfiles[:2]],
+        confidence="low",
+    )
+
+
+_SCANNER_ACTION_HINTS: tuple[str, ...] = (
+    "aquasecurity/trivy-action", "trivy-action", "anchore/scan-action", "anchore/sbom-action",
+    "github/codeql-action", "returntocorp/semgrep", "semgrep/semgrep", "snyk/actions",
+    "checkmarx", "gitleaks/gitleaks-action", "zaproxy", "grype",
+)
+_SHA_PIN_PATTERN = re.compile(r"@[0-9a-f]{40}\b")
+
+
+def eval_scanner_integrity_001(ctx: EvalContext) -> EvalOutcome:
+    """SCANNER-INTEGRITY-001: scanner actions pinned by SHA (post-Trivy supply-chain defense)."""
+    paths = list(ctx.workflows.workflow_paths)
+    if not paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitHub Actions workflows detected; scanner integrity check does not apply.",
+            remediation="No action required.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    unpinned: list[str] = []
+    pinned = 0
+    seen_scanner = False
+    for p in paths:
+        for raw_line in _workflow_text(p).splitlines():
+            line = raw_line.strip()
+            if "uses:" not in line:
+                continue
+            low = line.lower()
+            if not any(h in low for h in _SCANNER_ACTION_HINTS):
+                continue
+            seen_scanner = True
+            ref = line.split("uses:", 1)[1].strip().strip("'\"")
+            if _SHA_PIN_PATTERN.search(ref):
+                pinned += 1
+            else:
+                unpinned.append(f"{p.name}: {ref}")
+    if not seen_scanner:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No scanner actions referenced in workflows; scanner integrity check does not apply.",
+            remediation="No action required.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    if unpinned:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"{len(unpinned)} scanner action reference(s) not pinned by full SHA "
+                f"({unpinned[0]}). Trivy attack (2026-03) showed unpinned scanner actions are a supply-chain vector."
+            ),
+            remediation="Pin every scanner action to a full 40-char commit SHA; verify with `gh attestation verify`.",
+            evidence_sources=[str(p.resolve()) for p in paths[:3]],
+            confidence="high",
+        )
+    return EvalOutcome(
+        status=ControlStatus.PASS,
+        reason=f"All {pinned} scanner action reference(s) pinned by full commit SHA.",
+        remediation="Keep scanner actions SHA-pinned and re-verify attestations on each bump.",
+        evidence_sources=[str(p.resolve()) for p in paths[:3]],
+        confidence="medium",
+    )
+
+
 EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "GOV-SEC-001": eval_gov_sec_001,
     "GOV-CON-002": eval_gov_con_002,
@@ -6660,6 +8565,38 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "SLSA-SRC-003": eval_slsa_src_003,
     "SLSA-SRC-004": eval_slsa_src_004,
     "SLSA-SRC-005": eval_slsa_src_005,
+    # --- Cycle 2 (v6.0.0) ---
+    "OSPS-SCORECARD-V6-001": eval_osps_scorecard_v6_001,
+    "LLM-AI-ACT-DEV-002": eval_llm_ai_act_dev_002,
+    "LLM-AI-ACT-PERF-004": eval_llm_ai_act_perf_004,
+    "LLM-AI-ACT-CYBER-006": eval_llm_ai_act_cyber_006,
+    "LLM-AI-ACT-CHANGE-007": eval_llm_ai_act_change_007,
+    "LLM-AI-ACT-STD-008": eval_llm_ai_act_std_008,
+    "LLM-AI-ACT-PMM-009": eval_llm_ai_act_pmm_009,
+    "CRA-ART13-SBD-001": eval_cra_art13_sbd_001,
+    "CRA-ART13-DEFAULTS-002": eval_cra_art13_defaults_002,
+    "CRA-ART14-CSAF-001": eval_cra_art14_csaf_001,
+    "CRA-ART14-COORD-002": eval_cra_art14_coord_002,
+    "CRA-PRODUCT-CLASS-001": eval_cra_product_class_001,
+    "SCA-KEV-001": eval_sca_kev_001,
+    "SCA-EPSS-001": eval_sca_epss_001,
+    "SLSA-SRC-006": eval_slsa_src_006,
+    "SLSA-SRC-007": eval_slsa_src_007,
+    "SLSA-SRC-008": eval_slsa_src_008,
+    "MCP-TOOL-HASH-001": eval_mcp_tool_hash_001,
+    "MCP-CONFIRM-001": eval_mcp_confirm_001,
+    "MCP-EGRESS-001": eval_mcp_egress_001,
+    "MCP-INJECTION-TEST-001": eval_mcp_injection_test_001,
+    "MCP-SCOPE-001": eval_mcp_scope_001,
+    "AGENT-ASI-GOAL-001": eval_agent_asi_goal_001,
+    "AGENT-ASI-TOOL-002": eval_agent_asi_tool_002,
+    "AGENT-ASI-MEMORY-006": eval_agent_asi_memory_006,
+    "AGENT-ASI-INTER-007": eval_agent_asi_inter_007,
+    "AGENT-ASI-CONFIRM-009": eval_agent_asi_confirm_009,
+    "GH-EGRESS-NATIVE-001": eval_gh_egress_native_001,
+    "GH-WF-LOCKFILE-001": eval_gh_wf_lockfile_001,
+    "CONT-DISTROLESS-001": eval_cont_distroless_001,
+    "SCANNER-INTEGRITY-001": eval_scanner_integrity_001,
     "GL-PIPE-007": eval_gl_pipe_007,
     "GL-PIPE-008": eval_gl_pipe_008,
     "GL-PIPE-009": eval_gl_pipe_009,
@@ -6677,6 +8614,19 @@ EVALUATOR_REGISTRY: dict[str, Callable[[EvalContext], EvalOutcome]] = {
     "LLM-AI-ACT-001": eval_llm_ai_act_001,
     "LLM-AI-ACT-002": eval_llm_ai_act_002,
     "LLM-AI-ACT-003": eval_llm_ai_act_003,
+    "WORM-POSTINSTALL-001": eval_worm_postinstall_001,
+    "WORM-LOCKFILE-DRIFT-001": eval_worm_lockfile_drift_001,
+    "WORM-PUBLISH-SCOPE-001": eval_worm_publish_scope_001,
+    "AI-AGENT-001": eval_ai_agent_001,
+    "AI-AGENT-002": eval_ai_agent_002,
+    "AI-AGENT-003": eval_ai_agent_003,
+    "AI-AGENT-004": eval_ai_agent_004,
+    "AI-AGENT-005": eval_ai_agent_005,
+    "AI-AGENT-006": eval_ai_agent_006,
+    "AI-AGENT-007": eval_ai_agent_007,
+    "AI-AGENT-008": eval_ai_agent_008,
+    "AI-AGENT-009": eval_ai_agent_009,
+    "AI-AGENT-010": eval_ai_agent_010,
     "GH-PLAT-024": eval_gh_plat_024,
     "GH-PLAT-025": eval_gh_plat_025,
     "GH-PLAT-026": eval_gh_plat_026,
