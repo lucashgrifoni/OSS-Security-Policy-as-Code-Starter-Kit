@@ -116,7 +116,7 @@ jobs:
 
       - name: Upload Semgrep SARIF
         if: ${{ always() && vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' && hashFiles('semgrep.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3
         with:
           sarif_file: semgrep.sarif
           category: semgrep
@@ -163,7 +163,7 @@ jobs:
 
       - name: Upload Snyk Code SARIF
         if: ${{ always() && vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' && env.SNYK_TOKEN != '' && hashFiles('snyk-code.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3
         with:
           sarif_file: snyk-code.sarif
           category: snyk-code
@@ -194,15 +194,15 @@ jobs:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        uses: github/codeql-action/init@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        uses: github/codeql-action/autobuild@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        uses: github/codeql-action/analyze@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3
         with:
           category: "/language:${{ matrix.language }}"
 
@@ -269,7 +269,7 @@ jobs:
 
       - name: Upload Snyk Open Source SARIF
         if: ${{ always() && vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' && env.SNYK_TOKEN != '' && hashFiles('snyk-oss.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3
         with:
           sarif_file: snyk-oss.sarif
           category: snyk-oss
@@ -307,7 +307,7 @@ jobs:
 
       - name: Upload Trivy dependency SARIF
         if: ${{ always() && vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' && hashFiles('trivy-deps.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3
         with:
           sarif_file: trivy-deps.sarif
           category: trivy-deps
@@ -344,7 +344,7 @@ jobs:
 
       - name: Upload Trivy IaC SARIF
         if: ${{ always() && vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' && hashFiles('trivy-iac.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3
         with:
           sarif_file: trivy-iac.sarif
           category: trivy-iac
@@ -381,7 +381,7 @@ jobs:
 
       - name: Upload Trivy secrets SARIF
         if: ${{ always() && vars.ENABLE_CODE_SCANNING_UPLOAD == 'true' && hashFiles('trivy-secrets.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@0daab03d71ff584ef619d027a3fd9146679c5d84 # v3
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3
         with:
           sarif_file: trivy-secrets.sarif
           category: trivy-secrets

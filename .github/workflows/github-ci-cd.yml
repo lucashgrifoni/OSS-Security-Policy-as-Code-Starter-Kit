@@ -65,7 +65,10 @@ jobs:
         run: python -m mypy src/oss_policy_kit
 
       - name: Pytest
-        run: python -m pytest
+        run: python -m pytest tests --ignore=tests/property
+
+      - name: Property-based tests
+        run: python -m pytest tests/property/ -v --hypothesis-show-statistics
 
       - name: CLI help smoke
         run: |

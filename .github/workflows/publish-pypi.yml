@@ -25,10 +25,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: publish-pypi-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     name: Build distribution
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       # v4: tags pinned to immutable SHAs (supply-chain hardening).
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -45,6 +53,11 @@ jobs:
 
       - name: Verify distribution
         run: python scripts/twine_check_dist.py
+
+      - name: Generate GitHub Artifact Attestation for distributions
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-path: "dist/*"
 
       - name: Generate SBOM
         run: |
@@ -81,6 +94,7 @@ jobs:
       - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
         with:
+          attestations: true
           repository-url: https://test.pypi.org/legacy/
 
   publish-pypi:
@@ -104,4 +118,5 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
         with:
+          attestations: true
           skip-existing: true

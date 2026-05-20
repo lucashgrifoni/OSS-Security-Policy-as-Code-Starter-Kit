@@ -33,9 +33,10 @@ aws = ["boto3>=1.34", "botocore>=1.34"]
 iac = ["python-hcl2>=6.1"]
 all = ["httpx>=0.27", "boto3>=1.34", "botocore>=1.34", "python-hcl2>=6.1"]
 dev = [
-  "pytest>=8.0",
-  "pytest-cov>=4.1",
-  "ruff>=0.6",
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "hypothesis>=6.0,<7",
+    "ruff>=0.6",
   "mypy>=1.11",
   "bandit>=1.7.9",
   "pip-audit>=2.7",

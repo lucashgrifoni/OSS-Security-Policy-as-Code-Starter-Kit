@@ -9,6 +9,9 @@
 !examples/hardened-repo/.oss-policy-kit/
 !examples/hardened-repo/.oss-policy-kit/evidence/
 !examples/hardened-repo/.oss-policy-kit/evidence/**
+!examples/ai-agent-baseline-repo/.oss-policy-kit/
+!examples/ai-agent-baseline-repo/.oss-policy-kit/evidence/
+!examples/ai-agent-baseline-repo/.oss-policy-kit/evidence/**
 
 # Python caches, virtualenvs, and build outputs
 .coverage
