@@ -33,7 +33,7 @@ function ScrollProgress() {
   return (
     <div className="absolute inset-x-0 bottom-0 h-px bg-white/5">
       <div
-        className="h-full bg-gradient-to-r from-signal/0 via-signal to-signal/0 transition-[width]"
+        className="h-full bg-linear-to-r from-signal/0 via-signal to-signal/0 transition-[width]"
         style={{ width: `${w}%`, boxShadow: "0 0 12px rgba(8,185,139,0.6)" }}
       />
     </div>
@@ -74,7 +74,7 @@ function SiteHeader() {
           className="group flex items-center gap-2.5 font-semibold tracking-tight text-mist"
         >
           <span className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-signal/40 bg-signal/15 font-mono text-[10px] font-bold text-signal shadow-glow-sm overflow-hidden">
-            <span className="absolute inset-0 bg-gradient-to-br from-signal/20 to-transparent" />
+            <span className="absolute inset-0 bg-linear-to-br from-signal/20 to-transparent" />
             <span className="relative">OSS</span>
           </span>
           <span className="hidden sm:flex flex-col leading-tight">

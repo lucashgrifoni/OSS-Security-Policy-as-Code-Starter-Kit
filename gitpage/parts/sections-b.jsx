@@ -147,25 +147,25 @@ function FrameworksSection() {
           <Reveal key={f.name} delay={i * 80}>
             <TiltCard className="h-full overflow-hidden" intensity={6}>
               <div
-                className={`pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-gradient-to-br ${f.accent} blur-3xl`}
+                className={`pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-linear-to-br ${f.accent} blur-3xl`}
               />
-              <span className="relative z-[1] inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-signal/40 bg-signal/12 text-signal shadow-glow-sm">
+              <span className="relative z-1 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-signal/40 bg-signal/12 text-signal shadow-glow-sm">
                 <Icon name={f.icon} className="h-6 w-6" />
               </span>
-              <h3 className="relative z-[1] mt-5 text-xl font-semibold text-mist">
+              <h3 className="relative z-1 mt-5 text-xl font-semibold text-mist">
                 {f.name}
               </h3>
-              <p className="relative z-[1] mt-2 font-mono text-[11px] text-signal/85 break-words">
+              <p className="relative z-1 mt-2 font-mono text-[11px] text-signal/85 wrap-break-word">
                 {f.code}
               </p>
-              <p className="relative z-[1] mt-3 text-sm leading-relaxed text-slate">
+              <p className="relative z-1 mt-3 text-sm leading-relaxed text-slate">
                 {f.text}
               </p>
-              <div className="relative z-[1] mt-5 flex flex-wrap gap-2">
+              <div className="relative z-1 mt-5 flex flex-wrap gap-2">
                 {f.chips.map((c) => (
                   <span
                     key={c}
-                    className="rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-slate"
+                    className="rounded-md border border-white/10 bg-white/4 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-slate"
                   >
                     {c}
                   </span>
@@ -194,7 +194,7 @@ const TONE_CLASS = {
   rose: "border-red-400/40 bg-red-500/10 text-red-200",
   amber: "border-amber-400/40 bg-amber-500/10 text-amber-100",
   slate: "border-slate/50 bg-white/5 text-slate",
-  muted: "border-white/10 bg-white/[0.03] text-slate",
+  muted: "border-white/10 bg-white/3 text-slate",
   violet: "border-violet-400/35 bg-violet-500/10 text-violet-100",
 };
 

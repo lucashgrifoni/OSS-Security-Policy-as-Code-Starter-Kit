@@ -5,7 +5,7 @@ function CTASection() {
     <section id="cta" className="relative scroll-mt-24 py-24 md:py-32">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal>
-          <div className="relative overflow-hidden rounded-[2rem] border border-signal/30 bg-gradient-to-br from-signal/15 via-ink-soft/70 to-ink-deep p-10 shadow-glow md:p-16">
+          <div className="relative overflow-hidden rounded-4xl border border-signal/30 bg-linear-to-br from-signal/15 via-ink-soft/70 to-ink-deep p-10 shadow-glow md:p-16">
             <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-signal/30 blur-[100px]" />
             <div className="pointer-events-none absolute -bottom-28 -left-20 h-80 w-80 rounded-full bg-slate/30 blur-[110px]" />
 

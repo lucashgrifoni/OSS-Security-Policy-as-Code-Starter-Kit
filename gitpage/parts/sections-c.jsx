@@ -32,7 +32,7 @@ function SampleOutputSection() {
       <div className="grid gap-6 lg:grid-cols-2">
         {SAMPLE_REPORTS.map((item, i) => (
           <Reveal key={item.title} delay={i * 80}>
-            <div className="h-full overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-floor">
+            <div className="h-full overflow-hidden rounded-3xl border border-white/10 bg-white/4 shadow-floor">
               <div className="border-b border-white/10 px-5 py-4">
                 <h3 className={`text-lg font-semibold ${item.tone}`}>{item.title}</h3>
                 <p className="mt-1 text-sm text-slate">{item.caption}</p>
@@ -83,15 +83,15 @@ function DifferentiatorsSection() {
       <div className="space-y-4 perspective-1800">
         {DIFFS.map((it, i) => (
           <Reveal key={it.title} delay={i * 70}>
-            <div className="group relative flex flex-col gap-4 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-r from-white/[0.045] via-white/[0.02] to-transparent p-6 transition cell-hover md:flex-row md:items-center md:gap-8 md:p-8">
+            <div className="group relative flex flex-col gap-4 overflow-hidden rounded-3xl border border-white/10 bg-linear-to-r from-white/4.5 via-white/2 to-transparent p-6 transition cell-hover md:flex-row md:items-center md:gap-8 md:p-8">
               <span
                 aria-hidden="true"
                 className="pointer-events-none absolute right-0 top-0 h-full w-2/3 bg-[radial-gradient(circle_at_right,rgba(8,185,139,0.10),transparent_60%)] opacity-0 transition group-hover:opacity-100"
               />
-              <span className="relative z-[1] flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-signal/30 bg-signal/10 text-signal shadow-glow-sm transition group-hover:scale-105 group-hover:rotate-6">
+              <span className="relative z-1 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-signal/30 bg-signal/10 text-signal shadow-glow-sm transition group-hover:scale-105 group-hover:rotate-6">
                 <Icon name={it.icon} className="h-6 w-6" strokeWidth={1.7} />
               </span>
-              <div className="relative z-[1] flex-1">
+              <div className="relative z-1 flex-1">
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-steel">
                     0{i + 1}
@@ -139,7 +139,7 @@ function SignalsSection() {
       <div className="columns-1 gap-4 space-y-4 md:columns-2">
         {EXAMPLES.map((text, i) => (
           <Reveal key={i} delay={(i % 4) * 60}>
-            <div className="group break-inside-avoid rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition cell-hover">
+            <div className="group break-inside-avoid rounded-2xl border border-white/10 bg-white/3 p-5 transition cell-hover">
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-signal/30 bg-signal/10 text-signal shadow-glow-sm">
                   <Icon name="octagon" className="h-4 w-4" />
@@ -301,12 +301,12 @@ function RepoAnatomySection() {
           <div className="relative grid gap-4 sm:grid-cols-2 lg:grid-cols-4 perspective-1800">
             {BLOCKS.map((b, i) => (
               <Reveal key={b.id} delay={i * 50}>
-                <div className="group relative h-full rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur transition cell-hover">
+                <div className="group relative h-full rounded-2xl border border-white/10 bg-white/4 p-5 backdrop-blur transition cell-hover">
                   <div className="flex items-start justify-between gap-2">
                     <Icon name="folder" className="h-4 w-4 text-signal/80" />
                     <span className="font-mono text-[10px] text-steel">{String(i + 1).padStart(2, "0")}</span>
                   </div>
-                  <p className="mt-3 font-mono text-sm font-semibold text-signal break-words">{b.label}/</p>
+                  <p className="mt-3 font-mono text-sm font-semibold text-signal wrap-break-word">{b.label}/</p>
                   <p className="mt-2 text-xs leading-relaxed text-slate">{b.hint}</p>
                 </div>
               </Reveal>

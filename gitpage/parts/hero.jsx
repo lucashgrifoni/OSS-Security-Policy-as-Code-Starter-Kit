@@ -304,14 +304,14 @@ function Hero() {
     <section
       ref={ref}
       id="hero"
-      className="relative flex min-h-[100dvh] flex-col justify-center overflow-x-hidden pt-28 md:pt-32"
+      className="relative flex min-h-dvh flex-col justify-center overflow-x-hidden pt-28 md:pt-32"
     >
       <div className="relative z-10 mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 content-center gap-10 px-4 sm:px-6 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-center"
         style={{ opacity: op, transform: `translateY(${ty}px)` }}
       >
         <div className="min-w-0">
           <Reveal>
-            <div className="pulse-ring inline-flex items-center gap-2.5 rounded-full border border-signal/35 bg-signal/[0.12] px-4 py-1.5 font-mono text-xs text-signal backdrop-blur-sm">
+            <div className="pulse-ring inline-flex items-center gap-2.5 rounded-full border border-signal/35 bg-signal/12 px-4 py-1.5 font-mono text-xs text-signal backdrop-blur-sm">
               <span className="relative flex h-2 w-2 shrink-0">
                 <span className="absolute inline-flex h-full w-full rounded-full bg-signal/40 blur-[3px]" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-signal shadow-[0_0_14px_rgba(8,185,139,0.9)]" />
@@ -370,7 +370,7 @@ function Hero() {
                 {KEYWORDS.map((k, i) => (
                   <span
                     key={k}
-                    className="rounded-lg border border-white/10 bg-white/[0.045] px-3 py-1.5 font-mono text-xs text-mist/95 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-signal/30 hover:bg-white/[0.07] hover:shadow-glow-sm"
+                    className="rounded-lg border border-white/10 bg-white/4.5 px-3 py-1.5 font-mono text-xs text-mist/95 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-signal/30 hover:bg-white/[0.07] hover:shadow-glow-sm"
                     style={{ transitionDelay: `${i * 30}ms` }}
                   >
                     {k}
