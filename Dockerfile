@@ -41,12 +41,12 @@ WORKDIR /build
 # capable of running every subcommand including collect-evidence and the
 # IaC scanners.
 #
-# kics-scan disable=965a08d7-ef86-4f14-8792-4a3b2098937e
-# ^ "Apt Get Install Pin Version Not Defined": accepted (not a vulnerability).
-#   These packages exist only in the discarded builder stage and are never
-#   shipped in the runtime image. Debian rotates point-release versions within
-#   weeks, so a hard `pkg=version` pin becomes uninstallable and breaks the
-#   build; pinning here trades a real availability risk for no security gain.
+# Note: KICS "Apt Get Install Pin Version Not Defined" is intentionally NOT
+# pinned here. These packages exist only in this discarded builder stage and
+# are never shipped in the runtime image; Debian rotates point-release versions
+# within weeks, so a hard `pkg=version` pin becomes uninstallable and breaks
+# the build for no security gain. The finding is accepted via `exclude_queries`
+# in .github/workflows/security-ci-cd.yml (query 965a08d7-...).
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         build-essential \

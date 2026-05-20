@@ -353,6 +353,13 @@ jobs:
           enable_comments: false
           enable_annotations: false
           exclude_paths: ".git,node_modules,dist,build,coverage"
+          # Accepted (not a vulnerability): "Apt Get Install Pin Version Not
+          # Defined". The only apt usage is the Dockerfile builder stage (tools
+          # never shipped in the runtime image); Debian rotates point-release
+          # versions within weeks, so a hard `pkg=version` pin becomes
+          # uninstallable and breaks the build for no security gain. See the
+          # Dockerfile comment for full rationale.
+          exclude_queries: 965a08d7-ef86-4f14-8792-4a3b2098937e
 
       - name: Upload KICS SARIF
         if: always()
