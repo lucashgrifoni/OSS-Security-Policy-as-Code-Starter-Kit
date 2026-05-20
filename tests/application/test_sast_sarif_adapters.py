@@ -107,6 +107,28 @@ def test_parse_sarif_rejects_malformed_json(tmp_path: Path) -> None:
     assert "parse" in err.lower() or "json" in err.lower()
 
 
+def test_parse_sarif_rejects_utf16_without_crash(tmp_path: Path) -> None:
+    p = tmp_path / "x.sarif.json"
+    p.write_text(json.dumps(_sarif()), encoding="utf-16")
+    counts, err = _parse_sarif_findings(p)
+    assert counts is None
+    assert err is not None
+    assert "utf-8" in err.lower() or "decode" in err.lower()
+
+
+def test_parse_sarif_rejects_deep_json_without_crash(tmp_path: Path) -> None:
+    p = tmp_path / "x.sarif.json"
+    depth = 5000
+    p.write_text(
+        '{"version":"2.1.0","runs":[],"nested":' + ('{"a":' * depth) + '"x"' + ("}" * depth) + "}",
+        encoding="utf-8",
+    )
+    counts, err = _parse_sarif_findings(p)
+    assert counts is None
+    assert err is not None
+    assert "deeply nested" in err.lower()
+
+
 def test_parse_sarif_rejects_missing_runs(tmp_path: Path) -> None:
     p = tmp_path / "x.sarif.json"
     p.write_text(json.dumps({"foo": "bar"}), encoding="utf-8")
