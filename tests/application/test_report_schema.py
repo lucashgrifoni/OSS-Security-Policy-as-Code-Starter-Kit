@@ -37,7 +37,6 @@ def test_evaluation_report_validates_against_schema(
     Draft202012Validator(evaluation_schema).validate(payload)
 
 
-@pytest.mark.skipif(not INVALID_WORKFLOW_FIXTURE.is_dir(), reason="invalid-workflow fixture missing")
 def test_invalid_workflow_report_validates_against_schema(
     evaluation_schema: dict,
 ) -> None:

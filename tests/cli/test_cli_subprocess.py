@@ -9,7 +9,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
 from tests.conftest import EXAMPLE_HARDENED, INVALID_WORKFLOW_FIXTURE, REPO_WITH_SPACES_FIXTURE, ROOT, TEST_FIXTURES
 
 _INVALID_WORKFLOW = INVALID_WORKFLOW_FIXTURE
@@ -337,7 +336,6 @@ def test_subprocess_missing_waivers_exit_code_2(tmp_path: Path) -> None:
     assert proc.returncode == 2
 
 
-@pytest.mark.skipif(not _INVALID_WORKFLOW.is_dir(), reason="invalid-workflow fixture not present")
 def test_subprocess_invalid_workflow_emits_operational_warnings(tmp_path: Path) -> None:
     out_dir = tmp_path / "pytest-subprocess-invalid-wf"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -358,7 +356,6 @@ def test_subprocess_invalid_workflow_emits_operational_warnings(tmp_path: Path) 
     assert "Workflow parse issue" in combined or "workflow" in combined.lower()
 
 
-@pytest.mark.skipif(not _INVALID_WORKFLOW.is_dir(), reason="invalid-workflow fixture not present")
 def test_subprocess_invalid_workflow_quiet_suppresses_operational_warnings(tmp_path: Path) -> None:
     out_dir = tmp_path / "pytest-subprocess-invalid-wf-quiet"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -381,7 +378,6 @@ def test_subprocess_invalid_workflow_quiet_suppresses_operational_warnings(tmp_p
     assert "Outcome:" in proc.stdout
 
 
-@pytest.mark.skipif(not _REPO_WITH_SPACES.is_dir(), reason="repo with spaces fixture not present")
 def test_subprocess_target_with_spaces(tmp_path: Path) -> None:
     out_dir = tmp_path / "pytest-subprocess-spaces"
     out_dir.mkdir(parents=True, exist_ok=True)

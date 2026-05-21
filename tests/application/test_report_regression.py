@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 from tests.conftest import EXAMPLE_HARDENED, EXAMPLE_VULNERABLE, INVALID_WORKFLOW_FIXTURE, ROOT
 
 from oss_policy_kit.application.engine import evaluate_repository
@@ -115,7 +114,6 @@ def test_hardened_markdown_summary_and_controls_match_golden(tmp_path: Path) -> 
     assert extracted == expected
 
 
-@pytest.mark.skipif(not INVALID_WORKFLOW_FIXTURE.is_dir(), reason="invalid-workflow fixture missing")
 def test_invalid_workflow_conservative_structural_controls() -> None:
     root = bundled_kit_root()
     catalog = load_catalog(root / "controls" / "catalog.yaml")

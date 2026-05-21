@@ -6,7 +6,6 @@ import json
 import shutil
 from pathlib import Path
 
-import pytest
 from tests.conftest import ROOT
 
 from oss_policy_kit.application.evidence_scaffold import scaffold_evidence_files
@@ -106,8 +105,6 @@ def test_recommend_profile_readme_and_app_py_do_not_trigger_github_workflow_sign
 def test_azure_with_pipelines_and_scaffolded_evidence_suggests_azure_release_not_github(tmp_path: Path) -> None:
     """Regression: Azure evidence JSON must not imply GitHub release-hardening."""
 
-    if not _AZURE_FIXTURE.is_dir():
-        pytest.skip("azure-hardened-target fixture missing")
     dest = tmp_path / "azure-with-ev"
     shutil.copytree(_AZURE_FIXTURE, dest)
     scaffold_evidence_files(dest, "azure", force=True)
@@ -119,8 +116,6 @@ def test_azure_with_pipelines_and_scaffolded_evidence_suggests_azure_release_not
 
 
 def test_aws_with_buildspec_and_scaffolded_evidence_suggests_aws_release_not_github(tmp_path: Path) -> None:
-    if not _AWS_FIXTURE.is_dir():
-        pytest.skip("aws-hardened-target fixture missing")
     dest = tmp_path / "aws-with-ev"
     shutil.copytree(_AWS_FIXTURE, dest)
     scaffold_evidence_files(dest, "aws", force=True)

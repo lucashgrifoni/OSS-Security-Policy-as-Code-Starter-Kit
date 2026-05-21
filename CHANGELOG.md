@@ -8,6 +8,11 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ## Unreleased — v6.x
 
+### Quality / Tests
+
+* enforce a test-coverage floor in CI (`fail_under = 72`, combined unit + property runs) so coverage cannot silently regress.
+* remove conditional `skipif`/`skip` guards on fixtures that are versioned in the repo (`invalid-workflow-target`, `repo with spaces`, `azure-/aws-hardened-target`). Those tests now always run; if a fixture goes missing the test fails clearly instead of turning into a silent green.
+
 ### Security / Supply Chain
 
 * run `pip-audit` (dependency vulnerability audit, `--strict`) and `bandit` (Python SAST, gated at medium+ severity and confidence) on every push and pull request in `Security CI/CD`. Both tools were already declared dev dependencies but were not enforced in the pipeline; the kit now audits its own dependency tree and source the same way it asks adopters to.
