@@ -11,6 +11,7 @@ This changelog follows the same public-facing format used by the GitHub release 
 ### Fixes
 
 * fix `scripts/migrate-1.0-to-2.0.py`: it read a top-level `controls` key, but a reports/1.0 document emits `results`, so its output was not a schema-valid reports/2.0 document. It now reshapes `results` into the 2.0 `controls` array (mapping status → state via the same table the engine uses) and produces a `reports/2.0`-schema-valid document matching the kit's native serialization. Covered by `tests/contract/test_report_migration.py`.
+* remove `paths-ignore: gitpage/**` from the `GitHub CI/CD` workflow so the required Quality check (which includes the gitpage guardrail test) runs on gitpage-only pull requests too. Previously such PRs skipped Quality, which let a broken gitpage change reach `master`.
 
 ### CLI / DX
 
