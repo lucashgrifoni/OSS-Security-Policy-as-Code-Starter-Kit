@@ -65,10 +65,13 @@ mkdir -p security-results
 PYTHONIOENCODING=utf-8 python -m bandit -q -r src -f json -o security-results/bandit.json
 ```
 
-The Azure Pipelines template already uses the JSON formatter
-(`pipelines/azure/azure-pipelines.yml`); on GitHub Actions the equivalent
-SARIF-producing scanners (Semgrep, Trivy, Snyk Code, CodeQL) run in
-`Security CI/CD` instead.
+Running Bandit locally is optional: the `Security CI/CD` workflow runs
+Bandit on every push and pull request (`SAST - Bandit (Python)`, gated at
+medium+ severity and medium+ confidence, `-ll -ii`), alongside `pip-audit`
+dependency auditing (`SCA - pip-audit (Python deps)`, `--strict`) and the
+SARIF-producing scanners (Semgrep, Trivy, Snyk Code, CodeQL). The Azure
+Pipelines template (`pipelines/azure/azure-pipelines.yml`) uses the JSON
+formatter for the same Bandit sweep.
 
 ## CLI smoke checks
 

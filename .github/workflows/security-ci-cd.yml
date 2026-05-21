@@ -476,3 +476,66 @@ jobs:
 
       - name: Lint GitHub Actions workflows
         uses: devops-actions/actionlint@9fb9c192862f19e684586ca84b500461bcd8a541 # pinned
+
+  sca-pip-audit:
+    name: SCA - pip-audit (Python deps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install project runtime dependencies
+        run: python -m pip install .
+
+      - name: Audit Python dependencies
+        # Gate: fail the job on any known vulnerability in the installed
+        # dependency tree (--strict). A CVE present only in a [dev] dependency
+        # with no fix must be recorded as a documented exception, never
+        # silenced with a blind --ignore-vuln.
+        run: |
+          python -m pip install pip-audit
+          python -m pip_audit --strict --desc
+
+  sast-bandit:
+    name: SAST - Bandit (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Bandit SAST scan
+        # Gate: fail on medium+ severity AND medium+ confidence findings
+        # (-ll -ii). Lower-signal findings are reported but non-blocking.
+        run: |
+          python -m pip install bandit
+          python -m bandit -q -r src/oss_policy_kit -ll -ii

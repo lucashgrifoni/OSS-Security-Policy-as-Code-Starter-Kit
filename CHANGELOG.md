@@ -8,6 +8,10 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ## Unreleased — v6.x
 
+### Security / Supply Chain
+
+* run `pip-audit` (dependency vulnerability audit, `--strict`) and `bandit` (Python SAST, gated at medium+ severity and confidence) on every push and pull request in `Security CI/CD`. Both tools were already declared dev dependencies but were not enforced in the pipeline; the kit now audits its own dependency tree and source the same way it asks adopters to.
+
 ### CI/CD
 
 * bump remaining GitHub Actions to Node 24 runtime ahead of the 2026-06-02 deprecation: `download-artifact` v4→v8.0.1, `deploy-pages` v4→v5.0.0, `dependency-review-action` v4→v5.0.0, and `docker/{setup-qemu,setup-buildx,login,build-push}` to their Node 24 majors. All re-pinned by immutable SHA; no workflow logic changed. `gitleaks-action` stays on Node 20 (no upstream Node 24 release yet).
