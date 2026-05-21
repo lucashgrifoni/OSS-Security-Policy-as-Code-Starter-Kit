@@ -1,3 +1,3 @@
 """OSS Policy Kit - local evaluation of OSS security baseline controls."""
 
-__version__ = "6.0.1"  # x-release-please-version
+__version__ = "6.1.0"  # x-release-please-version
