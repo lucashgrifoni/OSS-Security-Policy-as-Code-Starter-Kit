@@ -8,6 +8,10 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ## Unreleased — v6.x
 
+### Internal
+
+* extract the duplicated evidence-schema loading boilerplate (repeated across 19 `_*_schema()` helpers) into a single `load_evidence_schema()` in `application/evidence_loading.py`. Behavior is byte-identical (evaluation reports unchanged); only the duplication is removed.
+
 ### Quality / Tests
 
 * enforce a test-coverage floor in CI (`fail_under = 72`, combined unit + property runs) so coverage cannot silently regress.

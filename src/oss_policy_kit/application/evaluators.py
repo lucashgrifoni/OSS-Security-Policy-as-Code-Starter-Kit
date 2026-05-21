@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import contextlib
 import importlib.metadata
-import importlib.resources as ir
 import json
 import re
 from collections.abc import Callable
@@ -35,6 +34,7 @@ from oss_policy_kit.application.evaluators_common import (
 from oss_policy_kit.application.evaluators_common import (
     validate_json_evidence as _validate_json_evidence,
 )
+from oss_policy_kit.application.evidence_loading import load_evidence_schema
 from oss_policy_kit.application.evidence_placeholders import has_placeholder_values, is_placeholder_digest
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome, EvidenceCollectionMethod
 from oss_policy_kit.infrastructure.aws_ci_parser import AwsCiAnalysis
@@ -81,47 +81,35 @@ _REQUIRED_BRANCH_PROTECTION_FLAGS = (
 
 
 def _branch_protection_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-branch-protection.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-branch-protection.schema.json")
 
 
 def _rulesets_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-github-rulesets.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-github-rulesets.schema.json")
 
 
 def _environment_protection_schema() -> dict[str, Any]:
-    raw = (
-        ir.files("oss_policy_kit.data.schema")
-        .joinpath("evidence-github-environment-protection.schema.json")
-        .read_bytes()
-    )
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-github-environment-protection.schema.json")
 
 
 def _secret_scanning_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-github-secret-scanning.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-github-secret-scanning.schema.json")
 
 
 def _azure_branch_policies_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-azure-branch-policies.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-azure-branch-policies.schema.json")
 
 
 def _azure_pipeline_governance_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-azure-pipeline-governance.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-azure-pipeline-governance.schema.json")
 
 
 def _azure_sbom_artifact_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-azure-sbom-artifact.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-azure-sbom-artifact.schema.json")
 
 
 def _azure_provenance_artifact_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-azure-provenance-artifact.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-azure-provenance-artifact.schema.json")
 
 
 _AZURE_BP_SUPPORT_KEYS = frozenset({"policies_api_reachable"})
@@ -150,55 +138,43 @@ def _azure_pipeline_governance_api_support_complete(data: dict[str, Any]) -> boo
 
 
 def _aws_codebuild_project_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-aws-codebuild-project.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-aws-codebuild-project.schema.json")
 
 
 def _aws_codepipeline_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-aws-codepipeline.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-aws-codepipeline.schema.json")
 
 
 def _aws_sbom_artifact_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-aws-sbom-artifact.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-aws-sbom-artifact.schema.json")
 
 
 def _aws_provenance_artifact_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-aws-provenance-artifact.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-aws-provenance-artifact.schema.json")
 
 
 def _github_provenance_artifact_schema() -> dict[str, Any]:
-    raw = (
-        ir.files("oss_policy_kit.data.schema").joinpath("evidence-github-provenance-artifact.schema.json").read_bytes()
-    )
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-github-provenance-artifact.schema.json")
 
 
 def _audit_log_streaming_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-audit-log-streaming.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-audit-log-streaming.schema.json")
 
 
 def _runner_groups_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-runner-groups.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-runner-groups.schema.json")
 
 
 def _release_archival_policy_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-release-archival-policy.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-release-archival-policy.schema.json")
 
 
 def _ai_agent_baseline_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-ai-agent-baseline.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-ai-agent-baseline.schema.json")
 
 
 def _disclosure_policy_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-disclosure-policy.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-disclosure-policy.schema.json")
 
 
 @dataclass(slots=True)
@@ -3794,8 +3770,7 @@ def eval_cont_image_003(ctx: EvalContext) -> EvalOutcome:
 
 
 def _org_mfa_schema() -> dict[str, Any]:
-    raw = ir.files("oss_policy_kit.data.schema").joinpath("evidence-org-mfa-posture.schema.json").read_bytes()
-    return cast(dict[str, Any], json.loads(raw))
+    return load_evidence_schema("evidence-org-mfa-posture.schema.json")
 
 
 def eval_org_mfa_001(ctx: EvalContext) -> EvalOutcome:
