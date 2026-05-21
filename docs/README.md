@@ -30,6 +30,8 @@ Repository entry points:
 - [profiles/deferred-followups.md](profiles/deferred-followups.md) - items intentionally left out of this phase (flags, schema, new controls)
 - [packaging-and-release.md](packaging-and-release.md) - supported distribution channels and local install/build commands
 - [supply-chain-verification.md](supply-chain-verification.md) - PyPI, GHCR, cosign, and attestation verification commands
+- [container-image.md](container-image.md) - the published container image: tags, signing, SBOM, and verification
+- [sigstore-rekor-v2.md](sigstore-rekor-v2.md) - Sigstore Rekor v2 tile-based transparency-log notes
 - [scorecard-mapping.md](scorecard-mapping.md) - how Scorecard fits as supplemental evidence
 - [osps-mapping.md](osps-mapping.md) - mapping notes between this kit and OSS baseline concepts
 
@@ -37,6 +39,8 @@ Repository entry points:
 
 - [release-readiness.md](release-readiness.md) - release gate, public launch checks, patch release routine, and repository operations
 - [secret-leak-response.md](secret-leak-response.md) - runbook for handling credentials or other sensitive values committed to a repository
+- [dev-environment.md](dev-environment.md) - local development setup, test loop, lint/type-check, and cache cleanup
+- [testing-strategy.md](testing-strategy.md) - test layers (unit, application, integration, infrastructure, cli, property, contract), how to run each, and the coverage/complexity gates
 
 ## Reference
 
@@ -48,9 +52,15 @@ Repository entry points:
 
 ## Migration guides
 
-- [v3.0.0 release notes](v3.0.0-migration-guide.md)
-- [v3 → v4](v4.0.0-migration-guide.md)
+Most recent first; older guides are kept for adopters upgrading across several versions.
+
+- [v6.0.0](v6.0.0-migration-guide.md)
+- [v5.9.0](v5.9.0-migration-guide.md)
+- [v5.2.0](v5.2.0-migration-guide.md)
+- [v5.1.0](v5.1.0-migration-guide.md)
 - [v4 → v5](v5.0.0-migration-guide.md)
+- [v3 → v4](v4.0.0-migration-guide.md)
+- [v3.0.0 release notes](v3.0.0-migration-guide.md)
 
 ## Scope Reminder
 
