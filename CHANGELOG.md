@@ -8,7 +8,9 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ## Unreleased — v6.x
 
-_No changes yet._
+### CI/CD
+
+* bump remaining GitHub Actions to Node 24 runtime ahead of the 2026-06-02 deprecation: `download-artifact` v4→v8.0.1, `deploy-pages` v4→v5.0.0, `dependency-review-action` v4→v5.0.0, and `docker/{setup-qemu,setup-buildx,login,build-push}` to their Node 24 majors. All re-pinned by immutable SHA; no workflow logic changed. `gitleaks-action` stays on Node 20 (no upstream Node 24 release yet).
 
 ## [6.0.1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.0.0...v6.0.1) (2026-05-20)
 
