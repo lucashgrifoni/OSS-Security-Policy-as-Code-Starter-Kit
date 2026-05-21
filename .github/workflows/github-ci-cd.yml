@@ -8,17 +8,18 @@ on:
     branches:
       - main
       - master
-    paths-ignore:
-      - "gitpage/**"
   push:
     branches:
       - main
       - master
       - develop
-    paths-ignore:
-      - "gitpage/**"
   workflow_dispatch:
   merge_group:
+
+# Note: this workflow intentionally has NO `paths-ignore`. The required Quality
+# check includes the gitpage guardrail test (tests/infrastructure/test_gitpage_static_assets.py),
+# so gitpage-only PRs must run it too. A previous `paths-ignore: gitpage/**` let a
+# broken gitpage change (PR #29 Tailwind v4) reach master because Quality was skipped.
 
 permissions:
   contents: read
