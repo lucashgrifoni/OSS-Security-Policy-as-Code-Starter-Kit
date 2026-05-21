@@ -500,16 +500,24 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install project runtime dependencies
-        run: python -m pip install .
+        # Editable install so pip-audit can skip the first-party package
+        # (oss-policy-kit) via --skip-editable. Auditing our own freshly
+        # built version is meaningless and races PyPI on release commits,
+        # while runtime dependencies are still installed and audited.
+        run: python -m pip install -e .
 
       - name: Audit Python dependencies
-        # Gate: fail the job on any known vulnerability in the installed
-        # dependency tree (--strict). A CVE present only in a [dev] dependency
-        # with no fix must be recorded as a documented exception, never
-        # silenced with a blind --ignore-vuln.
+        # Gate: pip-audit exits non-zero on any known vulnerability by
+        # default, so real CVEs fail the job. --skip-editable excludes the
+        # first-party editable package (auditing our own build is meaningless
+        # and races PyPI on release commits). --strict is intentionally NOT
+        # used: it would treat the deliberately skipped editable package as an
+        # un-auditable dependency and fail the run. A CVE present only in a
+        # [dev] dependency with no fix must be recorded as a documented
+        # exception, never silenced with a blind --ignore-vuln.
         run: |
           python -m pip install pip-audit
-          python -m pip_audit --strict --desc
+          python -m pip_audit --desc --skip-editable
 
   sast-bandit:
     name: SAST - Bandit (Python)
