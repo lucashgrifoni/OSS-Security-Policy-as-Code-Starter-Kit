@@ -55,13 +55,21 @@ Product orchestration and control semantics:
 
 #### Evaluator boundary modules
 
-`evaluators.py` remains the registry owner (`EVALUATOR_REGISTRY`) and
-holds the function bodies for v5.7-era controls. Public **boundary
-modules** sit alongside it; each exposes a closed list of control IDs
+Since v6.1.0 (ADR-026) `evaluators` is a **package** rather than a single
+file. `evaluators/__init__.py` remains the registry owner
+(`EVALUATOR_REGISTRY`) and re-exports the public surface; the built-in
+`eval_*` functions live in family submodules — `governance.py`, `cicd.py`,
+`github.py`, `azure.py`, `aws.py`, `gitlab.py`, `supply_chain.py`, `ai.py`,
+`cra.py` — over a shared `_shared.py` (imports, constants, helpers,
+`EvalContext`). Public imports are unchanged:
+`from oss_policy_kit.application.evaluators import EVALUATOR_REGISTRY, EvalContext, eval_<id>`.
+
+The dynamically-built rule packs keep their separate **boundary
+modules** (listed below); each exposes a closed list of control IDs
 and a `build_<bucket>_evaluators()` function that returns the same
 callables as the registry (byte-equivalence guarantee). External code
 that cares about a single pack should import from the boundary module
-instead of reaching into `evaluators.py`:
+instead of reaching into the `evaluators` package:
 
 | Module | Pack | Introduced in |
 |---|---|---|

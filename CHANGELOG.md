@@ -10,6 +10,7 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ### Internal
 
+* split the ~8,800-line `application/evaluators.py` monolith into an `evaluators/` package with family submodules (governance, cicd, github, azure, aws, gitlab, supply_chain, ai, cra) over a shared `_shared.py`, with the registry and plugin loaders in `__init__.py` (ADR-026). Functions were moved verbatim: the `EVALUATOR_REGISTRY` ID set, evaluation reports, and public imports are unchanged. See `docs/architecture.md`.
 * extract the duplicated evidence-schema loading boilerplate (repeated across 19 `_*_schema()` helpers) into a single `load_evidence_schema()` in `application/evidence_loading.py`. Behavior is byte-identical (evaluation reports unchanged); only the duplication is removed.
 
 ### Quality / Tests
