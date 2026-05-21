@@ -507,15 +507,17 @@ jobs:
         run: python -m pip install -e .
 
       - name: Audit Python dependencies
-        # pip-audit already exits non-zero on any known vulnerability, so
-        # real CVEs fail the job. --strict additionally fails if a dependency
-        # could not be audited (skipped); --skip-editable excludes only the
-        # first-party editable package from that strict check. A CVE present
-        # only in a [dev] dependency with no fix must be recorded as a
-        # documented exception, never silenced with a blind --ignore-vuln.
+        # Gate: pip-audit exits non-zero on any known vulnerability by
+        # default, so real CVEs fail the job. --skip-editable excludes the
+        # first-party editable package (auditing our own build is meaningless
+        # and races PyPI on release commits). --strict is intentionally NOT
+        # used: it would treat the deliberately skipped editable package as an
+        # un-auditable dependency and fail the run. A CVE present only in a
+        # [dev] dependency with no fix must be recorded as a documented
+        # exception, never silenced with a blind --ignore-vuln.
         run: |
           python -m pip install pip-audit
-          python -m pip_audit --strict --desc --skip-editable
+          python -m pip_audit --desc --skip-editable
 
   sast-bandit:
     name: SAST - Bandit (Python)
