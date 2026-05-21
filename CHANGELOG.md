@@ -8,6 +8,10 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ## Unreleased — v6.x
 
+### CLI / DX
+
+* add an opt-in global `--debug` flag (`oss-policy-kit --debug <subcommand> ...`) that emits per-control diagnostics — which evaluator ran, each outcome, its evidence-collection method and source count — to stderr via the stdlib `logging` module. Without `--debug` the output is byte-identical to before.
+
 ### Documentation
 
 * fix the documentation index so it matches reality: link previously-orphaned guides (`container-image`, `dev-environment`, `sigstore-rekor-v2`, `testing-strategy`) and list all migration guides (v3 → v6.0.0); document the `emit-insights` and `export-evidence` subcommands in `cli-reference.md`, which were missing.
