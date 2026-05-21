@@ -135,6 +135,10 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
+# Conservative floor: measured ~74% across the full suite (unit + property);
+# set 2pp below to avoid failing on normal fluctuation. Raise as coverage grows;
+# never lower it to accommodate a regression.
+fail_under = 72
 exclude_lines = [
   "pragma: no cover",
   "if TYPE_CHECKING:",

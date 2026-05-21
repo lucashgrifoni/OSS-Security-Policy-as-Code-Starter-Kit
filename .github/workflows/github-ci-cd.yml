@@ -65,10 +65,14 @@ jobs:
         run: python -m mypy src/oss_policy_kit
 
       - name: Pytest
-        run: python -m pytest tests --ignore=tests/property
+        # Measure coverage here but do not gate yet (--cov-fail-under=0); the
+        # property-tests step appends and enforces the combined floor.
+        run: python -m pytest tests --ignore=tests/property --cov=oss_policy_kit --cov-report= --cov-fail-under=0
 
       - name: Property-based tests
-        run: python -m pytest tests/property/ -v --hypothesis-show-statistics
+        # Append property-test coverage and enforce the combined floor
+        # (fail_under=72 in pyproject; stated explicitly here as the gate).
+        run: python -m pytest tests/property/ -v --hypothesis-show-statistics --cov=oss_policy_kit --cov-append --cov-report=term-missing --cov-fail-under=72
 
       - name: CLI help smoke
         run: |
