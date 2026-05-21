@@ -18,6 +18,9 @@ Property tests catch edge cases that example-based tests are unlikely to enumera
 - ControlSpec catalog loading across assurance, lifecycle, and weight combinations.
 - EvalOutcome JSON roundtrip for every status and evidence collection method.
 - Evaluation report schema roundtrip for contracts `1.0`, `0.3`, `0.2`, and `2.0`.
+- Evaluator invariants across the **entire** `EVALUATOR_REGISTRY` (`test_evaluator_invariants.py`): for synthetic repositories with random file present/absent combinations, every `eval_*` returns an `EvalOutcome` (never raises), with a valid `ControlStatus`, a list of string `evidence_sources`, deterministic results on an identical context, and no writes to the target repository.
+
+The report contract migration (`reports/1.0` → `reports/2.0`) is covered in `tests/contract/test_report_migration.py`: the engine's `report_to_dict_v2_0` serialization is validated against the `reports/2.0` JSON schema, with roundtrip invariants (no control lost, every status mapped into the five-state vocabulary, run metadata preserved).
 
 Run locally:
 
