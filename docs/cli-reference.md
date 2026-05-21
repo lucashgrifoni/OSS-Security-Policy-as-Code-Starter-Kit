@@ -273,5 +273,7 @@ After a successful evaluation:
 | `collect-evidence` | `--target/-t`, `--platform` (`github`/`azure`/`aws`) | `--repo`, `--output-dir/-o`, `--dry-run` | `--dry-run` reports presence/absence of credential env vars without printing values, and does not require `--target` to exist on disk. |
 | `diff-reports` | `--before`, `--after` | `--format/-f` (`table` default, `json`, `markdown`), `--fail-on-regression` / `--no-fail-on-regression` | Default is to exit `1` on regression; opt out with `--no-fail-on-regression`. |
 | `emit-vex` | — (defaults `--osv-sarif .oss-policy-kit/evidence/sast/osv-scanner.sarif.json`) | `--osv-sarif`, `--output/-o` | Emits a CycloneDX VEX 1.6 document from OSV-Scanner SARIF. All findings get `analysis.state: in_triage` in v0.1 — the manufacturer fills in the analysis post-hoc. See [`vex-emission.md`](vex-emission.md) and ADR-002. New in v5.9.0. |
+| `emit-insights` | — (defaults `--target .`) | `--target/-t`, `--output/-o`, `--validate` | Emits an OpenSSF Security Insights 1.0 YAML document for the repository. See [`insights-emission.md`](insights-emission.md). |
+| `export-evidence` | — (defaults `--target .`) | `--target/-t`, `--report`, `--format`, `--output/-o`, `--validate` | Exports the latest evaluation report into an external format. The `chainloop` format is experimental. See [`evidence-export.md`](evidence-export.md) and ADR-012. |
 
 Exit codes are uniform across subcommands: `0` success, `1` `--fail-on` / regression threshold violated, `2` invalid usage or missing input, `3` unexpected internal error.

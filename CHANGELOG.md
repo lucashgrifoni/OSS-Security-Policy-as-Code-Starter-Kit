@@ -8,6 +8,10 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ## Unreleased — v6.x
 
+### Documentation
+
+* fix the documentation index so it matches reality: link previously-orphaned guides (`container-image`, `dev-environment`, `sigstore-rekor-v2`, `testing-strategy`) and list all migration guides (v3 → v6.0.0); document the `emit-insights` and `export-evidence` subcommands in `cli-reference.md`, which were missing.
+
 ### Internal
 
 * split the ~8,800-line `application/evaluators.py` monolith into an `evaluators/` package with family submodules (governance, cicd, github, azure, aws, gitlab, supply_chain, ai, cra) over a shared `_shared.py`, with the registry and plugin loaders in `__init__.py` (ADR-026). Functions were moved verbatim: the `EVALUATOR_REGISTRY` ID set, evaluation reports, and public imports are unchanged. See `docs/architecture.md`.
