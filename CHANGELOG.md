@@ -41,6 +41,35 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 * bump remaining GitHub Actions to Node 24 runtime ahead of the 2026-06-02 deprecation: `download-artifact` v4→v8.0.1, `deploy-pages` v4→v5.0.0, `dependency-review-action` v4→v5.0.0, and `docker/{setup-qemu,setup-buildx,login,build-push}` to their Node 24 majors. All re-pinned by immutable SHA; no workflow logic changed. `gitleaks-action` stays on Node 20 (no upstream Node 24 release yet).
 
+## [6.1.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.0.1...v6.1.0) (2026-05-21)
+
+
+### Highlights
+
+* **cli:** add opt-in --debug diagnostics flag (M10) ([#38](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/38)) ([d57c583](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/d57c583dae9ceb6669352c8396e65fe2816da7a9))
+
+
+### Improvements
+
+* extract evidence-schema loading helper (M7) ([#35](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/35)) ([915b6f3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/915b6f354c5160732899d29f0af3b3cf00dd96f1))
+* migrate-1.0-to-2.0.py reads results, emits schema-valid 2.0 ([#40](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/40)) ([2fd182e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2fd182ea0aeb15369fabc2b26622e39d3327c0c3))
+* split evaluators.py monolith into evaluators/ package (M8) ([#36](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/36)) ([a1a214d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a1a214dbd3dc2856e1c4db14b635bfb0bb4cc088))
+
+
+### Notes
+
+* add coverage floor + remove false-green test skips (M4-A, M6) ([#33](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/33)) ([12892fb](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/12892fb44fa55c2c01ba141e1e4939d9fa886233))
+* bump remaining GitHub Actions to Node 24 runtime (M1) ([#30](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/30)) ([e5b9563](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e5b956333cb6165714dae64cd1320fbf9c773b37))
+* **deps:** bump aquasecurity/trivy-action from 0.35.0 to 0.36.0 ([#23](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/23)) ([f81c6ec](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f81c6ec1763b3dccbc74536d3b4254e7bc7e5a1c))
+* **deps:** bump devops-actions/actionlint from 0.1.3 to 0.1.12 ([#22](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/22)) ([483ff8c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/483ff8c0940387cfb8ca2f39256d75a449ddb6e5))
+* **deps:** bump docker/login-action from 3.4.0 to 3.7.0 ([#25](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/25)) ([7db23be](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/7db23be92bdaa1f9faf74321b7e988fc0353b1cd))
+* **deps:** bump step-security/harden-runner from 2.19.0 to 2.19.3 ([#27](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/27)) ([4a54483](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4a5448369c077696e5679500c4c2405dca9e2b21))
+* enable ruff C90 cyclomatic-complexity gate (M4-B) ([#39](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/39)) ([697babb](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/697babb06fb2476fcce8e3fe057712f837fd20d0))
+* fix documentation index + cli-reference drift (M9) ([#37](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/37)) ([351157d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/351157d0190e19812ff0b66fe319b46fe5426174))
+* **gitpage:** migrate Tailwind CSS v3 -&gt; v4 ([#29](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/29)) ([d67ec04](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/d67ec044c864672f3a6fe0f47b9228ff1b83b56f))
+* run pip-audit + bandit in Security CI/CD (M2) ([#32](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/32)) ([9e96c98](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9e96c98461f304b10089e75cf65174794539b7cb))
+* run Quality on gitpage PRs (close paths-ignore gap) ([#41](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/41)) ([d2209a6](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/d2209a6ccde489f57d01048c9beeeac2e7c96894))
+
 ## [6.0.1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.0.0...v6.0.1) (2026-05-20)
 
 
