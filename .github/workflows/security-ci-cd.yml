@@ -426,6 +426,12 @@ jobs:
       - name: Scan git history for leaked secrets
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
+          # gitleaks-action v2.3.9 (latest) still declares `runs.using:
+          # node20`, which GitHub forces to Node 24 from 2026-06-02 and removes
+          # on 2026-09-16. Opt in early, scoped to this step only, so the action
+          # runs on Node 24 without affecting other actions. Remove once
+          # upstream ships a Node 24 release and the SHA pin is bumped.
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
           GITLEAKS_ENABLE_COMMENTS: "false"
