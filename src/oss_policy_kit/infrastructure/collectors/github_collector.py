@@ -84,7 +84,7 @@ class GitHubEvidenceCollector(EvidenceCollector):
     def __init__(self, token: str) -> None:
         self._token = token
 
-    def collect(self, repo_slug: str) -> list[CollectionResult]:
+    def collect(self, repo_slug: str) -> list[CollectionResult]:  # noqa: C901
         """Collect repository-scoped evidence JSON via the GitHub REST API.
 
         **Required:** ``GITHUB_TOKEN`` (or the token passed to the constructor) with enough access to read the

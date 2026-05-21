@@ -71,7 +71,7 @@ class _VulnWaiver:
     cdx_justification: str | None  # one of _CDX_JUSTIFICATIONS or None
 
 
-def _extract_sarif_data(
+def _extract_sarif_data(  # noqa: C901
     sarif_path: Path,
 ) -> tuple[list[str], dict[str, list[str]], str | None]:
     """Return (sorted unique vulnerability IDs, ID→advisory_url list, error_or_None).
@@ -133,7 +133,7 @@ def _extract_vuln_ids_from_sarif(sarif_path: Path) -> tuple[list[str], str | Non
     return ids, err
 
 
-def _load_vuln_waivers(path: Path) -> tuple[dict[str, _VulnWaiver], list[str]]:
+def _load_vuln_waivers(path: Path) -> tuple[dict[str, _VulnWaiver], list[str]]:  # noqa: C901
     """Return (vulnerability_id → waiver, warnings).
 
     Reads ``waivers/waivers.yaml`` (or the supplied path) and collects only

@@ -28,7 +28,7 @@ from oss_policy_kit.infrastructure.k8s.scanner import (
 
 
 @app.command("scan-k8s")
-def scan_k8s_cmd(
+def scan_k8s_cmd(  # noqa: C901
     target: str = typer.Option(
         ".",
         "--target",

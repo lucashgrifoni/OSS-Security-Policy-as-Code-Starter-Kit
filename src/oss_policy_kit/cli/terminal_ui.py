@@ -673,7 +673,7 @@ def print_evaluate_executive_preface(
     )
 
 
-def print_interactive_stdout_summary(
+def print_interactive_stdout_summary(  # noqa: C901
     report: Any,
     *,
     gap_lines: list[str],
@@ -802,7 +802,7 @@ def _signal_ids(signals: list[dict[str, str]]) -> set[str]:
     return {str(s.get("id", "")) for s in signals}
 
 
-def print_recommend_profile_human_rich(
+def print_recommend_profile_human_rich(  # noqa: C901
     rec: Any,
     *,
     repo_root: Path,

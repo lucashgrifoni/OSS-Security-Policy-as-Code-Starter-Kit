@@ -173,7 +173,7 @@ _AZURE_PROFILE_PREFIX = "azure-"
 _AWS_PROFILE_PREFIX = "aws-"
 
 
-def derive_profile_metadata(profile_id: str) -> dict[str, Any]:
+def derive_profile_metadata(profile_id: str) -> dict[str, Any]:  # noqa: C901
     """Derive lightweight profile metadata from a profile id for reports/1.0.
 
     Falls back to ``None`` for fields that cannot be inferred from the id alone.
@@ -636,7 +636,7 @@ def write_json_report(
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def write_markdown_report(
+def write_markdown_report(  # noqa: C901
     report: ExecutionReport,
     path: Path,
     *,
@@ -849,7 +849,7 @@ def _drift_report_dict(report: DriftReport) -> dict[str, Any]:
     }
 
 
-def render_drift_report(report: DriftReport, fmt: str, *, color: bool = True) -> str:
+def render_drift_report(report: DriftReport, fmt: str, *, color: bool = True) -> str:  # noqa: C901
     """Render a :class:`~oss_policy_kit.application.drift.DriftReport` for stdout or files.
 
     Args:

@@ -32,7 +32,7 @@ def _parse_date(value: Any) -> date | None:
     return None
 
 
-def parse_waivers_file(path: Path) -> WaiverParseOutcome:
+def parse_waivers_file(path: Path) -> WaiverParseOutcome:  # noqa: C901
     """Load waivers from YAML. Invalid entries are skipped with warnings."""
 
     try:

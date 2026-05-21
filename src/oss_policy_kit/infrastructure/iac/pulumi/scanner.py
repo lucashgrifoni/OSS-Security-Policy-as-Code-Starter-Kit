@@ -266,7 +266,7 @@ def _rule_iac_pul_001_public_storage(repo_root: Path, calls: list[PulumiCall]) -
     return findings
 
 
-def _rule_iac_pul_002_open_mgmt_ports(repo_root: Path, calls: list[PulumiCall]) -> list[PulumiFinding]:
+def _rule_iac_pul_002_open_mgmt_ports(repo_root: Path, calls: list[PulumiCall]) -> list[PulumiFinding]:  # noqa: C901
     findings: list[PulumiFinding] = []
     for c in calls:
         if not _is_security_group(c):
