@@ -6,16 +6,17 @@ The contract is that a 1.0 evaluation can be re-expressed as a schema-valid 2.0
 document with no control lost, every status mapped into the five-state
 vocabulary, and run metadata preserved.
 
-NOTE: the standalone helper ``scripts/migrate-1.0-to-2.0.py`` is NOT exercised
-here on purpose -- it is stale (it reads a top-level ``controls`` key, but
-reports/1.0 emits ``results``) and does not produce a 2.0-schema-valid document.
-That drift is tracked in the local backlog, separate from this test (see prompt
-M5 anti-pattern: a real bug is registered, not patched to make a test pass).
+The standalone helper ``scripts/migrate-1.0-to-2.0.py`` (for adopters who only have
+a stored 1.0 JSON, not the installed kit) is also exercised: it must turn a real
+reports/1.0 document into a schema-valid reports/2.0 document whose controls match
+the engine's native serialization.
 """
 
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
@@ -27,7 +28,7 @@ from jsonschema import Draft202012Validator
 from oss_policy_kit.application.engine import evaluate_repository
 from oss_policy_kit.application.loader import bundled_kit_root, load_catalog, load_profile_by_id
 from oss_policy_kit.application.reporting import report_to_dict_v1, report_to_dict_v2_0
-from tests.conftest import EXAMPLE_HARDENED, EXAMPLE_VULNERABLE
+from tests.conftest import EXAMPLE_HARDENED, EXAMPLE_VULNERABLE, ROOT
 
 _REPORTS_2_0_STATES = {"PASS", "FAIL", "UNKNOWN", "NOT_APPLICABLE", "ATTESTED"}
 
@@ -117,3 +118,43 @@ def test_native_migration_is_always_schema_valid_across_profiles(profile_id: str
     v2 = report_to_dict_v2_0(report)
     _VALIDATOR_2_0.validate(v2)
     assert v2["controls_total"] == len(v2["controls"])
+
+
+_MIGRATE_SCRIPT = ROOT / "scripts" / "migrate-1.0-to-2.0.py"
+
+
+def _run_migrate_script(payload: dict[str, Any], tmp_path: Path) -> dict[str, Any]:
+    in_path = tmp_path / "in-1.0.json"
+    out_path = tmp_path / "out-2.0.json"
+    in_path.write_text(json.dumps(payload), encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(_MIGRATE_SCRIPT), "--input", str(in_path), "--output", str(out_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    result: dict[str, Any] = json.loads(out_path.read_text(encoding="utf-8"))
+    return result
+
+
+def test_standalone_script_produces_schema_valid_2_0(tmp_path: Path) -> None:
+    """scripts/migrate-1.0-to-2.0.py turns a real 1.0 doc into a schema-valid 2.0 doc."""
+
+    report = _evaluate("github-level-1", EXAMPLE_VULNERABLE)
+    v1 = report_to_dict_v1(report)
+    migrated = _run_migrate_script(v1, tmp_path)
+    _VALIDATOR_2_0.validate(migrated)
+
+
+def test_standalone_script_matches_native_controls(tmp_path: Path) -> None:
+    """The script's controls (ids + states) match the engine's native 2.0 serialization."""
+
+    report = _evaluate("github-level-1", EXAMPLE_VULNERABLE)
+    v1 = report_to_dict_v1(report)
+    native = report_to_dict_v2_0(report)
+    migrated = _run_migrate_script(v1, tmp_path)
+
+    assert {c["id"]: c["state"] for c in migrated["controls"]} == {c["id"]: c["state"] for c in native["controls"]}
+    assert migrated["summary_by_status"] == native["summary_by_status"]
+    assert migrated["controls_total"] == native["controls_total"]
