@@ -109,13 +109,31 @@ _MIGRATE_SCRIPT = _REPO_ROOT / "scripts" / "migrate-1.0-to-2.0.py"
 
 
 def _sample_v1_report() -> dict:
+    # reports/1.0 emits controls under the ``results`` key, each keyed by ``control_id``
+    # (see report_to_dict_v1). The earlier sample used a ``controls``/``id`` shape the kit
+    # never produces, which masked a bug in the migration script.
     return {
         "schema_version": REPORT_JSON_SCHEMA_URL_V1_0,
         "summary_by_status": {"pass": 5, "fail": 1, "degraded": 1, "manual-review-required": 2},
-        "controls": [
-            {"id": "GOV-SEC-001", "status": "pass", "reason": "SECURITY.md present."},
-            {"id": "GH-PROV-023", "status": "manual-review-required", "reason": "No evidence."},
-            {"id": "CI-LEAST-009", "status": "degraded", "reason": "Broad token perms."},
+        "results": [
+            {
+                "control_id": "GOV-SEC-001",
+                "status": "pass",
+                "reason": "SECURITY.md present.",
+                "profile": "github-level-1",
+            },
+            {
+                "control_id": "GH-PROV-023",
+                "status": "manual-review-required",
+                "reason": "No evidence.",
+                "profile": "github-level-1",
+            },
+            {
+                "control_id": "CI-LEAST-009",
+                "status": "degraded",
+                "reason": "Broad token perms.",
+                "profile": "github-level-1",
+            },
         ],
     }
 
