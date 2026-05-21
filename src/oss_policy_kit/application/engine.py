@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,10 @@ from oss_policy_kit.infrastructure.aws_ci_parser import analyze_aws_ci
 from oss_policy_kit.infrastructure.azure_pipeline_parser import analyze_azure_pipelines
 from oss_policy_kit.infrastructure.gitlab_ci_parser import analyze_gitlab_ci
 from oss_policy_kit.infrastructure.workflow_parser import analyze_workflows
+
+# Diagnostic logger. Silent unless the caller raises the "oss_policy_kit" logger to
+# DEBUG (e.g. via the CLI `--debug` flag); default output is therefore unchanged.
+logger = logging.getLogger(__name__)
 
 _HARD_GATE_EVIDENCE_PROFILES = frozenset(
     {
@@ -298,8 +303,17 @@ def evaluate_repository(
 
         if ctx.verbose_emit is not None:
             ctx.verbose_emit(f"[dim]→ {cid} ({spec.title})[/dim]")
+        logger.debug("evaluating %s (%s)", cid, spec.title)
         outcome = evaluator(ctx)
         operational_warnings.extend(outcome.operational_warnings)
+        logger.debug(
+            "%s -> %s [%s] sources=%d%s",
+            cid,
+            outcome.status.value,
+            outcome.evidence_collection_method.value,
+            len(outcome.evidence_sources),
+            f" reason={outcome.reason.splitlines()[0]!r}" if outcome.status.value != "pass" and outcome.reason else "",
+        )
         if ctx.verbose_emit is not None:
             reason_one = outcome.reason.replace("\n", " ").strip()
             if len(reason_one) > 220:

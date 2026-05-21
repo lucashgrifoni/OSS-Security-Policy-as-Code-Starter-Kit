@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sys
 import textwrap
 from collections.abc import Callable
@@ -68,6 +69,22 @@ app = typer.Typer(
     ),
     epilog=ROOT_CLI_EPILOG,
 )
+
+
+def enable_debug_logging() -> None:
+    """Raise the ``oss_policy_kit`` logger to DEBUG with a stderr handler (CLI ``--debug``).
+
+    Scoped to this package's logger so third-party libraries stay quiet, and writes to
+    stderr so stdout report output is unchanged. Idempotent across repeated calls.
+    """
+
+    pkg_logger = logging.getLogger("oss_policy_kit")
+    if not any(getattr(h, "_oss_policy_kit_debug", False) for h in pkg_logger.handlers):
+        handler = logging.StreamHandler()  # defaults to sys.stderr
+        handler.setFormatter(logging.Formatter("[%(levelname)s] %(name)s: %(message)s"))
+        handler._oss_policy_kit_debug = True  # type: ignore[attr-defined]
+        pkg_logger.addHandler(handler)
+    pkg_logger.setLevel(logging.DEBUG)
 
 
 def stderr_console() -> Console:

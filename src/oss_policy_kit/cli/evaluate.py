@@ -10,6 +10,7 @@ from typer import Context
 from oss_policy_kit import __version__ as kit_version
 from oss_policy_kit.cli.common import (
     app,
+    enable_debug_logging,
     execute_evaluate,
     stderr_console,
 )
@@ -131,9 +132,20 @@ def cli_root(
         "-q",
         help="Suppress operational warning lines on stderr while keeping normal stdout output.",
     ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help=(
+            "Emit detailed diagnostics to stderr (which evaluator ran, each outcome and its "
+            "evidence). Opt-in; stdout output is unchanged. Place before a subcommand, e.g. "
+            "`oss-policy-kit --debug evaluate ...`."
+        ),
+    ),
 ) -> None:
     """Evaluate without typing `evaluate` (same flags as the subcommand)."""
 
+    if debug:
+        enable_debug_logging()
     if version:
         typer.echo(kit_version)
         raise typer.Exit(0)
