@@ -95,6 +95,10 @@ exclude = ["gitpage", ".venv", ".venv-ci", ".venv-smoke", ".venv-v5-baseline", "
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
+# The evaluators package re-exports a shared namespace via `from ._shared import *`
+# (M8 refactor, ADR-026). F403/F405 are the cost of that intentional re-export pattern;
+# mypy (strict) still catches genuinely undefined names.
+"src/oss_policy_kit/application/evaluators/*.py" = ["F403", "F405"]
 "src/oss_policy_kit/cli/main.py" = ["B008"]
 "src/oss_policy_kit/cli/common.py" = ["B008"]
 "src/oss_policy_kit/cli/evaluate.py" = ["B008"]
