@@ -159,7 +159,7 @@ def _workflow_body_for_sast_heuristics(raw: str) -> str:
     return "\n".join(kept)
 
 
-def _collect_sast_ci_signals(raw: str) -> set[str]:
+def _collect_sast_ci_signals(raw: str) -> set[str]:  # noqa: C901
     """Detect plausible CI SAST / code scanning for SEC-CODEQL-010 (not mere tool-name mentions)."""
 
     body = _workflow_body_for_sast_heuristics(raw)
@@ -276,7 +276,7 @@ def _step_sensitive_for_least_privilege(step: dict[str, Any]) -> bool:
     return any(rx.search(blob) for rx, _ in _SENSITIVE_FOR_LEAST_PRIV)
 
 
-def _collect_implicit_permission_risks(
+def _collect_implicit_permission_risks(  # noqa: C901
     data: dict[str, Any],
     path: Path,
     out: list[tuple[Path, str, str]],
@@ -374,7 +374,7 @@ def _workflow_has_oidc_posture(raw: str, data: dict[str, Any]) -> bool:
     return False
 
 
-def analyze_workflows(repo_root: Path) -> WorkflowAnalysis:
+def analyze_workflows(repo_root: Path) -> WorkflowAnalysis:  # noqa: C901
     """Scan `.github/workflows` for static patterns."""
 
     result = WorkflowAnalysis()

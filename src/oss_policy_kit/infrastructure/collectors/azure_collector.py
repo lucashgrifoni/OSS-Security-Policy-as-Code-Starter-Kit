@@ -277,7 +277,7 @@ class AzureDevOpsEvidenceCollector(EvidenceCollector):
         )
         return []
 
-    def collect(self, repo_slug: str) -> list[CollectionResult]:
+    def collect(self, repo_slug: str) -> list[CollectionResult]:  # noqa: C901
         """Collect branch-policy and pipeline-governance evidence for ``project/repoName``.
 
         **Environment (required):** ``AZURE_DEVOPS_ORG`` and ``AZURE_DEVOPS_TOKEN`` (or constructor args).

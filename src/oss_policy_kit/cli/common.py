@@ -278,7 +278,7 @@ def _warn_missing_scan_evidence(repo_root: Path, control_ids: set[str], machine_
         )
 
 
-def execute_evaluate(
+def execute_evaluate(  # noqa: C901
     target_pos: str | None,
     target_opt: str | None,
     profile: str | None,

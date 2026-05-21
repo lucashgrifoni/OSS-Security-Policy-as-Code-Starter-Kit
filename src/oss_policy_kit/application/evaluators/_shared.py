@@ -958,7 +958,7 @@ def _max_json_nesting_depth(raw: str) -> int:
     return max_depth
 
 
-def _parse_sarif_findings(
+def _parse_sarif_findings(  # noqa: C901
     sarif_path: Path,
 ) -> tuple[dict[str, int] | None, str | None]:
     """Return ({"error": int, "warning": int, "note": int, "none": int}, None)
@@ -1113,7 +1113,7 @@ _ZIZMOR_SEVERITY_KEYS: tuple[str, ...] = (
 )
 
 
-def _parse_zizmor_severity_properties(
+def _parse_zizmor_severity_properties(  # noqa: C901
     sarif_path: Path,
 ) -> tuple[dict[str, int] | None, str | None]:
     """Return zizmor-specific severity counts from ``result.properties``.
@@ -1607,7 +1607,7 @@ def _annex_iv_section(ctx: EvalContext, field: str, label: str, remediation: str
 _OSV_SARIF_RELPATH = ".oss-policy-kit/evidence/sast/osv-scanner.sarif.json"
 
 
-def _scan_sarif_epss_kev(
+def _scan_sarif_epss_kev(  # noqa: C901
     sarif_path: Path, *, epss_threshold: float = 0.5, cvss_threshold: float = 7.0
 ) -> tuple[list[str], list[str], str | None]:
     """Return ``(kev_ids, high_epss_ids, error)`` from SARIF result.properties."""

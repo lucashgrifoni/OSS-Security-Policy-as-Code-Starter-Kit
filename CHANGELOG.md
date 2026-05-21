@@ -26,6 +26,7 @@ This changelog follows the same public-facing format used by the GitHub release 
 * enforce a test-coverage floor in CI (`fail_under = 72`, combined unit + property runs) so coverage cannot silently regress.
 * remove conditional `skipif`/`skip` guards on fixtures that are versioned in the repo (`invalid-workflow-target`, `repo with spaces`, `azure-/aws-hardened-target`). Those tests now always run; if a fixture goes missing the test fails clearly instead of turning into a silent green.
 * add property-based invariants over the entire evaluator registry (every `eval_*` returns a valid, deterministic `EvalOutcome` and never writes to the target) and a `reports/1.0`→`reports/2.0` migration roundtrip validated against the report schema.
+* enable a cyclomatic-complexity gate (ruff `C90`, `max-complexity = 12`) so new functions cannot grow unbounded. The functions already above the threshold are baselined with `# noqa: C901` and tracked for incremental reduction.
 
 ### Security / Supply Chain
 

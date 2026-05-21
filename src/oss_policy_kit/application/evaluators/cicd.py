@@ -395,7 +395,7 @@ def eval_sec_pinlock_052(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_ci_wfcallsha_055(ctx: EvalContext) -> EvalOutcome:
+def eval_ci_wfcallsha_055(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
     """CI-WFCALLSHA-055: reusable workflow calls use full 40-character commit SHAs."""
 
     if not ctx.workflows.workflow_paths:

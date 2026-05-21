@@ -605,7 +605,7 @@ def eval_az_sconn_056(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_az_wifev_057(ctx: EvalContext) -> EvalOutcome:
+def eval_az_wifev_057(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
     """AZ-WIFEV-057: workload identity federation evidenced on service connections."""
 
     evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "azure-pipeline-governance.json"

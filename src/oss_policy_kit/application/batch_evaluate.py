@@ -205,7 +205,7 @@ def discover_batch_targets(
     return out
 
 
-def run_batch_evaluation(
+def run_batch_evaluation(  # noqa: C901
     *,
     target_root: Path,
     profile_ids: list[str],

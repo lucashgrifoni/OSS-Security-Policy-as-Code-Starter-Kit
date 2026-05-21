@@ -199,7 +199,7 @@ def eval_plat_brprot_015(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_gov_evidfresh_054(ctx: EvalContext) -> EvalOutcome:
+def eval_gov_evidfresh_054(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
     """GOV-EVIDFRESH-054: evidence JSON under .oss-policy-kit/evidence is not older than policy."""
 
     evid_root = ctx.repo_root / ".oss-policy-kit" / "evidence"
@@ -446,7 +446,7 @@ def eval_oss_scorecard_001(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_org_mfa_001(ctx: EvalContext) -> EvalOutcome:
+def eval_org_mfa_001(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
     """ORG-MFA-001: Organization MFA enforcement posture evidenced."""
     evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "org-mfa-posture.json"
     if not evidence.is_file():
@@ -569,7 +569,7 @@ def eval_org_mfa_001(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_build_sbom_qual_003(ctx: EvalContext) -> EvalOutcome:
+def eval_build_sbom_qual_003(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
     """BUILD-SBOM-QUAL-003: SBOM format validity — SPDX or CycloneDX document detectable in repo or evidence."""
     # Check evidence files for documented SBOM format first.
     for evid_name in ("azure-sbom-artifact.json", "aws-sbom-artifact.json"):

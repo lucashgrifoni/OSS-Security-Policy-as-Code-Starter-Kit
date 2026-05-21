@@ -179,7 +179,7 @@ def scaffold_evidence_cmd(
 
 
 @app.command("collect-evidence")
-def collect_evidence_cmd(
+def collect_evidence_cmd(  # noqa: C901
     target: Path = typer.Option(..., "--target", "-t", help="Repository root path."),
     platform: str = typer.Option(
         ...,

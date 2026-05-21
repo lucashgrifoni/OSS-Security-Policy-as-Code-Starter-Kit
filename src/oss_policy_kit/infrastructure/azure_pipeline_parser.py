@@ -68,7 +68,7 @@ def _contains_any(text: str, tokens: tuple[str, ...]) -> bool:
     return any(token in text for token in tokens)
 
 
-def analyze_azure_pipelines(repo_root: Path) -> AzurePipelineAnalysis:
+def analyze_azure_pipelines(repo_root: Path) -> AzurePipelineAnalysis:  # noqa: C901
     """Scan known Azure Pipelines files for static posture signals."""
 
     result = AzurePipelineAnalysis()

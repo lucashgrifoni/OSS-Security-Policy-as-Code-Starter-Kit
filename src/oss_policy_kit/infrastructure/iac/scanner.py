@@ -691,7 +691,7 @@ def _rule_iac_tf_011_prevent_destroy(repo_root: Path, index: TfResourceIndex) ->
     return findings
 
 
-def _rule_iac_tf_012_wildcard_principals(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:
+def _rule_iac_tf_012_wildcard_principals(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:  # noqa: C901
     """``data.aws_iam_policy_document`` statements with ``principals.identifiers = ["*"]``.
 
     The HCL hcl2 6.x parser exposes ``data`` blocks under the ``data`` key in

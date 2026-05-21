@@ -74,7 +74,7 @@ ALLOWED_AUTOMATION: frozenset[str] = frozenset(
 ALLOWED_WEIGHTS: frozenset[int] = frozenset({1, 2, 3})
 
 
-def _validate_catalog(catalog_path: Path) -> list[str]:
+def _validate_catalog(catalog_path: Path) -> list[str]:  # noqa: C901
     violations: list[str] = []
     raw = yaml.safe_load(catalog_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):

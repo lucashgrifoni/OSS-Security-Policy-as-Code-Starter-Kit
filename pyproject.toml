@@ -92,7 +92,14 @@ src = ["src", "tests", "scripts"]
 exclude = ["gitpage", ".venv", ".venv-ci", ".venv-smoke", ".venv-v5-baseline", "venv"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
+select = ["E", "F", "I", "UP", "B", "SIM", "C90"]
+
+# Cyclomatic-complexity gate (mccabe). Blocks NEW functions above the threshold.
+# The ~33 functions already above it at gate introduction (M4-B) are baselined with
+# inline `# noqa: C901`; reduce them incrementally (tracked in the local backlog
+# `ruff-c90-complexity-gate`). Do not raise this number to accommodate a regression.
+[tool.ruff.lint.mccabe]
+max-complexity = 12
 
 [tool.ruff.lint.per-file-ignores]
 # The evaluators package re-exports a shared namespace via `from ._shared import *`

@@ -151,7 +151,7 @@ def _append_signal(signals: list[dict[str, str]], sig_id: str, detail: str) -> N
     signals.append({"id": sig_id, "detail": detail})
 
 
-def _collect_tech_stack_signals(
+def _collect_tech_stack_signals(  # noqa: C901
     repo_root: Path,
 ) -> tuple[list[dict[str, str]], list[str], bool, str | None]:
     """Detect common language/runtime markers; returns signals, notes, Dockerfile->L2 flag, primary stack label."""
@@ -315,7 +315,7 @@ def _collect_signals(
     return signals
 
 
-def _suggestions_for_platform(
+def _suggestions_for_platform(  # noqa: C901
     platform: str,
     *,
     wf_paths: list[Path],
@@ -596,7 +596,7 @@ def _normalize_based_on_aws(bo: list[str], buildspec: bool, aws_ev: list[Path]) 
     return out
 
 
-def build_profile_recommendation(repo_root: Path) -> ProfileRecommendation:
+def build_profile_recommendation(repo_root: Path) -> ProfileRecommendation:  # noqa: C901
     """Inspect *repo_root* and return up to three profile suggestions with rationale."""
 
     wf_paths = _workflow_yaml_paths(repo_root)

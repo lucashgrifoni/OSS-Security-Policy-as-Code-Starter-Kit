@@ -84,7 +84,7 @@ def _normalize_format(raw: str) -> str:
     )
 
 
-def _print_human_summary(*, plan: Any, outcome: InitOutcome, dry_run: bool) -> None:
+def _print_human_summary(*, plan: Any, outcome: InitOutcome, dry_run: bool) -> None:  # noqa: C901
     """Render a friendly human summary on stdout (no Rich coloring inside
     the CliRunner so tests can assert on plain strings).
 
