@@ -16,13 +16,13 @@ This page keeps the detailed capability snapshot out of the root README so the f
 
 ## v6.0.0 development baseline
 
-| Area | v6.0.0 |
+| Area | v6.3.0 |
 |---|---|
-| Profiles | 52 bundled profiles |
+| Profiles | 53 bundled profiles |
 | Controls | 212 bundled controls |
 | CLI subcommands | 17 |
 | Report contracts | `reports/1.0` default; `reports/2.0` opt-in |
-| New development profiles | AI/LLM advisory, EU AI Act Article 11 + Annex IV, EU CRA Art.13/14, SLSA Source L1/L2, GitLab L2, OSS publish readiness, AI agent baseline, OSPS Baseline 2026, MCP server, OWASP Agentic ASI |
+| New development profiles | AI/LLM advisory, EU AI Act Article 11 + Annex IV, EU CRA Art.13/14, SLSA Source L1/L2, GitLab L2/L3, OSS publish readiness, AI agent baseline, OSPS Baseline 2026, MCP server, OWASP Agentic ASI |
 | Release state | Not released until maintainer review, remote push, tag, PyPI publish, and container publish complete |
 
 ## First commands
