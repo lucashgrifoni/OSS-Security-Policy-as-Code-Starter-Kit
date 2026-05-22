@@ -47,6 +47,26 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 * bump remaining GitHub Actions to Node 24 runtime ahead of the 2026-06-02 deprecation: `download-artifact` v4→v8.0.1, `deploy-pages` v4→v5.0.0, `dependency-review-action` v4→v5.0.0, and `docker/{setup-qemu,setup-buildx,login,build-push}` to their Node 24 majors. All re-pinned by immutable SHA; no workflow logic changed. `gitleaks-action` stays on Node 20 (no upstream Node 24 release yet).
 
+## [6.2.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.1.0...v6.2.0) (2026-05-22)
+
+
+### Highlights
+
+* enforce input size limits on user-controlled SARIF and evidence inputs ([5cbc9ab](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/5cbc9abdc2d7a404b5175c9c8ae1dba3e99c113b))
+* surface third-party evaluator plugin load failures via evaluate --verbose ([a2d0f4f](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a2d0f4f127fbdda8aaf6d1b4ad9a5f38bc231d2c))
+
+
+### Improvements
+
+* **ci:** stop pip-audit failing on the first-party package ([#43](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/43)) ([e8b2ffb](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e8b2ffb564d89bafd2369976373bec2de4ac6811))
+* populate SARIF tool.driver.semanticVersion ([a8702b4](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a8702b4aa42c1bcc614f9a7f3fabd9fcb4b228c2))
+
+
+### Notes
+
+* document input size limits and plugin load visibility (v6.2.0) ([3fc9c9a](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3fc9c9a61d3f5a886883c74da556777f60e4a4dc))
+* run gitleaks-action on Node 24 (deprecation opt-in) ([#44](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/44)) ([de72903](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/de72903c8615a82cf9d17055a229d6176b3589f4))
+
 ## [6.1.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.0.1...v6.1.0) (2026-05-21)
 
 
