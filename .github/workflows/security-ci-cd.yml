@@ -375,15 +375,21 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        # KICS exception: the Checkmarx action builds a Chainguard wolfi-base
-        # container and `apk add nodejs npm` at runtime. The apk index loads
-        # from apk.cgr.dev, but package blobs are served from a dynamic
-        # Cloudflare CDN/R2 host that cannot be pinned to a stable allowlist,
-        # so block mode fails the job. Kept on `audit` (still monitored) until
-        # the exact package-CDN host is captured from Harden-Runner insights.
+        # KICS builds a Chainguard wolfi-base container and `apk add nodejs npm`.
+        # The apk index loads from apk.cgr.dev, but package blobs are served from
+        # a Cloudflare R2 bucket whose name is opaque/may rotate, so it is
+        # allowed via the scoped wildcard *.r2.cloudflarestorage.com rather than a
+        # brittle exact bucket hash (Harden-Runner insights run 26298261213).
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            kics.io:443
+            registry.npmjs.org:443
+            apk.cgr.dev:443
+            *.r2.cloudflarestorage.com:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
