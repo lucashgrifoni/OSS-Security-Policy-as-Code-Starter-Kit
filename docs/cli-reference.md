@@ -214,6 +214,28 @@ Windows PowerShell:
 python -m oss_policy_kit evaluate --target .\path\to\repo --profile github-level-1 --output-dir .\out --waivers .\waivers\waivers.example.yaml
 ```
 
+### Input size limits (local CI hardening)
+
+User-controlled inputs are size-capped before they are read, so an oversized or
+runaway file in an adopter repository cannot exhaust evaluator/CI memory or time:
+
+| Input | Default cap | On oversize |
+| ----- | ----------- | ----------- |
+| Evidence JSON (`.oss-policy-kit/evidence/*.json`), `--scorecard-json`, `--waivers` | **5 MiB** | evidence degrades to `manual-review-required`; CLI inputs (`--scorecard-json`, `--waivers`) fail with a clear validation error (exit 2) |
+| SARIF (`--sarif-output` ingestion, `emit-vex --osv-sarif`, SAST evidence `*.sarif.json`) | **20 MiB** | SARIF-backed controls degrade to `manual-review-required`; `emit-vex` reports a clear error |
+
+The caps are conservative defaults (evidence files are small attestations; SARIF can be
+larger). There is no override flag yet — it will be added only if a concrete adopter use
+case appears. Files are refused *before* being read into memory.
+
+### Third-party evaluator plugin visibility
+
+When a custom evaluator package registered under the `oss_policy_kit.evaluators`
+entry-point group fails to import/load, built-in evaluation is never affected — but the
+failure is no longer silent. Run `evaluate --verbose` to see each plugin load problem
+(`load`, `not-callable`, `builtin-precedence`, or `discovery`) on stderr, so you can tell
+whether a custom control is actually active.
+
 ## Pipeline-Friendly Output
 
 For compact stdout suitable for CI parsing:

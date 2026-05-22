@@ -8,8 +8,14 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ## Unreleased — v6.x
 
+### Highlights
+
+* **Input size limits (local CI DoS hardening).** User-controlled inputs are now size-capped before being read into memory: evidence JSON / `--scorecard-json` / `--waivers` at 5 MiB and SARIF inputs (`--sarif-output` ingestion, `emit-vex --osv-sarif`, SAST `*.sarif.json` evidence) at 20 MiB. Evidence/SARIF-backed controls degrade to `manual-review-required`; CLI inputs fail with a clear validation error (exit 2). Documented in `docs/cli-reference.md`.
+* **Third-party evaluator plugin load visibility.** Broken custom-evaluator plugins (entry-point group `oss_policy_kit.evaluators`) used to be skipped silently. Built-in evaluation is still never affected, but `evaluate --verbose` now reports each plugin load problem (`load` / `not-callable` / `builtin-precedence` / `discovery`) on stderr so operators can tell whether a custom control is actually active.
+
 ### Fixes
 
+* fix SARIF `tool.driver.semanticVersion`: it was empty while `version` carried the kit SemVer. GitHub code scanning and other SARIF consumers use `semanticVersion` to correlate/dedupe alerts across tool versions, so it is now populated with the kit version. Covered by `tests/application/test_sarif_output.py`.
 * fix `scripts/migrate-1.0-to-2.0.py`: it read a top-level `controls` key, but a reports/1.0 document emits `results`, so its output was not a schema-valid reports/2.0 document. It now reshapes `results` into the 2.0 `controls` array (mapping status → state via the same table the engine uses) and produces a `reports/2.0`-schema-valid document matching the kit's native serialization. Covered by `tests/contract/test_report_migration.py`.
 * remove `paths-ignore: gitpage/**` from the `GitHub CI/CD` workflow so the required Quality check (which includes the gitpage guardrail test) runs on gitpage-only pull requests too. Previously such PRs skipped Quality, which let a broken gitpage change reach `master`.
 
