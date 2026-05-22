@@ -21,6 +21,7 @@ from oss_policy_kit.adapters.scorecard_json import load_scorecard_auto
 from oss_policy_kit.application.cli_output import FailOnPolicy, fail_on_violated, print_stdout_summary
 from oss_policy_kit.application.config_loader import load_project_config_for_target
 from oss_policy_kit.application.engine import evaluate_repository
+from oss_policy_kit.application.input_limits import MAX_EVIDENCE_BYTES, oversize_reason
 from oss_policy_kit.application.loader import (
     load_catalog,
     load_profile_by_id,
@@ -330,6 +331,9 @@ def _load_eval_waivers(waivers: Path | None):  # type: ignore[no-untyped-def]
     wp = Path(waivers)
     if not wp.is_file():
         raise InvalidInputError(f"Waivers file not found: {wp}")
+    oversize = oversize_reason(wp, MAX_EVIDENCE_BYTES, label="Waivers")
+    if oversize is not None:
+        raise InvalidInputError(oversize)
     return parse_waivers_file(wp)
 
 
@@ -339,6 +343,9 @@ def _load_eval_scorecard(scorecard_json: Path | None):  # type: ignore[no-untype
     sp = Path(scorecard_json)
     if not sp.is_file():
         raise InvalidInputError(f"Scorecard file not found: {sp}")
+    oversize = oversize_reason(sp, MAX_EVIDENCE_BYTES, label="Scorecard JSON")
+    if oversize is not None:
+        raise InvalidInputError(oversize)
     try:
         return load_scorecard_auto(sp)
     except json.JSONDecodeError as exc:
@@ -429,11 +436,29 @@ def _render_eval_report(  # type: ignore[no-untyped-def]
         print_operational_warning_summary(warnings)
 
 
+def _emit_plugin_load_warnings() -> None:
+    """On --verbose, surface third-party evaluator plugin load problems (LOW-001).
+
+    Built-in evaluation is never affected; this only improves operator confidence
+    by showing why a custom evaluator package may be inactive.
+    """
+    from oss_policy_kit.application.evaluators import plugin_load_errors
+
+    errs = plugin_load_errors()
+    if not errs:
+        return
+    console = stderr_console()
+    for e in errs:
+        console.print(f"[yellow]plugin[/yellow] {e['name']}: {e['kind']} — {e['detail']}")
+
+
 def _run_evaluate(req: EvaluateRequest) -> None:
     fmt = normalize_evaluate_format(req.output_format)
     policy = req.fail_on.lower()
     if policy not in {"none", "fail", "degraded"}:
         raise InvalidInputError("--fail-on must be one of: none, fail, degraded.")
+    if req.verbose:
+        _emit_plugin_load_warnings()
     repo_root = _resolve_eval_target(req)
     resolved_profile = _resolve_eval_profile(req, repo_root)
     root = merge_kit_root(req.kit_root)

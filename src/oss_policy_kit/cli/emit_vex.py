@@ -30,6 +30,7 @@ from typing import Any
 
 import typer
 
+from oss_policy_kit.application.input_limits import MAX_SARIF_BYTES, oversize_reason
 from oss_policy_kit.cli.common import app, stderr_console, write_stdout_text
 from oss_policy_kit.domain.errors import InvalidInputError, OssPolicyKitError
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
@@ -113,6 +114,9 @@ def _extract_sarif_data(
     We collect both per ID for ``--include-references``.
     """
 
+    oversize = oversize_reason(sarif_path, MAX_SARIF_BYTES, label="OSV-Scanner SARIF")
+    if oversize is not None:
+        return [], {}, oversize
     try:
         raw = sarif_path.read_text(encoding="utf-8")
     except OSError as exc:

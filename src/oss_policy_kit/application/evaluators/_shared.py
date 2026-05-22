@@ -41,6 +41,7 @@ from oss_policy_kit.application.evaluators_common import (
 )
 from oss_policy_kit.application.evidence_loading import load_evidence_schema
 from oss_policy_kit.application.evidence_placeholders import has_placeholder_values, is_placeholder_digest
+from oss_policy_kit.application.input_limits import MAX_SARIF_BYTES, oversize_reason
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome, EvidenceCollectionMethod
 from oss_policy_kit.infrastructure.aws_ci_parser import AwsCiAnalysis
 from oss_policy_kit.infrastructure.azure_pipeline_parser import AzurePipelineAnalysis
@@ -994,6 +995,9 @@ def _max_json_nesting_depth(raw: str) -> int:
 def _load_sarif_runs(sarif_path: Path) -> tuple[list[Any] | None, str | None]:
     """Read + validate a SARIF file, returning ``(runs_list, None)`` or ``(None, error)``."""
 
+    oversize = oversize_reason(sarif_path, MAX_SARIF_BYTES, label="SARIF")
+    if oversize is not None:
+        return None, oversize
     try:
         raw = sarif_path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -1201,6 +1205,9 @@ def _parse_zizmor_severity_properties(
     lowercased severity name with all six keys present (zero where absent).
     Returns ``(None, message)`` on parse failure.
     """
+    oversize = oversize_reason(sarif_path, MAX_SARIF_BYTES, label="SARIF")
+    if oversize is not None:
+        return None, oversize
     try:
         raw = sarif_path.read_text(encoding="utf-8")
     except OSError as exc:

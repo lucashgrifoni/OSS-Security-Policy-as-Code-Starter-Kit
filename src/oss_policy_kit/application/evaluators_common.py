@@ -37,6 +37,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
 from oss_policy_kit.application.evidence_placeholders import has_placeholder_values
+from oss_policy_kit.application.input_limits import MAX_EVIDENCE_BYTES, oversize_reason
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 
 DIGEST_PLACEHOLDER_REASON = (
@@ -98,6 +99,9 @@ def validate_json_evidence(
 ) -> tuple[dict[str, Any] | None, str | None, list[str]]:
     """Validate *evidence* JSON against a Draft202012 schema. Returns ``(data, error, placeholders)``."""
 
+    oversize = oversize_reason(evidence, MAX_EVIDENCE_BYTES, label=f"{evidence_name} evidence")
+    if oversize is not None:
+        return None, oversize, []
     try:
         data = json.loads(evidence.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
