@@ -6,7 +6,6 @@ from pathlib import Path
 
 from oss_policy_kit.infrastructure import workflow_parser as wp
 
-
 # --------------------------------------------------------------------------- #
 # pure predicates
 # --------------------------------------------------------------------------- #
@@ -65,7 +64,9 @@ def test_step_and_job_oidc() -> None:
     assert not wp._step_indicates_oidc({"uses": "azure/login@v2", "with": {"creds": "x"}})
     assert not wp._step_indicates_oidc("notdict")
     assert wp._job_indicates_oidc({"permissions": {"id-token": "write"}})
-    assert wp._job_indicates_oidc({"steps": [{"uses": "aws-actions/configure-aws-credentials@v4", "with": {"role-to-assume": "a"}}]})
+    assert wp._job_indicates_oidc(
+        {"steps": [{"uses": "aws-actions/configure-aws-credentials@v4", "with": {"role-to-assume": "a"}}]}
+    )
     assert not wp._job_indicates_oidc("notdict")
 
 

@@ -11,8 +11,15 @@ from oss_policy_kit.domain.models import ControlResult, ControlStatus
 
 def _result(status: ControlStatus = ControlStatus.PASS, **over: object) -> ControlResult:
     kwargs: dict[str, object] = {
-        "control_id": "C-1", "title": "t", "category": "governance", "status": status,
-        "profile": "p", "evidence_sources": [], "confidence": "high", "reason": "r", "remediation": "fix",
+        "control_id": "C-1",
+        "title": "t",
+        "category": "governance",
+        "status": status,
+        "profile": "p",
+        "evidence_sources": [],
+        "confidence": "high",
+        "reason": "r",
+        "remediation": "fix",
     }
     kwargs.update(over)
     return ControlResult(**kwargs)  # type: ignore[arg-type]

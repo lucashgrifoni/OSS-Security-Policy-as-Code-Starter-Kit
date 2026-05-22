@@ -71,9 +71,7 @@ def test_render_drift_markdown_full() -> None:
 
 
 def test_render_drift_markdown_alias_md_and_empty() -> None:
-    empty = DriftReport(
-        before_path="b", after_path="a", before_kit_version="1", after_kit_version="1"
-    )
+    empty = DriftReport(before_path="b", after_path="a", before_kit_version="1", after_kit_version="1")
     out = render_drift_report(empty, "md")
     assert "# Drift report" in out
     assert "## New controls in after" not in out  # no optional sections
@@ -88,8 +86,6 @@ def test_render_drift_table_full_color() -> None:
 
 
 def test_render_drift_table_empty_no_color() -> None:
-    empty = DriftReport(
-        before_path="b", after_path="a", before_kit_version="1", after_kit_version="1"
-    )
+    empty = DriftReport(before_path="b", after_path="a", before_kit_version="1", after_kit_version="1")
     out = render_drift_report(empty, "table", color=False)
     assert "no status changes on shared controls" in out

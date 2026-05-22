@@ -18,7 +18,9 @@ def _call(src: str) -> ast.Call:
 
 
 def _pc(**kwargs) -> PulumiCall:
-    return PulumiCall(resource_type="aws.ec2.SecurityGroup", resource_name="sg", kwargs=kwargs, source=Path("p.py"), line=1)
+    return PulumiCall(
+        resource_type="aws.ec2.SecurityGroup", resource_name="sg", kwargs=kwargs, source=Path("p.py"), line=1
+    )
 
 
 def _br(body: str, *, type_full: str = "Microsoft.Storage/storageAccounts@2023-01-01") -> BicepResource:
@@ -129,7 +131,9 @@ def test_bicep_001_public_network_access_medium() -> None:
 
 def test_bicep_open_inbound_nsg_range_guards() -> None:
     # Wrong resource type.
-    assert bicep._open_inbound_nsg_range(_br("access: 'Allow'", type_full="Microsoft.Storage/storageAccounts@x")) is None
+    assert (
+        bicep._open_inbound_nsg_range(_br("access: 'Allow'", type_full="Microsoft.Storage/storageAccounts@x")) is None
+    )
     nsg_type = "Microsoft.Network/networkSecurityGroups/securityRules@2023-01-01"
     # Right type, but not an Allow rule.
     assert bicep._open_inbound_nsg_range(_br("access: 'Deny'", type_full=nsg_type)) is None

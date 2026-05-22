@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from oss_policy_kit.application.evaluators._shared import (
     _CODEQL_ACTION_PATTERNS,
@@ -462,7 +463,7 @@ def _scan_wfcallsha_regex(raw: str, path: Path, acc: _WfCallShaScan) -> None:
             acc.bad_evidence_sources.append(f"{path.resolve()} (regex-fallback: `{ref}`)")
 
 
-def _scan_wfcallsha_structured(doc: dict, path: Path, acc: _WfCallShaScan) -> None:
+def _scan_wfcallsha_structured(doc: dict[str, Any], path: Path, acc: _WfCallShaScan) -> None:
     """Structured pass: flag reusable-workflow ``uses:`` refs without a full SHA pin."""
 
     reusable = [

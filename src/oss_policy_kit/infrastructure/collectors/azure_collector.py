@@ -429,7 +429,7 @@ def _azure_pipelines_reachable(client: Any, meta: _AzCollectMeta, project: str) 
         logger.warning("Azure returned 422 for %s; using empty pipelines list.", pipe_url)
     elif r_pipe.status_code not in {404, 422}:
         r_pipe.raise_for_status()
-    return r_pipe.status_code
+    return int(r_pipe.status_code)
 
 
 def _fetch_azure_environments(client: Any, project: str) -> tuple[list[dict[str, Any]], int]:

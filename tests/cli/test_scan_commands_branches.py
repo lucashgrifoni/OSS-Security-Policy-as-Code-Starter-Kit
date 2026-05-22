@@ -34,7 +34,9 @@ def test_scan_cfn_human_and_bad_format(tmp_path: Path) -> None:
 
 
 def test_scan_pulumi_human(tmp_path: Path) -> None:
-    (tmp_path / "infra.py").write_text("import pulumi_aws as aws\naws.s3.Bucket('b', acl='private')\n", encoding="utf-8")
+    (tmp_path / "infra.py").write_text(
+        "import pulumi_aws as aws\naws.s3.Bucket('b', acl='private')\n", encoding="utf-8"
+    )
     res = _scan(["scan-pulumi", "--target", str(tmp_path), "--format", "human"])
     assert res.exit_code == 0, res.output
     assert "scan-pulumi:" in res.output
@@ -91,7 +93,9 @@ def test_scan_iac_json(tmp_path: Path) -> None:
 
 
 def test_scan_pulumi_json(tmp_path: Path) -> None:
-    (tmp_path / "infra.py").write_text("import pulumi_aws as aws\naws.s3.Bucket('b', acl='private')\n", encoding="utf-8")
+    (tmp_path / "infra.py").write_text(
+        "import pulumi_aws as aws\naws.s3.Bucket('b', acl='private')\n", encoding="utf-8"
+    )
     res = _scan(["scan-pulumi", "--target", str(tmp_path), "--format", "json"])
     assert res.exit_code == 0, res.output
 

@@ -8,7 +8,6 @@ import pytest
 from oss_policy_kit.infrastructure.collectors import github_collector as gc
 from oss_policy_kit.infrastructure.collectors.github_collector import GitHubEvidenceCollector
 
-
 # --------------------------------------------------------------------------- #
 # pure helpers
 # --------------------------------------------------------------------------- #

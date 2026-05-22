@@ -257,9 +257,7 @@ def test_run_semgrep_timeout_non_str_stderr(tmp_path: Path, monkeypatch: pytest.
 def test_run_semgrep_scanner_error_exit_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sa.shutil, "which", lambda _name: "/usr/bin/semgrep")
     monkeypatch.setattr(sa, "_semgrep_version", lambda: "1.0.0")
-    monkeypatch.setattr(
-        sa.subprocess, "run", lambda *a, **k: _FakeProc(stderr="bad ruleset", returncode=2)
-    )
+    monkeypatch.setattr(sa.subprocess, "run", lambda *a, **k: _FakeProc(stderr="bad ruleset", returncode=2))
     out = sa.run_semgrep(tmp_path)
     assert out.status == "error"
     assert out.raw_stderr == "bad ruleset"
@@ -268,9 +266,7 @@ def test_run_semgrep_scanner_error_exit_code(tmp_path: Path, monkeypatch: pytest
 def test_run_semgrep_unparseable_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sa.shutil, "which", lambda _name: "/usr/bin/semgrep")
     monkeypatch.setattr(sa, "_semgrep_version", lambda: "1.0.0")
-    monkeypatch.setattr(
-        sa.subprocess, "run", lambda *a, **k: _FakeProc(stdout="{not json", returncode=0)
-    )
+    monkeypatch.setattr(sa.subprocess, "run", lambda *a, **k: _FakeProc(stdout="{not json", returncode=0))
     out = sa.run_semgrep(tmp_path)
     assert out.status == "error"
     assert "could not be parsed" in out.raw_stderr

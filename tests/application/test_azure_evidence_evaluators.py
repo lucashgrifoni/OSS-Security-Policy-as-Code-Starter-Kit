@@ -133,8 +133,11 @@ def test_plat_035_api_pass(tmp_path: Path) -> None:
 
 
 def test_plat_035_api_incomplete(tmp_path: Path) -> None:
-    _ev(tmp_path, "azure-pipeline-governance.json",
-        _gov_evidence(posture=_GOV_POSTURE_ALL, api=True, support={"pipelines_api_reachable": True}))
+    _ev(
+        tmp_path,
+        "azure-pipeline-governance.json",
+        _gov_evidence(posture=_GOV_POSTURE_ALL, api=True, support={"pipelines_api_reachable": True}),
+    )
     assert az.eval_az_plat_035(_ctx(tmp_path)).status == ControlStatus.MANUAL_REVIEW_REQUIRED
 
 
@@ -161,8 +164,11 @@ def test_ident_036_self_attested_not_federated(tmp_path: Path) -> None:
 
 
 def test_ident_036_api_incomplete_support(tmp_path: Path) -> None:
-    _ev(tmp_path, "azure-pipeline-governance.json",
-        _gov_evidence(posture=_GOV_POSTURE_ALL, api=True, support={"pipelines_api_reachable": True}))
+    _ev(
+        tmp_path,
+        "azure-pipeline-governance.json",
+        _gov_evidence(posture=_GOV_POSTURE_ALL, api=True, support={"pipelines_api_reachable": True}),
+    )
     assert az.eval_az_ident_036(_ctx(tmp_path)).status in {
         ControlStatus.MANUAL_REVIEW_REQUIRED,
         ControlStatus.NOT_APPLICABLE,
@@ -194,26 +200,38 @@ def test_sconn_056_no_inventory(tmp_path: Path) -> None:
 
 
 def test_sconn_056_unknown_auth_not_evaluated(tmp_path: Path) -> None:
-    _ev(tmp_path, "azure-pipeline-governance.json",
-        _gov_with_conns([{"name": "c", "authentication": "unknown"}], api=True))
+    _ev(
+        tmp_path,
+        "azure-pipeline-governance.json",
+        _gov_with_conns([{"name": "c", "authentication": "unknown"}], api=True),
+    )
     assert az.eval_az_sconn_056(_ctx(tmp_path)).status == ControlStatus.NOT_EVALUATED
 
 
 def test_sconn_056_secret_self_attested(tmp_path: Path) -> None:
-    _ev(tmp_path, "azure-pipeline-governance.json",
-        _gov_with_conns([{"name": "c", "authentication": "secret"}], api=False))
+    _ev(
+        tmp_path,
+        "azure-pipeline-governance.json",
+        _gov_with_conns([{"name": "c", "authentication": "secret"}], api=False),
+    )
     assert az.eval_az_sconn_056(_ctx(tmp_path)).status == ControlStatus.SELF_ATTESTED
 
 
 def test_sconn_056_api_pass(tmp_path: Path) -> None:
-    _ev(tmp_path, "azure-pipeline-governance.json",
-        _gov_with_conns([{"name": "c", "authentication": "managed_identity"}], api=True))
+    _ev(
+        tmp_path,
+        "azure-pipeline-governance.json",
+        _gov_with_conns([{"name": "c", "authentication": "managed_identity"}], api=True),
+    )
     assert az.eval_az_sconn_056(_ctx(tmp_path)).status == ControlStatus.PASS
 
 
 def test_sconn_056_manual_self_attested(tmp_path: Path) -> None:
-    _ev(tmp_path, "azure-pipeline-governance.json",
-        _gov_with_conns([{"name": "c", "authentication": "managed_identity"}], api=False))
+    _ev(
+        tmp_path,
+        "azure-pipeline-governance.json",
+        _gov_with_conns([{"name": "c", "authentication": "managed_identity"}], api=False),
+    )
     assert az.eval_az_sconn_056(_ctx(tmp_path)).status == ControlStatus.SELF_ATTESTED
 
 
@@ -254,8 +272,11 @@ def test_wifev_057_pass_complete(tmp_path: Path) -> None:
 
 def test_wifev_057_pass_no_wif_conn_warns(tmp_path: Path) -> None:
     # federated preferred true but no WIF connection entry -> PASS with operational warning.
-    _ev(tmp_path, "azure-pipeline-governance.json",
-        _gov_with_conns([{"name": "c", "authentication": "managed_identity"}], api=False))
+    _ev(
+        tmp_path,
+        "azure-pipeline-governance.json",
+        _gov_with_conns([{"name": "c", "authentication": "managed_identity"}], api=False),
+    )
     out = az.eval_az_wifev_057(_ctx(tmp_path))
     assert out.status == ControlStatus.PASS
     assert out.operational_warnings

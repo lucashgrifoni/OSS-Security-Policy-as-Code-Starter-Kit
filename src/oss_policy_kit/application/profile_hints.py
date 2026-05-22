@@ -407,9 +407,7 @@ def _suggestions_github(
                 ["github_actions_workflows"],
             )
         )
-    _append_gh_release_hardening(
-        out, can_rh2=can_rh2, can_rh1=can_rh1, wf_paths=wf_paths, github_ev=github_ev
-    )
+    _append_gh_release_hardening(out, can_rh2=can_rh2, can_rh1=can_rh1, wf_paths=wf_paths, github_ev=github_ev)
     if wf_paths and github_ev:
         tier = "github-level-2" if len(wf_paths) >= 2 else "github-level-1"
         out.append(
@@ -637,6 +635,7 @@ def _suggestions_for_platform(
         empty_evidence_dir=empty_evidence_dir,
     )
 
+
 def _bo_hit(name: str, wf_paths: list[Path], github_ev: list[Path]) -> bool:
     if name == "github_actions_workflows":
         return bool(wf_paths)
@@ -806,9 +805,7 @@ def _no_platform_fallback(
             }
         )
     else:
-        notes.append(
-            "Few strong platform signals were detected; defaulting to a conservative GitHub baseline profile."
-        )
+        notes.append("Few strong platform signals were detected; defaulting to a conservative GitHub baseline profile.")
         suggestions.append(
             {
                 "profile_id": "github-level-1",

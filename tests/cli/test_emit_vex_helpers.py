@@ -56,9 +56,10 @@ def test_parse_vuln_waiver_entry() -> None:
     assert ev._parse_vuln_waiver_entry(1, "notdict", _TODAY, w) is None
     assert ev._parse_vuln_waiver_entry(2, {"vulnerability_ids": []}, _TODAY, w) is None
     assert ev._parse_vuln_waiver_entry(3, {"vulnerability_ids": ["X"], "justification": ""}, _TODAY, w) is None
-    assert ev._parse_vuln_waiver_entry(
-        4, {"vulnerability_ids": ["X"], "justification": "j", "owner": ""}, _TODAY, w
-    ) is None
+    assert (
+        ev._parse_vuln_waiver_entry(4, {"vulnerability_ids": ["X"], "justification": "j", "owner": ""}, _TODAY, w)
+        is None
+    )
 
 
 def test_load_vuln_waivers(tmp_path: Path) -> None:
@@ -71,10 +72,7 @@ def test_load_vuln_waivers(tmp_path: Path) -> None:
     assert out == {} and any("not a YAML mapping" in m for m in warns)
     # valid entries
     p.write_text(
-        "waivers:\n"
-        "  - vulnerability_ids: [CVE-9]\n"
-        "    justification: reviewed, not exploitable\n"
-        "    owner: appsec\n",
+        "waivers:\n  - vulnerability_ids: [CVE-9]\n    justification: reviewed, not exploitable\n    owner: appsec\n",
         encoding="utf-8",
     )
     out, warns = ev._load_vuln_waivers(p)
@@ -88,12 +86,17 @@ def test_load_vuln_waivers(tmp_path: Path) -> None:
 
 def test_build_vex_document_waived_and_unwaived() -> None:
     waiver = ev._VulnWaiver(
-        justification_text="not reachable", owner="o", status="approved",
-        expires_at=None, cdx_justification="code_not_reachable",
+        justification_text="not reachable",
+        owner="o",
+        status="approved",
+        expires_at=None,
+        cdx_justification="code_not_reachable",
     )
     doc = ev._build_vex_document(
-        ["CVE-A", "CVE-B"], Path("osv.sarif.json"),
-        waivers={"CVE-A": waiver}, references={"CVE-B": ["https://osv.dev/CVE-B"]},
+        ["CVE-A", "CVE-B"],
+        Path("osv.sarif.json"),
+        waivers={"CVE-A": waiver},
+        references={"CVE-B": ["https://osv.dev/CVE-B"]},
     )
     assert doc["bomFormat"] == "CycloneDX" and doc["specVersion"] == "1.6"
     by_id = {v["id"]: v for v in doc["vulnerabilities"]}

@@ -26,8 +26,14 @@ def test_init_json(tmp_path: Path) -> None:
 
 def test_init_with_all_extras_and_force(tmp_path: Path) -> None:
     args = [
-        "init", "--target", str(tmp_path), "--profile", "github-level-1",
-        "--with-waivers", "--with-evidence", "--with-workflow",
+        "init",
+        "--target",
+        str(tmp_path),
+        "--profile",
+        "github-level-1",
+        "--with-waivers",
+        "--with-evidence",
+        "--with-workflow",
     ]
     first = runner.invoke(app, args)
     assert first.exit_code == 0, first.output

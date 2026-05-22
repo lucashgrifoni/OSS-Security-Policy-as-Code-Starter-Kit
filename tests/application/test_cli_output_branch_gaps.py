@@ -8,12 +8,21 @@ from oss_policy_kit.domain.models import ControlResult, ControlStatus, Execution
 
 def _cr(cid: str, status: ControlStatus, *, reason: str = "needs work", category: str = "governance") -> ControlResult:
     return ControlResult(
-        control_id=cid, title="t", category=category, status=status, profile="github-level-3",
-        evidence_sources=[], confidence="medium", reason=reason, remediation="fix it",
+        control_id=cid,
+        title="t",
+        category=category,
+        status=status,
+        profile="github-level-3",
+        evidence_sources=[],
+        confidence="medium",
+        reason=reason,
+        remediation="fix it",
     )
 
 
-def _report(results: list[ControlResult], *, summary: dict[str, int], external_waiver: str | None = None) -> ExecutionReport:
+def _report(
+    results: list[ControlResult], *, summary: dict[str, int], external_waiver: str | None = None
+) -> ExecutionReport:
     return ExecutionReport(
         schema_version="https://x/reports/0.3",
         generated_at="2026-05-22T00:00:00Z",

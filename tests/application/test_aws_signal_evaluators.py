@@ -46,9 +46,10 @@ def test_aws_secret_038_branches(tmp_path: Path) -> None:
     a = AwsCiAnalysis(buildspec_paths=[bs])
     assert awsev.eval_aws_secret_038(_ctx(tmp_path, a)).status == ControlStatus.MANUAL_REVIEW_REQUIRED
     # no managed, strict profile -> FAIL
-    assert awsev.eval_aws_secret_038(
-        _ctx(tmp_path, AwsCiAnalysis(buildspec_paths=[bs]), profile_id="aws-level-2")
-    ).status == ControlStatus.FAIL
+    assert (
+        awsev.eval_aws_secret_038(_ctx(tmp_path, AwsCiAnalysis(buildspec_paths=[bs]), profile_id="aws-level-2")).status
+        == ControlStatus.FAIL
+    )
     # no buildspec -> NA
     assert awsev.eval_aws_secret_038(_ctx(tmp_path, AwsCiAnalysis())).status == ControlStatus.NOT_APPLICABLE
 

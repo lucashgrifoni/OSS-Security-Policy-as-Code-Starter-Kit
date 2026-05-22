@@ -49,8 +49,15 @@ def _rich_report(schema: str = "https://x/reports/0.3") -> ExecutionReport:
         summary_by_status={"pass": 1, "waived": 1},
         results=[
             ControlResult(
-                control_id="GOV-SEC-001", title="t", category="governance", status=ControlStatus.PASS,
-                profile="github-level-3", evidence_sources=[], confidence="high", reason="ok", remediation="keep",
+                control_id="GOV-SEC-001",
+                title="t",
+                category="governance",
+                status=ControlStatus.PASS,
+                profile="github-level-3",
+                evidence_sources=[],
+                confidence="high",
+                reason="ok",
+                remediation="keep",
             ),
             _waived_result(),
         ],

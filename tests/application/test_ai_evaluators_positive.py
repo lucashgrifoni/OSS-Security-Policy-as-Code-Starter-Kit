@@ -11,8 +11,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from oss_policy_kit.application.evaluators import _shared as s
 from oss_policy_kit.application.evaluators import ai
 from oss_policy_kit.domain.models import ControlStatus
@@ -69,8 +67,11 @@ def test_po_002_pass(tmp_path: Path) -> None:
 
 
 def test_ps_001_pass_and_incomplete(tmp_path: Path) -> None:
-    _write(tmp_path, ".oss-policy-kit/evidence/llm-release-integrity.json",
-           json.dumps({"model_sha": "abc", "model_version": "1.2.3"}))
+    _write(
+        tmp_path,
+        ".oss-policy-kit/evidence/llm-release-integrity.json",
+        json.dumps({"model_sha": "abc", "model_version": "1.2.3"}),
+    )
     assert ai.eval_llm_218a_ps_001(_ctx(tmp_path)).status == ControlStatus.PASS
     _write(tmp_path, ".oss-policy-kit/evidence/llm-release-integrity.json", json.dumps({"model_sha": "abc"}))
     assert ai.eval_llm_218a_ps_001(_ctx(tmp_path)).status == ControlStatus.MANUAL_REVIEW_REQUIRED
@@ -182,20 +183,34 @@ def test_agent_004_security_dir(tmp_path: Path) -> None:
 
 
 def test_agent_005_pass(tmp_path: Path) -> None:
-    _agent_evidence(tmp_path, "output-sanitization.json", {
-        "schema_version": "ai-agent-baseline/v1", "control_id": "AI-AGENT-005",
-        "attested_at": "2026-05-01", "attested_by": "platform team",
-        "method": "regex+classifier", "applied_to": ["chat", "tool_output"],
-        "bypass_review_process": "Two-maintainer approval required.",
-    })
+    _agent_evidence(
+        tmp_path,
+        "output-sanitization.json",
+        {
+            "schema_version": "ai-agent-baseline/v1",
+            "control_id": "AI-AGENT-005",
+            "attested_at": "2026-05-01",
+            "attested_by": "platform team",
+            "method": "regex+classifier",
+            "applied_to": ["chat", "tool_output"],
+            "bypass_review_process": "Two-maintainer approval required.",
+        },
+    )
     assert ai.eval_ai_agent_005(_ctx(tmp_path)).status == ControlStatus.PASS
 
 
 def test_agent_005_incomplete(tmp_path: Path) -> None:
-    _agent_evidence(tmp_path, "output-sanitization.json", {
-        "schema_version": "ai-agent-baseline/v1", "control_id": "AI-AGENT-005",
-        "attested_at": "2026-05-01", "attested_by": "team", "method": "x",
-    })
+    _agent_evidence(
+        tmp_path,
+        "output-sanitization.json",
+        {
+            "schema_version": "ai-agent-baseline/v1",
+            "control_id": "AI-AGENT-005",
+            "attested_at": "2026-05-01",
+            "attested_by": "team",
+            "method": "x",
+        },
+    )
     assert ai.eval_ai_agent_005(_ctx(tmp_path)).status == ControlStatus.MANUAL_REVIEW_REQUIRED
 
 
@@ -205,19 +220,34 @@ def test_agent_006_pass(tmp_path: Path) -> None:
 
 
 def test_agent_007_pass(tmp_path: Path) -> None:
-    _agent_evidence(tmp_path, "audit-log-config.json", {
-        "schema_version": "ai-agent-baseline/v1", "control_id": "AI-AGENT-007",
-        "attested_at": "2026-05-01", "attested_by": "team",
-        "destination": "splunk", "retention_days": 365, "pii_redaction": True,
-    })
+    _agent_evidence(
+        tmp_path,
+        "audit-log-config.json",
+        {
+            "schema_version": "ai-agent-baseline/v1",
+            "control_id": "AI-AGENT-007",
+            "attested_at": "2026-05-01",
+            "attested_by": "team",
+            "destination": "splunk",
+            "retention_days": 365,
+            "pii_redaction": True,
+        },
+    )
     assert ai.eval_ai_agent_007(_ctx(tmp_path)).status == ControlStatus.PASS
 
 
 def test_agent_007_incomplete(tmp_path: Path) -> None:
-    _agent_evidence(tmp_path, "audit-log-config.json", {
-        "schema_version": "ai-agent-baseline/v1", "control_id": "AI-AGENT-007",
-        "attested_at": "2026-05-01", "attested_by": "team", "destination": "splunk",
-    })
+    _agent_evidence(
+        tmp_path,
+        "audit-log-config.json",
+        {
+            "schema_version": "ai-agent-baseline/v1",
+            "control_id": "AI-AGENT-007",
+            "attested_at": "2026-05-01",
+            "attested_by": "team",
+            "destination": "splunk",
+        },
+    )
     assert ai.eval_ai_agent_007(_ctx(tmp_path)).status == ControlStatus.MANUAL_REVIEW_REQUIRED
 
 
@@ -231,19 +261,32 @@ def test_agent_008_pass_and_antipattern(tmp_path: Path) -> None:
 
 
 def test_agent_009_pass(tmp_path: Path) -> None:
-    _agent_evidence(tmp_path, "memory-policy.json", {
-        "schema_version": "ai-agent-baseline/v1", "control_id": "AI-AGENT-009",
-        "attested_at": "2026-05-01", "attested_by": "team",
-        "excluded_context_types": ["secrets", "pii"], "retention_policy": "30d rolling purge",
-    })
+    _agent_evidence(
+        tmp_path,
+        "memory-policy.json",
+        {
+            "schema_version": "ai-agent-baseline/v1",
+            "control_id": "AI-AGENT-009",
+            "attested_at": "2026-05-01",
+            "attested_by": "team",
+            "excluded_context_types": ["secrets", "pii"],
+            "retention_policy": "30d rolling purge",
+        },
+    )
     assert ai.eval_ai_agent_009(_ctx(tmp_path)).status == ControlStatus.PASS
 
 
 def test_agent_009_incomplete(tmp_path: Path) -> None:
-    _agent_evidence(tmp_path, "memory-policy.json", {
-        "schema_version": "ai-agent-baseline/v1", "control_id": "AI-AGENT-009",
-        "attested_at": "2026-05-01", "attested_by": "team",
-    })
+    _agent_evidence(
+        tmp_path,
+        "memory-policy.json",
+        {
+            "schema_version": "ai-agent-baseline/v1",
+            "control_id": "AI-AGENT-009",
+            "attested_at": "2026-05-01",
+            "attested_by": "team",
+        },
+    )
     assert ai.eval_ai_agent_009(_ctx(tmp_path)).status == ControlStatus.MANUAL_REVIEW_REQUIRED
 
 
@@ -263,14 +306,20 @@ def test_agent_010_unpinned_fail(tmp_path: Path) -> None:
 
 
 def test_annex_iv_evaluators_pass(tmp_path: Path) -> None:
-    _write(tmp_path, ".oss-policy-kit/evidence/ai-system-technical-doc.json", json.dumps({
-        "development_design": "Trained on X.",
-        "performance_metrics": "F1=0.9",
-        "cybersecurity_measures": "Threat model + pentest.",
-        "lifecycle_changes": "v1 -> v2 migration.",
-        "applied_standards": ["prEN 18286"],
-        "post_market_monitoring_plan": "Quarterly drift review.",
-    }))
+    _write(
+        tmp_path,
+        ".oss-policy-kit/evidence/ai-system-technical-doc.json",
+        json.dumps(
+            {
+                "development_design": "Trained on X.",
+                "performance_metrics": "F1=0.9",
+                "cybersecurity_measures": "Threat model + pentest.",
+                "lifecycle_changes": "v1 -> v2 migration.",
+                "applied_standards": ["prEN 18286"],
+                "post_market_monitoring_plan": "Quarterly drift review.",
+            }
+        ),
+    )
     ctx = _ctx(tmp_path)
     assert ai.eval_llm_ai_act_dev_002(ctx).status == ControlStatus.PASS
     assert ai.eval_llm_ai_act_perf_004(ctx).status == ControlStatus.PASS
@@ -287,8 +336,11 @@ def test_annex_iv_evaluators_pass(tmp_path: Path) -> None:
 
 def test_mcp_tool_hash_001_pass(tmp_path: Path) -> None:
     _make_mcp(tmp_path)
-    _write(tmp_path, ".oss-policy-kit/evidence/mcp-tool-descriptions.json",
-           json.dumps({"tools": [{"name": "t", "sha256": "deadbeef"}]}))
+    _write(
+        tmp_path,
+        ".oss-policy-kit/evidence/mcp-tool-descriptions.json",
+        json.dumps({"tools": [{"name": "t", "sha256": "deadbeef"}]}),
+    )
     assert ai.eval_mcp_tool_hash_001(_ctx(tmp_path)).status == ControlStatus.PASS
 
 

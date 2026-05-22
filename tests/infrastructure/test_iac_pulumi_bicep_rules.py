@@ -11,7 +11,7 @@ from pathlib import Path
 from oss_policy_kit.infrastructure.iac.bicep import scanner as bicep
 from oss_policy_kit.infrastructure.iac.pulumi import scanner as pulumi
 
-_PULUMI_SRC = '''\
+_PULUMI_SRC = """\
 import pulumi_aws as aws
 
 bucket = aws.s3.Bucket("b", acl="public-read")
@@ -23,7 +23,7 @@ pol = aws.iam.Policy("p", policy='{"Action": "*", "Resource": "*"}')
 db = aws.rds.Instance("db", storage_encrypted=False)
 vpc = aws.ec2.DefaultVpc("d")
 subnet = aws.ec2.Subnet("sub", map_public_ip_on_launch=True)
-'''
+"""
 
 _BICEP_SRC = """\
 resource sa 'Microsoft.Storage/storageAccounts@2023-01-01' = {
@@ -199,7 +199,9 @@ def test_bicep_sql_and_disk_encryption(tmp_path: Path) -> None:
 
 
 def test_bicep_helpers() -> None:
-    r = bicep.BicepResource(symbolic="x", type_full="Microsoft.Storage/storageAccounts@2023-01-01", body="", source=Path("x"))
+    r = bicep.BicepResource(
+        symbolic="x", type_full="Microsoft.Storage/storageAccounts@2023-01-01", body="", source=Path("x")
+    )
     assert bicep._type_root(r) == "Microsoft.Storage/storageAccounts"
     r2 = bicep.BicepResource(symbolic="x", type_full="T@1", body="access: 'Allow'\nport: 22", source=Path("x"))
     assert bicep._body_has(r2, "access", "Allow")

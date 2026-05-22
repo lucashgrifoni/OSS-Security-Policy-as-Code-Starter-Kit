@@ -40,7 +40,10 @@ def test_egress_hrn_001(tmp_path: Path) -> None:
 def test_egress_native_001(tmp_path: Path) -> None:
     assert gh.eval_gh_egress_native_001(_ctx(tmp_path)).status == ControlStatus.NOT_APPLICABLE
     none = _wf(tmp_path, "ci.yml", "on: push\n")
-    assert gh.eval_gh_egress_native_001(_ctx(tmp_path, workflow_paths=[none])).status == ControlStatus.MANUAL_REVIEW_REQUIRED
+    assert (
+        gh.eval_gh_egress_native_001(_ctx(tmp_path, workflow_paths=[none])).status
+        == ControlStatus.MANUAL_REVIEW_REQUIRED
+    )
     fw = _wf(tmp_path, "fw.yml", "firewall:\n  egress-policy: block\n")
     assert gh.eval_gh_egress_native_001(_ctx(tmp_path, workflow_paths=[fw])).status == ControlStatus.PASS
 

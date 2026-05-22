@@ -14,10 +14,10 @@ from typer.testing import CliRunner
 
 from oss_policy_kit.cli import scan_bicep, scan_cfn, scan_iac, scan_pulumi
 from oss_policy_kit.cli.main import app
+from oss_policy_kit.infrastructure.iac import scanner as tf_scanner
 from oss_policy_kit.infrastructure.iac.bicep import scanner as bicep_scanner
 from oss_policy_kit.infrastructure.iac.cfn import scanner as cfn_scanner
 from oss_policy_kit.infrastructure.iac.pulumi import scanner as pulumi_scanner
-from oss_policy_kit.infrastructure.iac import scanner as tf_scanner
 
 runner = CliRunner()
 

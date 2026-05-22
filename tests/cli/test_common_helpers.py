@@ -11,7 +11,6 @@ import pytest
 from oss_policy_kit.cli import common
 from oss_policy_kit.domain.errors import InvalidInputError
 
-
 # --------------------------------------------------------------------------- #
 # format normalization
 # --------------------------------------------------------------------------- #

@@ -6,7 +6,6 @@ from pathlib import Path
 
 from oss_policy_kit.application import profile_hints as ph
 
-
 # --------------------------------------------------------------------------- #
 # _detect_python_stack notes (lines 195, 197) + setup.py/cfg (203-204)
 # --------------------------------------------------------------------------- #

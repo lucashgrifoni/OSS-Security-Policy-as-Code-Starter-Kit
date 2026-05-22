@@ -34,7 +34,9 @@ def _report_at(target: Path, *, report: dict | None = None) -> None:
 def test_export_chainloop(tmp_path: Path) -> None:
     _report_at(tmp_path)
     out = tmp_path / "evidence.json"
-    res = runner.invoke(app, ["export-evidence", "--target", str(tmp_path), "--format", "chainloop", "--output", str(out)])
+    res = runner.invoke(
+        app, ["export-evidence", "--target", str(tmp_path), "--format", "chainloop", "--output", str(out)]
+    )
     assert res.exit_code == 0, res.output
     doc = json.loads(out.read_text(encoding="utf-8"))
     assert doc["attestation_type"].startswith("https://chainloop.dev/")
@@ -74,7 +76,8 @@ def test_export_with_explicit_report(tmp_path: Path) -> None:
     rep.write_text(json.dumps(_REPORT), encoding="utf-8")
     out = tmp_path / "ev.json"
     res = runner.invoke(
-        app, ["export-evidence", "--target", str(tmp_path), "--format", "sarif", "--report", str(rep), "--output", str(out)]
+        app,
+        ["export-evidence", "--target", str(tmp_path), "--format", "sarif", "--report", str(rep), "--output", str(out)],
     )
     assert res.exit_code == 0, res.output
 
@@ -94,9 +97,7 @@ def test_export_bad_target(tmp_path: Path) -> None:
 def test_export_unparseable_report(tmp_path: Path) -> None:
     rep = tmp_path / "broken.json"
     rep.write_text("{not json", encoding="utf-8")
-    res = runner.invoke(
-        app, ["export-evidence", "--target", str(tmp_path), "--format", "sarif", "--report", str(rep)]
-    )
+    res = runner.invoke(app, ["export-evidence", "--target", str(tmp_path), "--format", "sarif", "--report", str(rep)])
     assert res.exit_code != 0
 
 

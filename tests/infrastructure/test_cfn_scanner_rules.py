@@ -37,18 +37,14 @@ _BAD_TEMPLATE = {
                 "Policies": [
                     {
                         "PolicyName": "wild",
-                        "PolicyDocument": {
-                            "Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*"}]
-                        },
+                        "PolicyDocument": {"Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*"}]},
                     }
                 ],
             },
         },
         "WildManagedPolicy": {
             "Type": "AWS::IAM::ManagedPolicy",
-            "Properties": {
-                "PolicyDocument": {"Statement": {"Effect": "Allow", "Action": ["*"], "Resource": ["*"]}}
-            },
+            "Properties": {"PolicyDocument": {"Statement": {"Effect": "Allow", "Action": ["*"], "Resource": ["*"]}}},
         },
         "UnencryptedDb": {
             "Type": "AWS::RDS::DBInstance",

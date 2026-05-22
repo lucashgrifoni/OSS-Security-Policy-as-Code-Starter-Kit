@@ -62,13 +62,16 @@ def test_gh_rel_021(tmp_path: Path) -> None:
     p1 = _wf(tmp_path, "release.yml")
     p2 = _wf(tmp_path, "deploy.yml")
     # No release workflows -> NA
-    assert gh.eval_gh_rel_021(_ctx(tmp_path, WorkflowAnalysis(workflow_paths=[p1]))).status == ControlStatus.NOT_APPLICABLE
+    assert (
+        gh.eval_gh_rel_021(_ctx(tmp_path, WorkflowAnalysis(workflow_paths=[p1]))).status == ControlStatus.NOT_APPLICABLE
+    )
     # Single missing-concurrency -> FAIL (singular phrasing)
     wf = WorkflowAnalysis(workflow_paths=[p1], release_workflow_paths=[p1], release_workflows_missing_concurrency=[p1])
     assert gh.eval_gh_rel_021(_ctx(tmp_path, wf)).status == ControlStatus.FAIL
     # Multiple missing-concurrency -> FAIL (plural phrasing, line 181-182)
     wf2 = WorkflowAnalysis(
-        workflow_paths=[p1, p2], release_workflow_paths=[p1, p2],
+        workflow_paths=[p1, p2],
+        release_workflow_paths=[p1, p2],
         release_workflows_missing_concurrency=[p1, p2],
     )
     assert gh.eval_gh_rel_021(_ctx(tmp_path, wf2)).status == ControlStatus.FAIL

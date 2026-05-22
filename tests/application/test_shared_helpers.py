@@ -432,9 +432,7 @@ def test_load_sarif_runs_runs_not_array(tmp_path: Path) -> None:
 
 
 def test_sarif_rule_levels() -> None:
-    run = {
-        "tool": {"driver": {"rules": [{"id": "R1", "defaultConfiguration": {"level": "error"}}, {"no": "id"}, "x"]}}
-    }
+    run = {"tool": {"driver": {"rules": [{"id": "R1", "defaultConfiguration": {"level": "error"}}, {"no": "id"}, "x"]}}}
     assert s._sarif_rule_levels(run) == {"R1": "error"}
     assert s._sarif_rule_levels({"tool": {"driver": {"rules": "x"}}}) == {}
 
@@ -517,9 +515,7 @@ def test_classify_epss_kev_result() -> None:
     )
     assert kev == "CVE-1" and high == "CVE-1"
     # kev as string + low epss
-    kev2, high2 = s._classify_epss_kev_result(
-        {"properties": {"kev": "yes", "cve": "CVE-2", "epss": 0.1}}, 0.5, 7.0
-    )
+    kev2, high2 = s._classify_epss_kev_result({"properties": {"kev": "yes", "cve": "CVE-2", "epss": 0.1}}, 0.5, 7.0)
     assert kev2 == "CVE-2" and high2 is None
     # non-dict / no props
     assert s._classify_epss_kev_result("x", 0.5, 7.0) == (None, None)

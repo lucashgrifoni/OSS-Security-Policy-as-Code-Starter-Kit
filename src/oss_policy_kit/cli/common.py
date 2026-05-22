@@ -398,8 +398,8 @@ def _render_eval_table(report, out: Path) -> None:  # type: ignore[no-untyped-de
     write_stdout_text(cap.get())
 
 
-def _render_eval_report(
-    report,  # type: ignore[no-untyped-def]
+def _render_eval_report(  # type: ignore[no-untyped-def]
+    report,
     req: EvaluateRequest,
     fmt: str,
     out: Path,

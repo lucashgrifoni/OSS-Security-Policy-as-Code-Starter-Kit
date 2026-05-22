@@ -70,7 +70,8 @@ def test_pinlock_052_not_applicable(tmp_path: Path) -> None:
 def test_wfcallsha_055_structured_pass(tmp_path: Path) -> None:
     sha = "a" * 40
     wf = _write(
-        tmp_path, ".github/workflows/ci.yml",
+        tmp_path,
+        ".github/workflows/ci.yml",
         f"on: push\njobs:\n  call:\n    uses: org/repo/.github/workflows/reusable.yml@{sha}\n",
     )
     assert cicd.eval_ci_wfcallsha_055(_ctx(tmp_path, workflow_paths=[wf])).status == ControlStatus.PASS
@@ -78,7 +79,8 @@ def test_wfcallsha_055_structured_pass(tmp_path: Path) -> None:
 
 def test_wfcallsha_055_structured_fail(tmp_path: Path) -> None:
     wf = _write(
-        tmp_path, ".github/workflows/ci.yml",
+        tmp_path,
+        ".github/workflows/ci.yml",
         "on: push\njobs:\n  call:\n    uses: org/repo/.github/workflows/reusable.yml@v1\n",
     )
     assert cicd.eval_ci_wfcallsha_055(_ctx(tmp_path, workflow_paths=[wf])).status == ControlStatus.FAIL
@@ -87,7 +89,8 @@ def test_wfcallsha_055_structured_fail(tmp_path: Path) -> None:
 def test_wfcallsha_055_regex_fallback_on_bad_yaml(tmp_path: Path) -> None:
     # Invalid YAML forces the regex fallback path; ref is an unpinned reusable workflow.
     wf = _write(
-        tmp_path, ".github/workflows/ci.yml",
+        tmp_path,
+        ".github/workflows/ci.yml",
         "uses: org/repo/.github/workflows/reusable.yml@main\n: : : not valid yaml : [\n",
     )
     out = cicd.eval_ci_wfcallsha_055(_ctx(tmp_path, workflow_paths=[wf]))
@@ -95,7 +98,9 @@ def test_wfcallsha_055_regex_fallback_on_bad_yaml(tmp_path: Path) -> None:
 
 
 def test_wfcallsha_055_no_reusable_calls(tmp_path: Path) -> None:
-    wf = _write(tmp_path, ".github/workflows/ci.yml", "on: push\njobs:\n  b:\n    steps:\n      - uses: actions/checkout@v4\n")
+    wf = _write(
+        tmp_path, ".github/workflows/ci.yml", "on: push\njobs:\n  b:\n    steps:\n      - uses: actions/checkout@v4\n"
+    )
     assert cicd.eval_ci_wfcallsha_055(_ctx(tmp_path, workflow_paths=[wf])).status == ControlStatus.NOT_APPLICABLE
 
 
@@ -109,8 +114,12 @@ def test_wfcallsha_055_no_workflows(tmp_path: Path) -> None:
 
 
 def _base(**over: object) -> dict:
-    d = {"schema_version": f"{_SAST_SEMGREP_SCHEMA_PREFIX}v1", "status": "ok",
-         "findings_total": 0, "findings_by_severity": {}}
+    d = {
+        "schema_version": f"{_SAST_SEMGREP_SCHEMA_PREFIX}v1",
+        "status": "ok",
+        "findings_total": 0,
+        "findings_by_severity": {},
+    }
     d.update(over)
     return d
 

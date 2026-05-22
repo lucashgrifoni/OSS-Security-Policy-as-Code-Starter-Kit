@@ -34,20 +34,37 @@ def _report(profile_id: str = "github-level-1", *, with_score: bool = True) -> E
         summary_by_status={"pass": 2, "fail": 1, "manual-review-required": 1},
         results=[
             ControlResult(
-                control_id="GOV-SEC-001", title="SECURITY.md present", category="governance",
-                status=ControlStatus.PASS, profile=profile_id, evidence_sources=[],
-                confidence="high", reason="Found.", remediation="Keep.",
+                control_id="GOV-SEC-001",
+                title="SECURITY.md present",
+                category="governance",
+                status=ControlStatus.PASS,
+                profile=profile_id,
+                evidence_sources=[],
+                confidence="high",
+                reason="Found.",
+                remediation="Keep.",
             ),
             ControlResult(
-                control_id="CI-PIN-008", title="Pin actions", category="supply_chain",
-                status=ControlStatus.FAIL, profile=profile_id, evidence_sources=[],
+                control_id="CI-PIN-008",
+                title="Pin actions",
+                category="supply_chain",
+                status=ControlStatus.FAIL,
+                profile=profile_id,
+                evidence_sources=[],
                 confidence="medium",
-                reason="A very long reason " * 10, remediation="Pin SHAs.",
+                reason="A very long reason " * 10,
+                remediation="Pin SHAs.",
             ),
             ControlResult(
-                control_id="GOV-MR-002", title="Manual thing", category="governance",
-                status=ControlStatus.MANUAL_REVIEW_REQUIRED, profile=profile_id,
-                evidence_sources=[], confidence="low", reason="Check it.", remediation="Do.",
+                control_id="GOV-MR-002",
+                title="Manual thing",
+                category="governance",
+                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                profile=profile_id,
+                evidence_sources=[],
+                confidence="low",
+                reason="Check it.",
+                remediation="Do.",
             ),
         ],
         operational_warnings=[],
@@ -148,9 +165,15 @@ def test_interactive_summary_full() -> None:
 
 def test_interactive_summary_advisory_and_no_triage() -> None:
     clean = ExecutionReport(
-        schema_version="x", generated_at="t", kit_version="6.1.0", target_path="C:/r",
-        profile_id="iac-cfn-baseline-1", profile_title="T",
-        summary_by_status={"pass": 1}, results=[], operational_warnings=[],
+        schema_version="x",
+        generated_at="t",
+        kit_version="6.1.0",
+        target_path="C:/r",
+        profile_id="iac-cfn-baseline-1",
+        profile_title="T",
+        summary_by_status={"pass": 1},
+        results=[],
+        operational_warnings=[],
     )
     c, buf = _console(100)
     tui.print_interactive_stdout_summary(clean, gap_lines=[], next_step="", console=c)
@@ -199,8 +222,9 @@ def test_recommend_profile_rich_full(tmp_path: Path) -> None:
 
 def test_recommend_profile_rich_no_suggestions(tmp_path: Path) -> None:
     c, buf = _console(100)
-    tui.print_recommend_profile_human_rich(_rec(suggestions=[], signals_detected=[], notes=[]),
-                                           repo_root=tmp_path, console=c)
+    tui.print_recommend_profile_human_rich(
+        _rec(suggestions=[], signals_detected=[], notes=[]), repo_root=tmp_path, console=c
+    )
     assert "Decision" in buf.getvalue()
 
 

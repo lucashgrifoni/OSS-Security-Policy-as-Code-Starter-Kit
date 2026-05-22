@@ -12,9 +12,15 @@ from oss_policy_kit.domain.models import ControlResult, ControlStatus, Execution
 
 def _result(cid: str, status: ControlStatus, reason: str = "") -> ControlResult:
     return ControlResult(
-        control_id=cid, title=f"{cid} title", category="governance", status=status,
-        profile="github-level-1", evidence_sources=[], confidence="high",
-        reason=reason, remediation="do it",
+        control_id=cid,
+        title=f"{cid} title",
+        category="governance",
+        status=status,
+        profile="github-level-1",
+        evidence_sources=[],
+        confidence="high",
+        reason=reason,
+        remediation="do it",
     )
 
 

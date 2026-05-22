@@ -64,7 +64,10 @@ def test_policy_applies_to_repository() -> None:
 def test_infer_branch_posture_all_types() -> None:
     rid = "repo1"
     configs = [
-        {"type": {"id": ac._POLICY_MINIMUM_REVIEWERS}, "settings": {"scope": [{"repositoryId": rid}], "minimumApproverCount": 2}},
+        {
+            "type": {"id": ac._POLICY_MINIMUM_REVIEWERS},
+            "settings": {"scope": [{"repositoryId": rid}], "minimumApproverCount": 2},
+        },
         {"type": {"id": ac._POLICY_BUILD}, "settings": {"scope": [{"repositoryId": rid}]}},
         {"type": {"id": ac._POLICY_COMMENT_REQUIREMENTS}, "settings": {"scope": [{"repositoryId": rid}]}},
         {"type": {"id": ac._POLICY_RESET_REVIEWER_VOTES}, "settings": {"scope": [{"repositoryId": rid}]}},
@@ -78,7 +81,10 @@ def test_infer_branch_posture_all_types() -> None:
 
 
 def test_service_endpoint_auth_kind() -> None:
-    assert ac._service_endpoint_auth_kind({"authorization": {"scheme": "WorkloadIdentityFederation"}}) == "workload_identity_federation"
+    assert (
+        ac._service_endpoint_auth_kind({"authorization": {"scheme": "WorkloadIdentityFederation"}})
+        == "workload_identity_federation"
+    )
     assert ac._service_endpoint_auth_kind({"authorization": {"scheme": "ManagedServiceIdentity"}}) == "managed_identity"
     assert ac._service_endpoint_auth_kind({"authorization": {"scheme": "UsernamePassword"}}) == "secret"
     assert ac._service_endpoint_auth_kind({"authorization": {"scheme": "Certificate"}}) == "certificate"
@@ -126,10 +132,12 @@ def test_environment_has_approval_check() -> None:
 
 
 def test_service_connection_posture() -> None:
-    body = {"value": [
-        {"name": "wif", "authorization": {"scheme": "WorkloadIdentityFederation"}},
-        {"name": "pw", "authorization": {"scheme": "UsernamePassword"}},
-    ]}
+    body = {
+        "value": [
+            {"name": "wif", "authorization": {"scheme": "WorkloadIdentityFederation"}},
+            {"name": "pw", "authorization": {"scheme": "UsernamePassword"}},
+        ]
+    }
     conns, posture, _notes, status = ac._azure_service_connection_posture(_Client([_Resp(200, body)]), "Proj")
     assert status == 200
     assert posture["federated_identity_preferred"] is True

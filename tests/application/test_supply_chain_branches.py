@@ -127,14 +127,16 @@ def test_slsa_src_002_signature_signal_in_ruleset_dir(tmp_path: Path) -> None:
 
 
 def test_slsa_src_003_pass(tmp_path: Path) -> None:
-    _write(tmp_path, ".oss-policy-kit/evidence/branch-protection.json",
-           json.dumps({"required_status_checks": ["build"]}))
+    _write(
+        tmp_path, ".oss-policy-kit/evidence/branch-protection.json", json.dumps({"required_status_checks": ["build"]})
+    )
     assert sc.eval_slsa_src_003(_ctx(tmp_path)).status == ControlStatus.PASS
 
 
 def test_slsa_src_004_pass(tmp_path: Path) -> None:
-    _write(tmp_path, ".oss-policy-kit/evidence/branch-protection.json",
-           json.dumps({"required_approving_review_count": 2}))
+    _write(
+        tmp_path, ".oss-policy-kit/evidence/branch-protection.json", json.dumps({"required_approving_review_count": 2})
+    )
     assert sc.eval_slsa_src_004(_ctx(tmp_path)).status == ControlStatus.PASS
 
 

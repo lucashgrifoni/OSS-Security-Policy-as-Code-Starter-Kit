@@ -26,14 +26,26 @@ def _full_handler(request: httpx.Request) -> httpx.Response:
     if path.endswith("/_apis/git/repositories"):
         return httpx.Response(200, json={"value": [{"name": "repo", "id": "RID", "defaultBranch": "refs/heads/main"}]})
     if path.endswith("/_apis/policy/configurations"):
-        return httpx.Response(200, json={"value": [
-            {"type": {"id": "fa4e907d-c16f-4ac8-9af7-9a14fae485e1"},
-             "settings": {"scope": [{"repositoryId": "RID"}], "minimumApproverCount": 2}},
-        ]})
+        return httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "type": {"id": "fa4e907d-c16f-4ac8-9af7-9a14fae485e1"},
+                        "settings": {"scope": [{"repositoryId": "RID"}], "minimumApproverCount": 2},
+                    },
+                ]
+            },
+        )
     if path.endswith("/_apis/serviceendpoint/endpoints"):
-        return httpx.Response(200, json={"value": [
-            {"name": "wif", "authorization": {"scheme": "WorkloadIdentityFederation"}},
-        ]})
+        return httpx.Response(
+            200,
+            json={
+                "value": [
+                    {"name": "wif", "authorization": {"scheme": "WorkloadIdentityFederation"}},
+                ]
+            },
+        )
     if path.endswith("/_apis/pipelines"):
         return httpx.Response(200, json={"value": []})
     if path.endswith("/_apis/distributedtask/environments"):

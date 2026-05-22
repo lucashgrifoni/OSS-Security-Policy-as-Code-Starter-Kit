@@ -6,7 +6,7 @@ from pathlib import Path
 
 from oss_policy_kit.infrastructure.iac import scanner as tf
 
-_TF_SRC = '''\
+_TF_SRC = """\
 terraform {
   backend "local" {
     path = "terraform.tfstate"
@@ -57,7 +57,7 @@ data "aws_iam_policy_document" "doc" {
     }
   }
 }
-'''
+"""
 
 
 def _rule_ids(findings: list) -> set[str]:
@@ -85,17 +85,17 @@ def test_tf_evidence_payload(tmp_path: Path) -> None:
 
 def test_tf_clean_repo_no_findings(tmp_path: Path) -> None:
     src = (
-        'terraform {\n'
-        '  required_providers {\n'
-        '    aws = {\n'
+        "terraform {\n"
+        "  required_providers {\n"
+        "    aws = {\n"
         '      source  = "hashicorp/aws"\n'
         '      version = "5.0.0"\n'
-        '    }\n'
-        '  }\n'
+        "    }\n"
+        "  }\n"
         '  backend "s3" {\n'
         '    bucket = "state"\n'
-        '  }\n'
-        '}\n'
+        "  }\n"
+        "}\n"
     )
     (tmp_path / "main.tf").write_text(src, encoding="utf-8")
     outcome = tf.run_scan(tmp_path)
@@ -110,7 +110,7 @@ def test_tf_no_files(tmp_path: Path) -> None:
     assert outcome.findings == []
 
 
-_TF_EDGE = '''\
+_TF_EDGE = """\
 terraform {
   required_providers {
     aws = {
@@ -148,7 +148,7 @@ resource "aws_db_instance" "prod_db" {
   identifier = "production-db"
   storage_encrypted = true
 }
-'''
+"""
 
 
 def test_tf_edge_branches(tmp_path: Path) -> None:
