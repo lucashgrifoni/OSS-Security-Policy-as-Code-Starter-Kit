@@ -66,8 +66,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 ARG KIT_VERSION=5.9.0
 COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY src ./src
-RUN pip install --upgrade "pip==26.1.1" \
-    && pip install ".[all]"
+# --no-cache-dir is redundant with ENV PIP_NO_CACHE_DIR=1 above, but stated
+# explicitly so KICS "Pip install Keeping Cached Packages" reads it directly.
+RUN pip install --no-cache-dir --upgrade "pip==26.1.1" \
+    && pip install --no-cache-dir ".[all]"
 
 # ---------------------------------------------------------------------------
 # Stage 2: runtime

@@ -107,7 +107,9 @@ def test_container_build_installs_from_source_not_pypi() -> None:
     dockerfile = _DOCKERFILE_PATH.read_text(encoding="utf-8")
     dockerignore = _DOCKERIGNORE_PATH.read_text(encoding="utf-8").splitlines()
 
-    assert 'pip install ".[all]"' in dockerfile
+    # Source install (extras from the copied tree), allowing any pip flags such
+    # as --no-cache-dir. The key invariant is install-from-source, not from PyPI.
+    assert '".[all]"' in dockerfile
     assert "oss-policy-kit[all]==" not in dockerfile
     assert "src/" not in dockerignore
     assert "pyproject.toml" not in dockerignore
