@@ -14,14 +14,12 @@
 #     can refresh SHA pins through reviewable pull requests.
 #
 # Harden-Runner egress:
-#   - Start with `egress-policy: audit` for 2-4 weeks per repository.
-#   - Review the Harden-Runner insights/recommended policy for each job.
-#   - Then switch to `egress-policy: block` and add the observed
-#     job-specific `allowed-endpoints` allowlist.
-#   - Block-mode syntax:
-#       egress-policy: block
-#       allowed-endpoints: |
-#         <observed-host>:443
+#   - Now in `egress-policy: block` per job (2026-05-22), using the Harden-Runner
+#     dashboard's aggregated Recommended Policy (baselines stable 100+ runs).
+#   - To extend an allowlist: re-check the job's recommended policy in the
+#     step-security insights, then add the host to that job's `allowed-endpoints`.
+#   - Rollback: set a job back to `egress-policy: audit` if a legitimate
+#     endpoint is blocked (Harden-Runner names the blocked host in the run log).
 #
 # Semgrep severity mapping:
 #   - WARNING = medium-severity findings
@@ -59,10 +57,12 @@ on:
     - cron: "0 3 * * 1"
   merge_group:
 
+# Least-privilege top level: read-only. Jobs that upload SARIF elevate to
+# `security-events: write` themselves, and CodeQL adds `actions: read`. Keeping
+# the top level read-only satisfies Scorecard Token-Permissions (no workflow-
+# scoped write token).
 permissions:
   contents: read
-  security-events: write
-  actions: read
 
 concurrency:
   group: security-${{ github.workflow }}-${{ github.ref }}
@@ -87,7 +87,13 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
+            semgrep.dev:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -131,7 +137,15 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            api.snyk.io:443
+            deeproxy.snyk.io:443
+            downloads.snyk.io:443
+            registry.npmjs.org:443
+            release-assets.githubusercontent.com:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -173,6 +187,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      actions: read # CodeQL reads workflow run metadata (required on private repos)
     strategy:
       fail-fast: false
       matrix:
@@ -183,7 +198,11 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            uploads.github.com:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -214,7 +233,16 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            api.snyk.io:443
+            downloads.snyk.io:443
+            registry.npmjs.org:443
+            release-assets.githubusercontent.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -261,7 +289,14 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            check.trivy.dev:443
+            get.trivy.dev:443
+            mirror.gcr.io:443
+            release-assets.githubusercontent.com:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -299,7 +334,13 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            check.trivy.dev:443
+            mirror.gcr.io:443
+            release-assets.githubusercontent.com:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -336,7 +377,13 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            kics.io:443
+            registry.npmjs.org:443
+            9236a389ab046b86e0f6adc1bc92462b.r2.cloudflarestorage.com:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -379,7 +426,13 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            check.trivy.dev:443
+            get.trivy.dev:443
+            release-assets.githubusercontent.com:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -415,7 +468,10 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -450,7 +506,11 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            api.securityscorecards.dev:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -473,7 +533,12 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            auth.docker.io:443
+            registry-1.docker.io:443
+            production.cloudflare.docker.com:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -493,7 +558,11 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -535,7 +604,11 @@ jobs:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
