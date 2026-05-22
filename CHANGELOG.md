@@ -47,6 +47,29 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 * bump remaining GitHub Actions to Node 24 runtime ahead of the 2026-06-02 deprecation: `download-artifact` v4→v8.0.1, `deploy-pages` v4→v5.0.0, `dependency-review-action` v4→v5.0.0, and `docker/{setup-qemu,setup-buildx,login,build-push}` to their Node 24 majors. All re-pinned by immutable SHA; no workflow logic changed. `gitleaks-action` stays on Node 20 (no upstream Node 24 release yet).
 
+## [6.3.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.2.0...v6.3.0) (2026-05-22)
+
+
+### Highlights
+
+* add gitlab-level-3 profile and make GitLab a first-class profile family ([fd1a6b5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/fd1a6b54c580d8ce4f11f33fee274a38183c3a9d))
+
+
+### Improvements
+
+* **container:** set pip --no-cache-dir explicitly in the image build ([55c40bd](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/55c40bdf48bc9a1e0a1d6f4a5c1a99d4fed12f70))
+
+
+### Notes
+
+* add apk.cgr.dev to KICS egress allowlist (M3 batch 2 fix) ([f18e2c8](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f18e2c8c946bb61da7f20067b39c9b56a7a93b2c))
+* bump bundled profile count to 53 and note GitLab L3 / gitlab family ([dfcdffb](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/dfcdffb1c83c173e0db8e7fe341ae220a8481e1a))
+* harden-runner egress-policy block for github-ci-cd (M3 batch 3) ([665471e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/665471e3231cef2238c72d41bd6fa9a99b5a3190))
+* harden-runner egress-policy block for scorecard/pages/release/release-please (M3 batch 1) ([e5625a9](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e5625a9740021b5ecbf82fb90686f6c968ffbfce))
+* harden-runner egress-policy block for security-ci-cd (M3 batch 2) ([ed41d04](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/ed41d0433efd5a2f22b113bace99b21f3d9a248b))
+* keep KICS job on harden-runner audit (Chainguard apk CDN not allowlist-pinnable) ([5be0bbb](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/5be0bbb2eddab0c8681babdb2ae97ff8963d6f4c))
+* put KICS job on harden-runner block via *.r2.cloudflarestorage.com wildcard ([52cafa9](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/52cafa9da07efb0f6d3390a745d500e17f278665))
+
 ## [6.2.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.1.0...v6.2.0) (2026-05-22)
 
 
