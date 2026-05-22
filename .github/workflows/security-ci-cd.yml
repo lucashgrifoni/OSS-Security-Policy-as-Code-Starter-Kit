@@ -383,6 +383,7 @@ jobs:
             api.github.com:443
             kics.io:443
             registry.npmjs.org:443
+            apk.cgr.dev:443
             9236a389ab046b86e0f6adc1bc92462b.r2.cloudflarestorage.com:443
 
       - name: Checkout
