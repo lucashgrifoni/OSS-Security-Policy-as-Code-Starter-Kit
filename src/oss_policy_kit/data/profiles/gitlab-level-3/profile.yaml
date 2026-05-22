@@ -1,0 +1,58 @@
+id: gitlab-level-3
+title: GitLab CI hard-gate baseline (level 3)
+description: >
+  **Hard-gate** GitLab CI profile completing the ladder parallel to
+  ``github-level-3`` / ``aws-level-3`` / ``azure-level-3``. Builds on
+  ``gitlab-level-2`` (governance core + ``GL-PIPE-001..012``: OIDC id_tokens,
+  self-hosted runner scoping, audit-event streaming reference, environment
+  approvals, MR review rules, artifact retention) and adds the strictest
+  platform-agnostic supply-chain and evidence controls: protected-branch /
+  MR-approval evidence, org-level MFA enforcement evidence, evidence freshness,
+  disclosure-SLA policy, centralized audit-log streaming, fuzzing presence, and
+  verifiable build provenance. Recomposition only — no
+  new evaluators (ADR-003 ``gitlab-ci-support``). GitHub-specific signals
+  (``GH-PLAT-*``, ``CI-WFCALLSHA-055``) are intentionally excluded.
+  **Posture:** hard gate (analogous to ``github-level-3``).
+  **Recommended `--fail-on`:** ``fail`` (or ``degraded`` while building evidence).
+  **Framework alignment:** see ``docs/framework-alignment.md`` and
+  ``docs/decisions/adr-003-gitlab-ci-support.md``.
+audience: >
+  GitLab CI teams that have adopted ``gitlab-level-2`` and want the strictest
+  bundled pure-repo gate, with org MFA, audit-log streaming, evidence freshness,
+  fuzzing, and provenance verification expectations. Maintain evidence under
+  ``.oss-policy-kit/evidence/`` to keep evidence-backed controls passing.
+controls:
+  # Governance core
+  - GOV-SEC-001
+  - GOV-CON-002
+  - GOV-COWN-003
+  - GOV-LIC-004
+  - GOV-DISC-013
+  - GOV-WAIV-014
+  # GitLab CI native (L1)
+  - GL-PIPE-001
+  - GL-PIPE-002
+  - GL-PIPE-003
+  - GL-PIPE-004
+  - GL-PIPE-005
+  - GL-PIPE-006
+  # GitLab CI v6.0.0 additions (L2)
+  - GL-PIPE-007
+  - GL-PIPE-008
+  - GL-PIPE-009
+  - GL-PIPE-010
+  - GL-PIPE-011
+  - GL-PIPE-012
+  # Multi-platform supply chain / release hygiene (L2)
+  - DEP-UPDATE-001
+  - SEC-DEPREV-011
+  - REL-CHANGE-012
+  - BUILD-SBOM-QUAL-003
+  # L3 hard-gate additions (platform-agnostic, evidence-backed)
+  - PLAT-BRPROT-015
+  - ORG-MFA-001
+  - GOV-EVIDFRESH-054
+  - GOV-DISC-065
+  - AUDIT-STREAM-060
+  - SEC-FUZZ-001
+  - PROV-VERIFY-061

@@ -174,9 +174,14 @@ def _profile_row_is_advisory(row: _ProfileDisplayRow) -> bool:
 
 
 def _profile_family_key(platform: str) -> str:
-    return {"GitHub": "github", "Azure": "azure", "AWS": "aws", "Multi": "multi", "Custom": "custom"}.get(
-        platform, "custom"
-    )
+    return {
+        "GitHub": "github",
+        "GitLab": "gitlab",
+        "Azure": "azure",
+        "AWS": "aws",
+        "Multi": "multi",
+        "Custom": "custom",
+    }.get(platform, "custom")
 
 
 def _profile_posture_descriptor(profile_id: str, maturity: str) -> str:
@@ -232,9 +237,13 @@ def _filter_profile_display_rows(
     advisory_only: bool,
 ) -> list[_ProfileDisplayRow]:
     fam = family.strip().lower() if family else None
-    if fam and fam not in {"github", "azure", "aws", "multi"}:
-        raise InvalidInputError("--family must be one of: github, azure, aws, multi.")
-    want_platform = {"github": "GitHub", "azure": "Azure", "aws": "AWS", "multi": "Multi"}.get(fam) if fam else None
+    if fam and fam not in {"github", "gitlab", "azure", "aws", "multi"}:
+        raise InvalidInputError("--family must be one of: github, gitlab, azure, aws, multi.")
+    want_platform = (
+        {"github": "GitHub", "gitlab": "GitLab", "azure": "Azure", "aws": "AWS", "multi": "Multi"}.get(fam)
+        if fam
+        else None
+    )
     out: list[_ProfileDisplayRow] = []
     for row in rows:
         if want_platform is not None and row.platform != want_platform:
@@ -271,6 +280,8 @@ def _profile_platform(profile_id: str) -> str:
         return "Multi"
     if profile_id.startswith("github-"):
         return "GitHub"
+    if profile_id.startswith("gitlab-"):
+        return "GitLab"
     if profile_id.startswith("azure-"):
         return "Azure"
     if profile_id.startswith("aws-"):
@@ -386,7 +397,7 @@ def _iter_bundled_profiles() -> list[_ProfileDisplayRow]:
                 is_legacy_alias=True,
             )
         )
-    plat_order = {"GitHub": 0, "Azure": 1, "AWS": 2, "Multi": 3, "Custom": 4}
+    plat_order = {"GitHub": 0, "GitLab": 1, "Azure": 2, "AWS": 3, "Multi": 4, "Custom": 5}
     rows.sort(key=lambda r: (plat_order.get(r.platform, 9), int(r.is_legacy_alias), r.profile_id))
     return rows
 
@@ -433,7 +444,7 @@ def _print_profiles_table(
 ) -> None:
     """Render bundled profiles as a compact or detailed table on stdout."""
 
-    plat_order = {"GitHub": 0, "Azure": 1, "AWS": 2, "Multi": 3, "Custom": 4}
+    plat_order = {"GitHub": 0, "GitLab": 1, "Azure": 2, "AWS": 3, "Multi": 4, "Custom": 5}
     if rows is None:
         rows = _iter_bundled_profiles()
     rows = sorted(
@@ -543,7 +554,7 @@ def profiles_cmd(
     family: str | None = typer.Option(
         None,
         "--family",
-        help="Restrict listing to one platform family: github, azure, or aws.",
+        help="Restrict listing to one platform family: github, gitlab, azure, aws, or multi.",
     ),
     only_extreme: bool = typer.Option(
         False,

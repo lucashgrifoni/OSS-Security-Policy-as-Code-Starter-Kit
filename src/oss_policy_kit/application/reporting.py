@@ -172,6 +172,7 @@ GATE_EXECUTION_MODEL_V2: dict[str, Any] = {
 
 
 _GITHUB_PROFILE_PREFIX = "github-"
+_GITLAB_PROFILE_PREFIX = "gitlab-"
 _AZURE_PROFILE_PREFIX = "azure-"
 _AWS_PROFILE_PREFIX = "aws-"
 
@@ -179,6 +180,8 @@ _AWS_PROFILE_PREFIX = "aws-"
 def _profile_family(pid: str) -> str | None:
     if pid.startswith(_GITHUB_PROFILE_PREFIX):
         return "github"
+    if pid.startswith(_GITLAB_PROFILE_PREFIX):
+        return "gitlab"
     if pid.startswith(_AZURE_PROFILE_PREFIX):
         return "azure"
     if pid.startswith(_AWS_PROFILE_PREFIX):
