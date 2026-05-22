@@ -190,6 +190,9 @@ def build_sarif(report: ExecutionReport) -> dict[str, Any]:
                 "name": _TOOL_NAME,
                 "informationUri": _TOOL_INFORMATION_URI,
                 "version": report.kit_version,
+                # SARIF consumers (e.g. GitHub code scanning) use semanticVersion to
+                # correlate/dedupe results across tool versions. kit_version is SemVer.
+                "semanticVersion": report.kit_version,
                 "rules": list(rules_by_id.values()),
             }
         },

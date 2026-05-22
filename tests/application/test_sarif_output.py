@@ -163,6 +163,14 @@ def test_healthy_run_emits_zero_results_but_keeps_tool_block() -> None:
     assert run["tool"]["driver"]["rules"] == []
 
 
+def test_driver_carries_version_and_semantic_version() -> None:
+    # Regression for F1: GitHub code scanning uses semanticVersion to dedupe alerts
+    # across tool versions; it must be populated (was empty through v6.1.0).
+    driver = build_sarif(_report([_result(cid="GOV-SEC-001", status=ControlStatus.FAIL)]))["runs"][0]["tool"]["driver"]
+    assert driver["version"] == "5.0.0-test"
+    assert driver["semanticVersion"] == "5.0.0-test"
+
+
 def test_severity_scales_with_weight_and_status() -> None:
     weighted = [
         _result(cid="X-1", status=ControlStatus.FAIL, weight=1),
