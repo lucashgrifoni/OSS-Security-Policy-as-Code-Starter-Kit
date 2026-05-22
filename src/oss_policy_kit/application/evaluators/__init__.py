@@ -255,27 +255,60 @@ _load_iac_bicep_evaluators()
 _load_webhook_evaluators()
 
 
+#: Third-party plugin load problems captured during registry construction, so an
+#: operator can see *why* a custom evaluator is inactive (LOW-001: previously skipped
+#: silently). Surfaced on ``evaluate --verbose``; never aborts built-in evaluation.
+PLUGIN_LOAD_ERRORS: list[dict[str, str]] = []
+
+
+def plugin_load_errors() -> list[dict[str, str]]:
+    """Return a copy of plugin load problems recorded at registry construction.
+
+    Each entry: ``{"name", "kind", "detail"}`` where ``kind`` is one of
+    ``discovery`` (group enumeration failed), ``load`` (entry-point import/load
+    raised), ``not-callable`` (loaded object is not callable), or
+    ``builtin-precedence`` (skipped because a built-in already owns the ID).
+    """
+    return list(PLUGIN_LOAD_ERRORS)
+
+
 def _load_external_evaluators() -> None:
     """Load evaluators registered via ``oss_policy_kit.evaluators`` entry-point group.
 
     Third-party plugins can register custom controls by declaring entry points
     in the ``oss_policy_kit.evaluators`` group. External plugins cannot
-    override built-in control IDs.
+    override built-in control IDs. Load problems are recorded in
+    :data:`PLUGIN_LOAD_ERRORS` (visible via ``evaluate --verbose``) instead of
+    being skipped silently.
     """
 
+    PLUGIN_LOAD_ERRORS.clear()
     try:
         eps = importlib.metadata.entry_points().select(group="oss_policy_kit.evaluators")
-    except Exception:  # noqa: BLE001 - best-effort discovery
+    except Exception as exc:  # noqa: BLE001 - best-effort discovery
+        PLUGIN_LOAD_ERRORS.append({"name": "*", "kind": "discovery", "detail": f"{type(exc).__name__}: {exc}"})
         return
     for ep in eps:
         if ep.name in EVALUATOR_REGISTRY:
+            PLUGIN_LOAD_ERRORS.append(
+                {"name": ep.name, "kind": "builtin-precedence", "detail": "a built-in control already owns this ID"}
+            )
             continue
         try:
             func = ep.load()
-        except Exception:  # noqa: BLE001 - skip broken plugins
+        except Exception as exc:  # noqa: BLE001 - one broken plugin must not break the kit
+            PLUGIN_LOAD_ERRORS.append({"name": ep.name, "kind": "load", "detail": f"{type(exc).__name__}: {exc}"})
             continue
         if callable(func):
             EVALUATOR_REGISTRY[ep.name] = func
+        else:
+            PLUGIN_LOAD_ERRORS.append(
+                {
+                    "name": ep.name,
+                    "kind": "not-callable",
+                    "detail": f"loaded object is {type(func).__name__}, not callable",
+                }
+            )
 
 
 _load_external_evaluators()
