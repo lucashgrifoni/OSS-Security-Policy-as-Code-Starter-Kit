@@ -29,7 +29,7 @@ from typing import Any
 
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 
-_DOCKER_FROM_RE = re.compile(r"^\s*FROM\s+(.+?)$", re.MULTILINE | re.IGNORECASE)
+_DOCKER_FROM_RE = re.compile(r"^[ \t]*FROM[ \t]+([^\n]+)$", re.MULTILINE | re.IGNORECASE)
 _HEALTHCHECK_RE = re.compile(r"^\s*HEALTHCHECK\b", re.MULTILINE | re.IGNORECASE)
 _CURL_BASH_RE = re.compile(
     r"(curl|wget)[^|\n]+\|\s*(bash|sh|zsh|ksh)\b",
@@ -42,9 +42,9 @@ _APT_INSTALL_RE = re.compile(
 _APT_NO_RECOMMENDS_RE = re.compile(r"--no-install-recommends", re.IGNORECASE)
 _APT_LIST_CLEANUP_RE = re.compile(r"rm\s+-rf\s+/var/lib/apt/lists/\*", re.IGNORECASE)
 _APT_CLEAN_RE = re.compile(r"apt(?:-get)?\s+clean", re.IGNORECASE)
-_APT_PIN_RE = re.compile(r"\b[A-Za-z0-9.+\-]+=[A-Za-z0-9:.~+\-]+", re.IGNORECASE)
+_APT_PIN_RE = re.compile(r"\b[a-z0-9.+\-]+=[a-z0-9:.~+\-]+", re.IGNORECASE)
 _APK_ADD_RE = re.compile(r"\bapk\s+add\b", re.IGNORECASE)
-_APK_PIN_RE = re.compile(r"\b[A-Za-z0-9.+\-]+=[A-Za-z0-9:.~+\-]+", re.IGNORECASE)
+_APK_PIN_RE = re.compile(r"\b[a-z0-9.+\-]+=[a-z0-9:.~+\-]+", re.IGNORECASE)
 
 
 def _find_dockerfiles(repo: Path) -> list[Path]:
@@ -271,25 +271,40 @@ def eval_cont_runtime_005(ctx: Any) -> EvalOutcome:
 # ---------------------------------------------------------------------------
 
 
+def _dockerfile_install_pin_state(df: Path) -> tuple[bool, bool]:
+    """Return ``(has_install_line, has_unpinned_install)`` for one Dockerfile."""
+
+    relevant = False
+    for raw_line in _read_text(df).splitlines():
+        line = raw_line.strip()
+        if not (_APT_INSTALL_RE.search(line) or _APK_ADD_RE.search(line)):
+            continue
+        relevant = True
+        if not _APT_PIN_RE.search(line) and not _APK_PIN_RE.search(line):
+            return True, True
+    return relevant, False
+
+
+def _scan_pkg_pinning(dockerfiles: list[Path]) -> tuple[list[Path], bool]:
+    """Return ``(offenders, saw_install_line)`` for unpinned apt/apk install lines."""
+
+    offenders: list[Path] = []
+    relevant = False
+    for df in dockerfiles:
+        df_relevant, unpinned = _dockerfile_install_pin_state(df)
+        relevant = relevant or df_relevant
+        if unpinned and df not in offenders:
+            offenders.append(df)
+    return offenders, relevant
+
+
 def eval_cont_runtime_006(ctx: Any) -> EvalOutcome:
     """CONT-RUNTIME-006: apt/apk install lines pin package versions (pkg=ver) when present."""
 
     dockerfiles = _find_dockerfiles(ctx.repo_root)
     if not dockerfiles:
         return _na_no_dockerfile()
-    offenders: list[Path] = []
-    relevant = False
-    for df in dockerfiles:
-        text = _read_text(df)
-        for line in text.splitlines():
-            line = line.strip()
-            if not (_APT_INSTALL_RE.search(line) or _APK_ADD_RE.search(line)):
-                continue
-            relevant = True
-            if not _APT_PIN_RE.search(line) and not _APK_PIN_RE.search(line):
-                if df not in offenders:
-                    offenders.append(df)
-                break
+    offenders, relevant = _scan_pkg_pinning(dockerfiles)
     if not relevant:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,

@@ -78,7 +78,7 @@ _RESERVED_KEYS: frozenset[str] = frozenset(
     }
 )
 
-_CURL_PIPE_SHELL_RE = re.compile(r"\b(?:curl|wget)\s+[^|]+\|\s*(?:bash|sh|zsh)\b", re.IGNORECASE)
+_CURL_PIPE_SHELL_RE = re.compile(r"\b(?:curl|wget)\s[^|]+\|\s*(?:bash|sh|zsh)\b", re.IGNORECASE)
 _DIGEST_PIN_RE = re.compile(r"@sha256:[0-9a-f]{64}\b")
 
 # Mutable / floating tags that GitLab CI image: refs should not rely on for
@@ -124,35 +124,53 @@ def _classify_image_ref(ref: str) -> str:
     return "unpinned"
 
 
+def _record_image_ref(ref: str, file_path: Path, out: GitLabCiAnalysis) -> None:
+    """Classify one ``image:`` reference and append it to the matching bucket."""
+
+    cls = _classify_image_ref(ref)
+    if cls == "unpinned":
+        out.image_refs_unpinned.append((file_path, ref))
+    elif cls == "mutable-tag":
+        out.image_refs_mutable_tag.append((file_path, ref))
+    else:
+        out.image_refs_pinned.append((file_path, ref))
+
+
+def _record_image_value(value: Any, file_path: Path, out: GitLabCiAnalysis) -> bool:
+    """Record an ``image:`` value (string ref or ``{name: ...}``); return True if it was an image spec."""
+
+    if isinstance(value, str) and value.strip():
+        _record_image_ref(value.strip(), file_path, out)
+        return True
+    if isinstance(value, dict):
+        name = value.get("name")
+        if isinstance(name, str) and name.strip():
+            _record_image_ref(name.strip(), file_path, out)
+        return True
+    return False
+
+
 def _walk_for_images(node: Any, file_path: Path, out: GitLabCiAnalysis) -> None:
     """Recursively walk YAML, recording every `image:` reference encountered."""
 
     if isinstance(node, dict):
         for key, value in node.items():
-            if key == "image" and isinstance(value, str) and value.strip():
-                ref = value.strip()
-                cls = _classify_image_ref(ref)
-                if cls == "unpinned":
-                    out.image_refs_unpinned.append((file_path, ref))
-                elif cls == "mutable-tag":
-                    out.image_refs_mutable_tag.append((file_path, ref))
-                else:
-                    out.image_refs_pinned.append((file_path, ref))
-            elif key == "image" and isinstance(value, dict):
-                name = value.get("name")
-                if isinstance(name, str) and name.strip():
-                    cls = _classify_image_ref(name.strip())
-                    if cls == "unpinned":
-                        out.image_refs_unpinned.append((file_path, name.strip()))
-                    elif cls == "mutable-tag":
-                        out.image_refs_mutable_tag.append((file_path, name.strip()))
-                    else:
-                        out.image_refs_pinned.append((file_path, name.strip()))
-            else:
-                _walk_for_images(value, file_path, out)
+            if key == "image" and _record_image_value(value, file_path, out):
+                continue
+            _walk_for_images(value, file_path, out)
     elif isinstance(node, list):
         for item in node:
             _walk_for_images(item, file_path, out)
+
+
+def _extract_script_values(value: Any) -> list[str]:
+    """Return the string entries of a ``script:`` value (list of strings or a single string)."""
+
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, str)]
+    if isinstance(value, str):
+        return [value]
+    return []
 
 
 def _collect_script_strings(node: Any) -> list[str]:
@@ -162,12 +180,7 @@ def _collect_script_strings(node: Any) -> list[str]:
     if isinstance(node, dict):
         for key, value in node.items():
             if key in ("script", "before_script", "after_script"):
-                if isinstance(value, list):
-                    for item in value:
-                        if isinstance(item, str):
-                            out.append(item)
-                elif isinstance(value, str):
-                    out.append(value)
+                out.extend(_extract_script_values(value))
             else:
                 out.extend(_collect_script_strings(value))
     elif isinstance(node, list):
@@ -184,15 +197,9 @@ def _has_inherit_secrets_true(node: Any) -> bool:
         if isinstance(inherit, dict) and inherit.get("secrets") is True:
             return True
         # Also treat top-level `secrets:` with no scoping as broad exposure.
-        for key, value in node.items():
-            if key == "inherit":
-                continue
-            if _has_inherit_secrets_true(value):
-                return True
-    elif isinstance(node, list):
-        for item in node:
-            if _has_inherit_secrets_true(item):
-                return True
+        return any(_has_inherit_secrets_true(v) for k, v in node.items() if k != "inherit")
+    if isinstance(node, list):
+        return any(_has_inherit_secrets_true(item) for item in node)
     return False
 
 
@@ -243,6 +250,28 @@ def _has_trigger_restrictions(doc: dict[str, Any]) -> bool:
     return False
 
 
+def _analyze_one_gitlab_doc(doc: dict[str, Any], path: Path, out: GitLabCiAnalysis) -> None:
+    """Record image / curl-pipe-shell / inherit-secrets / remote-include / trigger signals for one pipeline."""
+
+    # Image references (top-level + per-job).
+    _walk_for_images(doc, path, out)
+    # script: curl|wget | sh checks.
+    scripts = _collect_script_strings(doc)
+    if any(_CURL_PIPE_SHELL_RE.search(s) for s in scripts):
+        out.script_uses_curl_pipe_shell.append(path)
+    # inherit: secrets: true.
+    if _has_inherit_secrets_true(doc):
+        out.jobs_with_inherit_secrets.append(path)
+    # Remote includes (supply-chain signal).
+    for entry in _collect_includes(doc):
+        is_remote, ref = _entry_is_remote(entry)
+        if is_remote and ref:
+            out.includes_remote.append((path, ref))
+    # Coarse trigger-restriction signal.
+    if _has_trigger_restrictions(doc):
+        out.jobs_with_trigger_restrictions.append(path)
+
+
 def analyze_gitlab_ci(repo_root: Path) -> GitLabCiAnalysis:
     """Return aggregated signals from every discoverable GitLab CI pipeline."""
 
@@ -257,27 +286,6 @@ def analyze_gitlab_ci(repo_root: Path) -> GitLabCiAnalysis:
         if not isinstance(doc, dict):
             out.parse_errors.append((path, "Top-level YAML is not a mapping"))
             continue
-
-        # Image references (top-level + per-job).
-        _walk_for_images(doc, path, out)
-
-        # script: curl|wget | sh checks.
-        scripts = _collect_script_strings(doc)
-        if any(_CURL_PIPE_SHELL_RE.search(s) for s in scripts):
-            out.script_uses_curl_pipe_shell.append(path)
-
-        # inherit: secrets: true.
-        if _has_inherit_secrets_true(doc):
-            out.jobs_with_inherit_secrets.append(path)
-
-        # Remote includes (supply-chain signal).
-        for entry in _collect_includes(doc):
-            is_remote, ref = _entry_is_remote(entry)
-            if is_remote and ref:
-                out.includes_remote.append((path, ref))
-
-        # Coarse trigger-restriction signal.
-        if _has_trigger_restrictions(doc):
-            out.jobs_with_trigger_restrictions.append(path)
+        _analyze_one_gitlab_doc(doc, path, out)
 
     return out

@@ -188,6 +188,47 @@ def _block_file(repo_root: Path, block: TfBlock) -> str:
     return _normalize_target(repo_root, block.source_path)
 
 
+def _iac_finding(
+    rule_id: str,
+    severity: str,
+    message: str,
+    *,
+    file: str,
+    resource_type: str,
+    resource_name: str,
+) -> IacFinding:
+    """Construct an :class:`IacFinding` (thin factory to keep rule bodies flat)."""
+
+    return IacFinding(
+        rule_id=rule_id,
+        severity=severity,
+        message=message,
+        file=file,
+        resource_type=resource_type,
+        resource_name=resource_name,
+    )
+
+
+def _s3_pab_findings(block: TfBlock, repo_root: Path) -> list[IacFinding]:
+    """One IAC-TF-001 finding per public-access-block flag explicitly set to false."""
+
+    out: list[IacFinding] = []
+    for key in ("block_public_acls", "block_public_policy", "ignore_public_acls", "restrict_public_buckets"):
+        value = block.get(key)
+        if value is False or (isinstance(value, str) and value.strip().lower() == "false"):
+            out.append(
+                _iac_finding(
+                    "IAC-TF-001",
+                    "HIGH",
+                    f"aws_s3_bucket_public_access_block.{block.name} has {key}=false; all four flags should be true.",
+                    file=_block_file(repo_root, block),
+                    resource_type=block.resource_type,
+                    resource_name=block.name,
+                )
+            )
+    return out
+
+
 def _rule_iac_tf_001_public_storage(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:
     """S3 / GCS bucket configured for public access."""
 
@@ -196,10 +237,10 @@ def _rule_iac_tf_001_public_storage(repo_root: Path, index: TfResourceIndex) -> 
         acl = block.get("acl")
         if isinstance(acl, str) and acl in {"public-read", "public-read-write", "authenticated-read"}:
             findings.append(
-                IacFinding(
-                    rule_id="IAC-TF-001",
-                    severity="HIGH",
-                    message=(
+                _iac_finding(
+                    "IAC-TF-001",
+                    "HIGH",
+                    (
                         f"aws_s3_bucket.{block.name} has acl={acl!r}; "
                         'set acl="private" or use aws_s3_bucket_public_access_block.'
                     ),
@@ -209,39 +250,16 @@ def _rule_iac_tf_001_public_storage(repo_root: Path, index: TfResourceIndex) -> 
                 )
             )
     for block in index.resources("aws_s3_bucket_public_access_block"):
-        # If any of the four block flags is explicitly false, that's a finding.
-        for key in (
-            "block_public_acls",
-            "block_public_policy",
-            "ignore_public_acls",
-            "restrict_public_buckets",
-        ):
-            value = block.get(key)
-            if value is False or (isinstance(value, str) and value.strip().lower() == "false"):
-                findings.append(
-                    IacFinding(
-                        rule_id="IAC-TF-001",
-                        severity="HIGH",
-                        message=(
-                            f"aws_s3_bucket_public_access_block.{block.name} has {key}=false; "
-                            "all four flags should be true."
-                        ),
-                        file=_block_file(repo_root, block),
-                        resource_type=block.resource_type,
-                        resource_name=block.name,
-                    )
-                )
+        findings.extend(_s3_pab_findings(block, repo_root))
     for block in index.resources("google_storage_bucket"):
         # GCS-level public access prevention.
         ppa = block.get("public_access_prevention")
         if isinstance(ppa, str) and ppa.lower() == "inherited":
             findings.append(
-                IacFinding(
-                    rule_id="IAC-TF-001",
-                    severity="HIGH",
-                    message=(
-                        f"google_storage_bucket.{block.name} has public_access_prevention='inherited'; set 'enforced'."
-                    ),
+                _iac_finding(
+                    "IAC-TF-001",
+                    "HIGH",
+                    f"google_storage_bucket.{block.name} has public_access_prevention='inherited'; set 'enforced'.",
                     file=_block_file(repo_root, block),
                     resource_type=block.resource_type,
                     resource_name=block.name,
@@ -250,47 +268,58 @@ def _rule_iac_tf_001_public_storage(repo_root: Path, index: TfResourceIndex) -> 
     return findings
 
 
+def _sg_ingress_entries(block: TfBlock) -> list[dict[str, Any]]:
+    """Normalize a security group's ``ingress`` to a list of dict entries."""
+
+    ingresses = block.get("ingress") or []
+    if isinstance(ingresses, dict):
+        ingresses = [ingresses]
+    return [e for e in ingresses if isinstance(e, dict)]
+
+
+def _tf_ingress_open_mgmt_port(entry: dict[str, Any]) -> tuple[int, int, int] | None:
+    """Return ``(from, to, covered_mgmt_port)`` if this ingress opens a mgmt port to the world."""
+
+    cidrs = entry.get("cidr_blocks") or []
+    if not isinstance(cidrs, list):
+        cidrs = [cidrs]
+    if "0.0.0.0/0" not in cidrs and "::/0" not in cidrs:
+        return None
+    from_port = entry.get("from_port")
+    to_port = entry.get("to_port", from_port)
+    try:
+        fp = int(from_port) if from_port is not None else None
+        tp = int(to_port) if to_port is not None else fp
+    except (TypeError, ValueError):
+        return None
+    if fp is None or tp is None:
+        return None
+    covered = next((port for port in _MANAGEMENT_PORTS if fp <= port <= tp), None)
+    return (fp, tp, covered) if covered is not None else None
+
+
 def _rule_iac_tf_002_open_mgmt_ports(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:
     """Security groups exposing management ports to ``0.0.0.0/0``."""
 
     findings: list[IacFinding] = []
     for block in index.resources("aws_security_group"):
-        ingresses = block.get("ingress") or []
-        if isinstance(ingresses, dict):
-            ingresses = [ingresses]
-        for entry in ingresses:
-            if not isinstance(entry, dict):
-                continue
-            cidrs = entry.get("cidr_blocks") or []
-            if not isinstance(cidrs, list):
-                cidrs = [cidrs]
-            if "0.0.0.0/0" not in cidrs and "::/0" not in cidrs:
-                continue
-            from_port = entry.get("from_port")
-            to_port = entry.get("to_port", from_port)
-            try:
-                fp = int(from_port) if from_port is not None else None
-                tp = int(to_port) if to_port is not None else fp
-            except (TypeError, ValueError):
-                continue
-            if fp is None or tp is None:
-                continue
-            for port in _MANAGEMENT_PORTS:
-                if fp <= port <= tp:
-                    findings.append(
-                        IacFinding(
-                            rule_id="IAC-TF-002",
-                            severity="HIGH",
-                            message=(
-                                f"aws_security_group.{block.name} ingress {fp}-{tp} "
-                                f"from 0.0.0.0/0 covers management port {port}."
-                            ),
-                            file=_block_file(repo_root, block),
-                            resource_type=block.resource_type,
-                            resource_name=block.name,
-                        )
+        for entry in _sg_ingress_entries(block):
+            hit = _tf_ingress_open_mgmt_port(entry)
+            if hit is not None:
+                fp, tp, port = hit
+                findings.append(
+                    _iac_finding(
+                        "IAC-TF-002",
+                        "HIGH",
+                        (
+                            f"aws_security_group.{block.name} ingress {fp}-{tp} "
+                            f"from 0.0.0.0/0 covers management port {port}."
+                        ),
+                        file=_block_file(repo_root, block),
+                        resource_type=block.resource_type,
+                        resource_name=block.name,
                     )
-                    break
+                )
     return findings
 
 
@@ -372,41 +401,45 @@ def _has_separate_s3_encryption(bucket_name: str, index: TfResourceIndex) -> boo
     return False
 
 
+def _encryption_finding(rt: str, block: TfBlock, index: TfResourceIndex, repo_root: Path) -> IacFinding | None:
+    """Return an IAC-TF-004 finding for one resource block, or None when encryption looks present."""
+
+    encrypted = block.get("storage_encrypted") or block.get("encrypted") or block.get("enable_kms_encryption")
+    sse = block.get("server_side_encryption_configuration")
+    kms_key = block.get("kms_key_id") or block.get("kms_master_key_id")
+    # AWS S3 modern pattern: encryption can live in a separate resource.
+    if rt == "aws_s3_bucket" and _has_separate_s3_encryption(block.name, index):
+        return None
+    if encrypted is None and sse is None and kms_key is None:
+        return _iac_finding(
+            "IAC-TF-004",
+            "MEDIUM",
+            f"{rt}.{block.name} has no encryption-at-rest configured.",
+            file=_block_file(repo_root, block),
+            resource_type=rt,
+            resource_name=block.name,
+        )
+    if encrypted is False or (isinstance(encrypted, str) and encrypted.strip().lower() == "false"):
+        return _iac_finding(
+            "IAC-TF-004",
+            "MEDIUM",
+            f"{rt}.{block.name} explicitly disables encryption.",
+            file=_block_file(repo_root, block),
+            resource_type=rt,
+            resource_name=block.name,
+        )
+    return None
+
+
 def _rule_iac_tf_004_no_encryption(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:
     """Storage / RDS / EBS resources without encryption-at-rest."""
 
     findings: list[IacFinding] = []
     for rt in _ENCRYPTION_REQUIRED_TYPES:
         for block in index.resources(rt):
-            encrypted = block.get("storage_encrypted") or block.get("encrypted") or block.get("enable_kms_encryption")
-            sse = block.get("server_side_encryption_configuration")
-            kms_key = block.get("kms_key_id") or block.get("kms_master_key_id")
-            # AWS S3 modern pattern: encryption can live in a separate resource.
-            if rt == "aws_s3_bucket" and _has_separate_s3_encryption(block.name, index):
-                continue
-            if encrypted is None and sse is None and kms_key is None:
-                # No encryption attribute set at all on a type that needs one.
-                findings.append(
-                    IacFinding(
-                        rule_id="IAC-TF-004",
-                        severity="MEDIUM",
-                        message=f"{rt}.{block.name} has no encryption-at-rest configured.",
-                        file=_block_file(repo_root, block),
-                        resource_type=rt,
-                        resource_name=block.name,
-                    )
-                )
-            elif encrypted is False or (isinstance(encrypted, str) and encrypted.strip().lower() == "false"):
-                findings.append(
-                    IacFinding(
-                        rule_id="IAC-TF-004",
-                        severity="MEDIUM",
-                        message=f"{rt}.{block.name} explicitly disables encryption.",
-                        file=_block_file(repo_root, block),
-                        resource_type=rt,
-                        resource_name=block.name,
-                    )
-                )
+            finding = _encryption_finding(rt, block, index, repo_root)
+            if finding is not None:
+                findings.append(finding)
     return findings
 
 
@@ -478,6 +511,27 @@ def _rule_iac_tf_006_default_network(repo_root: Path, index: TfResourceIndex) ->
     return findings
 
 
+def _launch_template_public_ip_findings(block: TfBlock, repo_root: Path) -> list[IacFinding]:
+    """Return a single IAC-TF-007 finding when a launch template assigns a public IP."""
+
+    nis = block.get("network_interfaces") or []
+    if isinstance(nis, dict):
+        nis = [nis]
+    for ni in nis:
+        if isinstance(ni, dict) and _is_truthy(ni.get("associate_public_ip_address")):
+            return [
+                _iac_finding(
+                    "IAC-TF-007",
+                    "MEDIUM",
+                    f"aws_launch_template.{block.name} network_interfaces.associate_public_ip_address=true.",
+                    file=_block_file(repo_root, block),
+                    resource_type=block.resource_type,
+                    resource_name=block.name,
+                )
+            ]
+    return []
+
+
 def _rule_iac_tf_007_public_ip(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:
     """Workloads with ``map_public_ip_on_launch = true`` or ``associate_public_ip_address = true``."""
 
@@ -507,147 +561,161 @@ def _rule_iac_tf_007_public_ip(repo_root: Path, index: TfResourceIndex) -> list[
                 )
             )
     for block in index.resources("aws_launch_template"):
-        nis = block.get("network_interfaces") or []
-        if isinstance(nis, dict):
-            nis = [nis]
-        for ni in nis:
-            if isinstance(ni, dict) and _is_truthy(ni.get("associate_public_ip_address")):
-                findings.append(
-                    IacFinding(
-                        rule_id="IAC-TF-007",
-                        severity="MEDIUM",
-                        message=(
-                            f"aws_launch_template.{block.name} network_interfaces.associate_public_ip_address=true."
-                        ),
-                        file=_block_file(repo_root, block),
-                        resource_type=block.resource_type,
-                        resource_name=block.name,
-                    )
-                )
-                break
+        findings.extend(_launch_template_public_ip_findings(block, repo_root))
     return findings
+
+
+def _missing_tags_finding(rt: str, block: TfBlock, repo_root: Path) -> IacFinding | None:
+    """Return an IAC-TF-008 finding for a missing tags block or missing owner/cost_center tag."""
+
+    tags = block.get("tags")
+    if not tags or not isinstance(tags, dict):
+        return _iac_finding(
+            "IAC-TF-008",
+            "LOW",
+            f"{rt}.{block.name} has no tags block.",
+            file=_block_file(repo_root, block),
+            resource_type=rt,
+            resource_name=block.name,
+        )
+    if "owner" not in tags and "cost_center" not in tags and "Owner" not in tags:
+        return _iac_finding(
+            "IAC-TF-008",
+            "LOW",
+            f"{rt}.{block.name} tags missing owner/cost_center.",
+            file=_block_file(repo_root, block),
+            resource_type=rt,
+            resource_name=block.name,
+        )
+    return None
 
 
 def _rule_iac_tf_008_missing_tags(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:
     """AWS resources without any ``tags`` (or without ``owner``/``cost_center``)."""
 
     findings: list[IacFinding] = []
-    for rt in list(index.types_matching("aws_")):
+    for rt in index.types_matching("aws_"):
         # Skip *iam* and *_attachment / *_policy* — they don't accept tags universally.
         if "iam_role_policy" in rt or "_attachment" in rt:
             continue
         for block in index.resources(rt):
-            tags = block.get("tags")
-            if not tags or not isinstance(tags, dict):
-                findings.append(
-                    IacFinding(
-                        rule_id="IAC-TF-008",
-                        severity="LOW",
-                        message=f"{rt}.{block.name} has no tags block.",
-                        file=_block_file(repo_root, block),
-                        resource_type=rt,
-                        resource_name=block.name,
-                    )
-                )
-                continue
-            if "owner" not in tags and "cost_center" not in tags and "Owner" not in tags:
-                findings.append(
-                    IacFinding(
-                        rule_id="IAC-TF-008",
-                        severity="LOW",
-                        message=f"{rt}.{block.name} tags missing owner/cost_center.",
-                        file=_block_file(repo_root, block),
-                        resource_type=rt,
-                        resource_name=block.name,
-                    )
-                )
+            finding = _missing_tags_finding(rt, block, repo_root)
+            if finding is not None:
+                findings.append(finding)
     return findings
+
+
+def _iter_terraform_blocks(index: TfResourceIndex) -> Iterable[tuple[Path, dict[str, Any]]]:
+    """Yield ``(path, terraform_block)`` for every ``terraform { ... }`` block."""
+
+    for path, parsed in index.raw_files.items():
+        terraform = parsed.get("terraform") or []
+        if not isinstance(terraform, list):
+            terraform = [terraform]
+        for tf in terraform:
+            if isinstance(tf, dict):
+                yield path, tf
+
+
+def _unpinned_providers(required: Any) -> list[str]:
+    """Return provider names declared in ``required_providers`` without a pinned version."""
+
+    if isinstance(required, dict):
+        required = [required]
+    out: list[str] = []
+    for entry in required:
+        if not isinstance(entry, dict):
+            continue
+        for provider, spec in entry.items():
+            version_ = spec.get("version") if isinstance(spec, dict) else None
+            if not version_:
+                out.append(provider)
+    return out
 
 
 def _rule_iac_tf_009_unpinned_providers(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:
     """``required_providers`` block missing or providers without a pinned version."""
 
     findings: list[IacFinding] = []
-    for path, parsed in index.raw_files.items():
-        terraform = parsed.get("terraform") or []
-        if not isinstance(terraform, list):
-            terraform = [terraform]
-        for tf in terraform:
-            if not isinstance(tf, dict):
-                continue
-            required = tf.get("required_providers") or []
-            if isinstance(required, dict):
-                required = [required]
-            if not required:
-                findings.append(
-                    IacFinding(
-                        rule_id="IAC-TF-009",
-                        severity="LOW",
-                        message=f"{_normalize_target(repo_root, path)}: terraform.required_providers is missing.",
-                        file=_normalize_target(repo_root, path),
-                        resource_type="terraform.required_providers",
-                        resource_name="",
-                    )
+    for path, tf in _iter_terraform_blocks(index):
+        target = _normalize_target(repo_root, path)
+        required = tf.get("required_providers") or []
+        if not required:
+            findings.append(
+                _iac_finding(
+                    "IAC-TF-009",
+                    "LOW",
+                    f"{target}: terraform.required_providers is missing.",
+                    file=target,
+                    resource_type="terraform.required_providers",
+                    resource_name="",
                 )
-                continue
-            for entry in required:
-                if not isinstance(entry, dict):
-                    continue
-                for provider, spec in entry.items():
-                    version_ = None
-                    if isinstance(spec, dict):
-                        version_ = spec.get("version")
-                    if not version_:
-                        findings.append(
-                            IacFinding(
-                                rule_id="IAC-TF-009",
-                                severity="LOW",
-                                message=(
-                                    f"{_normalize_target(repo_root, path)}: "
-                                    f"provider {provider!r} has no pinned version."
-                                ),
-                                file=_normalize_target(repo_root, path),
-                                resource_type="terraform.required_providers",
-                                resource_name=provider,
-                            )
-                        )
+            )
+            continue
+        for provider in _unpinned_providers(required):
+            findings.append(
+                _iac_finding(
+                    "IAC-TF-009",
+                    "LOW",
+                    f"{target}: provider {provider!r} has no pinned version.",
+                    file=target,
+                    resource_type="terraform.required_providers",
+                    resource_name=provider,
+                )
+            )
     return findings
+
+
+def _local_backend_names(tf: dict[str, Any]) -> list[str]:
+    """Return ``['local']`` when the terraform block declares a local backend, else ``[]``."""
+
+    backend = tf.get("backend") or []
+    if isinstance(backend, dict):
+        backend = [backend]
+    names: list[str] = []
+    for entry in backend:
+        if isinstance(entry, dict) and "local" in entry:
+            names.append("local")
+    return names
 
 
 def _rule_iac_tf_010_local_backend(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:
     """``terraform { backend "local" }`` block (or no backend at all in production layouts)."""
 
     findings: list[IacFinding] = []
-    for path, parsed in index.raw_files.items():
-        terraform = parsed.get("terraform") or []
-        if not isinstance(terraform, list):
-            terraform = [terraform]
-        for tf in terraform:
-            if not isinstance(tf, dict):
-                continue
-            backend = tf.get("backend") or []
-            if isinstance(backend, dict):
-                backend = [backend]
-            for entry in backend:
-                if not isinstance(entry, dict):
-                    continue
-                # backend block: { "<backend_name>": {...} }
-                for backend_name in entry:
-                    if backend_name == "local":
-                        findings.append(
-                            IacFinding(
-                                rule_id="IAC-TF-010",
-                                severity="LOW",
-                                message=(
-                                    f"{_normalize_target(repo_root, path)}: terraform backend is 'local'; "
-                                    "use a remote backend with encryption + locking."
-                                ),
-                                file=_normalize_target(repo_root, path),
-                                resource_type="terraform.backend",
-                                resource_name=backend_name,
-                            )
-                        )
+    for path, tf in _iter_terraform_blocks(index):
+        target = _normalize_target(repo_root, path)
+        for backend_name in _local_backend_names(tf):
+            findings.append(
+                _iac_finding(
+                    "IAC-TF-010",
+                    "LOW",
+                    f"{target}: terraform backend is 'local'; use a remote backend with encryption + locking.",
+                    file=target,
+                    resource_type="terraform.backend",
+                    resource_name=backend_name,
+                )
+            )
     return findings
+
+
+def _looks_prod_datastore(block: TfBlock) -> bool:
+    """True when a block's name/identifier matches the production naming pattern."""
+
+    return bool(
+        _PROD_NAME_PATTERN.search(block.name)
+        or _PROD_NAME_PATTERN.search(str(block.get("name") or block.get("identifier") or ""))
+    )
+
+
+def _prevent_destroy_enabled(block: TfBlock) -> bool:
+    """True when ``lifecycle.prevent_destroy`` is explicitly ``true``."""
+
+    lifecycle = block.get("lifecycle")
+    if isinstance(lifecycle, list) and lifecycle:
+        lifecycle = lifecycle[0]
+    prevent = lifecycle.get("prevent_destroy") if isinstance(lifecycle, dict) else None
+    return prevent is True
 
 
 def _rule_iac_tf_011_prevent_destroy(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:
@@ -664,34 +732,64 @@ def _rule_iac_tf_011_prevent_destroy(repo_root: Path, index: TfResourceIndex) ->
     )
     for rt in data_store_types:
         for block in index.resources(rt):
-            looks_prod = _PROD_NAME_PATTERN.search(block.name) or _PROD_NAME_PATTERN.search(
-                str(block.get("name") or block.get("identifier") or "")
-            )
-            if not looks_prod:
-                continue
-            lifecycle = block.get("lifecycle")
-            if isinstance(lifecycle, list) and lifecycle:
-                lifecycle = lifecycle[0]
-            prevent = lifecycle.get("prevent_destroy") if isinstance(lifecycle, dict) else None
-            if prevent is True:
-                continue
-            findings.append(
-                IacFinding(
-                    rule_id="IAC-TF-011",
-                    severity="MEDIUM",
-                    message=(
-                        f"{rt}.{block.name} looks like a production data store "
-                        "but lifecycle.prevent_destroy is not true."
-                    ),
-                    file=_block_file(repo_root, block),
-                    resource_type=rt,
-                    resource_name=block.name,
+            if _looks_prod_datastore(block) and not _prevent_destroy_enabled(block):
+                findings.append(
+                    _iac_finding(
+                        "IAC-TF-011",
+                        "MEDIUM",
+                        (
+                            f"{rt}.{block.name} looks like a production data store "
+                            "but lifecycle.prevent_destroy is not true."
+                        ),
+                        file=_block_file(repo_root, block),
+                        resource_type=rt,
+                        resource_name=block.name,
+                    )
                 )
-            )
     return findings
 
 
-def _rule_iac_tf_012_wildcard_principals(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:  # noqa: C901
+def _iter_data_entries(index: TfResourceIndex) -> Iterable[tuple[Path, dict[str, Any]]]:
+    """Yield ``(path, data_block)`` for every ``data { ... }`` block dict."""
+
+    for path, parsed in index.raw_files.items():
+        data = parsed.get("data") or []
+        if isinstance(data, dict):
+            data = [data]
+        if not isinstance(data, list):
+            continue
+        for entry in data:
+            if isinstance(entry, dict):
+                yield path, entry
+
+
+def _iter_iam_policy_docs(index: TfResourceIndex) -> Iterable[tuple[Path, str, dict[str, Any]]]:
+    """Yield ``(path, doc_name, doc_body)`` for every ``data.aws_iam_policy_document``."""
+
+    for path, entry in _iter_data_entries(index):
+        doc_section = entry.get("aws_iam_policy_document")
+        if not isinstance(doc_section, dict):
+            continue
+        for name, body in doc_section.items():
+            if isinstance(body, dict):
+                yield path, name, body
+
+
+def _policy_statements(body: dict[str, Any]) -> list[dict[str, Any]]:
+    statements = body.get("statement") or []
+    if isinstance(statements, dict):
+        statements = [statements]
+    return [s for s in statements if isinstance(s, dict)]
+
+
+def _stmt_has_wildcard_principal(stmt: dict[str, Any]) -> bool:
+    principals = stmt.get("principals") or []
+    if isinstance(principals, dict):
+        principals = [principals]
+    return any(isinstance(p, dict) and "*" in (p.get("identifiers") or []) for p in principals)
+
+
+def _rule_iac_tf_012_wildcard_principals(repo_root: Path, index: TfResourceIndex) -> list[IacFinding]:
     """``data.aws_iam_policy_document`` statements with ``principals.identifiers = ["*"]``.
 
     The HCL hcl2 6.x parser exposes ``data`` blocks under the ``data`` key in
@@ -700,46 +798,19 @@ def _rule_iac_tf_012_wildcard_principals(repo_root: Path, index: TfResourceIndex
     """
 
     findings: list[IacFinding] = []
-    for path, parsed in index.raw_files.items():
-        data = parsed.get("data") or []
-        if not isinstance(data, list):
-            data = [data]
-        for entry in data:
-            if not isinstance(entry, dict):
-                continue
-            doc_section = entry.get("aws_iam_policy_document")
-            if not isinstance(doc_section, dict):
-                continue
-            for name, body in doc_section.items():
-                if not isinstance(body, dict):
-                    continue
-                statements = body.get("statement") or []
-                if isinstance(statements, dict):
-                    statements = [statements]
-                for stmt in statements:
-                    if not isinstance(stmt, dict):
-                        continue
-                    principals = stmt.get("principals") or []
-                    if isinstance(principals, dict):
-                        principals = [principals]
-                    for p in principals:
-                        if not isinstance(p, dict):
-                            continue
-                        idents = p.get("identifiers") or []
-                        if "*" in idents:
-                            findings.append(
-                                IacFinding(
-                                    rule_id="IAC-TF-012",
-                                    severity="LOW",
-                                    message=(
-                                        f"data.aws_iam_policy_document.{name}: statement has wildcard principal '*'."
-                                    ),
-                                    file=_normalize_target(repo_root, path),
-                                    resource_type="data.aws_iam_policy_document",
-                                    resource_name=name,
-                                )
-                            )
-                            break
+    for path, name, body in _iter_iam_policy_docs(index):
+        for stmt in _policy_statements(body):
+            if _stmt_has_wildcard_principal(stmt):
+                findings.append(
+                    _iac_finding(
+                        "IAC-TF-012",
+                        "LOW",
+                        f"data.aws_iam_policy_document.{name}: statement has wildcard principal '*'.",
+                        file=_normalize_target(repo_root, path),
+                        resource_type="data.aws_iam_policy_document",
+                        resource_name=name,
+                    )
+                )
     return findings
 
 
@@ -829,7 +900,7 @@ def run_scan(
 def render_evidence_payload(outcome: IacScanOutcome, *, target: Path) -> dict[str, Any]:
     """Build the on-disk evidence dict consumed by every ``IAC-TF-*`` evaluator."""
 
-    by_rule: dict[str, int] = {rid: 0 for rid in all_rule_ids()}
+    by_rule: dict[str, int] = dict.fromkeys(all_rule_ids(), 0)
     by_severity: dict[str, int] = {}
     for f in outcome.findings:
         by_rule[f.rule_id] = by_rule.get(f.rule_id, 0) + 1

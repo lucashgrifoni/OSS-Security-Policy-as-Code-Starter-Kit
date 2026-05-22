@@ -170,6 +170,24 @@ def _normalize_finding(raw: dict[str, Any]) -> SemgrepFinding | None:
     )
 
 
+def _parse_semgrep_findings(stdout: str) -> list[SemgrepFinding] | None:
+    """Parse Semgrep JSON stdout into findings; return None when the JSON is unparseable."""
+
+    if not stdout.strip():
+        return []
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return None
+    findings: list[SemgrepFinding] = []
+    for entry in payload.get("results", []) or []:
+        if isinstance(entry, dict):
+            normalized = _normalize_finding(entry)
+            if normalized is not None:
+                findings.append(normalized)
+    return findings
+
+
 def run_semgrep(
     target: Path,
     *,
@@ -248,24 +266,15 @@ def run_semgrep(
             raw_stderr=stderr_excerpt,
         )
 
-    findings: list[SemgrepFinding] = []
-    if proc.stdout.strip():
-        try:
-            payload = json.loads(proc.stdout)
-        except json.JSONDecodeError:
-            return SemgrepRunOutcome(
-                status="error",
-                version=_semgrep_version(),
-                rulesets=list(rulesets),
-                scanned_at=_now_iso_utc(),
-                raw_stderr="Semgrep JSON output could not be parsed.",
-            )
-        for entry in payload.get("results", []) or []:
-            if not isinstance(entry, dict):
-                continue
-            normalized = _normalize_finding(entry)
-            if normalized is not None:
-                findings.append(normalized)
+    findings = _parse_semgrep_findings(proc.stdout)
+    if findings is None:
+        return SemgrepRunOutcome(
+            status="error",
+            version=_semgrep_version(),
+            rulesets=list(rulesets),
+            scanned_at=_now_iso_utc(),
+            raw_stderr="Semgrep JSON output could not be parsed.",
+        )
 
     return SemgrepRunOutcome(
         status="ok",

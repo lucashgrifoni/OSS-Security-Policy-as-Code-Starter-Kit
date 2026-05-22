@@ -63,12 +63,7 @@ def has_placeholder_values(data: object) -> list[str]:
 
     def walk(node: object) -> None:
         if isinstance(node, str):
-            upper = node.upper()
-            for pattern in _PLACEHOLDER_PATTERNS:
-                p = pattern.upper()
-                if p in upper and p not in seen:
-                    seen.add(p)
-                    found.append(pattern)
+            _record_placeholders(node, found, seen)
         elif isinstance(node, dict):
             for v in node.values():
                 walk(v)
@@ -78,3 +73,14 @@ def has_placeholder_values(data: object) -> list[str]:
 
     walk(data)
     return found
+
+
+def _record_placeholders(text: str, found: list[str], seen: set[str]) -> None:
+    """Append any new placeholder patterns found in ``text`` (case-insensitive) to ``found``."""
+
+    upper = text.upper()
+    for pattern in _PLACEHOLDER_PATTERNS:
+        p = pattern.upper()
+        if p in upper and p not in seen:
+            seen.add(p)
+            found.append(pattern)

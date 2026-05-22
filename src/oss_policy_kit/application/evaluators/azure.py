@@ -2,7 +2,42 @@
 
 from __future__ import annotations
 
-from oss_policy_kit.application.evaluators._shared import *  # noqa: F403
+from typing import Any
+
+from oss_policy_kit.application.evaluators._shared import (
+    _KEYWORD_CI_SIGNAL_WARN,
+    NO_AZURE_PIPELINES_REASON,
+    ControlStatus,
+    EvalContext,
+    EvalOutcome,
+    EvidenceCollectionMethod,
+    Path,
+    _azure_branch_policies_api_support_complete,
+    _azure_branch_policies_schema,
+    _azure_governance_evidence_dict,
+    _azure_pipeline_governance_api_support_complete,
+    _azure_pipeline_governance_schema,
+    _azure_provenance_artifact_schema,
+    _azure_sbom_artifact_schema,
+    _digest_invalid_not_evaluated,
+    _digest_placeholder_manual_review,
+    _evidence_is_api_backed,
+    _evidence_placeholder_outcome,
+    _is_valid_sha256_digest,
+    _provenance_artifact_digest_strings,
+    _sbom_artifact_digest_strings,
+    _validate_json_evidence,
+    contextlib,
+    has_placeholder_values,
+    is_placeholder_digest,
+)
+
+_AZURE_PIPELINE_GOV_JSON = "azure-pipeline-governance.json"
+_AZURE_PIPELINE_GOV_LABEL = "Azure pipeline governance"
+_AZURE_PIPELINE_GOV_REMEDIATION = (
+    "Regenerate evidence using reports/schema/evidence-azure-pipeline-governance.schema.json."
+)
+_KIT_DIR = ".oss-policy-kit"
 
 
 def eval_az_pipe_027(ctx: EvalContext) -> EvalOutcome:
@@ -231,7 +266,7 @@ def eval_az_sbom_033(ctx: EvalContext) -> EvalOutcome:
 def eval_az_plat_034(ctx: EvalContext) -> EvalOutcome:
     """AZ-PLAT-034: Azure Repos branch policies posture from evidence."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "azure-branch-policies.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "azure-branch-policies.json"
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -313,7 +348,7 @@ def eval_az_plat_034(ctx: EvalContext) -> EvalOutcome:
 def eval_az_plat_035(ctx: EvalContext) -> EvalOutcome:
     """AZ-PLAT-035: Azure pipeline governance evidence for approvals/checks and service connection posture."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "azure-pipeline-governance.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / _AZURE_PIPELINE_GOV_JSON
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -328,13 +363,13 @@ def eval_az_plat_035(ctx: EvalContext) -> EvalOutcome:
     data, error, ph = _validate_json_evidence(
         evidence,
         schema_loader=_azure_pipeline_governance_schema,
-        evidence_name="Azure pipeline governance",
+        evidence_name=_AZURE_PIPELINE_GOV_LABEL,
     )
     if error:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
             reason=error,
-            remediation="Regenerate evidence using reports/schema/evidence-azure-pipeline-governance.schema.json.",
+            remediation=_AZURE_PIPELINE_GOV_REMEDIATION,
             evidence_sources=[str(evidence.resolve())],
             confidence="low",
         )
@@ -395,54 +430,59 @@ def eval_az_plat_035(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+def _az_ident_governance_outcome(gov: dict[str, Any], evidence: Path) -> EvalOutcome:
+    """Outcome for AZ-IDENT-036 when governance evidence is present (PASS/MANUAL/SELF_ATTESTED)."""
+
+    src = [str(evidence.resolve())]
+    posture = gov.get("posture")
+    if isinstance(posture, dict) and posture.get("federated_identity_preferred") is True:
+        if _evidence_is_api_backed(gov) and _azure_pipeline_governance_api_support_complete(gov):
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason="Workload identity federation preferred per live-collected Azure pipeline governance evidence.",
+                remediation="Keep federated service connections and avoid PAT-style deployment credentials.",
+                evidence_sources=src,
+                confidence="high",
+                evidence_collection_method=EvidenceCollectionMethod.LIVE,
+            )
+        if _evidence_is_api_backed(gov):
+            return EvalOutcome(
+                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                reason="Governance evidence suggests federation, but API posture_support metadata is incomplete.",
+                remediation="Re-run collect-evidence so federation claims are backed by reachable Azure APIs.",
+                evidence_sources=src,
+                confidence="medium",
+                evidence_collection_method=EvidenceCollectionMethod.LIVE,
+            )
+        return EvalOutcome(
+            status=ControlStatus.SELF_ATTESTED,
+            reason="Governance evidence self-attests federated identity preference for deployment connections.",
+            remediation="Prefer collect-evidence over manual JSON for stronger assurance.",
+            evidence_sources=src,
+            confidence="low",
+            evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+        )
+    return EvalOutcome(
+        status=ControlStatus.SELF_ATTESTED,
+        reason="Governance evidence present but federated_identity_preferred is not enabled.",
+        remediation="Migrate deployment service connections to WorkloadIdentityFederation where applicable.",
+        evidence_sources=src,
+        confidence="low",
+        evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+    )
+
+
 def eval_az_ident_036(ctx: EvalContext) -> EvalOutcome:
     """AZ-IDENT-036: workload identity federation preference grounded in governance evidence when available."""
 
     gov = _azure_governance_evidence_dict(ctx)
     if gov is not None:
-        evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "azure-pipeline-governance.json"
+        evidence = ctx.repo_root / _KIT_DIR / "evidence" / _AZURE_PIPELINE_GOV_JSON
         ph = has_placeholder_values(gov)
         blocked = _evidence_placeholder_outcome(evidence, ph)
         if blocked is not None:
             return blocked
-        posture = gov.get("posture")
-        if isinstance(posture, dict) and posture.get("federated_identity_preferred") is True:
-            if _evidence_is_api_backed(gov) and _azure_pipeline_governance_api_support_complete(gov):
-                return EvalOutcome(
-                    status=ControlStatus.PASS,
-                    reason=(
-                        "Workload identity federation preferred per live-collected Azure pipeline governance evidence."
-                    ),
-                    remediation="Keep federated service connections and avoid PAT-style deployment credentials.",
-                    evidence_sources=[str(evidence.resolve())],
-                    confidence="high",
-                    evidence_collection_method=EvidenceCollectionMethod.LIVE,
-                )
-            if _evidence_is_api_backed(gov):
-                return EvalOutcome(
-                    status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-                    reason="Governance evidence suggests federation, but API posture_support metadata is incomplete.",
-                    remediation="Re-run collect-evidence so federation claims are backed by reachable Azure APIs.",
-                    evidence_sources=[str(evidence.resolve())],
-                    confidence="medium",
-                    evidence_collection_method=EvidenceCollectionMethod.LIVE,
-                )
-            return EvalOutcome(
-                status=ControlStatus.SELF_ATTESTED,
-                reason="Governance evidence self-attests federated identity preference for deployment connections.",
-                remediation="Prefer collect-evidence over manual JSON for stronger assurance.",
-                evidence_sources=[str(evidence.resolve())],
-                confidence="low",
-                evidence_collection_method=EvidenceCollectionMethod.MANUAL,
-            )
-        return EvalOutcome(
-            status=ControlStatus.SELF_ATTESTED,
-            reason="Governance evidence present but federated_identity_preferred is not enabled.",
-            remediation="Migrate deployment service connections to WorkloadIdentityFederation where applicable.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="low",
-            evidence_collection_method=EvidenceCollectionMethod.MANUAL,
-        )
+        return _az_ident_governance_outcome(gov, evidence)
 
     if not ctx.azure_pipelines.pipeline_paths:
         return EvalOutcome(
@@ -497,10 +537,60 @@ def eval_az_ident_036(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+_SCONN_ALLOWED_AUTH = frozenset(
+    {"workload_identity_federation", "service_principal", "managed_identity", "secret", "certificate"}
+)
+_SCONN_UNKNOWN_REASON = (
+    "Service connection authentication type is 'unknown'. "
+    "Inspect the connection in Azure DevOps and attest the actual "
+    "authentication method before this control can be evaluated."
+)
+
+
+def _sconn_auth_outcome(conns: list[Any], evidence: Path) -> EvalOutcome | None:
+    """Return NOT_EVALUATED/MANUAL for an unknown/unsupported connection auth value, else None."""
+
+    src = [str(evidence.resolve())]
+    for c in conns:
+        if not isinstance(c, dict):
+            continue
+        raw_auth = c.get("authentication")
+        if not isinstance(raw_auth, str) or not raw_auth.strip():
+            return EvalOutcome(
+                status=ControlStatus.NOT_EVALUATED,
+                reason=_SCONN_UNKNOWN_REASON,
+                remediation="Update the evidence file with the actual authentication value.",
+                evidence_sources=src,
+                confidence="low",
+            )
+        auth_l = raw_auth.strip().lower()
+        if auth_l == "unknown":
+            return EvalOutcome(
+                status=ControlStatus.NOT_EVALUATED,
+                reason=_SCONN_UNKNOWN_REASON,
+                remediation="Update the evidence file with the actual authentication value.",
+                evidence_sources=src,
+                confidence="low",
+            )
+        if auth_l not in _SCONN_ALLOWED_AUTH:
+            return EvalOutcome(
+                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                reason=(
+                    f"Service connection `{c.get('name', '<unnamed>')}` has unsupported authentication value "
+                    f"'{raw_auth}'. Allowed values: workload_identity_federation, service_principal, "
+                    "managed_identity, certificate, secret."
+                ),
+                remediation="Populate authentication for each service connection entry from Azure DevOps inventory.",
+                evidence_sources=src,
+                confidence="low",
+            )
+    return None
+
+
 def eval_az_sconn_056(ctx: EvalContext) -> EvalOutcome:
     """AZ-SCONN-056: service connection authentication posture from pipeline governance evidence."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "azure-pipeline-governance.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / _AZURE_PIPELINE_GOV_JSON
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -512,13 +602,13 @@ def eval_az_sconn_056(ctx: EvalContext) -> EvalOutcome:
     data, error, ph = _validate_json_evidence(
         evidence,
         schema_loader=_azure_pipeline_governance_schema,
-        evidence_name="Azure pipeline governance",
+        evidence_name=_AZURE_PIPELINE_GOV_LABEL,
     )
     if error:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
             reason=error,
-            remediation="Regenerate evidence using reports/schema/evidence-azure-pipeline-governance.schema.json.",
+            remediation=_AZURE_PIPELINE_GOV_REMEDIATION,
             evidence_sources=[str(evidence.resolve())],
             confidence="low",
         )
@@ -535,46 +625,9 @@ def eval_az_sconn_056(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[str(evidence.resolve())],
             confidence="medium",
         )
-    _sconn_ok_auth = frozenset({"workload_identity_federation", "service_principal", "managed_identity"})
-    _sconn_unknown_reason = (
-        "Service connection authentication type is 'unknown'. "
-        "Inspect the connection in Azure DevOps and attest the actual "
-        "authentication method before this control can be evaluated."
-    )
-    _sconn_unknown_remediation = "Update the evidence file with the actual authentication value."
-    for c in conns:
-        if not isinstance(c, dict):
-            continue
-        raw_auth = c.get("authentication")
-        if not isinstance(raw_auth, str) or not raw_auth.strip():
-            return EvalOutcome(
-                status=ControlStatus.NOT_EVALUATED,
-                reason=_sconn_unknown_reason,
-                remediation=_sconn_unknown_remediation,
-                evidence_sources=[str(evidence.resolve())],
-                confidence="low",
-            )
-        auth_l = raw_auth.strip().lower()
-        if auth_l == "unknown":
-            return EvalOutcome(
-                status=ControlStatus.NOT_EVALUATED,
-                reason=_sconn_unknown_reason,
-                remediation=_sconn_unknown_remediation,
-                evidence_sources=[str(evidence.resolve())],
-                confidence="low",
-            )
-        if auth_l not in _sconn_ok_auth.union({"secret", "certificate"}):
-            return EvalOutcome(
-                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-                reason=(
-                    f"Service connection `{c.get('name', '<unnamed>')}` has unsupported authentication value "
-                    f"'{raw_auth}'. Allowed values: workload_identity_federation, service_principal, "
-                    "managed_identity, certificate, secret."
-                ),
-                remediation="Populate authentication for each service connection entry from Azure DevOps inventory.",
-                evidence_sources=[str(evidence.resolve())],
-                confidence="low",
-            )
+    auth_outcome = _sconn_auth_outcome(conns, evidence)
+    if auth_outcome is not None:
+        return auth_outcome
     if any(isinstance(c, dict) and c.get("authentication") == "secret" for c in conns):
         return EvalOutcome(
             status=ControlStatus.SELF_ATTESTED,
@@ -605,10 +658,83 @@ def eval_az_sconn_056(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_az_wifev_057(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
+def _az_wif_posture_outcome(posture: Any, evidence: Path) -> EvalOutcome | None:
+    """Return a MANUAL/FAIL outcome for the WIF posture flag, or None when it is explicitly true."""
+
+    src = [str(evidence.resolve())]
+    if not isinstance(posture, dict) or "federated_identity_preferred" not in posture:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="Evidence file missing posture.federated_identity_preferred field.",
+            remediation=(
+                "Set posture.federated_identity_preferred in azure-pipeline-governance.json after enabling WIF."
+            ),
+            evidence_sources=src,
+            confidence="low",
+        )
+    pref = posture.get("federated_identity_preferred")
+    if pref is False:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                "Federated identity is not preferred per governance evidence. "
+                "Set posture.federated_identity_preferred: true after configuring workload "
+                "identity federation."
+            ),
+            remediation="Configure workload identity federation for deployment service connections and re-attest.",
+            evidence_sources=src,
+            confidence="medium",
+        )
+    if pref is not True:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="Evidence file missing posture.federated_identity_preferred field.",
+            remediation="Set posture.federated_identity_preferred to a boolean true/false value.",
+            evidence_sources=src,
+            confidence="low",
+        )
+    return None
+
+
+def _wif_empty_proof_fields(conn: dict[str, Any]) -> list[str]:
+    """Return WIF proof fields that are missing, non-string, or placeholder (``<...>``)."""
+
+    empty: list[str] = []
+    for f in ("federation_subject", "issuer_url", "audience"):
+        raw = conn.get(f)
+        if not isinstance(raw, str):
+            empty.append(f)
+            continue
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("<"):
+            empty.append(f)
+    return empty
+
+
+def _incomplete_wif_outcome(wif_conns: list[Any], evidence: Path) -> EvalOutcome | None:
+    """Return a NOT_EVALUATED outcome when any WIF connection lacks complete proof fields."""
+
+    for conn in wif_conns:
+        if _wif_empty_proof_fields(conn):
+            return EvalOutcome(
+                status=ControlStatus.NOT_EVALUATED,
+                reason=(
+                    "Workload identity federation evidence is incomplete. "
+                    "The following fields are missing or contain placeholder values: "
+                    f"{', '.join(_wif_empty_proof_fields(conn))}. "
+                    "Collect real WIF configuration values from the Azure DevOps service connection."
+                ),
+                remediation="Update the evidence file with actual federation_subject, issuer_url, and audience values.",
+                evidence_sources=[str(evidence.resolve())],
+                confidence="low",
+            )
+    return None
+
+
+def eval_az_wifev_057(ctx: EvalContext) -> EvalOutcome:
     """AZ-WIFEV-057: workload identity federation evidenced on service connections."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "azure-pipeline-governance.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / _AZURE_PIPELINE_GOV_JSON
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -620,13 +746,13 @@ def eval_az_wifev_057(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
     data, error, ph = _validate_json_evidence(
         evidence,
         schema_loader=_azure_pipeline_governance_schema,
-        evidence_name="Azure pipeline governance",
+        evidence_name=_AZURE_PIPELINE_GOV_LABEL,
     )
     if error:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
             reason=error,
-            remediation="Regenerate evidence using reports/schema/evidence-azure-pipeline-governance.schema.json.",
+            remediation=_AZURE_PIPELINE_GOV_REMEDIATION,
             evidence_sources=[str(evidence.resolve())],
             confidence="low",
         )
@@ -634,37 +760,9 @@ def eval_az_wifev_057(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
     if blocked is not None:
         return blocked
     assert data is not None
-    posture = data.get("posture")
-    if not isinstance(posture, dict) or "federated_identity_preferred" not in posture:
-        return EvalOutcome(
-            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason="Evidence file missing posture.federated_identity_preferred field.",
-            remediation=(
-                "Set posture.federated_identity_preferred in azure-pipeline-governance.json after enabling WIF."
-            ),
-            evidence_sources=[str(evidence.resolve())],
-            confidence="low",
-        )
-    if posture.get("federated_identity_preferred") is False:
-        return EvalOutcome(
-            status=ControlStatus.FAIL,
-            reason=(
-                "Federated identity is not preferred per governance evidence. "
-                "Set posture.federated_identity_preferred: true after configuring workload "
-                "identity federation."
-            ),
-            remediation="Configure workload identity federation for deployment service connections and re-attest.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="medium",
-        )
-    if posture.get("federated_identity_preferred") is not True:
-        return EvalOutcome(
-            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason="Evidence file missing posture.federated_identity_preferred field.",
-            remediation="Set posture.federated_identity_preferred to a boolean true/false value.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="low",
-        )
+    posture_outcome = _az_wif_posture_outcome(data.get("posture"), evidence)
+    if posture_outcome is not None:
+        return posture_outcome
 
     conns = data.get("service_connections")
     wif_conns = (
@@ -678,36 +776,9 @@ def eval_az_wifev_057(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
         else []
     )
     has_wif = bool(wif_conns)
-    proof_fields = ("federation_subject", "issuer_url", "audience")
-    if has_wif:
-        for c in wif_conns:
-            empty_fields: list[str] = []
-            for f in proof_fields:
-                raw = c.get(f)
-                if raw is None:
-                    empty_fields.append(f)
-                    continue
-                if not isinstance(raw, str):
-                    empty_fields.append(f)
-                    continue
-                stripped = raw.strip()
-                if not stripped or stripped.startswith("<"):
-                    empty_fields.append(f)
-            if empty_fields:
-                return EvalOutcome(
-                    status=ControlStatus.NOT_EVALUATED,
-                    reason=(
-                        "Workload identity federation evidence is incomplete. "
-                        "The following fields are missing or contain placeholder values: "
-                        f"{', '.join(empty_fields)}. "
-                        "Collect real WIF configuration values from the Azure DevOps service connection."
-                    ),
-                    remediation=(
-                        "Update the evidence file with actual federation_subject, issuer_url, and audience values."
-                    ),
-                    evidence_sources=[str(evidence.resolve())],
-                    confidence="low",
-                )
+    incomplete = _incomplete_wif_outcome(wif_conns, evidence)
+    if incomplete is not None:
+        return incomplete
     warn: tuple[str, ...] = ()
     if not has_wif:
         warn = (
@@ -733,7 +804,7 @@ def eval_az_wifev_057(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
 def eval_az_artsbom_058(ctx: EvalContext) -> EvalOutcome:
     """AZ-ARTSBOM-058: SBOM attested against a concrete release artifact digest."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "azure-sbom-artifact.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "azure-sbom-artifact.json"
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -801,7 +872,7 @@ def eval_az_artsbom_058(ctx: EvalContext) -> EvalOutcome:
 def eval_az_artprv_059(ctx: EvalContext) -> EvalOutcome:
     """AZ-ARTPRV-059: provenance / attestation attested against a concrete release artifact digest."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "azure-provenance-artifact.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "azure-provenance-artifact.json"
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,

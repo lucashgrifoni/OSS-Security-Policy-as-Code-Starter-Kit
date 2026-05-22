@@ -2,7 +2,33 @@
 
 from __future__ import annotations
 
-from oss_policy_kit.application.evaluators._shared import *  # noqa: F403
+from pathlib import Path
+
+from oss_policy_kit.application.evaluators._shared import (
+    _KEYWORD_CI_SIGNAL_WARN,
+    _STRICT_AWS_CODEBUILD_PROJECT_PROFILE_IDS,
+    _STRICT_AWS_SECRET_PROFILE_IDS,
+    NO_AWS_BUILDSPEC_REASON,
+    ControlStatus,
+    EvalContext,
+    EvalOutcome,
+    EvidenceCollectionMethod,
+    _aws_codebuild_project_schema,
+    _aws_codepipeline_schema,
+    _aws_provenance_artifact_schema,
+    _aws_sbom_artifact_schema,
+    _digest_invalid_not_evaluated,
+    _digest_placeholder_manual_review,
+    _evidence_is_api_backed,
+    _evidence_placeholder_outcome,
+    _is_valid_sha256_digest,
+    _provenance_artifact_digest_strings,
+    _sbom_artifact_digest_strings,
+    _validate_json_evidence,
+    is_placeholder_digest,
+)
+
+_KIT_DIR = ".oss-policy-kit"
 
 
 def eval_aws_ci_037(ctx: EvalContext) -> EvalOutcome:
@@ -252,7 +278,7 @@ def eval_aws_prov_043(ctx: EvalContext) -> EvalOutcome:
 def eval_aws_cp_044(ctx: EvalContext) -> EvalOutcome:
     """AWS-CP-044: CodePipeline promotion and artifact governance from evidence."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "aws-codepipeline.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "aws-codepipeline.json"
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -324,7 +350,7 @@ def eval_aws_cp_044(ctx: EvalContext) -> EvalOutcome:
 def eval_aws_cb_045(ctx: EvalContext) -> EvalOutcome:
     """AWS-CB-045: CodeBuild project posture from evidence."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "aws-codebuild-project.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "aws-codebuild-project.json"
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -389,39 +415,50 @@ def eval_aws_cb_045(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+def _aws_pipeiam_evidence_outcome(evidence: Path) -> EvalOutcome | None:
+    """PASS/SELF_ATTESTED/placeholder outcome from CodePipeline evidence, or None to fall through."""
+
+    if not evidence.is_file():
+        return None
+    data, error, ph = _validate_json_evidence(
+        evidence,
+        schema_loader=_aws_codepipeline_schema,
+        evidence_name="AWS CodePipeline",
+    )
+    if error or data is None:
+        return None
+    blocked = _evidence_placeholder_outcome(evidence, ph)
+    if blocked is not None:
+        return blocked
+    iam = data.get("iam")
+    if not (isinstance(iam, dict) and iam.get("pipeline_service_role_arn_configured") is True):
+        return None
+    if _evidence_is_api_backed(data):
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason="CodePipeline service role ARN present in live-collected pipeline evidence.",
+            remediation="Re-collect after IAM or pipeline role changes.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+            evidence_collection_method=EvidenceCollectionMethod.LIVE,
+        )
+    return EvalOutcome(
+        status=ControlStatus.SELF_ATTESTED,
+        reason="CodePipeline IAM posture self-attested with pipeline service role configured.",
+        remediation="Prefer collect-evidence so service role presence is API-derived.",
+        evidence_sources=[str(evidence.resolve())],
+        confidence="low",
+        evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+    )
+
+
 def eval_aws_pipeiam_056(ctx: EvalContext) -> EvalOutcome:
     """AWS-PIPEIAM-056: CodePipeline service role / IAM execution boundary for the pipeline."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "aws-codepipeline.json"
-    if evidence.is_file():
-        data, error, ph = _validate_json_evidence(
-            evidence,
-            schema_loader=_aws_codepipeline_schema,
-            evidence_name="AWS CodePipeline",
-        )
-        if not error and data is not None:
-            blocked = _evidence_placeholder_outcome(evidence, ph)
-            if blocked is not None:
-                return blocked
-            iam = data.get("iam")
-            if isinstance(iam, dict) and iam.get("pipeline_service_role_arn_configured") is True:
-                if _evidence_is_api_backed(data):
-                    return EvalOutcome(
-                        status=ControlStatus.PASS,
-                        reason="CodePipeline service role ARN present in live-collected pipeline evidence.",
-                        remediation="Re-collect after IAM or pipeline role changes.",
-                        evidence_sources=[str(evidence.resolve())],
-                        confidence="high",
-                        evidence_collection_method=EvidenceCollectionMethod.LIVE,
-                    )
-                return EvalOutcome(
-                    status=ControlStatus.SELF_ATTESTED,
-                    reason="CodePipeline IAM posture self-attested with pipeline service role configured.",
-                    remediation="Prefer collect-evidence so service role presence is API-derived.",
-                    evidence_sources=[str(evidence.resolve())],
-                    confidence="low",
-                    evidence_collection_method=EvidenceCollectionMethod.MANUAL,
-                )
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "aws-codepipeline.json"
+    evidence_outcome = _aws_pipeiam_evidence_outcome(evidence)
+    if evidence_outcome is not None:
+        return evidence_outcome
     if ctx.aws_ci.codepipeline_committed_iam_role_paths:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -457,7 +494,7 @@ def eval_aws_pipeiam_056(ctx: EvalContext) -> EvalOutcome:
 def eval_aws_cbident_057(ctx: EvalContext) -> EvalOutcome:
     """AWS-CBIDENT-057: CodeBuild execution identity boundary (service role vs plaintext env credentials)."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "aws-codebuild-project.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "aws-codebuild-project.json"
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -532,7 +569,7 @@ def eval_aws_cbident_057(ctx: EvalContext) -> EvalOutcome:
 def eval_aws_sbomart_058(ctx: EvalContext) -> EvalOutcome:
     """AWS-SBOMART-058: SBOM tied to a concrete release artifact (hash-attested)."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "aws-sbom-artifact.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "aws-sbom-artifact.json"
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -600,7 +637,7 @@ def eval_aws_sbomart_058(ctx: EvalContext) -> EvalOutcome:
 def eval_aws_provart_059(ctx: EvalContext) -> EvalOutcome:
     """AWS-PROVART-059: provenance / attestation tied to a concrete release artifact."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "aws-provenance-artifact.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "aws-provenance-artifact.json"
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,

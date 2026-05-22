@@ -2,7 +2,18 @@
 
 from __future__ import annotations
 
-from oss_policy_kit.application.evaluators._shared import *  # noqa: F403
+from oss_policy_kit.application.evaluators._shared import (
+    ControlStatus,
+    EvalContext,
+    EvalOutcome,
+    Path,
+    _gl_no_pipeline_response,
+    _scan_gitlab_pipelines,
+    contextlib,
+    json,
+)
+
+_NO_GITLAB_PIPELINES_REASON = "No GitLab CI pipelines to evaluate."
 
 
 def eval_gl_pipe_001(ctx: EvalContext) -> EvalOutcome:
@@ -42,7 +53,7 @@ def eval_gl_pipe_002(ctx: EvalContext) -> EvalOutcome:
     if not analysis.pipeline_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No GitLab CI pipelines to evaluate.",
+            reason=_NO_GITLAB_PIPELINES_REASON,
             remediation="Add a .gitlab-ci.yml with `image:` references using tags or digests.",
             evidence_sources=[],
             confidence="high",
@@ -103,7 +114,7 @@ def eval_gl_pipe_003(ctx: EvalContext) -> EvalOutcome:
     if not analysis.pipeline_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No GitLab CI pipelines to evaluate.",
+            reason=_NO_GITLAB_PIPELINES_REASON,
             remediation="Add a .gitlab-ci.yml; this control inspects `script:` blocks for unsafe patterns.",
             evidence_sources=[],
             confidence="high",
@@ -139,7 +150,7 @@ def eval_gl_pipe_004(ctx: EvalContext) -> EvalOutcome:
     if not analysis.pipeline_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No GitLab CI pipelines to evaluate.",
+            reason=_NO_GITLAB_PIPELINES_REASON,
             remediation="Add a .gitlab-ci.yml; this control checks for broad secret inheritance.",
             evidence_sources=[],
             confidence="high",
@@ -175,7 +186,7 @@ def eval_gl_pipe_005(ctx: EvalContext) -> EvalOutcome:
     if not analysis.pipeline_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No GitLab CI pipelines to evaluate.",
+            reason=_NO_GITLAB_PIPELINES_REASON,
             remediation="Add a .gitlab-ci.yml; this control reviews `include:` references.",
             evidence_sources=[],
             confidence="high",
@@ -212,7 +223,7 @@ def eval_gl_pipe_006(ctx: EvalContext) -> EvalOutcome:
     if not analysis.pipeline_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No GitLab CI pipelines to evaluate.",
+            reason=_NO_GITLAB_PIPELINES_REASON,
             remediation="Add a .gitlab-ci.yml; this control checks for trigger restrictions.",
             evidence_sources=[],
             confidence="high",

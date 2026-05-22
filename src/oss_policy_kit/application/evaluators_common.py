@@ -29,7 +29,7 @@ from __future__ import annotations
 import importlib.resources as ir
 import json
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any, cast
 
@@ -137,7 +137,7 @@ def load_packaged_schema(filename: str) -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(raw))
 
 
-_DOCKERFILE_NAME_RE = re.compile(r"^(?:[Dd]ockerfile)(?:[.\-][\w.\-]+)?$|^[\w.\-]+\.[Dd]ockerfile$")
+_DOCKERFILE_NAME_RE = re.compile(r"^[Dd]ockerfile(?:[.\-][\w.\-]+)?$|^[\w.\-]+\.[Dd]ockerfile$")
 _DOCKERFILE_NON_DOCKER_EXTS = frozenset(
     {
         "bak",
@@ -202,24 +202,36 @@ def find_dockerfiles(repo: Path, *, limit: int = 20) -> list[Path]:
     """
 
     results: list[Path] = []
+    for candidate in _iter_accepted_dockerfiles(repo):
+        results.append(candidate)
+        if len(results) >= limit:
+            break
+    return results
+
+
+def _iter_accepted_dockerfiles(repo: Path) -> Iterator[Path]:
+    """Yield distinct, real Dockerfile candidates across the supported naming patterns."""
+
     seen: set[Path] = set()
     try:
         for pattern in ("Dockerfile*", "dockerfile*", "*.Dockerfile", "*.dockerfile"):
             for candidate in repo.rglob(pattern):
-                if not candidate.is_file():
-                    continue
-                if not _looks_like_dockerfile(candidate.name):
-                    continue
-                try:
-                    resolved = candidate.resolve()
-                except OSError:
-                    continue
-                if resolved in seen:
-                    continue
-                seen.add(resolved)
-                results.append(candidate)
-                if len(results) >= limit:
-                    return results
+                if _accept_dockerfile_candidate(candidate, seen):
+                    yield candidate
     except OSError:
-        pass
-    return results
+        return
+
+
+def _accept_dockerfile_candidate(candidate: Path, seen: set[Path]) -> bool:
+    """True (and records the resolved path) when ``candidate`` is a new, real Dockerfile."""
+
+    if not candidate.is_file() or not _looks_like_dockerfile(candidate.name):
+        return False
+    try:
+        resolved = candidate.resolve()
+    except OSError:
+        return False
+    if resolved in seen:
+        return False
+    seen.add(resolved)
+    return True

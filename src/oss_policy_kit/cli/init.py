@@ -104,26 +104,32 @@ def _print_human_summary(*, plan: Any, outcome: InitOutcome, dry_run: bool) -> N
     if plan.signals:
         write_stdout_text("Signals:       " + ", ".join(plan.signals) + "\n")
 
+    _print_init_actions(outcome, dry_run=dry_run)
+    _print_init_notes_and_steps(plan, outcome)
+
+
+def _print_init_actions(outcome: InitOutcome, *, dry_run: bool) -> None:
+    """Print the created / overwritten / skipped artifact lines (or '(no actions)')."""
+
     header = "Plan (dry-run, nothing written)" if dry_run else "Actions"
     write_stdout_text(f"\n{header}:\n")
-
-    if outcome.created:
-        for p in outcome.created:
-            write_stdout_text(f"  + {p}\n")
-    if outcome.overwritten:
-        for p in outcome.overwritten:
-            write_stdout_text(f"  ! {p}  (replaced)\n")
-    if outcome.skipped:
-        for p in outcome.skipped:
-            write_stdout_text(f"  = {p}  (kept; re-run with --force to replace)\n")
+    for p in outcome.created:
+        write_stdout_text(f"  + {p}\n")
+    for p in outcome.overwritten:
+        write_stdout_text(f"  ! {p}  (replaced)\n")
+    for p in outcome.skipped:
+        write_stdout_text(f"  = {p}  (kept; re-run with --force to replace)\n")
     if not (outcome.created or outcome.overwritten or outcome.skipped):
         write_stdout_text("  (no actions)\n")
+
+
+def _print_init_notes_and_steps(plan: Any, outcome: InitOutcome) -> None:
+    """Print the optional Notes and Next-steps sections."""
 
     if plan.notes:
         write_stdout_text("\nNotes:\n")
         for note in plan.notes:
             write_stdout_text(f"  - {note}\n")
-
     if outcome.next_steps:
         write_stdout_text("\nNext steps:\n")
         for step in outcome.next_steps:

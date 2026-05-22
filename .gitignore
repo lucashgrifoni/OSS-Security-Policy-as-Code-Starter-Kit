@@ -35,6 +35,11 @@ htmlcov/
 artifacts/
 out/
 sonar-report/
+# Local Sonar working area: findings, status, reports, PDFs — never push to remote.
+sonar/
+sonar-project.properties
+# Local scratch output from `export-evidence` / SARIF export runs.
+evidence-export.json
 test-runs/
 .tmp/
 .tmp-validation/

@@ -157,6 +157,20 @@ def _plaintext_env_variables_risk(values: dict[str, Any], path: Path, result: Aw
             result.inline_secret_risk_paths.append(path)
 
 
+def _record_env_block_signals(env_block: dict[str, Any], path: Path, result: AwsCiAnalysis) -> None:
+    """Record parameter-store / secrets-manager / risky plaintext-variable signals from one ``env`` block."""
+
+    ps = env_block.get("parameter-store") or env_block.get("parameter_store")
+    sm = env_block.get("secrets-manager") or env_block.get("secrets_manager")
+    if isinstance(ps, dict) and ps:
+        result.parameter_store_signal_paths.append(path)
+    if isinstance(sm, dict) and sm:
+        result.secrets_manager_signal_paths.append(path)
+    vars_block = env_block.get("variables")
+    if isinstance(vars_block, dict) and vars_block:
+        _plaintext_env_variables_risk(vars_block, path, result)
+
+
 def _merge_structured_env_signals(data: Any, path: Path, result: AwsCiAnalysis, *, depth: int = 0) -> None:
     """Walk YAML and record structured env.parameter-store / env.secrets-manager / risky env.variables."""
 
@@ -165,15 +179,7 @@ def _merge_structured_env_signals(data: Any, path: Path, result: AwsCiAnalysis, 
     if isinstance(data, dict):
         env_block = data.get("env")
         if isinstance(env_block, dict):
-            ps = env_block.get("parameter-store") or env_block.get("parameter_store")
-            sm = env_block.get("secrets-manager") or env_block.get("secrets_manager")
-            if isinstance(ps, dict) and ps:
-                result.parameter_store_signal_paths.append(path)
-            if isinstance(sm, dict) and sm:
-                result.secrets_manager_signal_paths.append(path)
-            vars_block = env_block.get("variables")
-            if isinstance(vars_block, dict) and vars_block:
-                _plaintext_env_variables_risk(vars_block, path, result)
+            _record_env_block_signals(env_block, path, result)
         for child in data.values():
             _merge_structured_env_signals(child, path, result, depth=depth + 1)
     elif isinstance(data, list):
@@ -200,22 +206,36 @@ def analyze_aws_ci(repo_root: Path) -> AwsCiAnalysis:
             _raw_env_fallback(path, raw_lower, result)
 
     for path in result.codepipeline_paths:
-        try:
-            if path.suffix.lower() == ".json":
-                json.loads(path.read_text(encoding="utf-8", errors="replace"))
-            else:
-                load_yaml_file(path)
-        except Exception as exc:  # noqa: BLE001
-            result.parse_errors.append((path, str(exc)))
-            continue
-        ok, _msg = committed_codepipeline_export_is_minimal(path)
-        if ok:
-            result.codepipeline_valid_export_paths.append(path)
-            pipe = load_committed_codepipeline_document(path)
-            if isinstance(pipe, dict):
-                role = str(pipe.get("roleArn", "")).strip()
-                if role.startswith("arn:aws:iam::"):
-                    result.codepipeline_committed_iam_role_paths.append(path)
+        _scan_codepipeline_export(path, result)
+
+    _dedupe_aws_ci_signals(result)
+    return result
+
+
+def _scan_codepipeline_export(path: Path, result: AwsCiAnalysis) -> None:
+    """Validate one committed CodePipeline export and record valid-export / IAM-role signals."""
+
+    try:
+        if path.suffix.lower() == ".json":
+            json.loads(path.read_text(encoding="utf-8", errors="replace"))
+        else:
+            load_yaml_file(path)
+    except Exception as exc:  # noqa: BLE001 - record parse failure and skip this export
+        result.parse_errors.append((path, str(exc)))
+        return
+    ok, _msg = committed_codepipeline_export_is_minimal(path)
+    if not ok:
+        return
+    result.codepipeline_valid_export_paths.append(path)
+    pipe = load_committed_codepipeline_document(path)
+    if isinstance(pipe, dict):
+        role = str(pipe.get("roleArn", "")).strip()
+        if role.startswith("arn:aws:iam::"):
+            result.codepipeline_committed_iam_role_paths.append(path)
+
+
+def _dedupe_aws_ci_signals(result: AwsCiAnalysis) -> None:
+    """Deduplicate (by resolved path) every accumulated AWS CI signal list, in place."""
 
     def _dedupe(paths: list[Path]) -> list[Path]:
         return sorted({p.resolve() for p in paths})
@@ -229,4 +249,3 @@ def analyze_aws_ci(repo_root: Path) -> AwsCiAnalysis:
     result.provenance_signal_paths = _dedupe(result.provenance_signal_paths)
     result.codepipeline_valid_export_paths = _dedupe(result.codepipeline_valid_export_paths)
     result.codepipeline_committed_iam_role_paths = _dedupe(result.codepipeline_committed_iam_role_paths)
-    return result

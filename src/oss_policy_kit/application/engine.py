@@ -45,6 +45,21 @@ _HARD_GATE_EVIDENCE_PROFILES = frozenset(
 )
 
 
+def _has_real_evidence(evidence_dir: Path) -> bool:
+    """True when the evidence dir holds at least one JSON file free of placeholder values."""
+
+    if not evidence_dir.is_dir():
+        return False
+    for path in sorted(evidence_dir.glob("*.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not has_placeholder_values(data):
+            return True
+    return False
+
+
 def _hard_gate_evidence_warning(profile_id: str, repo_root: Path) -> str | None:
     """Build an operational warning when a hard-gate profile runs without real evidence.
 
@@ -56,25 +71,7 @@ def _hard_gate_evidence_warning(profile_id: str, repo_root: Path) -> str | None:
 
     if profile_id not in _HARD_GATE_EVIDENCE_PROFILES:
         return None
-
-    evidence_dir = repo_root / ".oss-policy-kit" / "evidence"
-    if not evidence_dir.is_dir():
-        has_real = False
-    else:
-        json_files = sorted(evidence_dir.glob("*.json"))
-        if not json_files:
-            has_real = False
-        else:
-            has_real = False
-            for path in json_files:
-                try:
-                    data = json.loads(path.read_text(encoding="utf-8"))
-                except (OSError, json.JSONDecodeError):
-                    continue
-                if not has_placeholder_values(data):
-                    has_real = True
-                    break
-    if has_real:
+    if _has_real_evidence(repo_root / ".oss-policy-kit" / "evidence"):
         return None
 
     return (
@@ -245,6 +242,73 @@ def _build_scorecard_supplemental(
     return blob, extra_warnings
 
 
+def _collect_parse_warnings(workflows: Any, azure_pipelines: Any, aws_ci: Any, gitlab_ci: Any) -> list[str]:
+    """Flatten the four CI parsers' parse errors into operational-warning strings."""
+
+    out: list[str] = []
+    out.extend(f"Workflow parse issue {p.name}: {m}" for p, m in workflows.parse_errors)
+    out.extend(f"Azure pipeline parse issue {p.name}: {m}" for p, m in azure_pipelines.parse_errors)
+    out.extend(f"AWS CI parse issue {p.name}: {m}" for p, m in aws_ci.parse_errors)
+    out.extend(f"GitLab CI parse issue {p.name}: {m}" for p, m in gitlab_ci.parse_errors)
+    return out
+
+
+def _evaluate_control(
+    cid: str,
+    ctx: EvalContext,
+    profile: ProfileSpec,
+    catalog: dict[str, ControlSpec],
+    waivers: dict[str, Any],
+    operational_warnings: list[str],
+) -> ControlResult:
+    """Run one control's evaluator, apply any waiver, and build its :class:`ControlResult`."""
+
+    if cid not in catalog:
+        raise LoadError(f"Profile references unknown control '{cid}'")
+    spec = catalog[cid]
+    evaluator = EVALUATOR_REGISTRY.get(cid)
+    if evaluator is None:
+        raise LoadError(f"No evaluator implemented for control '{cid}'")
+    if ctx.verbose_emit is not None:
+        ctx.verbose_emit(f"[dim]→ {cid} ({spec.title})[/dim]")
+    logger.debug("evaluating %s (%s)", cid, spec.title)
+    outcome = evaluator(ctx)
+    operational_warnings.extend(outcome.operational_warnings)
+    logger.debug(
+        "%s -> %s [%s] sources=%d%s",
+        cid,
+        outcome.status.value,
+        outcome.evidence_collection_method.value,
+        len(outcome.evidence_sources),
+        f" reason={outcome.reason.splitlines()[0]!r}" if outcome.status.value != "pass" and outcome.reason else "",
+    )
+    if ctx.verbose_emit is not None:
+        reason_one = outcome.reason.replace("\n", " ").strip()
+        if len(reason_one) > 220:
+            reason_one = reason_one[:217].rstrip() + "..."
+        ctx.verbose_emit(f"[dim]  Result: {outcome.status.value} — {reason_one}[/dim]")
+    final_status, applied_waiver = _apply_waiver(outcome.status, waivers.get(cid))
+    return ControlResult(
+        control_id=cid,
+        title=spec.title,
+        category=spec.category,
+        status=final_status,
+        profile=profile.id,
+        evidence_sources=list(outcome.evidence_sources),
+        confidence=outcome.confidence,
+        reason=outcome.reason,
+        remediation=outcome.remediation,
+        lifecycle=spec.lifecycle,
+        assurance=spec.assurance,
+        owner=applied_waiver.owner if applied_waiver else None,
+        waiver=applied_waiver,
+        expires_at=applied_waiver.expires_at if applied_waiver else None,
+        evidence_collection_method=outcome.evidence_collection_method.value,
+        deprecation_note=spec.deprecation_note,
+        weight=spec.weight,
+    )
+
+
 def evaluate_repository(
     repo_root: Path,
     profile: ProfileSpec,
@@ -281,70 +345,11 @@ def evaluate_repository(
 
     waivers = waiver_outcome.by_control if waiver_outcome else {}
     operational_warnings: list[str] = list(waiver_outcome.warnings if waiver_outcome else [])
+    operational_warnings.extend(_collect_parse_warnings(workflows, azure_pipelines, aws_ci, gitlab_ci))
 
-    for wf_path, msg in workflows.parse_errors:
-        operational_warnings.append(f"Workflow parse issue {wf_path.name}: {msg}")
-    for az_path, msg in azure_pipelines.parse_errors:
-        operational_warnings.append(f"Azure pipeline parse issue {az_path.name}: {msg}")
-    for aws_path, msg in aws_ci.parse_errors:
-        operational_warnings.append(f"AWS CI parse issue {aws_path.name}: {msg}")
-    for gl_path, msg in gitlab_ci.parse_errors:
-        operational_warnings.append(f"GitLab CI parse issue {gl_path.name}: {msg}")
-
-    results: list[ControlResult] = []
-
-    for cid in profile.control_ids:
-        if cid not in catalog:
-            raise LoadError(f"Profile references unknown control '{cid}'")
-        spec = catalog[cid]
-        evaluator = EVALUATOR_REGISTRY.get(cid)
-        if evaluator is None:
-            raise LoadError(f"No evaluator implemented for control '{cid}'")
-
-        if ctx.verbose_emit is not None:
-            ctx.verbose_emit(f"[dim]→ {cid} ({spec.title})[/dim]")
-        logger.debug("evaluating %s (%s)", cid, spec.title)
-        outcome = evaluator(ctx)
-        operational_warnings.extend(outcome.operational_warnings)
-        logger.debug(
-            "%s -> %s [%s] sources=%d%s",
-            cid,
-            outcome.status.value,
-            outcome.evidence_collection_method.value,
-            len(outcome.evidence_sources),
-            f" reason={outcome.reason.splitlines()[0]!r}" if outcome.status.value != "pass" and outcome.reason else "",
-        )
-        if ctx.verbose_emit is not None:
-            reason_one = outcome.reason.replace("\n", " ").strip()
-            if len(reason_one) > 220:
-                reason_one = reason_one[:217].rstrip() + "..."
-            ctx.verbose_emit(f"[dim]  Result: {outcome.status.value} — {reason_one}[/dim]")
-        waiver = waivers.get(cid)
-        final_status, applied_waiver = _apply_waiver(outcome.status, waiver)
-
-        expires_display = applied_waiver.expires_at if applied_waiver else None
-
-        results.append(
-            ControlResult(
-                control_id=cid,
-                title=spec.title,
-                category=spec.category,
-                status=final_status,
-                profile=profile.id,
-                evidence_sources=list(outcome.evidence_sources),
-                confidence=outcome.confidence,
-                reason=outcome.reason,
-                remediation=outcome.remediation,
-                lifecycle=spec.lifecycle,
-                assurance=spec.assurance,
-                owner=applied_waiver.owner if applied_waiver else None,
-                waiver=applied_waiver,
-                expires_at=expires_display,
-                evidence_collection_method=outcome.evidence_collection_method.value,
-                deprecation_note=spec.deprecation_note,
-                weight=spec.weight,
-            )
-        )
+    results = [
+        _evaluate_control(cid, ctx, profile, catalog, waivers, operational_warnings) for cid in profile.control_ids
+    ]
 
     generated_at = report_generated_at()
 

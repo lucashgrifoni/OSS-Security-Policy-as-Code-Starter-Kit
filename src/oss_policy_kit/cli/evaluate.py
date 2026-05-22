@@ -9,6 +9,7 @@ from typer import Context
 
 from oss_policy_kit import __version__ as kit_version
 from oss_policy_kit.cli.common import (
+    EvaluateRequest,
     app,
     enable_debug_logging,
     execute_evaluate,
@@ -167,20 +168,22 @@ def cli_root(
     # ``oss-policy-kit.yaml`` under the resolved target and either use its
     # profile or raise a clean InvalidInputError when neither is present.
     execute_evaluate(
-        target_pos=None,
-        target_opt=target_opt,
-        profile=profile,
-        output_dir=output_dir,
-        waivers=waivers,
-        scorecard_json=scorecard_json,
-        kit_root=kit_root,
-        output_format=output_format.lower(),
-        summary_only=summary_only,
-        fail_on=fail_on.lower(),
-        verbose=verbose,
-        sarif_output=sarif_output,
-        quiet=quiet,
-        report_json_contract=report_json_contract.strip().lower().removeprefix("v"),
+        EvaluateRequest(
+            target_pos=None,
+            target_opt=target_opt,
+            profile=profile,
+            output_dir=output_dir,
+            waivers=waivers,
+            scorecard_json=scorecard_json,
+            kit_root=kit_root,
+            output_format=output_format.lower(),
+            summary_only=summary_only,
+            fail_on=fail_on.lower(),
+            verbose=verbose,
+            sarif_output=sarif_output,
+            quiet=quiet,
+            report_json_contract=report_json_contract.strip().lower().removeprefix("v"),
+        )
     )
 
 
@@ -314,19 +317,21 @@ def evaluate_cmd(
     """
 
     execute_evaluate(
-        target_pos=target_pos,
-        target_opt=target_opt,
-        profile=profile,
-        output_dir=output_dir,
-        waivers=waivers,
-        scorecard_json=scorecard_json,
-        kit_root=kit_root,
-        output_format=output_format,
-        summary_only=summary_only,
-        fail_on=fail_on,
-        verbose=verbose,
-        quiet=quiet,
-        report_json_contract=report_json_contract.strip().lower().removeprefix("v"),
-        sarif_output=sarif_output,
-        include_absolute_path=include_absolute_path,
+        EvaluateRequest(
+            target_pos=target_pos,
+            target_opt=target_opt,
+            profile=profile,
+            output_dir=output_dir,
+            waivers=waivers,
+            scorecard_json=scorecard_json,
+            kit_root=kit_root,
+            output_format=output_format,
+            summary_only=summary_only,
+            fail_on=fail_on,
+            verbose=verbose,
+            quiet=quiet,
+            report_json_contract=report_json_contract.strip().lower().removeprefix("v"),
+            sarif_output=sarif_output,
+            include_absolute_path=include_absolute_path,
+        )
     )

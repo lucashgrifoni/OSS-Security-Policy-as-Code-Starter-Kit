@@ -27,6 +27,8 @@ from typing import Any
 from oss_policy_kit.application.evidence_projection import normalize_confidence, project_evidence
 from oss_policy_kit.domain.models import ControlResult, ControlStatus, ExecutionReport
 
+_SRCROOT = "%SRCROOT%"
+
 SARIF_VERSION = "2.1.0"
 SARIF_SCHEMA_URI = "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json"
 
@@ -88,7 +90,7 @@ def _file_locations_from_result(result: ControlResult) -> list[dict[str, Any]]:
                 "physicalLocation": {
                     "artifactLocation": {
                         "uri": normalized,
-                        "uriBaseId": "%SRCROOT%",
+                        "uriBaseId": _SRCROOT,
                     }
                 }
             }
@@ -101,7 +103,7 @@ def _repo_location() -> dict[str, Any]:
         "physicalLocation": {
             "artifactLocation": {
                 "uri": ".",
-                "uriBaseId": "%SRCROOT%",
+                "uriBaseId": _SRCROOT,
             }
         }
     }
@@ -192,7 +194,7 @@ def build_sarif(report: ExecutionReport) -> dict[str, Any]:
             }
         },
         "originalUriBaseIds": {
-            "%SRCROOT%": {"uri": "file:///"},
+            _SRCROOT: {"uri": "file:///"},
         },
         "results": sarif_results,
         "invocations": [

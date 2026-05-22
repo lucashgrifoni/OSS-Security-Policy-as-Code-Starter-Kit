@@ -31,6 +31,8 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
+
 EVIDENCE_SCHEMA_VERSION = "oss-policy-kit/evidence/iac-pulumi/v1"
 EVIDENCE_FILENAME = "iac-pulumi.json"
 DEFAULT_TIMEOUT_SECONDS = 120
@@ -105,27 +107,7 @@ def _walk_python_files(
     include_globs: Iterable[str],
     exclude_globs: Iterable[str] | None,
 ) -> list[Path]:
-    seen: set[Path] = set()
-    out: list[Path] = []
-    excludes = tuple(exclude_globs or ())
-    for pat in include_globs:
-        for p in repo_root.glob(pat):
-            if not p.is_file():
-                continue
-            try:
-                rel = p.resolve().relative_to(repo_root.resolve())
-            except ValueError:
-                continue
-            if any(part in _SKIP_DIRS for part in rel.parts):
-                continue
-            if excludes and any(p.match(eg) for eg in excludes):
-                continue
-            r = p.resolve()
-            if r in seen:
-                continue
-            seen.add(r)
-            out.append(p)
-    return out
+    return walk_matching_files(repo_root, include_globs, exclude_globs, _SKIP_DIRS)
 
 
 def _attr_chain(node: ast.AST) -> str | None:
@@ -246,6 +228,51 @@ def _is_subnet(c: PulumiCall) -> bool:
     return c.resource_type.endswith(".ec2.Subnet")
 
 
+def _pulumi_finding(rule_id: str, severity: str, message: str, *, repo_root: Path, c: PulumiCall) -> PulumiFinding:
+    """Construct a :class:`PulumiFinding` with the repeated file/type/name fields filled in."""
+
+    return PulumiFinding(
+        rule_id=rule_id,
+        severity=severity,
+        message=message,
+        file=_normalize_target(repo_root, c.source),
+        resource_type=c.resource_type,
+        resource_name=c.resource_name,
+    )
+
+
+def _pul_ingress_entries(c: PulumiCall) -> list[dict[str, Any]]:
+    """Normalize a security group call's ``ingress`` to a list of dict entries."""
+
+    ingresses = c.kwargs.get("ingress") or []
+    if isinstance(ingresses, dict):
+        ingresses = [ingresses]
+    if not isinstance(ingresses, list):
+        return []
+    return [e for e in ingresses if isinstance(e, dict)]
+
+
+def _pul_open_mgmt_port(entry: dict[str, Any]) -> tuple[int, int, int] | None:
+    """Return ``(from, to, covered_mgmt_port)`` if this ingress opens a mgmt port to the world."""
+
+    cidrs = entry.get("cidr_blocks") or entry.get("cidrBlocks") or []
+    if isinstance(cidrs, str):
+        cidrs = [cidrs]
+    if "0.0.0.0/0" not in cidrs and "::/0" not in cidrs:
+        return None
+    raw_fp = entry.get("from_port", entry.get("fromPort"))
+    raw_tp = entry.get("to_port", entry.get("toPort", raw_fp))
+    if raw_fp is None or raw_tp is None:
+        return None
+    try:
+        fp = int(raw_fp)
+        tp = int(raw_tp)
+    except (TypeError, ValueError):
+        return None
+    covered = next((port for port in _MANAGEMENT_PORTS if fp <= port <= tp), None)
+    return (fp, tp, covered) if covered is not None else None
+
+
 def _rule_iac_pul_001_public_storage(repo_root: Path, calls: list[PulumiCall]) -> list[PulumiFinding]:
     findings: list[PulumiFinding] = []
     for c in calls:
@@ -266,50 +293,47 @@ def _rule_iac_pul_001_public_storage(repo_root: Path, calls: list[PulumiCall]) -
     return findings
 
 
-def _rule_iac_pul_002_open_mgmt_ports(repo_root: Path, calls: list[PulumiCall]) -> list[PulumiFinding]:  # noqa: C901
+def _rule_iac_pul_002_open_mgmt_ports(repo_root: Path, calls: list[PulumiCall]) -> list[PulumiFinding]:
     findings: list[PulumiFinding] = []
     for c in calls:
         if not _is_security_group(c):
             continue
-        ingresses = c.kwargs.get("ingress") or []
-        if isinstance(ingresses, dict):
-            ingresses = [ingresses]
-        if not isinstance(ingresses, list):
-            continue
-        for entry in ingresses:
-            if not isinstance(entry, dict):
-                continue
-            cidrs = entry.get("cidr_blocks") or entry.get("cidrBlocks") or []
-            if isinstance(cidrs, str):
-                cidrs = [cidrs]
-            if "0.0.0.0/0" not in cidrs and "::/0" not in cidrs:
-                continue
-            raw_fp = entry.get("from_port", entry.get("fromPort"))
-            raw_tp = entry.get("to_port", entry.get("toPort", raw_fp))
-            if raw_fp is None or raw_tp is None:
-                continue
-            try:
-                fp = int(raw_fp)
-                tp = int(raw_tp)
-            except (TypeError, ValueError):
-                continue
-            for port in _MANAGEMENT_PORTS:
-                if fp <= port <= tp:
-                    findings.append(
-                        PulumiFinding(
-                            rule_id="IAC-PUL-002",
-                            severity="HIGH",
-                            message=(
-                                f"{c.resource_type}({c.resource_name!r}) ingress {fp}-{tp} from 0.0.0.0/0 "
-                                f"covers management port {port}."
-                            ),
-                            file=_normalize_target(repo_root, c.source),
-                            resource_type=c.resource_type,
-                            resource_name=c.resource_name,
-                        )
+        for entry in _pul_ingress_entries(c):
+            hit = _pul_open_mgmt_port(entry)
+            if hit is not None:
+                fp, tp, port = hit
+                findings.append(
+                    _pulumi_finding(
+                        "IAC-PUL-002",
+                        "HIGH",
+                        (
+                            f"{c.resource_type}({c.resource_name!r}) ingress {fp}-{tp} from 0.0.0.0/0 "
+                            f"covers management port {port}."
+                        ),
+                        repo_root=repo_root,
+                        c=c,
                     )
-                    break
+                )
     return findings
+
+
+def _attaches_admin_access(c: PulumiCall) -> bool:
+    """True when a RolePolicyAttachment call attaches AdministratorAccess."""
+
+    if not c.resource_type.endswith(".RolePolicyAttachment"):
+        return False
+    arn = c.kwargs.get("policy_arn") or c.kwargs.get("policyArn")
+    return isinstance(arn, str) and arn.endswith(":policy/AdministratorAccess")
+
+
+def _inline_policy_grants_wildcard(policy: Any) -> bool:
+    """True when an inline policy JSON string grants ``Action=*`` on ``Resource=*``."""
+
+    return (
+        isinstance(policy, str)
+        and ('"Action": "*"' in policy or '"Action":"*"' in policy)
+        and ('"Resource": "*"' in policy or '"Resource":"*"' in policy)
+    )
 
 
 def _rule_iac_pul_003_iam_wildcards(repo_root: Path, calls: list[PulumiCall]) -> list[PulumiFinding]:
@@ -317,82 +341,42 @@ def _rule_iac_pul_003_iam_wildcards(repo_root: Path, calls: list[PulumiCall]) ->
     for c in calls:
         if not _is_iam_role_or_policy(c):
             continue
-        # RolePolicyAttachment carries a literal policy_arn.
-        if c.resource_type.endswith(".RolePolicyAttachment"):
-            arn = c.kwargs.get("policy_arn") or c.kwargs.get("policyArn")
-            if isinstance(arn, str) and arn.endswith(":policy/AdministratorAccess"):
-                findings.append(
-                    PulumiFinding(
-                        rule_id="IAC-PUL-003",
-                        severity="HIGH",
-                        message=f"{c.resource_type}({c.resource_name!r}) attaches AdministratorAccess.",
-                        file=_normalize_target(repo_root, c.source),
-                        resource_type=c.resource_type,
-                        resource_name=c.resource_name,
-                    )
-                )
-        # Inline policy bodies (JSON strings) flagged when Action=* + Resource=*.
-        policy = c.kwargs.get("policy")
-        if (
-            isinstance(policy, str)
-            and ('"Action": "*"' in policy or '"Action":"*"' in policy)
-            and ('"Resource": "*"' in policy or '"Resource":"*"' in policy)
-        ):
-            findings.append(
-                PulumiFinding(
-                    rule_id="IAC-PUL-003",
-                    severity="HIGH",
-                    message=(f"{c.resource_type}({c.resource_name!r}): inline policy grants Action=* on Resource=*."),
-                    file=_normalize_target(repo_root, c.source),
-                    resource_type=c.resource_type,
-                    resource_name=c.resource_name,
-                )
-            )
+        if _attaches_admin_access(c):
+            msg = f"{c.resource_type}({c.resource_name!r}) attaches AdministratorAccess."
+            findings.append(_pulumi_finding("IAC-PUL-003", "HIGH", msg, repo_root=repo_root, c=c))
+        if _inline_policy_grants_wildcard(c.kwargs.get("policy")):
+            msg = f"{c.resource_type}({c.resource_name!r}): inline policy grants Action=* on Resource=*."
+            findings.append(_pulumi_finding("IAC-PUL-003", "HIGH", msg, repo_root=repo_root, c=c))
     return findings
+
+
+def _pul_encryption_finding(c: PulumiCall, repo_root: Path) -> PulumiFinding | None:
+    """Return an IAC-PUL-004 finding when an RDS/EBS/DynamoDB call lacks encryption-at-rest."""
+
+    if _is_rds(c):
+        storage_encrypted = c.kwargs.get("storage_encrypted", c.kwargs.get("storageEncrypted"))
+        if storage_encrypted is None or storage_encrypted is False:
+            msg = f"{c.resource_type}({c.resource_name!r}) has no storage_encrypted=true."
+            return _pulumi_finding("IAC-PUL-004", "MEDIUM", msg, repo_root=repo_root, c=c)
+    elif _is_ebs(c):
+        encrypted = c.kwargs.get("encrypted")
+        if encrypted is None or encrypted is False:
+            msg = f"{c.resource_type}({c.resource_name!r}) has no encrypted=true."
+            return _pulumi_finding("IAC-PUL-004", "MEDIUM", msg, repo_root=repo_root, c=c)
+    elif _is_dynamodb(c):
+        sse = c.kwargs.get("server_side_encryption", c.kwargs.get("serverSideEncryption"))
+        if sse is None:
+            msg = f"{c.resource_type}({c.resource_name!r}) has no server_side_encryption configured."
+            return _pulumi_finding("IAC-PUL-004", "MEDIUM", msg, repo_root=repo_root, c=c)
+    return None
 
 
 def _rule_iac_pul_004_no_encryption(repo_root: Path, calls: list[PulumiCall]) -> list[PulumiFinding]:
     findings: list[PulumiFinding] = []
     for c in calls:
-        if _is_rds(c):
-            storage_encrypted = c.kwargs.get("storage_encrypted", c.kwargs.get("storageEncrypted"))
-            if storage_encrypted is None or storage_encrypted is False:
-                findings.append(
-                    PulumiFinding(
-                        rule_id="IAC-PUL-004",
-                        severity="MEDIUM",
-                        message=f"{c.resource_type}({c.resource_name!r}) has no storage_encrypted=true.",
-                        file=_normalize_target(repo_root, c.source),
-                        resource_type=c.resource_type,
-                        resource_name=c.resource_name,
-                    )
-                )
-        elif _is_ebs(c):
-            encrypted = c.kwargs.get("encrypted")
-            if encrypted is None or encrypted is False:
-                findings.append(
-                    PulumiFinding(
-                        rule_id="IAC-PUL-004",
-                        severity="MEDIUM",
-                        message=f"{c.resource_type}({c.resource_name!r}) has no encrypted=true.",
-                        file=_normalize_target(repo_root, c.source),
-                        resource_type=c.resource_type,
-                        resource_name=c.resource_name,
-                    )
-                )
-        elif _is_dynamodb(c):
-            sse = c.kwargs.get("server_side_encryption", c.kwargs.get("serverSideEncryption"))
-            if sse is None:
-                findings.append(
-                    PulumiFinding(
-                        rule_id="IAC-PUL-004",
-                        severity="MEDIUM",
-                        message=f"{c.resource_type}({c.resource_name!r}) has no server_side_encryption configured.",
-                        file=_normalize_target(repo_root, c.source),
-                        resource_type=c.resource_type,
-                        resource_name=c.resource_name,
-                    )
-                )
+        finding = _pul_encryption_finding(c, repo_root)
+        if finding is not None:
+            findings.append(finding)
     return findings
 
 
@@ -518,7 +502,7 @@ def run_scan(
 
 
 def render_evidence_payload(outcome: PulumiScanOutcome, *, target: Path) -> dict[str, Any]:
-    by_rule: dict[str, int] = {rid: 0 for rid in all_rule_ids()}
+    by_rule: dict[str, int] = dict.fromkeys(all_rule_ids(), 0)
     by_severity: dict[str, int] = {}
     for f in outcome.findings:
         by_rule[f.rule_id] = by_rule.get(f.rule_id, 0) + 1

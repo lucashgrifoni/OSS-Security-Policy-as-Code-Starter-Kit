@@ -7,6 +7,7 @@ import logging
 import sys
 import textwrap
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
@@ -278,161 +279,203 @@ def _warn_missing_scan_evidence(repo_root: Path, control_ids: set[str], machine_
         )
 
 
-def execute_evaluate(  # noqa: C901
-    target_pos: str | None,
-    target_opt: str | None,
-    profile: str | None,
-    output_dir: Path,
-    waivers: Path | None,
-    scorecard_json: Path | None,
-    kit_root: Path | None,
-    *,
-    output_format: str,
-    summary_only: bool,
-    fail_on: str,
-    verbose: bool = False,
-    quiet: bool = False,
-    report_json_contract: str = "1.0",
-    sarif_output: Path | None = None,
-    include_absolute_path: bool = False,
+@dataclass(frozen=True, slots=True)
+class EvaluateRequest:
+    """Bundled inputs for :func:`execute_evaluate` (root callback + `evaluate`)."""
+
+    target_pos: str | None
+    target_opt: str | None
+    profile: str | None
+    output_dir: Path
+    waivers: Path | None
+    scorecard_json: Path | None
+    kit_root: Path | None
+    output_format: str
+    summary_only: bool
+    fail_on: str
+    verbose: bool = False
+    quiet: bool = False
+    report_json_contract: str = "1.0"
+    sarif_output: Path | None = None
+    include_absolute_path: bool = False
+
+
+def _resolve_eval_target(req: EvaluateRequest) -> Path:
+    chosen = req.target_opt or req.target_pos
+    if not chosen:
+        raise InvalidInputError("Provide a repository path as TARGET or via --target/-t.")
+    return resolve_existing_dir(chosen)
+
+
+def _resolve_eval_profile(req: EvaluateRequest, repo_root: Path) -> str:
+    """Return the explicit profile, or fall back to the project config's profile."""
+
+    if req.profile is not None:
+        return req.profile
+    project_config = load_project_config_for_target(repo_root)
+    if project_config is None:
+        raise InvalidInputError(
+            "--profile is required, and no oss-policy-kit.yaml was found under the target. "
+            "Either pass --profile <id> or run `oss-policy-kit init` first.",
+        )
+    stderr_console().print(
+        f"[dim]Using profile from {project_config.path.name}: {project_config.profile}[/dim]",
+    )
+    return project_config.profile
+
+
+def _load_eval_waivers(waivers: Path | None):  # type: ignore[no-untyped-def]
+    if waivers is None:
+        return None
+    wp = Path(waivers)
+    if not wp.is_file():
+        raise InvalidInputError(f"Waivers file not found: {wp}")
+    return parse_waivers_file(wp)
+
+
+def _load_eval_scorecard(scorecard_json: Path | None):  # type: ignore[no-untyped-def]
+    if scorecard_json is None:
+        return None
+    sp = Path(scorecard_json)
+    if not sp.is_file():
+        raise InvalidInputError(f"Scorecard file not found: {sp}")
+    try:
+        return load_scorecard_auto(sp)
+    except json.JSONDecodeError as exc:
+        raise InvalidInputError(
+            f"Scorecard JSON could not be parsed: {sp}: {exc.msg} "
+            f"(line {exc.lineno}, column {exc.colno}). "
+            "Provide a valid OpenSSF Scorecard JSON export."
+        ) from exc
+
+
+def _make_verbose_emit(verbose: bool) -> Callable[[str], None] | None:
+    if not verbose:
+        return None
+    verbose_console = terminal_ui.build_stdout_console()
+
+    def emit(line: str) -> None:
+        with verbose_console.capture() as cap:
+            verbose_console.print(line)
+        write_stdout_text(cap.get())
+
+    return emit
+
+
+def _write_eval_reports(report, req: EvaluateRequest, out: Path) -> tuple[Path, Path]:  # type: ignore[no-untyped-def]
+    try:
+        return write_reports(report, out, include_absolute_path=req.include_absolute_path)
+    except OSError as exc:
+        raise InvalidInputError(f"Cannot write to --output-dir '{req.output_dir}': {exc.strerror or exc}") from exc
+
+
+def _maybe_write_sarif(report, req: EvaluateRequest, out: Path) -> None:  # type: ignore[no-untyped-def]
+    if req.sarif_output is None:
+        return
+    from oss_policy_kit.application.sarif_writer import write_sarif_report
+
+    sarif_path = req.sarif_output if req.sarif_output.is_absolute() else out / req.sarif_output
+    write_sarif_report(report, sarif_path)
+    if not req.summary_only and req.output_format != "json":
+        stderr_console().print(f"[green]Wrote[/green] {sarif_path}")
+
+
+def _render_eval_table(report, out: Path) -> None:  # type: ignore[no-untyped-def]
+    if terminal_ui.human_tty_stdout():
+        terminal_ui.print_evaluate_executive_preface(
+            report,
+            unicode_icons=terminal_ui.stream_supports_unicode(sys.stdout),
+        )
+    table = terminal_ui.render_eval_results_table(
+        report,
+        unicode_icons=terminal_ui.stream_supports_unicode(sys.stdout),
+    )
+    stdout_console = terminal_ui.build_stdout_console()
+    with stdout_console.capture() as cap:
+        stdout_console.print(table)
+        status_str = "  ".join(f"{k}={v}" for k, v in sorted(report.summary_by_status.items()))
+        stdout_console.print(f"\n[dim]Summary: {status_str} | Controls: {len(report.results)} | Reports: {out}[/dim]")
+    write_stdout_text(cap.get())
+
+
+def _render_eval_report(
+    report,  # type: ignore[no-untyped-def]
+    req: EvaluateRequest,
+    fmt: str,
+    out: Path,
+    json_path: Path,
+    md_path: Path,
 ) -> None:
+    machine_stdout = fmt == "json"
+    if not req.summary_only and not machine_stdout:
+        stderr_console().print(f"[green]Wrote[/green] {json_path}")
+        stderr_console().print(f"[green]Wrote[/green] {md_path}")
+    warnings = report.operational_warnings
+    if machine_stdout:
+        # ``--summary-only --format json``: stdout is the only user-facing channel (pure JSON).
+        if not req.summary_only:
+            stderr_console().print(f"[dim]Reports written to: {out}[/dim]")
+        print_stdout_summary(report, output_format="json")
+        if not req.summary_only and not req.quiet:
+            print_operational_warning_summary(warnings)
+        return
+    if req.summary_only:
+        print_stdout_summary(report, output_format="human")
+        if not req.quiet:
+            print_operational_warning_summary(warnings)
+        return
+    _render_eval_table(report, out)
+    if not req.quiet:
+        print_operational_warning_summary(warnings)
+
+
+def _run_evaluate(req: EvaluateRequest) -> None:
+    fmt = normalize_evaluate_format(req.output_format)
+    policy = req.fail_on.lower()
+    if policy not in {"none", "fail", "degraded"}:
+        raise InvalidInputError("--fail-on must be one of: none, fail, degraded.")
+    repo_root = _resolve_eval_target(req)
+    resolved_profile = _resolve_eval_profile(req, repo_root)
+    root = merge_kit_root(req.kit_root)
+    catalog = load_catalog(root / "controls" / "catalog.yaml")
+    prof = load_profile_by_id(root, resolved_profile)
+    waiver_outcome = _load_eval_waivers(req.waivers)
+    scorecard = _load_eval_scorecard(req.scorecard_json)
+    ext_waiver = str(Path(req.waivers).resolve()) if req.waivers is not None else None
+    _warn_missing_scan_evidence(
+        repo_root=repo_root,
+        control_ids=set(prof.control_ids),
+        machine_stdout=(fmt == "json"),
+    )
+    report = evaluate_repository(
+        repo_root=repo_root,
+        profile=prof,
+        catalog=catalog,
+        waiver_outcome=waiver_outcome,
+        scorecard=scorecard,
+        external_waiver_path=ext_waiver,
+        verbose_emit=_make_verbose_emit(req.verbose),
+        report_json_contract=req.report_json_contract,
+    )
+    out = req.output_dir.resolve()
+    json_path, md_path = _write_eval_reports(report, req, out)
+    _maybe_write_sarif(report, req, out)
+    _render_eval_report(report, req, fmt, out, json_path, md_path)
+    if fail_on_violated(cast(FailOnPolicy, policy), report.summary_by_status):
+        raise typer.Exit(code=1)
+
+
+def execute_evaluate(req: EvaluateRequest) -> None:
     """Shared implementation for root-level and `evaluate` subcommand invocations.
 
-    When ``profile`` is ``None``, this function attempts to load the
+    When ``req.profile`` is ``None``, this function attempts to load the
     project config (``oss-policy-kit.yaml``) from the resolved target and
     use the profile recorded there. The fallback is logged on stderr so
     operators can see exactly which profile is being applied and why.
     """
 
     try:
-        fmt = normalize_evaluate_format(output_format)
-        policy = fail_on.lower()
-        if policy not in {"none", "fail", "degraded"}:
-            raise InvalidInputError("--fail-on must be one of: none, fail, degraded.")
-
-        chosen = target_opt or target_pos
-        if not chosen:
-            raise InvalidInputError("Provide a repository path as TARGET or via --target/-t.")
-        repo_root = resolve_existing_dir(chosen)
-
-        resolved_profile = profile
-        if resolved_profile is None:
-            project_config = load_project_config_for_target(repo_root)
-            if project_config is None:
-                raise InvalidInputError(
-                    "--profile is required, and no oss-policy-kit.yaml was found under the target. "
-                    "Either pass --profile <id> or run `oss-policy-kit init` first.",
-                )
-            resolved_profile = project_config.profile
-            stderr_console().print(
-                f"[dim]Using profile from {project_config.path.name}: {resolved_profile}[/dim]",
-            )
-
-        root = merge_kit_root(kit_root)
-        catalog_path = root / "controls" / "catalog.yaml"
-        catalog = load_catalog(catalog_path)
-        prof = load_profile_by_id(root, resolved_profile)
-
-        waiver_outcome = None
-        if waivers is not None:
-            wp = Path(waivers)
-            if not wp.is_file():
-                raise InvalidInputError(f"Waivers file not found: {wp}")
-            waiver_outcome = parse_waivers_file(wp)
-
-        scorecard = None
-        if scorecard_json is not None:
-            sp = Path(scorecard_json)
-            if not sp.is_file():
-                raise InvalidInputError(f"Scorecard file not found: {sp}")
-            try:
-                scorecard = load_scorecard_auto(sp)
-            except json.JSONDecodeError as exc:
-                raise InvalidInputError(
-                    f"Scorecard JSON could not be parsed: {sp}: {exc.msg} "
-                    f"(line {exc.lineno}, column {exc.colno}). "
-                    "Provide a valid OpenSSF Scorecard JSON export."
-                ) from exc
-
-        ext_waiver = str(Path(waivers).resolve()) if waivers is not None else None
-        _warn_missing_scan_evidence(
-            repo_root=repo_root,
-            control_ids=set(prof.control_ids),
-            machine_stdout=(normalize_evaluate_format(output_format) == "json"),
-        )
-        emit: Callable[[str], None] | None
-        if verbose:
-            _verbose_console = terminal_ui.build_stdout_console()
-
-            def emit(line: str) -> None:
-                with _verbose_console.capture() as _cap:
-                    _verbose_console.print(line)
-                write_stdout_text(_cap.get())
-        else:
-            emit = None
-        report = evaluate_repository(
-            repo_root=repo_root,
-            profile=prof,
-            catalog=catalog,
-            waiver_outcome=waiver_outcome,
-            scorecard=scorecard,
-            external_waiver_path=ext_waiver,
-            verbose_emit=emit,
-            report_json_contract=report_json_contract,
-        )
-        out = output_dir.resolve()
-        try:
-            json_path, md_path = write_reports(report, out, include_absolute_path=include_absolute_path)
-        except (PermissionError, NotADirectoryError, FileNotFoundError, OSError) as exc:
-            raise InvalidInputError(f"Cannot write to --output-dir '{output_dir}': {exc.strerror or exc}") from exc
-        sarif_path: Path | None = None
-        if sarif_output is not None:
-            from oss_policy_kit.application.sarif_writer import write_sarif_report
-
-            sarif_path = sarif_output if sarif_output.is_absolute() else out / sarif_output
-            write_sarif_report(report, sarif_path)
-            if not summary_only and output_format != "json":
-                stderr_console().print(f"[green]Wrote[/green] {sarif_path}")
-        machine_stdout = fmt == "json"
-        if not summary_only and not machine_stdout:
-            stderr_console().print(f"[green]Wrote[/green] {json_path}")
-            stderr_console().print(f"[green]Wrote[/green] {md_path}")
-        warnings = report.operational_warnings
-        if machine_stdout:
-            # ``--summary-only --format json``: stdout is the only user-facing channel (pure JSON).
-            if not summary_only:
-                stderr_console().print(f"[dim]Reports written to: {out}[/dim]")
-                print_stdout_summary(report, output_format="json")
-                if not quiet:
-                    print_operational_warning_summary(warnings)
-            else:
-                print_stdout_summary(report, output_format="json")
-        elif summary_only:
-            print_stdout_summary(report, output_format="human")
-            if not quiet:
-                print_operational_warning_summary(warnings)
-        else:
-            if terminal_ui.human_tty_stdout():
-                terminal_ui.print_evaluate_executive_preface(
-                    report,
-                    unicode_icons=terminal_ui.stream_supports_unicode(sys.stdout),
-                )
-            table = terminal_ui.render_eval_results_table(
-                report,
-                unicode_icons=terminal_ui.stream_supports_unicode(sys.stdout),
-            )
-            stdout_console = terminal_ui.build_stdout_console()
-            with stdout_console.capture() as cap:
-                stdout_console.print(table)
-                status_str = "  ".join(f"{k}={v}" for k, v in sorted(report.summary_by_status.items()))
-                stdout_console.print(
-                    f"\n[dim]Summary: {status_str} | Controls: {len(report.results)} | Reports: {out}[/dim]"
-                )
-            write_stdout_text(cap.get())
-            if not quiet:
-                print_operational_warning_summary(warnings)
-        if fail_on_violated(cast(FailOnPolicy, policy), report.summary_by_status):
-            raise typer.Exit(code=1)
+        _run_evaluate(req)
     except OssPolicyKitError as exc:
         stderr_console().print(f"[red]Error:[/red] {exc.message}")
         raise typer.Exit(code=2) from exc

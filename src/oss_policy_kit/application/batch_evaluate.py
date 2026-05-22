@@ -119,23 +119,41 @@ def is_likely_repository(path: Path) -> tuple[bool, str]:
     for pattern in _REPO_GLOB_PRIMARY:
         if list(path.glob(pattern)):
             return True, pattern
-    # Monorepo fallback: look for primary signals at depth 1 or 2.
+    deep = _repo_signal_at_depth(path)
+    if deep is not None:
+        return True, deep
+    k8s = _repo_k8s_manifest_signal(path)
+    if k8s is not None:
+        return True, k8s
+    return False, ""
+
+
+def _glob_has_match(path: Path, pattern: str) -> bool:
+    """True if ``path.glob(pattern)`` yields at least one entry (OSError treated as no match)."""
+
+    try:
+        return next(iter(path.glob(pattern)), None) is not None
+    except OSError:
+        return False
+
+
+def _repo_signal_at_depth(path: Path) -> str | None:
+    """Monorepo fallback: a primary repo signal one or two directories deep."""
+
     for depth_pattern in ("*", "*/*"):
         for signal in _REPO_PRIMARY_SIGNALS:
-            try:
-                if next(iter(path.glob(f"{depth_pattern}/{signal}")), None) is not None:
-                    return True, f"{depth_pattern}/{signal}"
-            except OSError:
-                continue
-    # Also accept Kubernetes manifests one or two levels deep — common for cloud-native
-    # repositories that hold manifests under ``infra/``, ``deploy/``, ``manifests/``.
+            if _glob_has_match(path, f"{depth_pattern}/{signal}"):
+                return f"{depth_pattern}/{signal}"
+    return None
+
+
+def _repo_k8s_manifest_signal(path: Path) -> str | None:
+    """Accept Kubernetes manifests one or two levels deep (infra/ deploy/ manifests/ layouts)."""
+
     for k8s_pattern in ("*/k8s-manifests/*.yaml", "*/*/k8s-manifests/*.yaml", "*/manifests/*.yaml"):
-        try:
-            if next(iter(path.glob(k8s_pattern)), None) is not None:
-                return True, k8s_pattern
-        except OSError:
-            continue
-    return False, ""
+        if _glob_has_match(path, k8s_pattern):
+            return k8s_pattern
+    return None
 
 
 def _batch_failure_counts(fails_by_target: dict[str, int]) -> list[int]:
@@ -205,6 +223,123 @@ def discover_batch_targets(
     return out
 
 
+def _build_eval_queue(
+    targets: list[Path], *, skip_non_repos: bool
+) -> tuple[list[tuple[Path, bool]], list[dict[str, str]]]:
+    """Filter discovered child dirs into ``(eval_queue, skipped_dirs)`` honoring ``--skip-non-repos``."""
+
+    skipped_dirs: list[dict[str, str]] = []
+    eval_queue: list[tuple[Path, bool]] = []
+    for child in targets:
+        # Even without --skip-non-repos, output / build directories should not be treated as
+        # evaluable projects. Adopters can still target them explicitly via `evaluate --target`.
+        if skip_non_repos and _is_meta_directory(child.name):
+            skipped_dirs.append(
+                {
+                    "name": child.name,
+                    "path": str(child.resolve()),
+                    "reason": "Looks like an output / build / cache directory (matches meta-directory name pattern).",
+                }
+            )
+            continue
+        likely, _sig = is_likely_repository(child)
+        if skip_non_repos and not likely:
+            skipped_dirs.append(
+                {
+                    "name": child.name,
+                    "path": str(child.resolve()),
+                    "reason": "No repository root signals (.git, manifest, CI file, Dockerfile, etc.).",
+                }
+            )
+            continue
+        eval_queue.append((child, likely))
+    return eval_queue, skipped_dirs
+
+
+def _execute_one_run(
+    target: Path,
+    likely_repo: bool,
+    pid: str,
+    *,
+    repo: Path,
+    safe_name: str,
+    root: Path,
+    catalog: Any,
+    output_dir: Path,
+    skip_non_repos: bool,
+) -> tuple[BatchRunRow, dict[str, Any], dict[str, int]]:
+    """Evaluate one target against one profile; write reports and return (row, payload, summary)."""
+
+    profile = load_profile_by_id(root, pid)
+    report = evaluate_repository(repo_root=repo, profile=profile, catalog=catalog, waiver_outcome=None, scorecard=None)
+    dest = output_dir / safe_name / pid
+    dest.mkdir(parents=True, exist_ok=True)
+    json_path = dest / "evaluation-report.json"
+    md_path = dest / "evaluation-report.md"
+    json_path.write_text(json.dumps(report_to_dict(report), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_markdown_report(report, md_path)
+    row = BatchRunRow(
+        target_name=target.name,
+        target_path=str(repo.resolve()),
+        profile_id=pid,
+        summary_by_status=dict(report.summary_by_status),
+        report_path_json=str(json_path.resolve()),
+        report_path_md=str(md_path.resolve()),
+    )
+    payload: dict[str, Any] = {
+        "target_name": target.name,
+        "target_path": str(repo.resolve()),
+        "profile_id": pid,
+        "summary_by_status": report.summary_by_status,
+        "action_insights": compute_priority_insights(report),
+        "reports": {"json": str(json_path.resolve()), "markdown": str(md_path.resolve())},
+    }
+    if not skip_non_repos and not likely_repo:
+        payload["likely_not_a_repository"] = True
+    return row, payload, dict(report.summary_by_status)
+
+
+def _execute_batch_runs(
+    eval_queue: list[tuple[Path, bool]],
+    profile_ids: list[str],
+    *,
+    root: Path,
+    catalog: Any,
+    output_dir: Path,
+    skip_non_repos: bool,
+    progress_callback: Callable[[str, int, int], None] | None,
+) -> tuple[list[BatchRunRow], list[dict[str, Any]], list[dict[str, int]]]:
+    """Run every (target × profile) evaluation and return (rows, consolidated_reports, summaries)."""
+
+    rows: list[BatchRunRow] = []
+    consolidated_reports: list[dict[str, Any]] = []
+    summaries_for_gate: list[dict[str, int]] = []
+    total_runs = len(eval_queue) * len(profile_ids)
+    run_index = 0
+    for target, likely_repo in eval_queue:
+        repo = resolve_existing_dir(str(target))
+        safe_name = target.name.replace("/", "_").replace("\\", "_")
+        for pid in profile_ids:
+            run_index += 1
+            if progress_callback is not None:
+                progress_callback(target.name, run_index, total_runs)
+            row, payload, summary = _execute_one_run(
+                target,
+                likely_repo,
+                pid,
+                repo=repo,
+                safe_name=safe_name,
+                root=root,
+                catalog=catalog,
+                output_dir=output_dir,
+                skip_non_repos=skip_non_repos,
+            )
+            rows.append(row)
+            consolidated_reports.append(payload)
+            summaries_for_gate.append(summary)
+    return rows, consolidated_reports, summaries_for_gate
+
+
 def run_batch_evaluation(  # noqa: C901
     *,
     target_root: Path,
@@ -231,134 +366,26 @@ def run_batch_evaluation(  # noqa: C901
     if not targets:
         raise InvalidInputError(f"No subdirectories to evaluate under {target_root}")
 
-    skipped_dirs: list[dict[str, str]] = []
-    eval_queue: list[tuple[Path, bool]] = []
-    for child in targets:
-        # Even without --skip-non-repos, output / build directories should not
-        # be treated as evaluable projects. Adopters can still target them
-        # explicitly via `evaluate --target <path>`; only the batch entry
-        # is filtered out here.
-        if skip_non_repos and _is_meta_directory(child.name):
-            skipped_dirs.append(
-                {
-                    "name": child.name,
-                    "path": str(child.resolve()),
-                    "reason": "Looks like an output / build / cache directory (matches meta-directory name pattern).",
-                }
-            )
-            continue
-        likely, _sig = is_likely_repository(child)
-        if skip_non_repos and not likely:
-            skipped_dirs.append(
-                {
-                    "name": child.name,
-                    "path": str(child.resolve()),
-                    "reason": "No repository root signals (.git, manifest, CI file, Dockerfile, etc.).",
-                }
-            )
-            continue
-        eval_queue.append((child, likely))
-
+    eval_queue, skipped_dirs = _build_eval_queue(targets, skip_non_repos=skip_non_repos)
     if not eval_queue:
         raise InvalidInputError(
             "No repositories to evaluate after filtering. Remove --skip-non-repos or add include/exclude patterns."
         )
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    rows: list[BatchRunRow] = []
-    consolidated_reports: list[dict[str, Any]] = []
-    summaries_for_gate: list[dict[str, int]] = []
-    total_runs = len(eval_queue) * len(profile_ids)
-    run_index = 0
-
-    for target, likely_repo in eval_queue:
-        repo = resolve_existing_dir(str(target))
-        safe_name = target.name.replace("/", "_").replace("\\", "_")
-        for pid in profile_ids:
-            run_index += 1
-            if progress_callback is not None:
-                progress_callback(target.name, run_index, total_runs)
-            profile = load_profile_by_id(root, pid)
-            report = evaluate_repository(
-                repo_root=repo,
-                profile=profile,
-                catalog=catalog,
-                waiver_outcome=None,
-                scorecard=None,
-            )
-            dest = output_dir / safe_name / pid
-            dest.mkdir(parents=True, exist_ok=True)
-            json_path = dest / "evaluation-report.json"
-            md_path = dest / "evaluation-report.md"
-            json_path.write_text(
-                json.dumps(report_to_dict(report), indent=2, ensure_ascii=False) + "\n",
-                encoding="utf-8",
-            )
-            write_markdown_report(report, md_path)
-            rows.append(
-                BatchRunRow(
-                    target_name=target.name,
-                    target_path=str(repo.resolve()),
-                    profile_id=pid,
-                    summary_by_status=dict(report.summary_by_status),
-                    report_path_json=str(json_path.resolve()),
-                    report_path_md=str(md_path.resolve()),
-                )
-            )
-            summaries_for_gate.append(dict(report.summary_by_status))
-            run_payload: dict[str, Any] = {
-                "target_name": target.name,
-                "target_path": str(repo.resolve()),
-                "profile_id": pid,
-                "summary_by_status": report.summary_by_status,
-                "action_insights": compute_priority_insights(report),
-                "reports": {"json": str(json_path.resolve()), "markdown": str(md_path.resolve())},
-            }
-            if not skip_non_repos and not likely_repo:
-                run_payload["likely_not_a_repository"] = True
-            consolidated_reports.append(run_payload)
+    rows, consolidated_reports, summaries_for_gate = _execute_batch_runs(
+        eval_queue,
+        profile_ids,
+        root=root,
+        catalog=catalog,
+        output_dir=output_dir,
+        skip_non_repos=skip_non_repos,
+        progress_callback=progress_callback,
+    )
 
     generated_at = report_generated_at()
     gate_violated = _gate_violated_for_batch(policy, summaries_for_gate)
-
-    totals: dict[str, int] = defaultdict(int)
-    for row in rows:
-        for k, v in row.summary_by_status.items():
-            totals[k] += v
-
-    fails_by_target: dict[str, int] = defaultdict(int)
-    for row in rows:
-        fails_by_target[row.target_name] += row.summary_by_status.get("fail", 0)
-
-    fc_values = _batch_failure_counts(fails_by_target)
-    all_tied = len(fails_by_target) >= 2 and len(set(fc_values)) == 1
-    common_fail_count: int | None = fc_values[0] if all_tied else None
-
-    comparison_lines: list[str] = []
-    if fails_by_target:
-        if all_tied:
-            comparison_lines.append(
-                f"All **{len(fails_by_target)}** repositories share the same failure count "
-                f"({common_fail_count}) — no clear best or worst performer."
-            )
-        else:
-            max_f = max(fails_by_target.values())
-            min_f = min(fails_by_target.values())
-            worst_targets = sorted(n for n, c in fails_by_target.items() if c == max_f)
-            best_targets = sorted(n for n, c in fails_by_target.items() if c == min_f)
-            comparison_lines.append(
-                f"- **Most failures (tie-break: lexicographic name)**: {', '.join(f'`{n}`' for n in worst_targets)}"
-            )
-            comparison_lines.append(f"- **Fewest failures**: {', '.join(f'`{n}`' for n in best_targets)}")
-
-    dist = _failure_distribution_bucketing(fc_values)
-
-    gap_hits: Counter[str] = Counter()
-    for cr in consolidated_reports:
-        ac = cr.get("action_insights") or {}
-        for ids in (ac.get("failing_controls_by_category") or {}).values():
-            for cid in ids:
-                gap_hits[str(cid)] += 1
+    stats = _compute_batch_stats(rows, consolidated_reports)
 
     batch_payload: dict[str, Any] = {
         "schema_version": "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/batch/0.1",
@@ -368,9 +395,9 @@ def run_batch_evaluation(  # noqa: C901
         "profile_ids": profile_ids,
         "gate_violated": gate_violated,
         "fail_on": policy,
-        "all_tied": all_tied,
-        "common_fail_count": common_fail_count,
-        "failure_distribution": dist,
+        "all_tied": stats.all_tied,
+        "common_fail_count": stats.common_fail_count,
+        "failure_distribution": stats.dist,
         "runs": consolidated_reports,
     }
     if skipped_dirs:
@@ -378,6 +405,138 @@ def run_batch_evaluation(  # noqa: C901
 
     batch_json = output_dir / "evaluation-batch.json"
     batch_json.write_text(json.dumps(batch_payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    batch_md = output_dir / "evaluation-batch.md"
+    batch_md.write_text(
+        _render_batch_markdown(
+            rows,
+            generated_at=generated_at,
+            target_root=target_root,
+            profile_ids=profile_ids,
+            eval_queue_len=len(eval_queue),
+            gate_violated=gate_violated,
+            policy=policy,
+            stats=stats,
+            skipped_dirs=skipped_dirs,
+            output_dir=output_dir,
+        ),
+        encoding="utf-8",
+    )
+    return BatchResult(batch_json=batch_json, batch_md=batch_md, gate_violated=gate_violated)
+
+
+@dataclass(slots=True)
+class _BatchStats:
+    """Aggregated counts for the consolidated batch report."""
+
+    totals: dict[str, int]
+    dist: dict[str, int]
+    comparison_lines: list[str]
+    gap_hits: Counter[str]
+    all_tied: bool
+    common_fail_count: int | None
+
+
+def _batch_comparison_lines(
+    fails_by_target: dict[str, int], all_tied: bool, common_fail_count: int | None
+) -> list[str]:
+    """Quick best/worst comparison lines across targets (empty when no targets)."""
+
+    if not fails_by_target:
+        return []
+    if all_tied:
+        return [
+            f"All **{len(fails_by_target)}** repositories share the same failure count "
+            f"({common_fail_count}) — no clear best or worst performer."
+        ]
+    max_f = max(fails_by_target.values())
+    min_f = min(fails_by_target.values())
+    worst = sorted(n for n, c in fails_by_target.items() if c == max_f)
+    best = sorted(n for n, c in fails_by_target.items() if c == min_f)
+    return [
+        f"- **Most failures (tie-break: lexicographic name)**: {', '.join(f'`{n}`' for n in worst)}",
+        f"- **Fewest failures**: {', '.join(f'`{n}`' for n in best)}",
+    ]
+
+
+def _compute_batch_stats(rows: list[BatchRunRow], consolidated_reports: list[dict[str, Any]]) -> _BatchStats:
+    """Aggregate totals, failure distribution, comparison lines, and repeated-control hits."""
+
+    totals: dict[str, int] = defaultdict(int)
+    fails_by_target: dict[str, int] = defaultdict(int)
+    for row in rows:
+        for k, v in row.summary_by_status.items():
+            totals[k] += v
+        fails_by_target[row.target_name] += row.summary_by_status.get("fail", 0)
+    fc_values = _batch_failure_counts(fails_by_target)
+    all_tied = len(fails_by_target) >= 2 and len(set(fc_values)) == 1
+    common_fail_count: int | None = fc_values[0] if all_tied else None
+    gap_hits: Counter[str] = Counter()
+    for cr in consolidated_reports:
+        ac = cr.get("action_insights") or {}
+        for ids in (ac.get("failing_controls_by_category") or {}).values():
+            for cid in ids:
+                gap_hits[str(cid)] += 1
+    return _BatchStats(
+        totals=dict(totals),
+        dist=_failure_distribution_bucketing(fc_values),
+        comparison_lines=_batch_comparison_lines(fails_by_target, all_tied, common_fail_count),
+        gap_hits=gap_hits,
+        all_tied=all_tied,
+        common_fail_count=common_fail_count,
+    )
+
+
+def _batch_md_matrix_lines(rows: list[BatchRunRow]) -> list[str]:
+    """Markdown matrix table (one row per target × profile)."""
+
+    out = [
+        "## Matrix (per target folder)",
+        "",
+        "| Target | Profile | fail | manual-review | pass | other |",
+        "| --- | --- | ---: | ---: | ---: | --- |",
+    ]
+    for row in rows:
+        summary = row.summary_by_status
+        other = sum(v for k, v in summary.items() if k not in {"fail", "manual-review-required", "pass"})
+        out.append(
+            f"| `{row.target_name}` | `{row.profile_id}` | {summary.get('fail', 0)} | "
+            f"{summary.get('manual-review-required', 0)} | {summary.get('pass', 0)} | {other} |"
+        )
+    out.append("")
+    return out
+
+
+def _batch_md_artifact_lines(rows: list[BatchRunRow], output_dir: Path) -> list[str]:
+    """Markdown list of per-run report artifact paths (relative to the batch output dir)."""
+
+    out = ["## Report artifacts (paths relative to batch output directory)", ""]
+    out_abs = output_dir.resolve()
+    for row in rows:
+        jp = Path(row.report_path_json).resolve()
+        mp = Path(row.report_path_md).resolve()
+        try:
+            j_show, m_show = jp.relative_to(out_abs).as_posix(), mp.relative_to(out_abs).as_posix()
+        except ValueError:
+            j_show, m_show = str(jp), str(mp)
+        out.append(f"- `{row.target_name}` x `{row.profile_id}` -> `{j_show}` , `{m_show}`")
+    return out
+
+
+def _render_batch_markdown(
+    rows: list[BatchRunRow],
+    *,
+    generated_at: str,
+    target_root: Path,
+    profile_ids: list[str],
+    eval_queue_len: int,
+    gate_violated: bool,
+    policy: FailOnPolicy,
+    stats: _BatchStats,
+    skipped_dirs: list[dict[str, str]],
+    output_dir: Path,
+) -> str:
+    """Render the consolidated batch Markdown report."""
 
     md_lines = [
         "# OSS Policy Kit - batch evaluation",
@@ -387,87 +546,48 @@ def run_batch_evaluation(  # noqa: C901
         f"- **Target root**: `{target_root.resolve()}`",
         f"- **Profiles**: {', '.join(f'`{p}`' for p in profile_ids)}",
         (
-            f"- **Targets evaluated**: {len(eval_queue)} child folder(s) x {len(profile_ids)} "
+            f"- **Targets evaluated**: {eval_queue_len} child folder(s) x {len(profile_ids)} "
             f"profile(s) = {len(rows)} run(s)"
         ),
         "",
         "## Consolidated status totals (all runs)",
         "",
     ]
-    for status in sorted(totals.keys()):
-        md_lines.append(f"- `{status}`: **{totals[status]}**")
-    md_lines.append("")
-
-    label = policy
+    md_lines.extend(f"- `{status}`: **{stats.totals[status]}**" for status in sorted(stats.totals))
     gate_state = "**VIOLATED**" if gate_violated else "**PASSED**"
-    md_lines.append(f"- **CI gate (`--fail-on: {label}`)**: {gate_state}")
-    md_lines.append("")
+    md_lines.extend(["", f"- **CI gate (`--fail-on: {policy}`)**: {gate_state}", ""])
 
-    md_lines.append("## Failure distribution (per target, total `fail` across profiles)")
-    md_lines.append("")
-    md_lines.append("| Fail count range | Repositories |")
-    md_lines.append("| --- | ---: |")
-    md_lines.append(f"| 0 | {dist['0']} |")
-    md_lines.append(f"| 1-5 | {dist['1-5']} |")
-    md_lines.append(f"| 6-10 | {dist['6-10']} |")
-    md_lines.append(f"| 11+ | {dist['11+']} |")
-    md_lines.append("")
+    dist = stats.dist
+    md_lines.extend(
+        [
+            "## Failure distribution (per target, total `fail` across profiles)",
+            "",
+            "| Fail count range | Repositories |",
+            "| --- | ---: |",
+            f"| 0 | {dist['0']} |",
+            f"| 1-5 | {dist['1-5']} |",
+            f"| 6-10 | {dist['6-10']} |",
+            f"| 11+ | {dist['11+']} |",
+            "",
+        ]
+    )
 
-    if comparison_lines:
-        md_lines.append("## Quick comparison (by total `fail` counts across profiles)")
-        md_lines.append("")
-        for ln in comparison_lines:
-            if ln.startswith("All **"):
-                md_lines.append(f"- {ln}")
-            else:
-                md_lines.append(ln)
+    if stats.comparison_lines:
+        md_lines.extend(["## Quick comparison (by total `fail` counts across profiles)", ""])
+        md_lines.extend(f"- {ln}" if ln.startswith("All **") else ln for ln in stats.comparison_lines)
         md_lines.append("")
 
     if skipped_dirs:
-        md_lines.append("## Skipped directories")
-        md_lines.append("")
-        for s in skipped_dirs:
-            md_lines.append(f"- `{s['name']}` — {s['reason']}")
+        md_lines.extend(["## Skipped directories", ""])
+        md_lines.extend(f"- `{s['name']}` — {s['reason']}" for s in skipped_dirs)
         md_lines.append("")
 
-    md_lines.extend(
-        [
-            "## Matrix (per target folder)",
-            "",
-            "| Target | Profile | fail | manual-review | pass | other |",
-            "| --- | --- | ---: | ---: | ---: | --- |",
-        ]
-    )
-    for row in rows:
-        summary = row.summary_by_status
-        fails = summary.get("fail", 0)
-        mrr = summary.get("manual-review-required", 0)
-        passes = summary.get("pass", 0)
-        other = sum(v for k, v in summary.items() if k not in {"fail", "manual-review-required", "pass"})
-        md_lines.append(f"| `{row.target_name}` | `{row.profile_id}` | {fails} | {mrr} | {passes} | {other} |")
-    md_lines.append("")
-    if gap_hits:
-        md_lines.append("## Repeated failing controls (across runs)")
+    md_lines.extend(_batch_md_matrix_lines(rows))
+    if stats.gap_hits:
+        md_lines.extend(
+            ["## Repeated failing controls (across runs)", "", "| Control id | Runs (count) |", "| --- | ---: |"]
+        )
+        md_lines.extend(f"| `{cid}` | {n} |" for cid, n in stats.gap_hits.most_common(15))
         md_lines.append("")
-        md_lines.append("| Control id | Runs (count) |")
-        md_lines.append("| --- | ---: |")
-        for cid, n in gap_hits.most_common(15):
-            md_lines.append(f"| `{cid}` | {n} |")
-        md_lines.append("")
-    md_lines.append("## Report artifacts (paths relative to batch output directory)")
-    md_lines.append("")
-    out_abs = output_dir.resolve()
-    for row in rows:
-        jp = Path(row.report_path_json).resolve()
-        mp = Path(row.report_path_md).resolve()
-        try:
-            rel_json = jp.relative_to(out_abs)
-            rel_md = mp.relative_to(out_abs)
-            j_show, m_show = rel_json.as_posix(), rel_md.as_posix()
-        except ValueError:
-            j_show, m_show = str(jp), str(mp)
-        md_lines.append(f"- `{row.target_name}` x `{row.profile_id}` -> `{j_show}` , `{m_show}`")
-    batch_md = output_dir / "evaluation-batch.md"
-    batch_md.write_text("\n".join(md_lines), encoding="utf-8")
-
-    return BatchResult(batch_json=batch_json, batch_md=batch_md, gate_violated=gate_violated)
+    md_lines.extend(_batch_md_artifact_lines(rows, output_dir))
+    return "\n".join(md_lines)

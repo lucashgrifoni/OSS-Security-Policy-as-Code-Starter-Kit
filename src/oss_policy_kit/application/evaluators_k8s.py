@@ -18,6 +18,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application._evidence_rules import (
+    files_scanned_list,
+    rule_finding_count,
+    sample_finding_files,
+)
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 
 _EVIDENCE_FILENAME = "k8s-baseline.json"
@@ -78,10 +83,8 @@ def _make_k8s_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOutco
         if gate is not None:
             return gate
         assert data is not None
-        files_scanned = data.get("files_scanned") or []
-        if not isinstance(files_scanned, list):
-            files_scanned = []
         sources = [str(evidence_path.resolve())]
+        files_scanned = files_scanned_list(data)
         if not files_scanned:
             return EvalOutcome(
                 status=ControlStatus.NOT_APPLICABLE,
@@ -90,10 +93,7 @@ def _make_k8s_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOutco
                 evidence_sources=sources,
                 confidence="high",
             )
-        by_rule = data.get("findings_by_rule") or {}
-        if not isinstance(by_rule, dict):
-            by_rule = {}
-        count = int(by_rule.get(rule_id, 0) or 0)
+        count = rule_finding_count(data, rule_id)
         if count == 0:
             return EvalOutcome(
                 status=ControlStatus.PASS,
@@ -102,14 +102,7 @@ def _make_k8s_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOutco
                 evidence_sources=sources,
                 confidence="high",
             )
-        sample_files: list[str] = []
-        for f in data.get("findings", []) or []:
-            if isinstance(f, dict) and f.get("rule_id") == rule_id:
-                file_ = f.get("file")
-                if isinstance(file_, str) and file_ and file_ not in sample_files:
-                    sample_files.append(file_)
-            if len(sample_files) >= 3:
-                break
+        sample_files = sample_finding_files(data, rule_id)
         files_hint = f" Sources: {', '.join(sample_files)}." if sample_files else ""
         return EvalOutcome(
             status=ControlStatus.FAIL,

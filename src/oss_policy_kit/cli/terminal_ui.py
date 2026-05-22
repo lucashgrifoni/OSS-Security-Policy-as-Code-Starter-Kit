@@ -24,6 +24,8 @@ from rich.text import Text
 
 from oss_policy_kit.application.loader import PROFILE_DIRECTORY_ALIASES
 
+_BOLD_CYAN = "bold cyan"
+
 if TYPE_CHECKING:
     from oss_policy_kit.domain.models import ExecutionReport
 
@@ -46,7 +48,7 @@ _UNICODE_STATUS_SAMPLE = "✓✗—"
 # Human TTY visual language (single palette; avoid competing decoration styles).
 STYLE_BORDER_PRIMARY = "cyan"
 STYLE_BORDER_SOFT = "dim"
-STYLE_SECTION_TITLE = "bold cyan"
+STYLE_SECTION_TITLE = _BOLD_CYAN
 STYLE_EMPHASIS = "cyan"
 STYLE_MUTED = "dim"
 STYLE_OK = "green"
@@ -186,7 +188,8 @@ def build_console(
     the target stream is not a TTY (pipes, redirects) so escape codes do not pollute logs.
     """
 
-    target: TextIO = file if file is not None else (sys.stderr if stderr else sys.stdout)
+    default_target: TextIO = sys.stderr if stderr else sys.stdout
+    target: TextIO = file if file is not None else default_target
     base_env = _environ if _environ is not None else os.environ
     no_color = "NO_COLOR" in base_env or base_env.get("TERM", "").lower() == "dumb"
     try:
@@ -596,7 +599,6 @@ _ADVISORY_ONLY_PROFILE_IDS: frozenset[str] = frozenset(
 def _print_advisory_profile_banner(
     console: Console,
     *,
-    profile_id: str,
     width: int,
 ) -> None:
     """Print a yellow banner above the executive panel for advisory-only profiles."""
@@ -629,7 +631,7 @@ def print_evaluate_executive_preface(
     c = console or build_stdout_console()
     w = c.width
     if report.profile_id in _ADVISORY_ONLY_PROFILE_IDS:
-        _print_advisory_profile_banner(c, profile_id=report.profile_id, width=w)
+        _print_advisory_profile_banner(c, width=w)
     target_name = Path(report.target_path).name
     summary = report.summary_by_status
     pass_n = int(summary.get("pass", 0)) + int(summary.get("self-attested", 0))
@@ -657,7 +659,7 @@ def print_evaluate_executive_preface(
     pw = primary_panel_width(w)
     panel = Panel(
         inner,
-        title=Text("OSS Policy Evaluation", style="bold cyan"),
+        title=Text("OSS Policy Evaluation", style=_BOLD_CYAN),
         border_style=STYLE_BORDER_PRIMARY,
         box=box.ROUNDED,
         width=pw,
@@ -682,13 +684,11 @@ def print_interactive_stdout_summary(  # noqa: C901
 ) -> None:
     """Rich evaluation summary for interactive ``--summary-only`` / human stdout (TTY only)."""
 
-    from oss_policy_kit.domain.models import ControlStatus
-
     c = console or build_stdout_console()
     unicode_icons = stream_supports_unicode(sys.stdout)
     w = c.width
     if getattr(report, "profile_id", None) in _ADVISORY_ONLY_PROFILE_IDS:
-        _print_advisory_profile_banner(c, profile_id=report.profile_id, width=w)
+        _print_advisory_profile_banner(c, width=w)
     target_name = Path(report.target_path).name
     ordered_summary = {k: report.summary_by_status[k] for k in report.summary_by_status}
     pass_n = int(ordered_summary.get("pass", 0)) + int(ordered_summary.get("self-attested", 0))
@@ -720,7 +720,7 @@ def print_interactive_stdout_summary(  # noqa: C901
     pw = primary_panel_width(w)
     panel = Panel(
         inner,
-        title=Text("OSS Policy Evaluation", style="bold cyan"),
+        title=Text("OSS Policy Evaluation", style=_BOLD_CYAN),
         border_style=STYLE_BORDER_PRIMARY,
         box=box.ROUNDED,
         width=pw,
@@ -736,46 +736,56 @@ def print_interactive_stdout_summary(  # noqa: C901
         w=w,
     )
 
-    fails = [r for r in report.results if r.status == ControlStatus.FAIL]
-    mrr = [r for r in report.results if r.status == ControlStatus.MANUAL_REVIEW_REQUIRED]
-    healthy_candidates = [
-        r for r in report.results if r.status == ControlStatus.PASS and str(r.control_id).startswith("GOV-")
-    ][:5]
-
-    body = Text()
-    show_triage = bool(fails or mrr or healthy_candidates)
-    if fails:
-        body.append("Fail\n", style=f"bold {STYLE_ERR}")
-        for r in fails[:4]:
-            reason = (r.reason or r.control_id).strip().replace("\n", " ")
-            if len(reason) > max(40, w - 10):
-                reason = reason[: max(36, w - 14)].rstrip() + "..."
-            body.append(f"  {_status_glyph('fail', unicode_icons=unicode_icons)} {reason}\n", style=STYLE_ERR)
-    if mrr:
-        body.append("Manual review\n", style=f"bold {STYLE_WARN}")
-        for r in mrr[:4]:
-            reason = (r.reason or r.control_id).strip().replace("\n", " ")
-            if len(reason) > max(40, w - 10):
-                reason = reason[: max(36, w - 14)].rstrip() + "..."
-            body.append(
-                f"  {_status_glyph('manual-review-required', unicode_icons=unicode_icons)} {reason}\n",
-                style=STYLE_WARN,
-            )
-    if healthy_candidates:
-        body.append("Highlights\n", style=f"bold {STYLE_OK}")
-        for r in healthy_candidates[:3]:
-            hint = (r.title or r.control_id).strip()
-            if len(hint) > max(36, w - 12):
-                hint = hint[: max(32, w - 16)].rstrip() + "..."
-            body.append(f"  {_status_glyph('pass', unicode_icons=unicode_icons)} {hint}\n", style=STYLE_OK)
-
+    body, show_triage = _build_triage_body(report, w, unicode_icons=unicode_icons)
     if show_triage:
         _section_heading(c, "Triage", width=w)
         c.print(Align(body, align="left", width=primary_panel_width(w)))
 
     _section_heading(c, "Next actions", width=w)
-    steps = _numbered_next_steps(gap_lines, next_step, limit=4)
-    for i, step in enumerate(steps, start=1):
+    _print_next_actions(c, gap_lines, next_step)
+
+
+def _truncate_reason(text: str, w: int) -> str:
+    """Single-line, width-bounded reason/title for the interactive triage list."""
+
+    text = text.strip().replace("\n", " ")
+    if len(text) > max(40, w - 10):
+        text = text[: max(36, w - 14)].rstrip() + "..."
+    return text
+
+
+def _build_triage_body(report: Any, w: int, *, unicode_icons: bool) -> tuple[Text, bool]:
+    """Build the Triage Text (Fail / Manual review / Highlights); returns (body, has_any)."""
+
+    from oss_policy_kit.domain.models import ControlStatus
+
+    fails = [r for r in report.results if r.status == ControlStatus.FAIL]
+    mrr = [r for r in report.results if r.status == ControlStatus.MANUAL_REVIEW_REQUIRED]
+    healthy = [r for r in report.results if r.status == ControlStatus.PASS and str(r.control_id).startswith("GOV-")][:5]
+    body = Text()
+    if fails:
+        body.append("Fail\n", style=f"bold {STYLE_ERR}")
+        for r in fails[:4]:
+            reason = _truncate_reason(r.reason or r.control_id, w)
+            body.append(f"  {_status_glyph('fail', unicode_icons=unicode_icons)} {reason}\n", style=STYLE_ERR)
+    if mrr:
+        body.append("Manual review\n", style=f"bold {STYLE_WARN}")
+        for r in mrr[:4]:
+            reason = _truncate_reason(r.reason or r.control_id, w)
+            glyph = _status_glyph("manual-review-required", unicode_icons=unicode_icons)
+            body.append(f"  {glyph} {reason}\n", style=STYLE_WARN)
+    if healthy:
+        body.append("Highlights\n", style=f"bold {STYLE_OK}")
+        for r in healthy[:3]:
+            hint = _truncate_reason(r.title or r.control_id, w)
+            body.append(f"  {_status_glyph('pass', unicode_icons=unicode_icons)} {hint}\n", style=STYLE_OK)
+    return body, bool(fails or mrr or healthy)
+
+
+def _print_next_actions(c: Console, gap_lines: list[str], next_step: str) -> None:
+    """Print the numbered, width-wrapped next-actions list."""
+
+    for i, step in enumerate(_numbered_next_steps(gap_lines, next_step, limit=4), start=1):
         wrapped_lines = human_wrap_lines(step, stream=sys.stdout, subtract=6).split("\n")
         for j, ln in enumerate(wrapped_lines):
             prefix = f"  {i}. " if j == 0 else "     "
@@ -802,32 +812,35 @@ def _signal_ids(signals: list[dict[str, str]]) -> set[str]:
     return {str(s.get("id", "")) for s in signals}
 
 
-def print_recommend_profile_human_rich(  # noqa: C901
-    rec: Any,
-    *,
-    repo_root: Path,
-    console: Console | None = None,
-) -> None:
-    """Rich layout for ``recommend-profile`` (TTY stdout only)."""
+@dataclass(slots=True)
+class _RecSignals:
+    """Detected CI/evidence signals for the recommend-profile rich layout."""
 
-    c = console or build_stdout_console()
-    unicode_icons = stream_supports_unicode(sys.stdout)
-    w = c.width
-    compact = w < 72
+    gh: str
+    az: str
+    aws: str
+    gh_sig: bool
+    az_sig: bool
+    aws_sig: bool
+    gh_ev: bool
+    az_ev: bool
+    aws_ev: bool
+    rel_label: str
+    ci_definitions: bool
+
+
+def _signal_strength(present: bool, evidence: bool) -> str:
+    if evidence:
+        return "strong"
+    return "partial" if present else "none"
+
+
+def _compute_rec_signals(rec: Any, *, unicode_icons: bool) -> _RecSignals:
+    """Derive CI / release-evidence signal flags + glyphs from the recommendation."""
+
     chk = "✓" if unicode_icons else "+"
     dash = "—" if unicode_icons else "-"
     sig_ids = _signal_ids(list(rec.signals_detected))
-    gh = chk if "github_actions_workflows" in sig_ids else dash
-    az = chk if "azure_pipelines_yaml" in sig_ids else dash
-    aws = chk if "aws_codebuild_buildspec" in sig_ids else dash
-
-    def strength(_label: str, present: bool, evidence: bool) -> str:
-        if evidence:
-            return "strong"
-        if present:
-            return "partial"
-        return "none"
-
     gh_sig = "github_actions_workflows" in sig_ids
     az_sig = "azure_pipelines_yaml" in sig_ids
     aws_sig = "aws_codebuild_buildspec" in sig_ids
@@ -843,14 +856,6 @@ def print_recommend_profile_human_rich(  # noqa: C901
             "evidence_dir_empty",
         )
     )
-
-    suggestions: list[dict[str, Any]] = list(rec.suggestions)
-    now_id = str(suggestions[0]["profile_id"]) if suggestions else ""
-    cand_ids = {str(s["profile_id"]) for s in suggestions}
-    journey_ids = _forward_journey_ids(now_id, cand_ids) if suggestions else []
-    journey_next = journey_ids[1] if len(journey_ids) > 1 else None
-    raw_second = str(suggestions[1]["profile_id"]) if len(suggestions) > 1 else None
-
     ci_definitions = gh_sig or az_sig or aws_sig
     if gh_ev or az_ev or aws_ev:
         rel_label = "strong"
@@ -858,75 +863,155 @@ def print_recommend_profile_human_rich(  # noqa: C901
         rel_label = "partial"
     else:
         rel_label = "none"
+    return _RecSignals(
+        gh=chk if gh_sig else dash,
+        az=chk if az_sig else dash,
+        aws=chk if aws_sig else dash,
+        gh_sig=gh_sig,
+        az_sig=az_sig,
+        aws_sig=aws_sig,
+        gh_ev=gh_ev,
+        az_ev=az_ev,
+        aws_ev=aws_ev,
+        rel_label=rel_label,
+        ci_definitions=ci_definitions,
+    )
 
-    scope_lines = Text()
-    scope_lines.append("Repository signals\n", style=f"bold {STYLE_EMPHASIS}")
-    scope_lines.append(f"  .github/workflows      {gh}\n", style="default")
-    scope_lines.append(f"  Azure pipeline YAML    {az}\n", style="default")
-    scope_lines.append(f"  buildspec.yml          {aws}\n", style="default")
+
+def _build_recommend_scope(sig: _RecSignals, *, compact: bool) -> Text:
+    """Build the 'Repository signals' (+ optional 'Signal board') Text block."""
+
+    scope = Text()
+    scope.append("Repository signals\n", style=f"bold {STYLE_EMPHASIS}")
+    scope.append(f"  .github/workflows      {sig.gh}\n", style="default")
+    scope.append(f"  Azure pipeline YAML    {sig.az}\n", style="default")
+    scope.append(f"  buildspec.yml          {sig.aws}\n", style="default")
     if not compact:
-        scope_lines.append("\nSignal board\n", style=f"bold {STYLE_EMPHASIS}")
-        scope_lines.append(f"  GitHub workflows    {strength('gh', gh_sig, gh_ev)}\n", style="default")
-        scope_lines.append(f"  Azure pipelines     {strength('az', az_sig, az_ev)}\n", style="default")
-        scope_lines.append(f"  AWS buildspec       {strength('aws', aws_sig, aws_ev)}\n", style="default")
-        scope_lines.append(f"  Release evidence    {rel_label}\n", style="default")
-        if rel_label == "partial" and ci_definitions and not (gh_ev or az_ev or aws_ev):
-            scope_lines.append(
+        scope.append("\nSignal board\n", style=f"bold {STYLE_EMPHASIS}")
+        scope.append(f"  GitHub workflows    {_signal_strength(sig.gh_sig, sig.gh_ev)}\n", style="default")
+        scope.append(f"  Azure pipelines     {_signal_strength(sig.az_sig, sig.az_ev)}\n", style="default")
+        scope.append(f"  AWS buildspec       {_signal_strength(sig.aws_sig, sig.aws_ev)}\n", style="default")
+        scope.append(f"  Release evidence    {sig.rel_label}\n", style="default")
+        if sig.rel_label == "partial" and sig.ci_definitions and not (sig.gh_ev or sig.az_ev or sig.aws_ev):
+            scope.append(
                 "  (partial: CI definitions visible; add .oss-policy-kit/evidence JSON for strong.)\n",
                 style=STYLE_MUTED,
             )
+    return scope
 
-    ctx_line = ""
-    if gh_sig and not az_sig and not aws_sig:
-        ctx_line = "Primary context: GitHub Actions material visible in this clone."
-    elif az_sig and not gh_sig and not aws_sig:
-        ctx_line = "Primary context: Azure Pipelines material visible in this clone."
-    elif aws_sig and not gh_sig and not az_sig:
-        ctx_line = "Primary context: AWS CodeBuild/buildspec material visible in this clone."
-    elif sum(bool(x) for x in (gh_sig, az_sig, aws_sig)) > 1:
-        ctx_line = (
+
+def _recommend_context_line(sig: _RecSignals) -> str:
+    """Return the one-line 'recommendation path' context for the detected signals."""
+
+    if sig.gh_sig and not sig.az_sig and not sig.aws_sig:
+        return "Primary context: GitHub Actions material visible in this clone."
+    if sig.az_sig and not sig.gh_sig and not sig.aws_sig:
+        return "Primary context: Azure Pipelines material visible in this clone."
+    if sig.aws_sig and not sig.gh_sig and not sig.az_sig:
+        return "Primary context: AWS CodeBuild/buildspec material visible in this clone."
+    if sum(bool(x) for x in (sig.gh_sig, sig.az_sig, sig.aws_sig)) > 1:
+        return (
             "Mixed CI definitions in clone; ranking follows strongest platform evidence "
             "(see JSON notes when multiple platforms tie)."
         )
-    elif not ci_definitions:
-        ctx_line = "Limited CI definitions in clone; recommendation leans conservative."
+    if not sig.ci_definitions:
+        return "Limited CI definitions in clone; recommendation leans conservative."
+    return ""
+
+
+def _build_recommend_decision(suggestions: list[dict[str, Any]], ctx_line: str) -> Text:
+    """Build the 'Recommended now' / why / journey / also-consider decision Text block."""
 
     decision = Text()
-    if suggestions:
-        decision.append("Recommended now\n", style=f"bold {STYLE_OK}")
-        decision.append(f"  {now_id}\n\n", style=f"{STYLE_OK}")
-        if why := str(suggestions[0].get("rationale", "")).strip():
-            decision.append("Why now\n", style=f"bold {STYLE_EMPHASIS}")
-            for ln in human_wrap_lines(why, stream=sys.stdout, subtract=4).split("\n"):
-                decision.append(f"  {ln}\n", style="default")
-            decision.append("\n", style="default")
-        if ctx_line:
-            decision.append("Recommendation path\n", style=f"bold {STYLE_EMPHASIS}")
-            decision.append(f"{ctx_line}\n\n", style=STYLE_MUTED)
-        if journey_ids:
-            decision.append("Suggested journey\n", style=f"bold {STYLE_EMPHASIS}")
-            labels = ("Now", "Next", "Later")
-            for i, jid in enumerate(journey_ids[:3]):
-                decision.append(f"  [{labels[i]}]  {jid}\n", style="default")
-            decision.append("\n", style="default")
-        if raw_second and (journey_next is None or raw_second != journey_next):
-            decision.append("Also consider\n", style=f"bold {STYLE_WARN}")
-            decision.append(Text.from_markup(f"  {raw_second}  [dim](parallel heuristic pick)[/dim]\n\n"))
+    if not suggestions:
+        return decision
+    now_id = str(suggestions[0]["profile_id"])
+    cand_ids = {str(s["profile_id"]) for s in suggestions}
+    journey_ids = _forward_journey_ids(now_id, cand_ids)
+    journey_next = journey_ids[1] if len(journey_ids) > 1 else None
+    raw_second = str(suggestions[1]["profile_id"]) if len(suggestions) > 1 else None
+    decision.append("Recommended now\n", style=f"bold {STYLE_OK}")
+    decision.append(f"  {now_id}\n\n", style=f"{STYLE_OK}")
+    if why := str(suggestions[0].get("rationale", "")).strip():
+        decision.append("Why now\n", style=f"bold {STYLE_EMPHASIS}")
+        for ln in human_wrap_lines(why, stream=sys.stdout, subtract=4).split("\n"):
+            decision.append(f"  {ln}\n", style="default")
+        decision.append("\n", style="default")
+    if ctx_line:
+        decision.append("Recommendation path\n", style=f"bold {STYLE_EMPHASIS}")
+        decision.append(f"{ctx_line}\n\n", style=STYLE_MUTED)
+    if journey_ids:
+        decision.append("Suggested journey\n", style=f"bold {STYLE_EMPHASIS}")
+        labels = ("Now", "Next", "Later")
+        for i, jid in enumerate(journey_ids[:3]):
+            decision.append(f"  [{labels[i]}]  {jid}\n", style="default")
+        decision.append("\n", style="default")
+    if raw_second and (journey_next is None or raw_second != journey_next):
+        decision.append("Also consider\n", style=f"bold {STYLE_WARN}")
+        decision.append(Text.from_markup(f"  {raw_second}  [dim](parallel heuristic pick)[/dim]\n\n"))
+    return decision
+
+
+def _print_observed_signals(c: Console, rec: Any, w: int, *, unicode_icons: bool) -> None:
+    """Print up to 8 'Observed signals' entries with wrapped detail lines."""
+
+    _section_heading(c, "Observed signals", width=w)
+    for sig in rec.signals_detected[:8]:
+        c.print(Text(f"  {sig.get('id', '')}", style=STYLE_EMPHASIS))
+        for ln in human_wrap_lines(str(sig.get("detail", "")), stream=sys.stdout, subtract=6).split("\n"):
+            c.print(Text(f"    {ln}", style=STYLE_MUTED))
+    if len(rec.signals_detected) > 8:
+        more = "…" if unicode_icons else "..."
+        c.print(Text(f"  {more} {len(rec.signals_detected) - 8} more", style=STYLE_MUTED))
+
+
+def _print_notes(c: Console, rec: Any, w: int) -> None:
+    """Print the trailing 'Notes' section with wrapped lines."""
+
+    _section_heading(c, "Notes", width=w)
+    for note in rec.notes:
+        for ln in human_wrap_lines(str(note), stream=sys.stdout, subtract=4).split("\n"):
+            c.print(Text(f"  {ln}", style=STYLE_MUTED))
+
+
+def _print_recommend_signals_and_notes(c: Console, rec: Any, w: int, *, compact: bool, unicode_icons: bool) -> None:
+    """Print the trailing 'Observed signals' and 'Notes' sections below the decision panel."""
+
+    if rec.signals_detected and not compact:
+        _print_observed_signals(c, rec, w, unicode_icons=unicode_icons)
+    if rec.notes:
+        _print_notes(c, rec, w)
+
+
+def print_recommend_profile_human_rich(
+    rec: Any,
+    *,
+    repo_root: Path,
+    console: Console | None = None,
+) -> None:
+    """Rich layout for ``recommend-profile`` (TTY stdout only)."""
+
+    c = console or build_stdout_console()
+    unicode_icons = stream_supports_unicode(sys.stdout)
+    w = c.width
+    compact = w < 72
+    sig = _compute_rec_signals(rec, unicode_icons=unicode_icons)
+    suggestions: list[dict[str, Any]] = list(rec.suggestions)
+    decision = _build_recommend_decision(suggestions, _recommend_context_line(sig))
 
     main_body = Text.assemble(
         Text(f"{repo_root.resolve()}\n\n", style=STYLE_MUTED),
-        scope_lines,
+        _build_recommend_scope(sig, compact=compact),
         Text("\n") if suggestions else Text(),
         decision,
         Text("\nHeuristic only - not a compliance decision.", style="italic dim"),
     )
-
     pw = primary_panel_width(w)
     c.print(
         Align(
             Panel(
                 Align(main_body, align="left"),
-                title=Text("Decision", style="bold cyan"),
+                title=Text("Decision", style=_BOLD_CYAN),
                 border_style=STYLE_BORDER_PRIMARY,
                 box=box.ROUNDED,
                 width=pw,
@@ -934,24 +1019,7 @@ def print_recommend_profile_human_rich(  # noqa: C901
             align="left",
         )
     )
-
-    if rec.signals_detected and not compact:
-        _section_heading(c, "Observed signals", width=w)
-        for sig in rec.signals_detected[:8]:
-            sid = sig.get("id", "")
-            detail = str(sig.get("detail", ""))
-            c.print(Text(f"  {sid}", style=STYLE_EMPHASIS))
-            for ln in human_wrap_lines(detail, stream=sys.stdout, subtract=6).split("\n"):
-                c.print(Text(f"    {ln}", style=STYLE_MUTED))
-        if len(rec.signals_detected) > 8:
-            more = "…" if unicode_icons else "..."
-            c.print(Text(f"  {more} {len(rec.signals_detected) - 8} more", style=STYLE_MUTED))
-
-    if rec.notes:
-        _section_heading(c, "Notes", width=w)
-        for note in rec.notes:
-            for ln in human_wrap_lines(str(note), stream=sys.stdout, subtract=4).split("\n"):
-                c.print(Text(f"  {ln}", style=STYLE_MUTED))
+    _print_recommend_signals_and_notes(c, rec, w, compact=compact, unicode_icons=unicode_icons)
 
 
 def print_profiles_catalog_panel(
@@ -991,7 +1059,7 @@ def print_profiles_catalog_panel(
         Align(
             Panel(
                 Align(Text.from_markup(body), align="left"),
-                title=Text("Bundled profiles", style="bold cyan"),
+                title=Text("Bundled profiles", style=_BOLD_CYAN),
                 subtitle=sub,
                 border_style=STYLE_BORDER_PRIMARY,
                 box=box.ROUNDED,

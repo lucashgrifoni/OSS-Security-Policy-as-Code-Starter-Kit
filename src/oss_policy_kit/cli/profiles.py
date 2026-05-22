@@ -27,6 +27,9 @@ from oss_policy_kit.cli.common import (
 )
 from oss_policy_kit.domain.errors import InvalidInputError, LoadError, OssPolicyKitError
 
+_FAIL_ON_FAIL = "--fail-on fail"
+_FAIL_ON_NONE = "--fail-on none"
+
 _PROFILE_DISPLAY_ALIAS_TARGETS = dict(PROFILE_DIRECTORY_ALIASES)
 _REGULATORY_PROFILE_IDS: frozenset[str] = frozenset({"cra-eu-ready-1", "cra-eu-reporting-1", "cra-eu-strict-1"})
 
@@ -211,14 +214,14 @@ def _profile_recommended_gate(posture_descriptor: str) -> str:
     """Derived, rendering-only column. JSON profile-list schema is not affected."""
 
     return {
-        "starter": "--fail-on fail",
-        "advisory": "--fail-on none",
-        "hard_gate_or_extreme": "--fail-on fail",
-        "release_track": "--fail-on fail",
-        "multi_platform_advisory_hybrid": "--fail-on none",
+        "starter": _FAIL_ON_FAIL,
+        "advisory": _FAIL_ON_NONE,
+        "hard_gate_or_extreme": _FAIL_ON_FAIL,
+        "release_track": _FAIL_ON_FAIL,
+        "multi_platform_advisory_hybrid": _FAIL_ON_NONE,
         "framework_aligned_advisory": "--fail-on degraded",
         "legacy_alias": "(migrate)",
-    }.get(posture_descriptor, "--fail-on none")
+    }.get(posture_descriptor, _FAIL_ON_NONE)
 
 
 def _filter_profile_display_rows(
@@ -388,6 +391,40 @@ def _iter_bundled_profiles() -> list[_ProfileDisplayRow]:
     return rows
 
 
+def _longest_profile_id_len(rows: list[_ProfileDisplayRow]) -> int:
+    """Return the longest rendered profile-id width (legacy aliases include their ``(legacy -> )`` suffix)."""
+
+    return max(
+        (
+            len(r.profile_id)
+            + (len(" (legacy -> )") + len(PROFILE_DIRECTORY_ALIASES.get(r.profile_id, "")) if r.is_legacy_alias else 0)
+            for r in rows
+        ),
+        default=16,
+    )
+
+
+def _add_profile_rows(table: Table, rows: list[_ProfileDisplayRow], *, detailed: bool) -> None:
+    """Append one rendered row per profile to ``table``."""
+
+    for row in rows:
+        pid = row.profile_id
+        if row.is_legacy_alias:
+            canon = PROFILE_DIRECTORY_ALIASES.get(row.profile_id, row.profile_id)
+            pid = f"{row.profile_id} (legacy -> {canon})"
+        maturity = _profile_maturity_label(row.profile_id, is_legacy_alias=row.is_legacy_alias)
+        posture = _profile_posture_descriptor(row.profile_id, maturity)
+        table.add_row(
+            pid,
+            row.title,
+            row.platform,
+            row.level,
+            _profile_recommended_gate(posture),
+            row.audience if detailed else _compact_profile_audience(row.profile_id, row.audience),
+            row.description if detailed else _compact_profile_description(row.profile_id, row.description),
+        )
+
+
 def _print_profiles_table(
     *,
     detailed: bool,
@@ -403,14 +440,7 @@ def _print_profiles_table(
         rows,
         key=lambda r: (plat_order.get(r.platform, 9), int(r.is_legacy_alias), r.profile_id),
     )
-    longest_pid = max(
-        (
-            len(r.profile_id)
-            + (len(" (legacy -> )") + len(PROFILE_DIRECTORY_ALIASES.get(r.profile_id, "")) if r.is_legacy_alias else 0)
-            for r in rows
-        ),
-        default=16,
-    )
+    longest_pid = _longest_profile_id_len(rows)
     term_w = terminal_ui.terminal_width(sys.stdout)
     compact_default = compact_layout and not detailed
     if terminal_ui.human_tty_stdout():
@@ -456,24 +486,7 @@ def _print_profiles_table(
         overflow="fold",
     )
 
-    for row in rows:
-        pid = row.profile_id
-        if row.is_legacy_alias:
-            canon = PROFILE_DIRECTORY_ALIASES.get(row.profile_id, row.profile_id)
-            pid = f"{row.profile_id} (legacy -> {canon})"
-        maturity = _profile_maturity_label(row.profile_id, is_legacy_alias=row.is_legacy_alias)
-        posture = _profile_posture_descriptor(row.profile_id, maturity)
-        gate = _profile_recommended_gate(posture)
-        table.add_row(
-            pid,
-            row.title,
-            row.platform,
-            row.level,
-            gate,
-            row.audience if detailed else _compact_profile_audience(row.profile_id, row.audience),
-            row.description if detailed else _compact_profile_description(row.profile_id, row.description),
-        )
-
+    _add_profile_rows(table, rows, detailed=detailed)
     terminal_ui.build_stdout_console(width=term_w).print(table)
 
 

@@ -2,7 +2,47 @@
 
 from __future__ import annotations
 
-from oss_policy_kit.application.evaluators._shared import *  # noqa: F403
+from oss_policy_kit.application.evaluators._shared import (
+    _AI_AGENT_HARDCODED_PROMPT_HINTS,
+    _AI_AGENT_IDENTITY_ANTIPATTERNS,
+    _AI_AGENT_IDENTITY_HINTS,
+    _AI_AGENT_MODEL_HINTS,
+    _AI_AGENT_PINNED_MODEL_RE,
+    _AI_AGENT_RATE_LIMIT_HINTS,
+    _AI_AGENT_TEST_PATTERNS,
+    _AI_AGENT_TOOL_ALLOWLIST_PATHS,
+    _AI_AGENT_TOOL_WILDCARD_HINTS,
+    _AI_SECURITY_HEADINGS,
+    _INTENDED_PURPOSE_HEADINGS,
+    _LLM_SDK_HINTS,
+    _MCP_AUTH_DISABLED_HINTS,
+    _MCP_AUTH_HINTS,
+    _MCP_CONFIG_PATHS,
+    _OUTPUT_FILTER_HINTS,
+    _RISK_MGMT_HEADINGS,
+    _RISK_MGMT_PATHS,
+    ControlStatus,
+    EvalContext,
+    EvalOutcome,
+    Path,
+    _agentic_applicable,
+    _agentic_na,
+    _agentic_signal,
+    _annex_iv_section,
+    _codeowners_covers_prompt_path,
+    _find_any_text_hint,
+    _find_prompt_registry,
+    _iter_ai_agent_text_files,
+    _load_ai_agent_evidence,
+    _mcp_applicable,
+    _mcp_na,
+    _mcp_text_signal,
+    _read_lower,
+    _scan_for_llm_sdks,
+    _scan_readme_for_section,
+    contextlib,
+    json,
+)
 
 
 def eval_llm_218a_po_001(ctx: EvalContext) -> EvalOutcome:
@@ -215,25 +255,35 @@ def eval_llm_ai_act_001(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_llm_ai_act_002(ctx: EvalContext) -> EvalOutcome:
-    """LLM-AI-ACT-002: Output filtering / content moderation pattern detected (Annex IV §3)."""
-    # Scan src/, tests/, or root code files for output-filter / moderation patterns.
+def _file_has_output_filter(p: Path) -> bool:
+    """True when a non-vendored code file references an output-filter / moderation hint."""
+
+    if not p.is_file() or any(skip in p.parts for skip in (".git", ".venv", "node_modules", "__pycache__")):
+        return False
+    with contextlib.suppress(OSError):
+        text = p.read_text(encoding="utf-8", errors="replace").lower()
+        return any(h in text for h in _OUTPUT_FILTER_HINTS)
+    return False
+
+
+def _find_output_filter_files(repo_root: Path, limit: int = 5) -> list[Path]:
+    """Return up to ``limit`` code files referencing output-filtering / moderation patterns."""
+
     matched: list[Path] = []
     for ext in ("*.py", "*.js", "*.ts", "*.mjs"):
         with contextlib.suppress(OSError):
-            for p in ctx.repo_root.rglob(ext):
-                if not p.is_file():
-                    continue
-                if any(skip in p.parts for skip in (".git", ".venv", "node_modules", "__pycache__")):
-                    continue
-                with contextlib.suppress(OSError):
-                    text = p.read_text(encoding="utf-8", errors="replace").lower()
-                    if any(h in text for h in _OUTPUT_FILTER_HINTS):
-                        matched.append(p)
-                        if len(matched) >= 5:
-                            break
-        if len(matched) >= 5:
-            break
+            for p in repo_root.rglob(ext):
+                if _file_has_output_filter(p):
+                    matched.append(p)
+                    if len(matched) >= limit:
+                        return matched
+    return matched
+
+
+def eval_llm_ai_act_002(ctx: EvalContext) -> EvalOutcome:
+    """LLM-AI-ACT-002: Output filtering / content moderation pattern detected (Annex IV §3)."""
+    # Scan src/, tests/, or root code files for output-filter / moderation patterns.
+    matched = _find_output_filter_files(ctx.repo_root)
     if not matched:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -826,7 +876,7 @@ def eval_mcp_scope_001(ctx: EvalContext) -> EvalOutcome:
 
 def eval_agent_asi_goal_001(ctx: EvalContext) -> EvalOutcome:
     """AGENT-ASI-GOAL-001 (ASI01): goal/system-prompt version-controlled + integrity-checked."""
-    applicable, found = _agentic_applicable(ctx.repo_root)
+    applicable, _ = _agentic_applicable(ctx.repo_root)
     if not applicable:
         return _agentic_na("ASI01 goal-manipulation")
     prompt_locations = [

@@ -29,6 +29,10 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
+
+_STORAGE_ACCOUNTS_TYPE = "Microsoft.Storage/storageAccounts"
+
 EVIDENCE_SCHEMA_VERSION = "oss-policy-kit/evidence/iac-bicep/v1"
 EVIDENCE_FILENAME = "iac-bicep.json"
 DEFAULT_TIMEOUT_SECONDS = 120
@@ -43,7 +47,7 @@ _MANAGEMENT_PORTS: frozenset[int] = frozenset({22, 3389, 3306, 5432, 1433, 6379,
 # Match: resource <symbolic> '<provider>/<type>@<api>' = { ...body... }
 # Captures the symbolic name and the type@apiVersion, then the matching braces.
 _RESOURCE_RE = re.compile(
-    r"resource\s+([A-Za-z_][A-Za-z0-9_]*)\s+'([^']+)'\s*=\s*",
+    r"resource\s+([A-Za-z_]\w*)\s+'([^']+)'\s*=\s*",
     re.MULTILINE,
 )
 
@@ -105,27 +109,18 @@ def _walk_bicep_files(
     include_globs: Iterable[str],
     exclude_globs: Iterable[str] | None,
 ) -> list[Path]:
-    seen: set[Path] = set()
-    out: list[Path] = []
-    excludes = tuple(exclude_globs or ())
-    for pat in include_globs:
-        for p in repo_root.glob(pat):
-            if not p.is_file():
-                continue
-            try:
-                rel = p.resolve().relative_to(repo_root.resolve())
-            except ValueError:
-                continue
-            if any(part in _SKIP_DIRS for part in rel.parts):
-                continue
-            if excludes and any(p.match(eg) for eg in excludes):
-                continue
-            r = p.resolve()
-            if r in seen:
-                continue
-            seen.add(r)
-            out.append(p)
-    return out
+    return walk_matching_files(repo_root, include_globs, exclude_globs, _SKIP_DIRS)
+
+
+def _skip_single_quoted(text: str, i: int) -> int:
+    """Given ``i`` at an opening ``'``, return the index just past the closing ``'`` (or end)."""
+
+    i += 1  # past the opening quote
+    while i < len(text) and text[i] != "'":
+        if text[i] == "\\":
+            i += 1
+        i += 1
+    return i + 1  # past the closing quote (or past end for an unterminated literal)
 
 
 def _balanced_block(text: str, brace_start: int) -> str:
@@ -145,11 +140,8 @@ def _balanced_block(text: str, brace_start: int) -> str:
                 return text[brace_start + 1 : i]
         elif ch == "'":
             # Skip single-quoted string literal to avoid counting braces inside.
-            i += 1
-            while i < len(text) and text[i] != "'":
-                if text[i] == "\\":
-                    i += 1
-                i += 1
+            i = _skip_single_quoted(text, i)
+            continue
         i += 1
     return text[brace_start + 1 :]
 
@@ -229,7 +221,7 @@ def _body_has_int_range(r: BicepResource, key: str) -> tuple[int, int] | None:
 def _rule_iac_bicep_001_public_storage(repo_root: Path, resources: list[BicepResource]) -> list[BicepFinding]:
     findings: list[BicepFinding] = []
     for r in resources:
-        if _type_root(r) != "Microsoft.Storage/storageAccounts":
+        if _type_root(r) != _STORAGE_ACCOUNTS_TYPE:
             continue
         # allowBlobPublicAccess literal true is the canonical "public blob" signal.
         if _body_has_bool(r, "allowBlobPublicAccess") is True:
@@ -259,42 +251,49 @@ def _rule_iac_bicep_001_public_storage(repo_root: Path, resources: list[BicepRes
     return findings
 
 
+def _open_inbound_nsg_range(r: BicepResource) -> tuple[int, int] | None:
+    """Return the ``destinationPortRange`` of an open inbound NSG Allow rule, else None.
+
+    NSG security rules ship as nested children; we look for the literal
+    ``destinationPortRange`` + ``sourceAddressPrefix`` combo.
+    """
+
+    if _type_root(r) not in {
+        "Microsoft.Network/networkSecurityGroups",
+        "Microsoft.Network/networkSecurityGroups/securityRules",
+    }:
+        return None
+    if not _body_has(r, "access", "Allow"):
+        return None
+    if not _body_has(r, "direction", "Inbound"):
+        return None
+    if not _body_has(r, "sourceAddressPrefix", "*", "0.0.0.0/0", "Internet"):
+        return None
+    return _body_has_int_range(r, "destinationPortRange")
+
+
 def _rule_iac_bicep_002_open_mgmt_ports(repo_root: Path, resources: list[BicepResource]) -> list[BicepFinding]:
     findings: list[BicepFinding] = []
     for r in resources:
-        # NSG security rules ship as nested children. We look for the literal
-        # destinationPortRange + sourceAddressPrefix combo.
-        if _type_root(r) not in {
-            "Microsoft.Network/networkSecurityGroups",
-            "Microsoft.Network/networkSecurityGroups/securityRules",
-        }:
-            continue
-        if not _body_has(r, "access", "Allow"):
-            continue
-        if not _body_has(r, "direction", "Inbound"):
-            continue
-        if not _body_has(r, "sourceAddressPrefix", "*", "0.0.0.0/0", "Internet"):
-            continue
-        port_range = _body_has_int_range(r, "destinationPortRange")
+        port_range = _open_inbound_nsg_range(r)
         if port_range is None:
             continue
         lo, hi = port_range
-        for port in _MANAGEMENT_PORTS:
-            if lo <= port <= hi:
-                findings.append(
-                    BicepFinding(
-                        rule_id="IAC-BICEP-002",
-                        severity="HIGH",
-                        message=(
-                            f"{_type_root(r)} {r.symbolic!r}: NSG rule allows {lo}-{hi} inbound "
-                            f"from '*' covering management port {port}."
-                        ),
-                        file=_normalize_target(repo_root, r.source),
-                        resource_type=_type_root(r),
-                        resource_name=r.symbolic,
-                    )
+        port = next((p for p in _MANAGEMENT_PORTS if lo <= p <= hi), None)
+        if port is not None:
+            findings.append(
+                BicepFinding(
+                    rule_id="IAC-BICEP-002",
+                    severity="HIGH",
+                    message=(
+                        f"{_type_root(r)} {r.symbolic!r}: NSG rule allows {lo}-{hi} inbound "
+                        f"from '*' covering management port {port}."
+                    ),
+                    file=_normalize_target(repo_root, r.source),
+                    resource_type=_type_root(r),
+                    resource_name=r.symbolic,
                 )
-                break
+            )
     return findings
 
 
@@ -335,7 +334,7 @@ def _rule_iac_bicep_004_no_encryption(repo_root: Path, resources: list[BicepReso
     findings: list[BicepFinding] = []
     for r in resources:
         t = _type_root(r)
-        if t == "Microsoft.Storage/storageAccounts":
+        if t == _STORAGE_ACCOUNTS_TYPE:
             # Storage accounts encrypt by default but users sometimes disable
             # `supportsHttpsTrafficOnly: false` (related but distinct).
             if _body_has_bool(r, "supportsHttpsTrafficOnly") is False:
@@ -388,12 +387,12 @@ def _rule_iac_bicep_005_no_diag(repo_root: Path, resources: list[BicepResource])
             "Microsoft.Insights/diagnosticSettings"
         ):
             # Capture scope name in scope: '<name>' literal so we can match later.
-            m = re.search(r"scope\s*:\s*([A-Za-z_][A-Za-z0-9_]*)", r.body)
+            m = re.search(r"scope\s*:\s*([A-Za-z_]\w*)", r.body)
             if m:
                 has_diag.add(m.group(1))
     for r in resources:
         if _type_root(r) not in {
-            "Microsoft.Storage/storageAccounts",
+            _STORAGE_ACCOUNTS_TYPE,
             "Microsoft.KeyVault/vaults",
             "Microsoft.Sql/servers",
         }:
@@ -499,7 +498,7 @@ def run_scan(
 
 
 def render_evidence_payload(outcome: BicepScanOutcome, *, target: Path) -> dict[str, Any]:
-    by_rule: dict[str, int] = {rid: 0 for rid in all_rule_ids()}
+    by_rule: dict[str, int] = dict.fromkeys(all_rule_ids(), 0)
     by_severity: dict[str, int] = {}
     for f in outcome.findings:
         by_rule[f.rule_id] = by_rule.get(f.rule_id, 0) + 1

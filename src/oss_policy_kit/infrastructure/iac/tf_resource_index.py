@@ -58,6 +58,19 @@ class TfResourceIndex:
             yield from blocks
 
 
+def _blocks_from_resource_entry(entry: Any, source_path: Path) -> Iterator[TfBlock]:
+    """Yield :class:`TfBlock`s from one ``resource`` entry dict (``{type: {name: body}}``)."""
+
+    if not isinstance(entry, dict):
+        return
+    for resource_type, names in entry.items():
+        if not isinstance(names, dict):
+            continue
+        for name, body in names.items():
+            if isinstance(body, dict):
+                yield TfBlock(resource_type=resource_type, name=name, body=body, source_path=source_path)
+
+
 def _iter_resource_blocks(
     parsed: dict[str, Any],
     source_path: Path,
@@ -68,20 +81,7 @@ def _iter_resource_blocks(
     if not isinstance(raw_resources, list):
         return
     for entry in raw_resources:
-        if not isinstance(entry, dict):
-            continue
-        for resource_type, names in entry.items():
-            if not isinstance(names, dict):
-                continue
-            for name, body in names.items():
-                if not isinstance(body, dict):
-                    continue
-                yield TfBlock(
-                    resource_type=resource_type,
-                    name=name,
-                    body=body,
-                    source_path=source_path,
-                )
+        yield from _blocks_from_resource_entry(entry, source_path)
 
 
 def build_index(files: Iterable[Path]) -> TfResourceIndex:

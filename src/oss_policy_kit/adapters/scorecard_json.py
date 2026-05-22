@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -65,7 +66,7 @@ def _coerce_aggregate_score(value: Any) -> float | None:
         score = float(value)
     else:
         return None
-    if score != score:  # NaN guard
+    if math.isnan(score):
         return None
     if score < 0.0 or score > 10.0:
         return None

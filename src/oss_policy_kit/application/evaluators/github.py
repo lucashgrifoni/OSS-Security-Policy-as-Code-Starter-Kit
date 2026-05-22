@@ -2,7 +2,32 @@
 
 from __future__ import annotations
 
-from oss_policy_kit.application.evaluators._shared import *  # noqa: F403
+from oss_policy_kit.application.evaluators._shared import (
+    _HARDEN_RUNNER_PATTERNS,
+    _KEYWORD_CI_SIGNAL_WARN,
+    ControlStatus,
+    EvalContext,
+    EvalOutcome,
+    EvidenceCollectionMethod,
+    Path,
+    _any_github_workflow_suggests_release_or_deploy,
+    _environment_protection_schema,
+    _evidence_is_api_backed,
+    _evidence_placeholder_outcome,
+    _rulesets_schema,
+    _runner_groups_schema,
+    _secret_scanning_schema,
+    _self_hosted_workflow_paths,
+    _validate_json_evidence,
+    _workflow_text,
+    _workflow_text_has_long_lived_cloud_secret,
+    contextlib,
+    json,
+)
+
+_GITHUB_DIR = ".github"
+_KIT_DIR = ".oss-policy-kit"
+_NO_WORKFLOWS_REASON = "No workflows present."
 
 
 def eval_gh_mergeq_053(ctx: EvalContext) -> EvalOutcome:
@@ -11,7 +36,7 @@ def eval_gh_mergeq_053(ctx: EvalContext) -> EvalOutcome:
     if not ctx.workflows.workflow_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No workflows present.",
+            reason=_NO_WORKFLOWS_REASON,
             remediation="If you use merge queues, declare merge_group triggers in protected workflows.",
             evidence_sources=[],
             confidence="high",
@@ -41,7 +66,7 @@ def eval_gh_wf_018(ctx: EvalContext) -> EvalOutcome:
     if not ctx.workflows.workflow_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No workflows present.",
+            reason=_NO_WORKFLOWS_REASON,
             remediation="Avoid reusable workflow calls with `secrets: inherit` in strict profiles.",
             evidence_sources=[],
             confidence="high",
@@ -70,7 +95,7 @@ def eval_gh_wf_019(ctx: EvalContext) -> EvalOutcome:
     if not ctx.workflows.workflow_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No workflows present.",
+            reason=_NO_WORKFLOWS_REASON,
             remediation="Use GitHub-hosted runners for pull request triggered workflows unless isolation is proven.",
             evidence_sources=[],
             confidence="high",
@@ -102,7 +127,7 @@ def eval_gh_wf_020(ctx: EvalContext) -> EvalOutcome:
     if not ctx.workflows.workflow_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No workflows present.",
+            reason=_NO_WORKFLOWS_REASON,
             remediation="Declare minimal job-level permissions for privileged scopes.",
             evidence_sources=[],
             confidence="high",
@@ -131,7 +156,7 @@ def eval_gh_rel_021(ctx: EvalContext) -> EvalOutcome:
     if not ctx.workflows.workflow_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No workflows present.",
+            reason=_NO_WORKFLOWS_REASON,
             remediation="Define release/package workflows with explicit concurrency groups.",
             evidence_sources=[],
             confidence="high",
@@ -194,7 +219,7 @@ def eval_gh_dep_022(ctx: EvalContext) -> EvalOutcome:
     if not ctx.workflows.workflow_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No workflows present.",
+            reason=_NO_WORKFLOWS_REASON,
             remediation="For cloud deployments, prefer OIDC federation over long-lived cloud credentials.",
             evidence_sources=[],
             confidence="high",
@@ -254,13 +279,27 @@ def eval_gh_dep_022(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+def _gh_provenance_verification_recorded(evidence_path: Path) -> bool:
+    """True when the provenance-artifact evidence records a transparency-log-included verification."""
+
+    if not evidence_path.is_file():
+        return False
+    with contextlib.suppress(OSError, json.JSONDecodeError):
+        data = json.loads(evidence_path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            verification = data.get("verification")
+            if isinstance(verification, dict) and verification.get("transparency_log_inclusion"):
+                return True
+    return False
+
+
 def eval_gh_prov_023(ctx: EvalContext) -> EvalOutcome:
     """GH-PROV-023: provenance/attestation signal should exist for strict release posture."""
 
     if not ctx.workflows.workflow_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No workflows present.",
+            reason=_NO_WORKFLOWS_REASON,
             remediation="Add build provenance or artifact attestation to release/package workflows.",
             evidence_sources=[],
             confidence="high",
@@ -289,16 +328,8 @@ def eval_gh_prov_023(ctx: EvalContext) -> EvalOutcome:
         # evidence-backed PASS. If the evidence file is absent, preserve the
         # v5.x signal-grade PASS so adopters who relied on the workflow signal
         # alone do not see a gate regression.
-        evidence_path = ctx.repo_root / ".oss-policy-kit" / "evidence" / "github-provenance-artifact.json"
-        verification_recorded = False
-        if evidence_path.is_file():
-            with contextlib.suppress(OSError, json.JSONDecodeError):
-                data = json.loads(evidence_path.read_text(encoding="utf-8"))
-                if isinstance(data, dict):
-                    verification = data.get("verification")
-                    if isinstance(verification, dict) and verification.get("transparency_log_inclusion"):
-                        verification_recorded = True
-        if verification_recorded:
+        evidence_path = ctx.repo_root / _KIT_DIR / "evidence" / "github-provenance-artifact.json"
+        if _gh_provenance_verification_recorded(evidence_path):
             return EvalOutcome(
                 status=ControlStatus.PASS,
                 reason=(
@@ -343,7 +374,7 @@ def eval_gh_prov_023(ctx: EvalContext) -> EvalOutcome:
 def eval_gh_plat_024(ctx: EvalContext) -> EvalOutcome:
     """GH-PLAT-024: repository rulesets posture via explicit evidence."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "github-rulesets.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "github-rulesets.json"
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.NOT_EVALUATED,
@@ -411,7 +442,7 @@ def eval_gh_plat_024(ctx: EvalContext) -> EvalOutcome:
 def eval_gh_plat_025(ctx: EvalContext) -> EvalOutcome:
     """GH-PLAT-025: deployment environment protections via explicit evidence."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "github-environment-protection.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "github-environment-protection.json"
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.NOT_EVALUATED,
@@ -487,7 +518,7 @@ def eval_gh_plat_025(ctx: EvalContext) -> EvalOutcome:
 def eval_gh_plat_026(ctx: EvalContext) -> EvalOutcome:
     """GH-PLAT-026: secret scanning / push protection posture via evidence."""
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "github-secret-scanning.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "github-secret-scanning.json"
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.NOT_EVALUATED,
@@ -549,34 +580,9 @@ def eval_gh_plat_026(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_gh_runner_062(ctx: EvalContext) -> EvalOutcome:
-    """GH-RUNNER-062: Self-hosted runners are ephemeral and restricted from PR-triggered workflows."""
-    if not ctx.workflows.workflow_paths:
-        return EvalOutcome(
-            status=ControlStatus.NOT_APPLICABLE,
-            reason="No GitHub Actions workflows found; self-hosted runner posture is not applicable.",
-            remediation="N/A unless GitHub Actions is adopted for this repository.",
-            evidence_sources=[],
-            confidence="high",
-        )
-    pr_self_hosted = list(ctx.workflows.pr_self_hosted_runner_paths)
-    if pr_self_hosted:
-        names = ", ".join(p.name for p in pr_self_hosted[:5])
-        return EvalOutcome(
-            status=ControlStatus.FAIL,
-            reason=(
-                f"PR-triggered workflows use self-hosted runners ({names}). This is the trivy-action "
-                "2026-03 attack pattern: any forked-PR can run on the runner host and exfiltrate secrets."
-            ),
-            remediation=(
-                "Move PR-triggered jobs to GitHub-hosted runners, or split CI so self-hosted only runs on "
-                "push/schedule with restricted runner-groups."
-            ),
-            evidence_sources=[str(p.resolve()) for p in pr_self_hosted],
-            confidence="high",
-        )
-    all_self, ephemeral = _self_hosted_workflow_paths(ctx.repo_root)
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "runner-groups.json"
+def _gh_ephemeral_posture_outcome(all_self: list[Path], ephemeral: list[Path], evidence: Path) -> EvalOutcome | None:
+    """Outcome from self-hosted/ephemeral runner posture (signal-grade), or None to use evidence handling."""
+
     if not all_self and not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.PASS,
@@ -631,6 +637,40 @@ def eval_gh_runner_062(ctx: EvalContext) -> EvalOutcome:
             confidence="medium",
             operational_warnings=(_KEYWORD_CI_SIGNAL_WARN,),
         )
+    return None
+
+
+def eval_gh_runner_062(ctx: EvalContext) -> EvalOutcome:
+    """GH-RUNNER-062: Self-hosted runners are ephemeral and restricted from PR-triggered workflows."""
+    if not ctx.workflows.workflow_paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitHub Actions workflows found; self-hosted runner posture is not applicable.",
+            remediation="N/A unless GitHub Actions is adopted for this repository.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    pr_self_hosted = list(ctx.workflows.pr_self_hosted_runner_paths)
+    if pr_self_hosted:
+        names = ", ".join(p.name for p in pr_self_hosted[:5])
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"PR-triggered workflows use self-hosted runners ({names}). This is the trivy-action "
+                "2026-03 attack pattern: any forked-PR can run on the runner host and exfiltrate secrets."
+            ),
+            remediation=(
+                "Move PR-triggered jobs to GitHub-hosted runners, or split CI so self-hosted only runs on "
+                "push/schedule with restricted runner-groups."
+            ),
+            evidence_sources=[str(p.resolve()) for p in pr_self_hosted],
+            confidence="high",
+        )
+    all_self, ephemeral = _self_hosted_workflow_paths(ctx.repo_root)
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "runner-groups.json"
+    posture_outcome = _gh_ephemeral_posture_outcome(all_self, ephemeral, evidence)
+    if posture_outcome is not None:
+        return posture_outcome
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -781,7 +821,7 @@ def eval_gh_egress_native_001(ctx: EvalContext) -> EvalOutcome:
 
 def eval_gh_wf_lockfile_001(ctx: EvalContext) -> EvalOutcome:
     """GH-WF-LOCKFILE-001: GitHub Actions workflow lockfile present (action SHA pinning)."""
-    wf_dir = ctx.repo_root / ".github" / "workflows"
+    wf_dir = ctx.repo_root / _GITHUB_DIR / "workflows"
     if not wf_dir.is_dir():
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
@@ -794,8 +834,8 @@ def eval_gh_wf_lockfile_001(ctx: EvalContext) -> EvalOutcome:
         wf_dir / "lockfile.yml",
         wf_dir / "lockfile.yaml",
         wf_dir / "actions.lock",
-        ctx.repo_root / ".github" / "actions.lock",
-        ctx.repo_root / ".github" / "workflows.lock",
+        ctx.repo_root / _GITHUB_DIR / "actions.lock",
+        ctx.repo_root / _GITHUB_DIR / "workflows.lock",
     ]
     present = [p for p in candidates if p.is_file()]
     if present:

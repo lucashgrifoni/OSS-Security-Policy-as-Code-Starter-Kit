@@ -65,7 +65,8 @@ def helm_available() -> tuple[bool, str | None]:
     if binary is None:
         return False, None
     try:
-        proc = subprocess.run(  # noqa: S603 - controlled subprocess, no shell, fixed args
+        # Controlled subprocess: no shell, fixed args, resolved binary path.
+        proc = subprocess.run(  # noqa: S603
             [binary, "version", "--short"],
             capture_output=True,
             text=True,
@@ -90,20 +91,71 @@ def _discover_charts(
     out: list[Path] = []
     for pat in include_globs:
         for p in repo_root.glob(pat):
-            if not p.is_file() or p.name != "Chart.yaml":
-                continue
-            try:
-                rel = p.resolve().relative_to(repo_root.resolve())
-            except ValueError:
-                continue
-            if any(part in _SKIP_DIRS for part in rel.parts):
-                continue
-            chart_dir = p.parent.resolve()
-            if chart_dir in seen:
-                continue
-            seen.add(chart_dir)
-            out.append(chart_dir)
+            chart_dir = _chart_dir_if_valid(p, repo_root, seen)
+            if chart_dir is not None:
+                out.append(chart_dir)
     return sorted(out)
+
+
+def _chart_dir_if_valid(p: Path, repo_root: Path, seen: set[Path]) -> Path | None:
+    """Return the resolved chart directory for a new ``Chart.yaml`` (not in a skip dir), else None."""
+
+    if not p.is_file() or p.name != "Chart.yaml":
+        return None
+    try:
+        rel = p.resolve().relative_to(repo_root.resolve())
+    except ValueError:
+        return None
+    if any(part in _SKIP_DIRS for part in rel.parts):
+        return None
+    chart_dir = p.parent.resolve()
+    if chart_dir in seen:
+        return None
+    seen.add(chart_dir)
+    return chart_dir
+
+
+def _render_one_chart(
+    chart_dir: Path,
+    repo_root: Path,
+    tmp_root: Path,
+    helm_bin: str,
+    timeout_per_chart: int,
+    outcome: HelmRenderOutcome,
+) -> None:
+    """Render one chart via ``helm template`` into ``tmp_root`` and record results on ``outcome``."""
+
+    rel = chart_dir.relative_to(repo_root.resolve()).as_posix()
+    # Stable per-chart dir so a name collision between two charts still produces unique outputs.
+    out_dir = tmp_root / (rel.replace("/", "__").replace("\\", "__") or "root")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        # Controlled subprocess: no shell, resolved helm binary, fixed args.
+        proc = subprocess.run(  # noqa: S603
+            [helm_bin, "template", chart_dir.name or "chart", str(chart_dir), "--output-dir", str(out_dir)],
+            capture_output=True,
+            text=True,
+            timeout=timeout_per_chart,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        outcome.render_errors.append({"chart": rel, "error": f"helm template timed out after {timeout_per_chart}s"})
+        return
+    except OSError as exc:
+        outcome.render_errors.append({"chart": rel, "error": str(exc)})
+        return
+    if proc.returncode != 0:
+        stderr = (proc.stderr or "").strip()
+        outcome.render_errors.append(
+            {"chart": rel, "error": stderr.splitlines()[-1] if stderr else "helm exited non-zero"}
+        )
+        return
+    outcome.charts_rendered.append(rel)
+    # helm template --output-dir nests templates under <out_dir>/<chart-name>/templates/...
+    for pattern in ("*.yaml", "*.yml"):
+        for manifest in out_dir.rglob(pattern):
+            if manifest.is_file():
+                outcome.rendered_manifest_paths.append(manifest)
 
 
 def render_charts(
@@ -145,49 +197,7 @@ def render_charts(
     outcome.tmp_root = tmp_root
     helm_bin = shutil.which("helm") or "helm"
     for chart_dir in charts:
-        rel = chart_dir.relative_to(repo_root.resolve()).as_posix()
-        # Use a stable directory name per chart so a name collision between
-        # two charts at different paths still produces unique outputs.
-        safe_slug = rel.replace("/", "__").replace("\\", "__") or "root"
-        out_dir = tmp_root / safe_slug
-        out_dir.mkdir(parents=True, exist_ok=True)
-        try:
-            proc = subprocess.run(  # noqa: S603 - controlled subprocess, no shell
-                [
-                    helm_bin,
-                    "template",
-                    chart_dir.name or "chart",
-                    str(chart_dir),
-                    "--output-dir",
-                    str(out_dir),
-                ],
-                capture_output=True,
-                text=True,
-                timeout=timeout_per_chart,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            outcome.render_errors.append({"chart": rel, "error": f"helm template timed out after {timeout_per_chart}s"})
-            continue
-        except OSError as exc:
-            outcome.render_errors.append({"chart": rel, "error": str(exc)})
-            continue
-        if proc.returncode != 0:
-            stderr = (proc.stderr or "").strip()
-            outcome.render_errors.append(
-                {"chart": rel, "error": stderr.splitlines()[-1] if stderr else "helm exited non-zero"}
-            )
-            continue
-        outcome.charts_rendered.append(rel)
-        # Collect every rendered manifest path so the standard K8s scanner
-        # can index them. helm template --output-dir nests templates under
-        # <out_dir>/<chart-name>/templates/...
-        for manifest in out_dir.rglob("*.yaml"):
-            if manifest.is_file():
-                outcome.rendered_manifest_paths.append(manifest)
-        for manifest in out_dir.rglob("*.yml"):
-            if manifest.is_file():
-                outcome.rendered_manifest_paths.append(manifest)
+        _render_one_chart(chart_dir, repo_root, tmp_root, helm_bin, timeout_per_chart, outcome)
 
     if not outcome.rendered_manifest_paths and not outcome.render_errors:
         outcome.diagnostic = "All charts rendered without producing manifest files (unexpected)."

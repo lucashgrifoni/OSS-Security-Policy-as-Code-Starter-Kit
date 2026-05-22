@@ -2,7 +2,64 @@
 
 from __future__ import annotations
 
-from oss_policy_kit.application.evaluators._shared import *  # noqa: F403
+from datetime import date
+
+from oss_policy_kit.application.evaluators._shared import (
+    _EVIDENCE_EXPIRY_WARN_DAYS,
+    _EVIDENCE_MAX_AGE_DAYS,
+    _KEYWORD_CI_SIGNAL_WARN,
+    _LONG_LIVED_PASSWORD_PATTERN,
+    _NPM_PROVENANCE_PATTERN,
+    _OIDC_TOKEN_PATTERN,
+    _SCANNER_ACTION_HINTS,
+    _SCORECARD_MIN_SCORE,
+    _SHA_PIN_PATTERN,
+    _SUPPLEMENTAL_SIGNAL_WARN,
+    UTC,
+    Any,
+    Callable,
+    ControlStatus,
+    EvalContext,
+    EvalOutcome,
+    EvidenceCollectionMethod,
+    Path,
+    _audit_log_streaming_schema,
+    _audit_stream_signal_match,
+    _detect_sbom_format_and_version,
+    _disclosure_policy_schema,
+    _disclosure_sla_signal_match,
+    _evidence_is_api_backed,
+    _evidence_placeholder_outcome,
+    _exists_ci_readme,
+    _find_sbom_files,
+    _gov_disc_013_private_reporting_signals,
+    _has_changelog,
+    _has_codeowners,
+    _has_license,
+    _has_placeholder_security_contact,
+    _org_mfa_schema,
+    _parse_branch_protection_evidence,
+    _parse_evidence_date,
+    _prov_verify_lookup_order,
+    _publish_workflows,
+    _read_security,
+    _release_archival_policy_schema,
+    _release_archive_signal_match,
+    _validate_bsi_tr_03183_v2_1,
+    _validate_json_evidence,
+    _verification_freshness_status,
+    _workflow_text,
+    checks_as_map,
+    contextlib,
+    datetime,
+    json,
+)
+
+_GITHUB_DIR = ".github"
+_KIT_DIR = ".oss-policy-kit"
+_NO_ACTION_REQUIRED = "No action required."
+_NO_GH_WORKFLOWS_REASON = "No GitHub Actions workflows present."
+_WAIVERS_YAML = "waivers.yaml"
 
 
 def eval_gov_sec_001(ctx: EvalContext) -> EvalOutcome:
@@ -151,10 +208,10 @@ def eval_gov_disc_013(ctx: EvalContext) -> EvalOutcome:
 
 def eval_gov_waiv_014(ctx: EvalContext) -> EvalOutcome:
     candidates = [
-        ctx.repo_root / "waivers.yaml",
+        ctx.repo_root / _WAIVERS_YAML,
         ctx.repo_root / "waivers.yml",
-        ctx.repo_root / "waivers" / "waivers.yaml",
-        ctx.repo_root / ".oss-policy-kit" / "waivers.yaml",
+        ctx.repo_root / "waivers" / _WAIVERS_YAML,
+        ctx.repo_root / _KIT_DIR / _WAIVERS_YAML,
     ]
     for p in candidates:
         if p.is_file():
@@ -178,7 +235,7 @@ def eval_gov_waiv_014(ctx: EvalContext) -> EvalOutcome:
 
 
 def eval_plat_brprot_015(ctx: EvalContext) -> EvalOutcome:
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "branch-protection.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "branch-protection.json"
     if evidence.is_file():
         return _parse_branch_protection_evidence(evidence)
     return EvalOutcome(
@@ -199,10 +256,69 @@ def eval_plat_brprot_015(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_gov_evidfresh_054(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
+def _evidence_timestamp(data: dict[str, Any]) -> str | None:
+    """Return the evidence timestamp string (collection.collected_at, then top-level keys)."""
+
+    coll = data.get("collection")
+    if isinstance(coll, dict):
+        v0 = coll.get("collected_at")
+        if isinstance(v0, str) and v0.strip():
+            return v0.strip()
+    for key in ("collected_at", "attested_at", "generated_at"):
+        v = data.get(key)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    return None
+
+
+def _classify_evidence_files(
+    json_files: list[Path], today: date, max_age: int
+) -> tuple[list[str], list[str], list[str], EvalOutcome | None]:
+    """Classify each evidence file as stale / undated / near-expiry; short-circuit on a read error."""
+
+    stale: list[str] = []
+    undated: list[str] = []
+    expiry_warns: list[str] = []
+    for path in json_files:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return (
+                stale,
+                undated,
+                expiry_warns,
+                EvalOutcome(
+                    status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                    reason=f"Evidence file {path.name} is unreadable or invalid JSON: {exc}.",
+                    remediation="Repair or regenerate the evidence JSON file.",
+                    evidence_sources=[str(path.resolve())],
+                    confidence="low",
+                ),
+            )
+        if not isinstance(data, dict):
+            undated.append(path.name)
+            continue
+        stamp = _evidence_timestamp(data)
+        parsed = _parse_evidence_date(stamp) if stamp else None
+        if parsed is None:
+            undated.append(path.name)
+            continue
+        age_days = (today - parsed).days
+        if age_days > max_age:
+            stale.append(f"{path.name} ({parsed.isoformat()})")
+        elif age_days > max_age - _EVIDENCE_EXPIRY_WARN_DAYS:
+            days_left = max_age - age_days
+            expiry_warns.append(
+                f"Evidence file '{path.name}' is {age_days} days old and will expire in "
+                f"{days_left} day(s). Refresh before it becomes stale."
+            )
+    return stale, undated, expiry_warns, None
+
+
+def eval_gov_evidfresh_054(ctx: EvalContext) -> EvalOutcome:
     """GOV-EVIDFRESH-054: evidence JSON under .oss-policy-kit/evidence is not older than policy."""
 
-    evid_root = ctx.repo_root / ".oss-policy-kit" / "evidence"
+    evid_root = ctx.repo_root / _KIT_DIR / "evidence"
     if not evid_root.is_dir():
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
@@ -233,49 +349,9 @@ def eval_gov_evidfresh_054(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
     max_age = int(ctx.evidence_max_age_days) if ctx.evidence_max_age_days else _EVIDENCE_MAX_AGE_DAYS
     if max_age <= 0:
         max_age = _EVIDENCE_MAX_AGE_DAYS
-    stale: list[str] = []
-    undated: list[str] = []
-    expiry_warns: list[str] = []
-    for path in json_files:
-        try:
-            raw = path.read_text(encoding="utf-8")
-            data = json.loads(raw)
-        except (OSError, json.JSONDecodeError) as exc:
-            return EvalOutcome(
-                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-                reason=f"Evidence file {path.name} is unreadable or invalid JSON: {exc}.",
-                remediation="Repair or regenerate the evidence JSON file.",
-                evidence_sources=[str(path.resolve())],
-                confidence="low",
-            )
-        if not isinstance(data, dict):
-            undated.append(path.name)
-            continue
-        stamp: str | None = None
-        coll = data.get("collection")
-        if isinstance(coll, dict):
-            v0 = coll.get("collected_at")
-            if isinstance(v0, str) and v0.strip():
-                stamp = v0.strip()
-        if stamp is None:
-            for key in ("collected_at", "attested_at", "generated_at"):
-                v = data.get(key)
-                if isinstance(v, str) and v.strip():
-                    stamp = v.strip()
-                    break
-        parsed = _parse_evidence_date(stamp) if stamp else None
-        if parsed is None:
-            undated.append(path.name)
-            continue
-        age_days = (today - parsed).days
-        if age_days > max_age:
-            stale.append(f"{path.name} ({parsed.isoformat()})")
-        elif age_days > max_age - _EVIDENCE_EXPIRY_WARN_DAYS:
-            days_left = max_age - age_days
-            expiry_warns.append(
-                f"Evidence file '{path.name}' is {age_days} days old and will expire in "
-                f"{days_left} day(s). Refresh before it becomes stale."
-            )
+    stale, undated, expiry_warns, error_outcome = _classify_evidence_files(json_files, today, max_age)
+    if error_outcome is not None:
+        return error_outcome
 
     if stale:
         return EvalOutcome(
@@ -314,7 +390,7 @@ def eval_gov_evidfresh_054(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
 def eval_dep_update_001(ctx: EvalContext) -> EvalOutcome:
     """DEP-UPDATE-001: Automated dependency update tool (Dependabot or Renovate) configured."""
     repo = ctx.repo_root
-    for p in (repo / ".github" / "dependabot.yml", repo / ".github" / "dependabot.yaml"):
+    for p in (repo / _GITHUB_DIR / "dependabot.yml", repo / _GITHUB_DIR / "dependabot.yaml"):
         if p.is_file():
             return EvalOutcome(
                 status=ControlStatus.PASS,
@@ -328,7 +404,7 @@ def eval_dep_update_001(ctx: EvalContext) -> EvalOutcome:
         repo / "renovate.json5",
         repo / ".renovaterc",
         repo / ".renovaterc.json",
-        repo / ".github" / "renovate.json",
+        repo / _GITHUB_DIR / "renovate.json",
     ]
     for p in renovate_candidates:
         if p.is_file():
@@ -446,9 +522,62 @@ def eval_oss_scorecard_001(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_org_mfa_001(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
+def _mfa_posture(data: dict[str, Any]) -> dict[str, Any]:
+    """Build the MFA posture dict, promoting top-level keys when absent from ``posture``."""
+
+    posture_raw = data.get("posture")
+    posture: dict[str, Any] = dict(posture_raw) if isinstance(posture_raw, dict) else {}
+    for k in ("mfa_required_for_all_members", "mfa_required_for_admins", "sso_enforced"):
+        if k in data and k not in posture:
+            posture[k] = data[k]
+    return posture
+
+
+def _mfa_enforcement_failure(all_m: Any, adm_m: Any, evidence: Path) -> EvalOutcome | None:
+    """Return a MANUAL/FAIL outcome for missing or incomplete MFA enforcement, else None."""
+
+    src = [str(evidence.resolve())]
+    if all_m is None:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="Organization MFA evidence does not include mfa_required_for_all_members.",
+            remediation="Populate mfa_required_for_all_members per the org-mfa-posture schema.",
+            evidence_sources=src,
+            confidence="low",
+        )
+    if all_m is False and adm_m is True:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                "MFA is required for admins only, but not enforced for all organization members. "
+                "This leaves non-admin members as a supply-chain risk vector."
+            ),
+            remediation="Enable MFA for every organization member, not only administrators.",
+            evidence_sources=src,
+            confidence="high",
+        )
+    if all_m is False and adm_m is not True:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason="MFA not enforced for organization members or admins. This is a critical identity control gap.",
+            remediation="Enable MFA enforcement for all members and administrators in your organization settings.",
+            evidence_sources=src,
+            confidence="high",
+        )
+    if adm_m is not True:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason="MFA not enforced for organization administrators despite member-level MFA claims.",
+            remediation="Require MFA for administrative accounts in your organization security policy.",
+            evidence_sources=src,
+            confidence="high",
+        )
+    return None
+
+
+def eval_org_mfa_001(ctx: EvalContext) -> EvalOutcome:
     """ORG-MFA-001: Organization MFA enforcement posture evidenced."""
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "org-mfa-posture.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "org-mfa-posture.json"
     if not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -477,49 +606,14 @@ def eval_org_mfa_001(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
     if blocked is not None:
         return blocked
     assert data is not None
-    posture_raw = data.get("posture")
-    posture: dict[str, Any] = dict(posture_raw) if isinstance(posture_raw, dict) else {}
-    for k in ("mfa_required_for_all_members", "mfa_required_for_admins", "sso_enforced"):
-        if k in data and k not in posture:
-            posture[k] = data[k]
-
-    all_m = posture.get("mfa_required_for_all_members")
-    adm_m = posture.get("mfa_required_for_admins")
-    if all_m is None:
-        return EvalOutcome(
-            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason="Organization MFA evidence does not include mfa_required_for_all_members.",
-            remediation="Populate mfa_required_for_all_members per the org-mfa-posture schema.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="low",
-        )
-    if all_m is False and adm_m is True:
-        return EvalOutcome(
-            status=ControlStatus.FAIL,
-            reason=(
-                "MFA is required for admins only, but not enforced for all organization members. "
-                "This leaves non-admin members as a supply-chain risk vector."
-            ),
-            remediation="Enable MFA for every organization member, not only administrators.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="high",
-        )
-    if all_m is False and adm_m is not True:
-        return EvalOutcome(
-            status=ControlStatus.FAIL,
-            reason="MFA not enforced for organization members or admins. This is a critical identity control gap.",
-            remediation="Enable MFA enforcement for all members and administrators in your organization settings.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="high",
-        )
-    if adm_m is not True:
-        return EvalOutcome(
-            status=ControlStatus.FAIL,
-            reason="MFA not enforced for organization administrators despite member-level MFA claims.",
-            remediation="Require MFA for administrative accounts in your organization security policy.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="high",
-        )
+    posture = _mfa_posture(data)
+    failure = _mfa_enforcement_failure(
+        posture.get("mfa_required_for_all_members"),
+        posture.get("mfa_required_for_admins"),
+        evidence,
+    )
+    if failure is not None:
+        return failure
 
     enforcement_scope_raw = data.get("enforcement_scope", None)
     enforcement_scope = enforcement_scope_raw.strip().lower() if isinstance(enforcement_scope_raw, str) else None
@@ -569,70 +663,104 @@ def eval_org_mfa_001(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
     )
 
 
-def eval_build_sbom_qual_003(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
-    """BUILD-SBOM-QUAL-003: SBOM format validity — SPDX or CycloneDX document detectable in repo or evidence."""
-    # Check evidence files for documented SBOM format first.
+def _evidence_sbom_format(evid: Path) -> str | None:
+    """Return the documented SPDX/CycloneDX SBOM format string from one evidence file, else None."""
+
+    if not evid.is_file():
+        return None
+    with contextlib.suppress(OSError, json.JSONDecodeError):
+        data = json.loads(evid.read_text(encoding="utf-8"))
+        sbom_block = data.get("sbom") if isinstance(data, dict) else None
+        fmt = str(sbom_block.get("format", "")).strip() if isinstance(sbom_block, dict) else ""
+        if fmt and ("spdx" in fmt.lower() or "cyclonedx" in fmt.lower()):
+            return fmt
+    return None
+
+
+def _sbom_format_from_evidence(ctx: EvalContext) -> EvalOutcome | None:
+    """PASS outcome when an Azure/AWS SBOM evidence file documents an SPDX/CycloneDX format."""
+
     for evid_name in ("azure-sbom-artifact.json", "aws-sbom-artifact.json"):
-        evid = ctx.repo_root / ".oss-policy-kit" / "evidence" / evid_name
-        if evid.is_file():
-            with contextlib.suppress(OSError, json.JSONDecodeError):
-                data = json.loads(evid.read_text(encoding="utf-8"))
-                sbom_block = data.get("sbom") if isinstance(data, dict) else None
-                fmt = str(sbom_block.get("format", "")).strip() if isinstance(sbom_block, dict) else ""
-                if fmt and ("spdx" in fmt.lower() or "cyclonedx" in fmt.lower()):
-                    return EvalOutcome(
-                        status=ControlStatus.PASS,
-                        reason=f"Evidence documents SBOM format '{fmt}' (SPDX/CycloneDX).",
-                        remediation="Keep SBOM format and digest records current with each release.",
-                        evidence_sources=[str(evid.resolve())],
-                        confidence="medium",
-                    )
-    # Scan repo for SBOM files.
-    sbom_files = _find_sbom_files(ctx.repo_root)
-    if sbom_files:
-        valid: list[str] = []
-        invalid: list[str] = []
-        bsi_notes: list[str] = []
-        for p in sbom_files:
-            with contextlib.suppress(OSError):
-                content = p.read_text(encoding="utf-8", errors="replace")
-                fmt_detail, version = _detect_sbom_format_and_version(content)
-                if fmt_detail:
-                    label = f"{p.name} ({fmt_detail}{f' {version}' if version else ''})"
-                    valid.append(label)
-                    bsi = _validate_bsi_tr_03183_v2_1(content, fmt_detail, version)
-                    if bsi is not None:
-                        missing = [
-                            k.removesuffix("_present").removesuffix("_separated") for k, v in bsi.items() if not v
-                        ]
-                        if missing:
-                            bsi_notes.append(f"{p.name} BSI TR-03183-2 v2.1.0: missing {', '.join(missing)}")
-                        else:
-                            bsi_notes.append(f"{p.name} BSI TR-03183-2 v2.1.0: all required fields present")
-                else:
-                    invalid.append(p.name)
-        if valid:
-            reason = f"Valid SBOM format detected: {', '.join(valid[:3])}."
-            if bsi_notes:
-                reason = f"{reason} {' | '.join(bsi_notes[:3])}."
+        evid = ctx.repo_root / _KIT_DIR / "evidence" / evid_name
+        fmt = _evidence_sbom_format(evid)
+        if fmt:
             return EvalOutcome(
                 status=ControlStatus.PASS,
-                reason=reason,
-                remediation="Keep SBOM files current with each release; sign and attest them for supply chain trust.",
-                evidence_sources=[str(p.resolve()) for p in sbom_files],
+                reason=f"Evidence documents SBOM format '{fmt}' (SPDX/CycloneDX).",
+                remediation="Keep SBOM format and digest records current with each release.",
+                evidence_sources=[str(evid.resolve())],
                 confidence="medium",
             )
+    return None
+
+
+def _classify_sbom_file(p: Path) -> tuple[str | None, str | None, str | None]:
+    """Classify one SBOM-like file as ``(valid_label, bsi_note, unconfirmed_name)``.
+
+    Only one of ``valid_label`` / ``unconfirmed_name`` is set; an unreadable file
+    yields all-None (skipped).
+    """
+
+    with contextlib.suppress(OSError):
+        content = p.read_text(encoding="utf-8", errors="replace")
+        fmt_detail, version = _detect_sbom_format_and_version(content)
+        if not fmt_detail:
+            return None, None, p.name
+        label = f"{p.name} ({fmt_detail}{f' {version}' if version else ''})"
+        bsi = _validate_bsi_tr_03183_v2_1(content, fmt_detail, version)
+        note: str | None = None
+        if bsi is not None:
+            missing = [k.removesuffix("_present").removesuffix("_separated") for k, v in bsi.items() if not v]
+            note = (
+                f"{p.name} BSI TR-03183-2 v2.1.0: missing {', '.join(missing)}"
+                if missing
+                else f"{p.name} BSI TR-03183-2 v2.1.0: all required fields present"
+            )
+        return label, note, None
+    return None, None, None
+
+
+def _scan_repo_sbom_files(sbom_files: list[Path]) -> EvalOutcome:
+    """Build the PASS / MANUAL outcome from the SBOM-like files discovered in the repo."""
+
+    valid: list[str] = []
+    bsi_notes: list[str] = []
+    invalid: list[str] = []
+    for p in sbom_files:
+        label, note, unconfirmed = _classify_sbom_file(p)
+        if label:
+            valid.append(label)
+        if note:
+            bsi_notes.append(note)
+        if unconfirmed:
+            invalid.append(unconfirmed)
+    sources = [str(p.resolve()) for p in sbom_files]
+    if valid:
+        reason = f"Valid SBOM format detected: {', '.join(valid[:3])}."
+        if bsi_notes:
+            reason = f"{reason} {' | '.join(bsi_notes[:3])}."
         return EvalOutcome(
-            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=f"SBOM-like file(s) found but SPDX/CycloneDX format not confirmed: {', '.join(invalid[:3])}.",
-            remediation=(
-                "Use syft, CycloneDX CLI, or trivy to generate a valid SBOM and verify "
-                "it contains SPDXVersion or bomFormat/CycloneDX markers."
-            ),
-            evidence_sources=[str(p.resolve()) for p in sbom_files],
-            confidence="low",
+            status=ControlStatus.PASS,
+            reason=reason,
+            remediation="Keep SBOM files current with each release; sign and attest them for supply chain trust.",
+            evidence_sources=sources,
+            confidence="medium",
         )
-    # Check for CI signals that might produce an SBOM.
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=f"SBOM-like file(s) found but SPDX/CycloneDX format not confirmed: {', '.join(invalid[:3])}.",
+        remediation=(
+            "Use syft, CycloneDX CLI, or trivy to generate a valid SBOM and verify "
+            "it contains SPDXVersion or bomFormat/CycloneDX markers."
+        ),
+        evidence_sources=sources,
+        confidence="low",
+    )
+
+
+def _sbom_ci_signal(ctx: EvalContext) -> EvalOutcome | None:
+    """MANUAL outcome when CI text references SBOM tooling but no SBOM file/evidence exists."""
+
     all_ci = (
         list(ctx.workflows.workflow_paths) + list(ctx.azure_pipelines.pipeline_paths) + list(ctx.aws_ci.buildspec_paths)
     )
@@ -653,6 +781,21 @@ def eval_build_sbom_qual_003(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
                     evidence_sources=[str(p.resolve())],
                     confidence="low",
                 )
+    return None
+
+
+def eval_build_sbom_qual_003(ctx: EvalContext) -> EvalOutcome:
+    """BUILD-SBOM-QUAL-003: SBOM format validity — SPDX or CycloneDX document detectable in repo or evidence."""
+
+    evidence_outcome = _sbom_format_from_evidence(ctx)
+    if evidence_outcome is not None:
+        return evidence_outcome
+    sbom_files = _find_sbom_files(ctx.repo_root)
+    if sbom_files:
+        return _scan_repo_sbom_files(sbom_files)
+    ci_outcome = _sbom_ci_signal(ctx)
+    if ci_outcome is not None:
+        return ci_outcome
     return EvalOutcome(
         status=ControlStatus.FAIL,
         reason="No SBOM file or format evidence found in the repository.",
@@ -667,7 +810,7 @@ def eval_build_sbom_qual_003(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
 
 def eval_audit_stream_060(ctx: EvalContext) -> EvalOutcome:
     """AUDIT-STREAM-060: Audit log streaming to centralized SIEM/object store."""
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "audit-log-streaming.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "audit-log-streaming.json"
     if not evidence.is_file():
         signal = _audit_stream_signal_match(ctx.repo_root)
         if signal is not None:
@@ -749,6 +892,78 @@ def eval_audit_stream_060(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+def _collection_method(data: dict[str, Any]) -> EvidenceCollectionMethod:
+    """Map an evidence file's ``collection.evidence_collection_method`` to the enum (default STATIC)."""
+
+    coll = data.get("collection")
+    if isinstance(coll, dict):
+        m = str(coll.get("evidence_collection_method", "")).strip().lower()
+        if m == "live":
+            return EvidenceCollectionMethod.LIVE
+        if m == "manual":
+            return EvidenceCollectionMethod.MANUAL
+    return EvidenceCollectionMethod.STATIC
+
+
+def _disclosure_signal_outcome(ctx: EvalContext) -> EvalOutcome:
+    """Outcome when no disclosure-policy evidence file exists (clone signal -> PASS, else MANUAL)."""
+
+    signal = _disclosure_sla_signal_match(ctx.repo_root)
+    if signal is not None:
+        path, kw = signal
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=(
+                f"Disclosure response-SLA intent detected via clone signal "
+                f"({path.name}, keyword '{kw}'). Heuristic only — promote to "
+                "evidence-backed by adding "
+                ".oss-policy-kit/evidence/disclosure-policy.json with explicit "
+                "acknowledgement_sla_hours, triage_sla_hours, and public_disclosure_policy."
+            ),
+            remediation=(
+                "Document the disclosure SLA in "
+                ".oss-policy-kit/evidence/disclosure-policy.json per "
+                "evidence-disclosure-policy.schema.json so trust projects to verified."
+            ),
+            evidence_sources=[str(path.resolve())],
+            confidence="low",
+            operational_warnings=(_KEYWORD_CI_SIGNAL_WARN,),
+        )
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            "No disclosure SLA found in SECURITY.md and no evidence file present. "
+            "EU CRA 2026-09-11 24-hour reporting depends on having a documented "
+            "inbound disclosure channel with a stated acknowledgement window."
+        ),
+        remediation=(
+            "Add an acknowledgement SLA to SECURITY.md (e.g. 'we will acknowledge "
+            "within 72 hours') or attach "
+            ".oss-policy-kit/evidence/disclosure-policy.json per "
+            "evidence-disclosure-policy.schema.json."
+        ),
+        evidence_sources=[],
+        confidence="medium",
+    )
+
+
+def _disclosure_missing_fields(
+    contact: dict[str, Any], ack_sla: Any, triage_sla: Any, pdp: dict[str, Any]
+) -> list[str]:
+    """Return the list of required disclosure-policy SLA fields that are missing/invalid."""
+
+    missing: list[str] = []
+    if not isinstance(contact.get("method"), str) or not isinstance(contact.get("value"), str):
+        missing.append("contact.method / contact.value")
+    if not isinstance(ack_sla, int) or ack_sla < 1:
+        missing.append("acknowledgement_sla_hours")
+    if not isinstance(triage_sla, int) or triage_sla < 1:
+        missing.append("triage_sla_hours")
+    if not isinstance(pdp.get("default_window_days"), int) or "negotiable" not in pdp:
+        missing.append("public_disclosure_policy.default_window_days / negotiable")
+    return missing
+
+
 def eval_gov_disc_065(ctx: EvalContext) -> EvalOutcome:
     """GOV-DISC-065: Disclosure channel SLA documented (CRA reporting readiness).
 
@@ -759,45 +974,9 @@ def eval_gov_disc_065(ctx: EvalContext) -> EvalOutcome:
     necessary precondition for the outbound clock to be meetable.
     """
 
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "disclosure-policy.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "disclosure-policy.json"
     if not evidence.is_file():
-        signal = _disclosure_sla_signal_match(ctx.repo_root)
-        if signal is not None:
-            path, kw = signal
-            return EvalOutcome(
-                status=ControlStatus.PASS,
-                reason=(
-                    f"Disclosure response-SLA intent detected via clone signal "
-                    f"({path.name}, keyword '{kw}'). Heuristic only — promote to "
-                    "evidence-backed by adding "
-                    ".oss-policy-kit/evidence/disclosure-policy.json with explicit "
-                    "acknowledgement_sla_hours, triage_sla_hours, and public_disclosure_policy."
-                ),
-                remediation=(
-                    "Document the disclosure SLA in "
-                    ".oss-policy-kit/evidence/disclosure-policy.json per "
-                    "evidence-disclosure-policy.schema.json so trust projects to verified."
-                ),
-                evidence_sources=[str(path.resolve())],
-                confidence="low",
-                operational_warnings=(_KEYWORD_CI_SIGNAL_WARN,),
-            )
-        return EvalOutcome(
-            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=(
-                "No disclosure SLA found in SECURITY.md and no evidence file present. "
-                "EU CRA 2026-09-11 24-hour reporting depends on having a documented "
-                "inbound disclosure channel with a stated acknowledgement window."
-            ),
-            remediation=(
-                "Add an acknowledgement SLA to SECURITY.md (e.g. 'we will acknowledge "
-                "within 72 hours') or attach "
-                ".oss-policy-kit/evidence/disclosure-policy.json per "
-                "evidence-disclosure-policy.schema.json."
-            ),
-            evidence_sources=[],
-            confidence="medium",
-        )
+        return _disclosure_signal_outcome(ctx)
     data, error, ph = _validate_json_evidence(
         evidence,
         schema_loader=_disclosure_policy_schema,
@@ -819,15 +998,7 @@ def eval_gov_disc_065(ctx: EvalContext) -> EvalOutcome:
     ack_sla = data.get("acknowledgement_sla_hours")
     triage_sla = data.get("triage_sla_hours")
     pdp = data.get("public_disclosure_policy") or {}
-    missing: list[str] = []
-    if not isinstance(contact.get("method"), str) or not isinstance(contact.get("value"), str):
-        missing.append("contact.method / contact.value")
-    if not isinstance(ack_sla, int) or ack_sla < 1:
-        missing.append("acknowledgement_sla_hours")
-    if not isinstance(triage_sla, int) or triage_sla < 1:
-        missing.append("triage_sla_hours")
-    if not isinstance(pdp.get("default_window_days"), int) or "negotiable" not in pdp:
-        missing.append("public_disclosure_policy.default_window_days / negotiable")
+    missing = _disclosure_missing_fields(contact, ack_sla, triage_sla, pdp)
     if missing:
         return EvalOutcome(
             status=ControlStatus.FAIL,
@@ -844,12 +1015,7 @@ def eval_gov_disc_065(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[str(evidence.resolve())],
             confidence="high",
         )
-    method = EvidenceCollectionMethod.STATIC
-    coll = data.get("collection")
-    if isinstance(coll, dict) and str(coll.get("evidence_collection_method", "")).strip().lower() == "live":
-        method = EvidenceCollectionMethod.LIVE
-    elif isinstance(coll, dict) and str(coll.get("evidence_collection_method", "")).strip().lower() == "manual":
-        method = EvidenceCollectionMethod.MANUAL
+    method = _collection_method(data)
     return EvalOutcome(
         status=ControlStatus.PASS,
         reason=(
@@ -865,17 +1031,20 @@ def eval_gov_disc_065(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_prov_verify_061(ctx: EvalContext) -> EvalOutcome:
-    """PROV-VERIFY-061: Build provenance attestation is verifiable (sigstore / Artifact Attestations)."""
-    evidence_dir = ctx.repo_root / ".oss-policy-kit" / "evidence"
-    candidate: Path | None = None
-    schema_loader: Callable[[], dict[str, Any]] | None = None
-    for filename, loader in _prov_verify_lookup_order(ctx.profile_id):
+def _find_prov_evidence(profile_id: str, evidence_dir: Path) -> tuple[Path | None, Callable[[], dict[str, Any]] | None]:
+    """Return the first present provenance-artifact evidence file and its schema loader."""
+
+    for filename, loader in _prov_verify_lookup_order(profile_id):
         p = evidence_dir / filename
         if p.is_file():
-            candidate = p
-            schema_loader = loader
-            break
+            return p, loader
+    return None, None
+
+
+def eval_prov_verify_061(ctx: EvalContext) -> EvalOutcome:
+    """PROV-VERIFY-061: Build provenance attestation is verifiable (sigstore / Artifact Attestations)."""
+    evidence_dir = ctx.repo_root / _KIT_DIR / "evidence"
+    candidate, schema_loader = _find_prov_evidence(ctx.profile_id, evidence_dir)
     if candidate is None or schema_loader is None:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -987,7 +1156,7 @@ def eval_prov_verify_061(ctx: EvalContext) -> EvalOutcome:
 
 def eval_release_archive_063(ctx: EvalContext) -> EvalOutcome:
     """RELEASE-ARCHIVE-063: Release artifacts have an explicit archival/retention policy."""
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "release-archival-policy.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "release-archival-policy.json"
     if not evidence.is_file():
         signal = _release_archive_signal_match(ctx.repo_root)
         if signal is not None:
@@ -1095,7 +1264,7 @@ def eval_publish_oidc_001(ctx: EvalContext) -> EvalOutcome:
     if not paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No GitHub Actions workflows present.",
+            reason=_NO_GH_WORKFLOWS_REASON,
             remediation="No action required. This control activates when a publish workflow is defined.",
             evidence_sources=[],
             confidence="high",
@@ -1150,7 +1319,7 @@ def eval_publish_oidc_002(ctx: EvalContext) -> EvalOutcome:
     if not paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No GitHub Actions workflows present.",
+            reason=_NO_GH_WORKFLOWS_REASON,
             remediation="No action required. This control activates when a publish workflow is defined.",
             evidence_sources=[],
             confidence="high",
@@ -1160,7 +1329,7 @@ def eval_publish_oidc_002(ctx: EvalContext) -> EvalOutcome:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No publish workflow detected.",
-            remediation="No action required.",
+            remediation=_NO_ACTION_REQUIRED,
             evidence_sources=[],
             confidence="medium",
         )
@@ -1204,7 +1373,7 @@ def eval_publish_oidc_003(ctx: EvalContext) -> EvalOutcome:
     if not paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No GitHub Actions workflows present.",
+            reason=_NO_GH_WORKFLOWS_REASON,
             remediation="No action required. This control activates when an npm publish workflow is defined.",
             evidence_sources=[],
             confidence="high",
@@ -1219,7 +1388,7 @@ def eval_publish_oidc_003(ctx: EvalContext) -> EvalOutcome:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No npm publish step detected.",
-            remediation="No action required.",
+            remediation=_NO_ACTION_REQUIRED,
             evidence_sources=[],
             confidence="medium",
         )
@@ -1255,9 +1424,9 @@ def eval_publish_oidc_003(ctx: EvalContext) -> EvalOutcome:
 
 def eval_osps_scorecard_v6_001(ctx: EvalContext) -> EvalOutcome:
     """OSPS-SCORECARD-V6-001: Scorecard v6 OSPS Baseline conformance evidence."""
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "scorecard-osps.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "scorecard-osps.json"
     if not evidence.is_file():
-        legacy = ctx.repo_root / ".oss-policy-kit" / "evidence" / "scorecard.json"
+        legacy = ctx.repo_root / _KIT_DIR / "evidence" / "scorecard.json"
         if legacy.is_file():
             return EvalOutcome(
                 status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -1311,17 +1480,9 @@ def eval_osps_scorecard_v6_001(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_scanner_integrity_001(ctx: EvalContext) -> EvalOutcome:
-    """SCANNER-INTEGRITY-001: scanner actions pinned by SHA (post-Trivy supply-chain defense)."""
-    paths = list(ctx.workflows.workflow_paths)
-    if not paths:
-        return EvalOutcome(
-            status=ControlStatus.NOT_APPLICABLE,
-            reason="No GitHub Actions workflows detected; scanner integrity check does not apply.",
-            remediation="No action required.",
-            evidence_sources=[],
-            confidence="high",
-        )
+def _scan_scanner_action_pinning(paths: list[Path]) -> tuple[list[str], int, bool]:
+    """Scan workflows for scanner ``uses:`` refs; return ``(unpinned, pinned_count, saw_any_scanner)``."""
+
     unpinned: list[str] = []
     pinned = 0
     seen_scanner = False
@@ -1330,8 +1491,7 @@ def eval_scanner_integrity_001(ctx: EvalContext) -> EvalOutcome:
             line = raw_line.strip()
             if "uses:" not in line:
                 continue
-            low = line.lower()
-            if not any(h in low for h in _SCANNER_ACTION_HINTS):
+            if not any(h in line.lower() for h in _SCANNER_ACTION_HINTS):
                 continue
             seen_scanner = True
             ref = line.split("uses:", 1)[1].strip().strip("'\"")
@@ -1339,11 +1499,26 @@ def eval_scanner_integrity_001(ctx: EvalContext) -> EvalOutcome:
                 pinned += 1
             else:
                 unpinned.append(f"{p.name}: {ref}")
+    return unpinned, pinned, seen_scanner
+
+
+def eval_scanner_integrity_001(ctx: EvalContext) -> EvalOutcome:
+    """SCANNER-INTEGRITY-001: scanner actions pinned by SHA (post-Trivy supply-chain defense)."""
+    paths = list(ctx.workflows.workflow_paths)
+    if not paths:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No GitHub Actions workflows detected; scanner integrity check does not apply.",
+            remediation=_NO_ACTION_REQUIRED,
+            evidence_sources=[],
+            confidence="high",
+        )
+    unpinned, pinned, seen_scanner = _scan_scanner_action_pinning(paths)
     if not seen_scanner:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No scanner actions referenced in workflows; scanner integrity check does not apply.",
-            remediation="No action required.",
+            remediation=_NO_ACTION_REQUIRED,
             evidence_sources=[],
             confidence="high",
         )

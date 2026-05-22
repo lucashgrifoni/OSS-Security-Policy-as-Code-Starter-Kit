@@ -2,7 +2,35 @@
 
 from __future__ import annotations
 
-from oss_policy_kit.application.evaluators._shared import *  # noqa: F403
+from dataclasses import dataclass, field
+
+from oss_policy_kit.application.evaluators._shared import (
+    _CODEQL_ACTION_PATTERNS,
+    _GITIGNORE_SECRET_FRAGMENTS,
+    _KEYWORD_CI_SIGNAL_WARN,
+    _REUSABLE_WORKFLOW_USES_LINE,
+    _SAST_SEMGREP_EVIDENCE_FILENAME,
+    _SAST_SEMGREP_SCHEMA_PREFIX,
+    _SECRET_SCAN_EXTRA_PATTERNS,
+    _SECRET_SCAN_TOKENS,
+    _SUPPLEMENTAL_SIGNAL_WARN,
+    ControlStatus,
+    EvalContext,
+    EvalOutcome,
+    EvidenceCollectionMethod,
+    Path,
+    _eval_sarif_adapter,
+    _iter_structured_workflow_uses_with_location,
+    _parse_zizmor_severity_properties,
+    _python_lock_or_pins,
+    _reusable_workflow_ref_has_full_sha,
+    checks_as_map,
+    contextlib,
+    json,
+    load_yaml_file,
+)
+
+_NO_WORKFLOWS_REASON = "No workflows present."
 
 
 def eval_ci_wf_005(ctx: EvalContext) -> EvalOutcome:
@@ -67,7 +95,7 @@ def eval_ci_danger_007(ctx: EvalContext) -> EvalOutcome:
     if not ctx.workflows.workflow_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No workflows present.",
+            reason=_NO_WORKFLOWS_REASON,
             remediation="Avoid pull_request_target unless strictly required and reviewed.",
             evidence_sources=[],
             confidence="high",
@@ -94,7 +122,7 @@ def eval_ci_pin_008(ctx: EvalContext) -> EvalOutcome:
     if not ctx.workflows.workflow_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No workflows present.",
+            reason=_NO_WORKFLOWS_REASON,
             remediation="Pin third-party actions to full commit SHAs.",
             evidence_sources=[],
             confidence="high",
@@ -134,7 +162,7 @@ def eval_ci_least_009(ctx: EvalContext) -> EvalOutcome:
     if not ctx.workflows.workflow_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No workflows present.",
+            reason=_NO_WORKFLOWS_REASON,
             remediation="Avoid workflow-wide contents:write unless required.",
             evidence_sources=[],
             confidence="high",
@@ -181,22 +209,9 @@ def eval_ci_least_009(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_sec_codeql_010(ctx: EvalContext) -> EvalOutcome:
-    # Check for a dedicated CodeQL workflow file — highest confidence signal.
-    codeql_dedicated: list[Path] = []
-    for p in ctx.workflows.workflow_paths:
-        name_lower = p.name.lower()
-        if "codeql" in name_lower or "code-scanning" in name_lower:
-            codeql_dedicated.append(p)
-    if codeql_dedicated:
-        return EvalOutcome(
-            status=ControlStatus.PASS,
-            reason=f"Dedicated CodeQL / code-scanning workflow detected: {', '.join(p.name for p in codeql_dedicated)}.",  # noqa: E501
-            remediation="Keep CodeQL workflow pinned and ensure it runs on PRs and default-branch pushes.",
-            evidence_sources=[str(p.resolve()) for p in codeql_dedicated],
-            confidence="high",
-        )
-    # Check for explicit github/codeql-action/analyze usage in any workflow.
+def _codeql_action_outcome(ctx: EvalContext) -> EvalOutcome | None:
+    """PASS outcome when a workflow file references the github/codeql-action, else None."""
+
     for p in ctx.workflows.workflow_paths:
         with contextlib.suppress(OSError):
             text = p.read_text(encoding="utf-8", errors="replace")
@@ -208,6 +223,42 @@ def eval_sec_codeql_010(ctx: EvalContext) -> EvalOutcome:
                     evidence_sources=[str(p.resolve())],
                     confidence="high",
                 )
+    return None
+
+
+def _scorecard_sast_outcome(ctx: EvalContext) -> EvalOutcome | None:
+    """PASS outcome when the Scorecard export references CodeQL/SAST checks, else None."""
+
+    for name in checks_as_map(ctx.scorecard):
+        n = name.lower()
+        if "codeql" in n or "code-ql" in n or "sast" in n:
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason="Scorecard export references static analysis related checks (supplemental).",
+                remediation="Prefer an explicit CodeQL workflow in-repo for deterministic CI evidence.",
+                evidence_sources=[ctx.scorecard.raw_path or "scorecard"] if ctx.scorecard else [],
+                confidence="low",
+                operational_warnings=(_SUPPLEMENTAL_SIGNAL_WARN,),
+            )
+    return None
+
+
+def eval_sec_codeql_010(ctx: EvalContext) -> EvalOutcome:
+    # Check for a dedicated CodeQL workflow file — highest confidence signal.
+    codeql_dedicated = [
+        p for p in ctx.workflows.workflow_paths if "codeql" in p.name.lower() or "code-scanning" in p.name.lower()
+    ]
+    if codeql_dedicated:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Dedicated CodeQL / code-scanning workflow detected: {', '.join(p.name for p in codeql_dedicated)}.",  # noqa: E501
+            remediation="Keep CodeQL workflow pinned and ensure it runs on PRs and default-branch pushes.",
+            evidence_sources=[str(p.resolve()) for p in codeql_dedicated],
+            confidence="high",
+        )
+    action_outcome = _codeql_action_outcome(ctx)
+    if action_outcome is not None:
+        return action_outcome
     # Broader SAST signal (any tool keyword).
     if ctx.workflows.sast_ci_signals:
         joined = ", ".join(ctx.workflows.sast_ci_signals)
@@ -220,18 +271,9 @@ def eval_sec_codeql_010(ctx: EvalContext) -> EvalOutcome:
             operational_warnings=(_KEYWORD_CI_SIGNAL_WARN,),
         )
     # Scorecard supplemental fallback.
-    scm = checks_as_map(ctx.scorecard)
-    for name in scm:
-        n = name.lower()
-        if "codeql" in n or "code-ql" in n or "sast" in n:
-            return EvalOutcome(
-                status=ControlStatus.PASS,
-                reason="Scorecard export references static analysis related checks (supplemental).",
-                remediation="Prefer an explicit CodeQL workflow in-repo for deterministic CI evidence.",
-                evidence_sources=[ctx.scorecard.raw_path or "scorecard"] if ctx.scorecard else [],
-                confidence="low",
-                operational_warnings=(_SUPPLEMENTAL_SIGNAL_WARN,),
-            )
+    scorecard_outcome = _scorecard_sast_outcome(ctx)
+    if scorecard_outcome is not None:
+        return scorecard_outcome
     return EvalOutcome(
         status=ControlStatus.FAIL,
         reason="No CodeQL (or equivalent) signal in local workflows.",
@@ -395,58 +437,82 @@ def eval_sec_pinlock_052(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_ci_wfcallsha_055(ctx: EvalContext) -> EvalOutcome:  # noqa: C901
+@dataclass
+class _WfCallShaScan:
+    """Accumulator for reusable-workflow SHA-pin scanning across workflow files."""
+
+    parse_warns: list[str] = field(default_factory=list)
+    call_paths: list[Path] = field(default_factory=list)
+    bad_paths: list[Path] = field(default_factory=list)
+    bad_evidence_sources: list[str] = field(default_factory=list)
+
+
+def _scan_wfcallsha_regex(raw: str, path: Path, acc: _WfCallShaScan) -> None:
+    """Regex fallback: find reusable-workflow ``uses:`` refs and flag non-SHA pins."""
+
+    for m in _REUSABLE_WORKFLOW_USES_LINE.finditer(raw):
+        ref = m.group(1).strip()
+        if not ref or ref.startswith("${{") or ".github/workflows" not in ref.lower():
+            continue
+        if path not in acc.call_paths:
+            acc.call_paths.append(path)
+        if not _reusable_workflow_ref_has_full_sha(ref):
+            if path not in acc.bad_paths:
+                acc.bad_paths.append(path)
+            acc.bad_evidence_sources.append(f"{path.resolve()} (regex-fallback: `{ref}`)")
+
+
+def _scan_wfcallsha_structured(doc: dict, path: Path, acc: _WfCallShaScan) -> None:
+    """Structured pass: flag reusable-workflow ``uses:`` refs without a full SHA pin."""
+
+    reusable = [
+        (j, s, u) for (j, s, u) in _iter_structured_workflow_uses_with_location(doc) if ".github/workflows" in u.lower()
+    ]
+    if not reusable:
+        return
+    if path not in acc.call_paths:
+        acc.call_paths.append(path)
+    for job_name, step_label, ref in reusable:
+        if not _reusable_workflow_ref_has_full_sha(ref):
+            if path not in acc.bad_paths:
+                acc.bad_paths.append(path)
+            acc.bad_evidence_sources.append(f"{path.resolve()} :: jobs.{job_name}.{step_label} uses=`{ref}`")
+
+
+def _scan_wfcallsha_path(path: Path, acc: _WfCallShaScan) -> None:
+    """Scan one workflow file for reusable-workflow SHA pins (structured, regex fallback on parse failure)."""
+
+    raw = path.read_text(encoding="utf-8", errors="replace")
+    try:
+        doc = load_yaml_file(path)
+    except Exception:  # noqa: BLE001 - fall back to regex scan on any parse error
+        doc = None
+    if not isinstance(doc, dict):
+        acc.parse_warns.append(f"{path.name}: YAML parse failed; reusable workflow SHA pins not verified structurally.")
+        _scan_wfcallsha_regex(raw, path, acc)
+        return
+    _scan_wfcallsha_structured(doc, path, acc)
+
+
+def eval_ci_wfcallsha_055(ctx: EvalContext) -> EvalOutcome:
     """CI-WFCALLSHA-055: reusable workflow calls use full 40-character commit SHAs."""
 
     if not ctx.workflows.workflow_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No workflows present.",
+            reason=_NO_WORKFLOWS_REASON,
             remediation="Pin reusable workflows with immutable commit SHAs when using workflow_call.",
             evidence_sources=[],
             confidence="high",
         )
 
-    parse_warns: list[str] = []
-    call_paths: list[Path] = []
-    bad_paths: list[Path] = []
-    bad_evidence_sources: list[str] = []
-
+    acc = _WfCallShaScan()
     for path in ctx.workflows.workflow_paths:
-        raw = path.read_text(encoding="utf-8", errors="replace")
-        structured_failed = False
-        try:
-            doc = load_yaml_file(path)
-        except Exception:
-            structured_failed = True
-            doc = None
-        if structured_failed or not isinstance(doc, dict):
-            parse_warns.append(f"{path.name}: YAML parse failed; reusable workflow SHA pins not verified structurally.")
-            for m in _REUSABLE_WORKFLOW_USES_LINE.finditer(raw):
-                ref = m.group(1).strip()
-                if not ref or ref.startswith("${{"):
-                    continue
-                if ".github/workflows" not in ref.lower():
-                    continue
-                if path not in call_paths:
-                    call_paths.append(path)
-                if not _reusable_workflow_ref_has_full_sha(ref):
-                    if path not in bad_paths:
-                        bad_paths.append(path)
-                    bad_evidence_sources.append(f"{path.resolve()} (regex-fallback: `{ref}`)")
-            continue
-
-        located = _iter_structured_workflow_uses_with_location(doc)
-        reusable_located = [(job, step, u) for (job, step, u) in located if ".github/workflows" in u.lower()]
-        if not reusable_located:
-            continue
-        if path not in call_paths:
-            call_paths.append(path)
-        for job_name, step_label, ref in reusable_located:
-            if not _reusable_workflow_ref_has_full_sha(ref):
-                if path not in bad_paths:
-                    bad_paths.append(path)
-                bad_evidence_sources.append(f"{path.resolve()} :: jobs.{job_name}.{step_label} uses=`{ref}`")
+        _scan_wfcallsha_path(path, acc)
+    parse_warns = acc.parse_warns
+    call_paths = acc.call_paths
+    bad_paths = acc.bad_paths
+    bad_evidence_sources = acc.bad_evidence_sources
 
     if not call_paths:
         return EvalOutcome(

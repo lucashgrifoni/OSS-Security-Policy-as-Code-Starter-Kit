@@ -2,12 +2,50 @@
 
 from __future__ import annotations
 
-from oss_policy_kit.application.evaluators._shared import *  # noqa: F403
+from oss_policy_kit.application.evaluators._shared import (
+    _COMMIT_SIGNATURE_HINTS,
+    _DISTROLESS_MARKERS,
+    _DOCKER_FROM_RE,
+    _IMAGE_SCAN_TOKENS,
+    _KEYWORD_CI_SIGNAL_WARN,
+    _OSV_SARIF_RELPATH,
+    _POSTINSTALL_DANGER_HINTS,
+    _ROOT_USER_RE,
+    _USER_RE,
+    Any,
+    ControlStatus,
+    EvalContext,
+    EvalOutcome,
+    EvidenceCollectionMethod,
+    Path,
+    _branch_protection_evidence,
+    _find_dockerfiles,
+    _scan_sarif_epss_kev,
+    cast,
+    contextlib,
+    json,
+)
 
 # SLSA-SRC-005 / SLSA-SRC-008 delegate to the AUDIT-STREAM-060 evaluator, which lives
 # in the governance family. Explicit cross-family import (governance does not import
 # back, so no cycle).
 from oss_policy_kit.application.evaluators.governance import eval_audit_stream_060
+
+_NO_ACTION_REQUIRED = "No action required."
+_PACKAGE_JSON = "package.json"
+
+
+def _unpinned_from_refs(dockerfiles: list[Path]) -> list[str]:
+    """Return ``<file>: <ref>`` entries for FROM base images not pinned by digest (excluding scratch)."""
+
+    unpinned: list[str] = []
+    for df in dockerfiles:
+        with contextlib.suppress(OSError):
+            content = df.read_text(encoding="utf-8", errors="replace")
+            for ref in _DOCKER_FROM_RE.findall(content):
+                if ref.lower() != "scratch" and "@sha256:" not in ref:
+                    unpinned.append(f"{df.name}: {ref}")
+    return unpinned
 
 
 def eval_cont_image_001(ctx: EvalContext) -> EvalOutcome:
@@ -21,15 +59,7 @@ def eval_cont_image_001(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[],
             confidence="high",
         )
-    unpinned: list[str] = []
-    for df in dockerfiles:
-        with contextlib.suppress(OSError):
-            content = df.read_text(encoding="utf-8", errors="replace")
-            for ref in _DOCKER_FROM_RE.findall(content):
-                if ref.lower() == "scratch":
-                    continue
-                if "@sha256:" not in ref:
-                    unpinned.append(f"{df.name}: {ref}")
+    unpinned = _unpinned_from_refs(dockerfiles)
     if not unpinned:
         return EvalOutcome(
             status=ControlStatus.PASS,
@@ -148,24 +178,38 @@ def eval_cont_image_003(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def eval_aibom_present_001(ctx: EvalContext) -> EvalOutcome:
-    """AIBOM-PRESENT-001: AI Bill of Materials present in evidence directory."""
+def _discover_aibom_files(repo_root: Path) -> list[Path]:
+    """Find AIBOM JSON files under the evidence dir, or any ML-BOM marker file repo-wide."""
+
     candidates: list[Path] = []
     for rel in (".oss-policy-kit/evidence/aibom", "aibom"):
-        d = ctx.repo_root / rel
+        d = repo_root / rel
         if d.is_dir():
             with contextlib.suppress(OSError):
                 candidates.extend(p for p in d.glob("*.json") if p.is_file())
+    if candidates:
+        return candidates
     # Cycle 2 (PR-26): also recognise a CycloneDX 1.7 ML-BOM anywhere in the
     # repo via the machine-learning-model component marker.
-    if not candidates:
-        with contextlib.suppress(OSError):
-            for p in list(ctx.repo_root.rglob("*.cdx.json")) + list(ctx.repo_root.rglob("bom.json")):
-                if not p.is_file() or ".git" in p.parts:
-                    continue
-                sample = p.read_text(encoding="utf-8", errors="replace")[:8000].lower()
-                if "machine-learning-model" in sample or "modelcard" in sample or "ml-bom" in sample:
-                    candidates.append(p)
+    with contextlib.suppress(OSError):
+        for p in list(repo_root.rglob("*.cdx.json")) + list(repo_root.rglob("bom.json")):
+            if _is_ml_bom_marker_file(p):
+                candidates.append(p)
+    return candidates
+
+
+def _is_ml_bom_marker_file(p: Path) -> bool:
+    """True when a non-.git JSON file carries an ML-BOM / model-card marker in its head."""
+
+    if not p.is_file() or ".git" in p.parts:
+        return False
+    sample = p.read_text(encoding="utf-8", errors="replace")[:8000].lower()
+    return "machine-learning-model" in sample or "modelcard" in sample or "ml-bom" in sample
+
+
+def eval_aibom_present_001(ctx: EvalContext) -> EvalOutcome:
+    """AIBOM-PRESENT-001: AI Bill of Materials present in evidence directory."""
+    candidates = _discover_aibom_files(ctx.repo_root)
     if not candidates:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -191,12 +235,12 @@ def eval_aibom_present_001(ctx: EvalContext) -> EvalOutcome:
 
 def eval_worm_postinstall_001(ctx: EvalContext) -> EvalOutcome:
     """WORM-POSTINSTALL-001: package.json postinstall script lacks credential-harvest primitives."""
-    pkg = ctx.repo_root / "package.json"
+    pkg = ctx.repo_root / _PACKAGE_JSON
     if not pkg.is_file():
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No package.json present; postinstall worm pattern does not apply.",
-            remediation="No action required.",
+            remediation=_NO_ACTION_REQUIRED,
             evidence_sources=[],
             confidence="high",
         )
@@ -249,8 +293,8 @@ def eval_worm_lockfile_drift_001(ctx: EvalContext) -> EvalOutcome:
     """WORM-LOCKFILE-DRIFT-001: manifest not modified more recently than lockfile."""
     pairs: list[tuple[Path, Path]] = []
     for manifest, lockfile in (
-        ("package.json", "package-lock.json"),
-        ("package.json", "yarn.lock"),
+        (_PACKAGE_JSON, "package-lock.json"),
+        (_PACKAGE_JSON, "yarn.lock"),
         ("pyproject.toml", "poetry.lock"),
         ("pyproject.toml", "uv.lock"),
         ("requirements.txt", "requirements.lock"),
@@ -308,7 +352,7 @@ def eval_worm_publish_scope_001(ctx: EvalContext) -> EvalOutcome:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No publish workflow detected.",
-            remediation="No action required.",
+            remediation=_NO_ACTION_REQUIRED,
             evidence_sources=[],
             confidence="high",
         )
@@ -376,7 +420,7 @@ def eval_slsa_src_001(ctx: EvalContext) -> EvalOutcome:
 
 def eval_slsa_src_002(ctx: EvalContext) -> EvalOutcome:
     """SLSA-SRC-002: Commit-signature enforcement signal."""
-    workflow_paths = list(ctx.workflows.workflow_paths)
+    workflow_paths = ctx.workflows.workflow_paths
     # Look in workflow files and known ruleset hint locations.
     candidates: list[Path] = list(workflow_paths)
     for rel in (
@@ -653,25 +697,24 @@ def eval_slsa_src_008(ctx: EvalContext) -> EvalOutcome:
     return eval_audit_stream_060(ctx)
 
 
-def eval_cont_distroless_001(ctx: EvalContext) -> EvalOutcome:
-    """CONT-DISTROLESS-001: container base image is distroless / minimal."""
+def _discover_dockerfiles(repo_root: Path) -> list[Path]:
+    """Return root Dockerfile/Containerfile plus any nested Dockerfiles (excluding .git)."""
+
     dockerfiles: list[Path] = []
     for name in ("Dockerfile", "Containerfile"):
-        p = ctx.repo_root / name
+        p = repo_root / name
         if p.is_file():
             dockerfiles.append(p)
     with contextlib.suppress(OSError):
-        for p in ctx.repo_root.glob("**/Dockerfile"):
+        for p in repo_root.glob("**/Dockerfile"):
             if p not in dockerfiles and ".git" not in p.parts:
                 dockerfiles.append(p)
-    if not dockerfiles:
-        return EvalOutcome(
-            status=ControlStatus.NOT_APPLICABLE,
-            reason="No Dockerfile / Containerfile detected; distroless base check does not apply.",
-            remediation="No action required.",
-            evidence_sources=[],
-            confidence="high",
-        )
+    return dockerfiles
+
+
+def _collect_dockerfile_from_lines(dockerfiles: list[Path]) -> list[str]:
+    """Return all lowercased ``FROM ...`` lines across the given Dockerfiles."""
+
     from_lines: list[str] = []
     for p in dockerfiles:
         with contextlib.suppress(OSError):
@@ -679,6 +722,21 @@ def eval_cont_distroless_001(ctx: EvalContext) -> EvalOutcome:
                 stripped = line.strip().lower()
                 if stripped.startswith("from "):
                     from_lines.append(stripped)
+    return from_lines
+
+
+def eval_cont_distroless_001(ctx: EvalContext) -> EvalOutcome:
+    """CONT-DISTROLESS-001: container base image is distroless / minimal."""
+    dockerfiles = _discover_dockerfiles(ctx.repo_root)
+    if not dockerfiles:
+        return EvalOutcome(
+            status=ControlStatus.NOT_APPLICABLE,
+            reason="No Dockerfile / Containerfile detected; distroless base check does not apply.",
+            remediation=_NO_ACTION_REQUIRED,
+            evidence_sources=[],
+            confidence="high",
+        )
+    from_lines = _collect_dockerfile_from_lines(dockerfiles)
     if not from_lines:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,

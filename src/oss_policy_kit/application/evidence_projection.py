@@ -234,6 +234,35 @@ def _limitations(*, source_type: str, freshness: str, attestation: str, assuranc
     return out
 
 
+def _source_platform_from_result(result: ControlResult) -> str | None:
+    """Return the evidence source platform from ``result.extra`` or a control-id prefix heuristic."""
+
+    if isinstance(result.extra, dict):
+        plat = result.extra.get("source_platform") or result.extra.get("platform")
+        if isinstance(plat, str) and plat.strip():
+            return plat.strip()
+    cid = result.control_id
+    if cid.startswith("AZ-"):
+        return "azure"
+    if cid.startswith("AWS-"):
+        return "aws"
+    if cid.startswith(("GH-", "PLAT-", "CI-", "GOV-", "REL-", "SEC-")):
+        return "github" if cid.startswith(("GH-", "PLAT-")) else "local"
+    return None
+
+
+def _digest_and_schema_from_result(result: ControlResult) -> tuple[str | None, str | None]:
+    """Extract the ``sha256:`` digest and evidence schema id from ``result.extra`` if present."""
+
+    if not isinstance(result.extra, dict):
+        return None, None
+    d = result.extra.get("digest")
+    digest = d if isinstance(d, str) and d.startswith("sha256:") else None
+    sid = result.extra.get("evidence_schema_id")
+    schema_id = sid.strip() if isinstance(sid, str) and sid.strip() else None
+    return digest, schema_id
+
+
 def project_evidence(result: ControlResult, *, ctx: FreshnessContext | None = None) -> dict[str, Any]:
     """Project a ControlResult into the v1 ``evidence`` object."""
 
@@ -264,38 +293,14 @@ def project_evidence(result: ControlResult, *, ctx: FreshnessContext | None = No
     )
 
     references = [_classify_reference(s) for s in result.evidence_sources if not _is_placeholder_path(s)]
-
-    source_platform: str | None = None
-    if isinstance(result.extra, dict):
-        plat = result.extra.get("source_platform") or result.extra.get("platform")
-        if isinstance(plat, str) and plat.strip():
-            source_platform = plat.strip()
-    if source_platform is None:
-        # Heuristic: derive platform from control_id prefix.
-        cid = result.control_id
-        if cid.startswith("AZ-"):
-            source_platform = "azure"
-        elif cid.startswith("AWS-"):
-            source_platform = "aws"
-        elif cid.startswith(("GH-", "PLAT-", "CI-", "GOV-", "REL-", "SEC-")):
-            source_platform = "github" if cid.startswith(("GH-", "PLAT-")) else "local"
-
+    source_platform = _source_platform_from_result(result)
     limitations = _limitations(
         source_type=source_type,
         freshness=freshness,
         attestation=attestation,
         assurance=result.assurance,
     )
-
-    digest: str | None = None
-    schema_id: str | None = None
-    if isinstance(result.extra, dict):
-        d = result.extra.get("digest")
-        if isinstance(d, str) and d.startswith("sha256:"):
-            digest = d
-        sid = result.extra.get("evidence_schema_id")
-        if isinstance(sid, str) and sid.strip():
-            schema_id = sid.strip()
+    digest, schema_id = _digest_and_schema_from_result(result)
 
     return {
         "source_type": source_type,

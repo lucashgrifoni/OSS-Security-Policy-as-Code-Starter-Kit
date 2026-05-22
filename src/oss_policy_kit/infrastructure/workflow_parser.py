@@ -159,76 +159,86 @@ def _workflow_body_for_sast_heuristics(raw: str) -> str:
     return "\n".join(kept)
 
 
-def _collect_sast_ci_signals(raw: str) -> set[str]:  # noqa: C901
-    """Detect plausible CI SAST / code scanning for SEC-CODEQL-010 (not mere tool-name mentions)."""
+# SAST/code-scanning detectors. Each entry is (signal_name, ((pattern, use_full_text), ...)).
+# ``use_full_text`` searches the whole raw workflow (``uses:`` refs); otherwise the
+# SAST-heuristic body (CLI invocations). All texts are pre-lowercased, so patterns are
+# lowercase and need no IGNORECASE. ``uses:[^\n#]*`` (not ``uses:\s*[^\n#]*``) avoids the
+# ambiguous adjacent quantifiers that trip ReDoS detection — ``[^\n#]*`` already covers
+# leading whitespace.
+_SAST_SIGNAL_RULES: tuple[tuple[str, tuple[tuple[re.Pattern[str], bool], ...]], ...] = (
+    (
+        "codeql",
+        (
+            (re.compile(r"github/codeql-action/\w+"), True),
+            (re.compile(r"\bcodeql\s+database\b"), False),
+            (re.compile(r"\bcodeql\s+analyze\b"), False),
+        ),
+    ),
+    (
+        "semgrep",
+        (
+            (re.compile(r"uses:[^\n#]*(returntocorp/semgrep|semgrep/semgrep|semgrep-action)"), True),
+            (re.compile(r"\bsemgrep\s+(scan|ci)\b"), False),
+            (re.compile(r"\bsemgrep\s[^\n]*--config\b"), False),
+        ),
+    ),
+    (
+        "bandit",
+        (
+            (re.compile(r"\bpython\s+-m\s+bandit\b"), False),
+            (re.compile(r"\bbandit\s+-r\b"), False),
+            (re.compile(r"uses:[^\n#]*bandit"), True),
+        ),
+    ),
+    ("snyk-code", ((re.compile(r"\bsnyk\s+code\s+test\b"), False), (re.compile(r"snyk-code"), False))),
+    (
+        "sonar",
+        (
+            (re.compile(r"uses:[^\n#]*sonarsource/sonarcloud-github-action"), True),
+            (re.compile(r"uses:[^\n#]*sonarqube"), True),
+            (re.compile(r"\bsonar-scanner\b"), False),
+        ),
+    ),
+    ("brakeman", ((re.compile(r"uses:[^\n#]*brakeman"), True), (re.compile(r"\bbrakeman\s+(\.|--)"), False))),
+    ("horusec", ((re.compile(r"uses:[^\n#]*horusec"), True), (re.compile(r"\bhorusec\s+cli\b"), False))),
+    ("checkmarx", ((re.compile(r"checkmarx/ast-github-action"), True), (re.compile(r"\bcx\s+scan\b"), False))),
+    ("shiftleft-scan", ((re.compile(r"uses:[^\n#]*shiftleft/scan"), True),)),
+    ("flake8-bugbear", ((re.compile(r"\bflake8-bugbear\b"), False), (re.compile(r"flake8.*bugbear"), False))),
+    ("gosec", ((re.compile(r"\bgosec\b"), False),)),
+    ("spotbugs", ((re.compile(r"\bspotbugs\b"), False),)),
+    ("veracode", ((re.compile(r"\bveracode\b"), False),)),
+    ("sonarqube", ((re.compile(r"\bsonarqube\b"), False), (re.compile(r"\bsonarcloud\b"), False))),
+    ("bearer", ((re.compile(r"\bbearer\s+(scan|cli)\b"), False), (re.compile(r"uses:[^\n#]*\bbearer\b"), True))),
+)
 
-    body = _workflow_body_for_sast_heuristics(raw)
-    lower = body.lower()
-    full_lower = raw.lower()
-    found: set[str] = set()
 
-    codeql_action = re.search(r"github/codeql-action/\w+", full_lower, re.IGNORECASE)
-    codeql_cli = re.search(r"\bcodeql\s+database\b", lower) or re.search(r"\bcodeql\s+analyze\b", lower)
-    if codeql_action or codeql_cli:
-        found.add("codeql")
-
-    semgrep_uses = re.search(
-        r"uses:\s*[^\n#]*(returntocorp/semgrep|semgrep/semgrep|semgrep-action)", full_lower, re.IGNORECASE
-    )
-    semgrep_cli = re.search(r"\bsemgrep\s+(scan|ci)\b", lower) or re.search(r"\bsemgrep\s+[^\n]*--config\b", lower)
-    if semgrep_uses or semgrep_cli:
-        found.add("semgrep")
-
-    bandit_cli = re.search(r"\bpython\s+-m\s+bandit\b", lower) or re.search(r"\bbandit\s+-r\b", lower)
-    bandit_uses = re.search(r"uses:\s*[^\n#]*bandit", full_lower, re.IGNORECASE)
-    if bandit_cli or bandit_uses:
-        found.add("bandit")
-
-    if re.search(r"\bsnyk\s+code\s+test\b", lower) or "snyk-code" in lower:
-        found.add("snyk-code")
-
-    sonar_uses = re.search(
-        r"uses:\s*[^\n#]*sonarsource/sonarcloud-github-action", full_lower, re.IGNORECASE
-    ) or re.search(r"uses:\s*[^\n#]*sonarqube", full_lower, re.IGNORECASE)
-    if sonar_uses or re.search(r"\bsonar-scanner\b", lower):
-        found.add("sonar")
-
-    if re.search(r"uses:\s*[^\n#]*brakeman", full_lower, re.IGNORECASE) or re.search(r"\bbrakeman\s+(\.|--)", lower):
-        found.add("brakeman")
-
-    if re.search(r"uses:\s*[^\n#]*horusec", full_lower, re.IGNORECASE) or re.search(r"\bhorusec\s+cli\b", lower):
-        found.add("horusec")
-
-    if re.search(r"checkmarx/ast-github-action", full_lower, re.IGNORECASE) or re.search(r"\bcx\s+scan\b", lower):
-        found.add("checkmarx")
-
-    if re.search(r"uses:\s*[^\n#]*shiftleft/scan", full_lower, re.IGNORECASE):
-        found.add("shiftleft-scan")
+def _trivy_fs_config_signals(lower: str, full_lower: str) -> bool:
+    """True when a Trivy filesystem/config scan is referenced (CLI or aquasecurity/trivy-action)."""
 
     if (
         re.search(r"\btrivy\s+(fs|config|filesystem)\b", lower)
         or "scan-type: 'fs'" in lower
         or 'scan-type: "fs"' in lower
     ):
-        found.add("trivy-fs-config")
-    if "aquasecurity/trivy-action" in full_lower and (
+        return True
+    return "aquasecurity/trivy-action" in full_lower and (
         "fs" in full_lower or "config" in full_lower or "misconfig" in full_lower
-    ):
+    )
+
+
+def _collect_sast_ci_signals(raw: str) -> set[str]:
+    """Detect plausible CI SAST / code scanning for SEC-CODEQL-010 (not mere tool-name mentions)."""
+
+    lower = _workflow_body_for_sast_heuristics(raw).lower()
+    full_lower = raw.lower()
+    found: set[str] = set()
+    for signal, patterns in _SAST_SIGNAL_RULES:
+        for pattern, use_full in patterns:
+            if pattern.search(full_lower if use_full else lower):
+                found.add(signal)
+                break
+    if _trivy_fs_config_signals(lower, full_lower):
         found.add("trivy-fs-config")
-
-    if re.search(r"\bflake8-bugbear\b", lower) or re.search(r"flake8.*bugbear", lower):
-        found.add("flake8-bugbear")
-    if re.search(r"\bgosec\b", lower):
-        found.add("gosec")
-    if re.search(r"\bspotbugs\b", lower):
-        found.add("spotbugs")
-    if re.search(r"\bveracode\b", lower):
-        found.add("veracode")
-    if re.search(r"\bsonarqube\b", lower) or re.search(r"\bsonarcloud\b", lower):
-        found.add("sonarqube")
-    if re.search(r"\bbearer\s+(scan|cli)\b", lower) or re.search(r"uses:\s*[^\n#]*\bbearer\b", full_lower, re.I):
-        found.add("bearer")
-
     return found
 
 
@@ -276,7 +286,81 @@ def _step_sensitive_for_least_privilege(step: dict[str, Any]) -> bool:
     return any(rx.search(blob) for rx, _ in _SENSITIVE_FOR_LEAST_PRIV)
 
 
-def _collect_implicit_permission_risks(  # noqa: C901
+def _add_perm_risk(
+    out: list[tuple[Path, str, str]],
+    seen: set[tuple[str, str]],
+    job_name: str,
+    key_suffix: str,
+    path: Path,
+    message: str,
+) -> None:
+    """Append a (path, job, message) risk once per (job, key_suffix)."""
+
+    key = (job_name, key_suffix)
+    if key not in seen:
+        seen.add(key)
+        out.append((path, job_name, message))
+
+
+def _collect_step_permission_risks(
+    job_name: str,
+    steps: list[Any],
+    job_has_perm: bool,
+    path: Path,
+    seen: set[tuple[str, str]],
+    out: list[tuple[Path, str, str]],
+) -> None:
+    for idx, step in enumerate(steps):
+        if not isinstance(step, dict) or job_has_perm:
+            continue
+        if _checkout_uses_non_default_token(step):
+            _add_perm_risk(
+                out,
+                seen,
+                job_name,
+                f"{idx}-checkout-token",
+                path,
+                f"step {idx}: actions/checkout uses a non-default `token` but the job has no "
+                f"explicit `permissions` mapping.",
+            )
+        if _step_sensitive_for_least_privilege(step):
+            _add_perm_risk(
+                out,
+                seen,
+                job_name,
+                f"{idx}-sensitive",
+                path,
+                f"step {idx}: sensitive deploy/publish pattern without explicit job-level `permissions`.",
+            )
+
+
+def _collect_no_top_perm_risk(
+    job_name: str,
+    steps: list[Any],
+    path: Path,
+    seen: set[tuple[str, str]],
+    out: list[tuple[Path, str, str]],
+) -> None:
+    blob = "\n".join(
+        str(cast(dict[str, Any], s).get("uses", "")) + "\n" + _flatten_run_text(cast(dict[str, Any], s))
+        for s in steps
+        if isinstance(s, dict)
+    ).lower()
+    for rx, label in _SENSITIVE_FOR_LEAST_PRIV:
+        if rx.search(blob):
+            _add_perm_risk(
+                out,
+                seen,
+                job_name,
+                "no-top-level-perms",
+                path,
+                f"workflow omits top-level `permissions` while job {job_name!r} references "
+                f"{label} (or similar) — add explicit least-privilege permissions.",
+            )
+            break
+
+
+def _collect_implicit_permission_risks(
     data: dict[str, Any],
     path: Path,
     out: list[tuple[Path, str, str]],
@@ -295,52 +379,36 @@ def _collect_implicit_permission_risks(  # noqa: C901
         steps = job.get("steps")
         if not isinstance(steps, list):
             continue
-        for idx, step in enumerate(steps):
-            if not isinstance(step, dict):
-                continue
-            if _checkout_uses_non_default_token(step) and not job_has_perm:
-                key = (str(job_name), f"{idx}-checkout-token")
-                if key not in seen:
-                    seen.add(key)
-                    out.append(
-                        (
-                            path,
-                            str(job_name),
-                            f"step {idx}: actions/checkout uses a non-default `token` but the job has no "
-                            f"explicit `permissions` mapping.",
-                        )
-                    )
-            if _step_sensitive_for_least_privilege(step) and not job_has_perm:
-                key = (str(job_name), f"{idx}-sensitive")
-                if key not in seen:
-                    seen.add(key)
-                    out.append(
-                        (
-                            path,
-                            str(job_name),
-                            f"step {idx}: sensitive deploy/publish pattern without explicit job-level `permissions`.",
-                        )
-                    )
+        _collect_step_permission_risks(str(job_name), steps, job_has_perm, path, seen, out)
         if not workflow_has_top and not job_has_perm:
-            blob = "\n".join(
-                str(cast(dict[str, Any], s).get("uses", "")) + "\n" + _flatten_run_text(cast(dict[str, Any], s))
-                for s in steps
-                if isinstance(s, dict)
-            ).lower()
-            for rx, label in _SENSITIVE_FOR_LEAST_PRIV:
-                if rx.search(blob):
-                    key = (str(job_name), "no-top-level-perms")
-                    if key not in seen:
-                        seen.add(key)
-                        out.append(
-                            (
-                                path,
-                                str(job_name),
-                                f"workflow omits top-level `permissions` while job {job_name!r} references "
-                                f"{label} (or similar) — add explicit least-privilege permissions.",
-                            )
-                        )
-                    break
+            _collect_no_top_perm_risk(str(job_name), steps, path, seen, out)
+
+
+def _step_indicates_oidc(step: Any) -> bool:
+    """True when a step uses a provider OIDC-federation action (AWS/GCP/Azure)."""
+
+    if not isinstance(step, dict):
+        return False
+    uses = str(step.get("uses", ""))
+    raw_with = step.get("with")
+    with_block: dict[str, Any] = raw_with if isinstance(raw_with, dict) else {}
+    if uses.startswith("aws-actions/configure-aws-credentials") and "role-to-assume" in with_block:
+        return True
+    if uses.startswith("google-github-actions/auth") and "workload_identity_provider" in with_block:
+        return True
+    # azure/login with client-id (not creds) indicates OIDC federation
+    return uses.startswith("azure/login") and "client-id" in with_block and "creds" not in with_block
+
+
+def _job_indicates_oidc(job: Any) -> bool:
+    """True when a job declares ``id-token: write`` or contains an OIDC-federation step."""
+
+    if not isinstance(job, dict):
+        return False
+    jperms = job.get("permissions")
+    if isinstance(jperms, dict) and str(jperms.get("id-token", "")).lower() == "write":
+        return True
+    return any(_step_indicates_oidc(step) for step in job.get("steps") or [])
 
 
 def _workflow_has_oidc_posture(raw: str, data: dict[str, Any]) -> bool:
@@ -350,31 +418,123 @@ def _workflow_has_oidc_posture(raw: str, data: dict[str, Any]) -> bool:
     if isinstance(perms, dict) and str(perms.get("id-token", "")).lower() == "write":
         return True
     jobs = data.get("jobs")
-    if isinstance(jobs, dict):
+    if not isinstance(jobs, dict):
+        return False
+    return any(_job_indicates_oidc(job) for job in jobs.values())
+
+
+def _scan_workflow_raw(raw: str, path: Path, result: WorkflowAnalysis, signal_acc: set[str]) -> None:
+    """Raw-text (pre-parse) signals: PR target, SAST, dependency-review, attestation, merge-queue, reusable pins."""
+
+    if _content_has_token(raw, "pull_request_target"):
+        result.uses_pull_request_target.append(path)
+    signal_acc.update(_collect_sast_ci_signals(raw))
+    if re.search(r"dependency-review-action", raw, re.IGNORECASE) or re.search(
+        r"advanced-security\/dependency-review-action", raw, re.IGNORECASE
+    ):
+        result.has_dependency_review = True
+    if re.search(
+        r"actions/attest-build-provenance|actions/attest\b|slsa|provenance|attestation"
+        r"|slsa-framework/slsa-github-generator|sigstore/cosign-installer|cosign\s+sign",
+        raw,
+        re.IGNORECASE,
+    ):
+        result.has_artifact_attestation = True
+    if (
+        re.search(r"(?m)(^\s*merge_group:\s*$|merge-queue|github\s+merge\s+queue)", raw, re.IGNORECASE)
+        and path not in result.merge_queue_signal_paths
+    ):
+        result.merge_queue_signal_paths.append(path)
+    _scan_reusable_workflow_pins(
+        raw,
+        path,
+        mutable_out=result.reusable_workflow_mutable_ref_paths,
+        call_out=result.reusable_workflow_call_paths,
+    )
+
+
+def _classify_top_level_permissions(data: dict[str, Any], path: Path, result: WorkflowAnalysis) -> None:
+    if "permissions" not in data:
+        result.missing_top_level_permissions.append(path)
+    perms = data.get("permissions")
+    if perms in ("write-all", "read-all"):
+        result.suspicious_permissions.append((path, str(perms)))
+    elif isinstance(perms, dict) and perms.get("contents") == "write":
+        result.suspicious_permissions.append((path, "contents: write at workflow level"))
+
+
+def _classify_job_permissions(job_name: str, job: dict[str, Any], path: Path, result: WorkflowAnalysis) -> None:
+    jperms = job.get("permissions")
+    if jperms == "write-all":
+        result.broad_job_permissions.append((path, f"{job_name}: write-all"))
+    elif isinstance(jperms, dict):
+        for scope in ("contents", "actions", "packages", "deployments"):
+            if str(jperms.get(scope, "")).lower() == "write":
+                result.broad_job_permissions.append((path, f"{job_name}: {scope}=write"))
+                break
+
+
+def _scan_workflow_jobs(
+    jobs: dict[str, Any], data: dict[str, Any], raw: str, path: Path, result: WorkflowAnalysis
+) -> None:
+    if _contains_pr_event(data, raw):
         for job in jobs.values():
-            if not isinstance(job, dict):
-                continue
-            jperms = job.get("permissions")
-            if isinstance(jperms, dict) and str(jperms.get("id-token", "")).lower() == "write":
-                return True
-            # Provider-specific OIDC action patterns (structural step scan)
-            for step in job.get("steps") or []:
-                if not isinstance(step, dict):
-                    continue
-                uses = str(step.get("uses", ""))
-                raw_with = step.get("with")
-                with_block: dict[str, Any] = raw_with if isinstance(raw_with, dict) else {}
-                if uses.startswith("aws-actions/configure-aws-credentials") and "role-to-assume" in with_block:
-                    return True
-                if uses.startswith("google-github-actions/auth") and "workload_identity_provider" in with_block:
-                    return True
-                # azure/login with client-id (not creds) indicates OIDC federation
-                if uses.startswith("azure/login") and "client-id" in with_block and "creds" not in with_block:
-                    return True
-    return False
+            if isinstance(job, dict) and _is_self_hosted_runs_on(job.get("runs-on")):
+                result.pr_self_hosted_runner_paths.append(path)
+                break
+    for job_name, job in jobs.items():
+        if not isinstance(job, dict):
+            continue
+        if (
+            isinstance(job.get("uses"), str)
+            and job.get("secrets") == "inherit"
+            and path not in result.reusable_secrets_inherit_paths
+        ):
+            result.reusable_secrets_inherit_paths.append(path)
+        _classify_job_permissions(str(job_name), job, path, result)
+    _collect_implicit_permission_risks(data, path, result.implicit_permission_risks)
 
 
-def analyze_workflows(repo_root: Path) -> WorkflowAnalysis:  # noqa: C901
+def _scan_workflow_parsed(data: dict[str, Any], raw: str, path: Path, result: WorkflowAnalysis) -> None:
+    """Parsed-dict signals: permissions, jobs, mutable refs, release + cloud-deploy posture."""
+
+    _classify_top_level_permissions(data, path, result)
+    _scan_uses_for_mutable(raw, path, result.mutable_action_refs)
+    jobs = data.get("jobs")
+    if isinstance(jobs, dict):
+        _scan_workflow_jobs(jobs, data, raw, path, result)
+    if _detect_release_workflow(data, raw):
+        result.release_workflow_paths.append(path)
+        if "concurrency" not in data:
+            result.release_workflows_missing_concurrency.append(path)
+    if re.search(
+        r"aws-actions/configure-aws-credentials|azure/login|google-github-actions/auth|gcloud auth|kubectl|helm",
+        raw,
+        re.IGNORECASE,
+    ):
+        result.cloud_deploy_workflow_paths.append(path)
+        if _workflow_has_oidc_posture(raw, data):
+            result.cloud_deploy_with_oidc_paths.append(path)
+
+
+def _analyze_one_workflow(path: Path, result: WorkflowAnalysis, signal_acc: set[str]) -> None:
+    result.workflow_paths.append(path)
+    raw = path.read_text(encoding="utf-8", errors="replace")
+    _scan_workflow_raw(raw, path, result, signal_acc)
+    try:
+        data: Any = load_yaml_file(path)
+    except Exception as exc:  # noqa: BLE001 - surface parse error without crashing engine
+        result.parse_errors.append((path, str(exc)))
+        _scan_uses_for_mutable(raw, path, result.mutable_action_refs)
+        return
+    if not isinstance(data, dict):
+        result.parse_errors.append((path, "workflow root must be a mapping"))
+        _scan_uses_for_mutable(raw, path, result.mutable_action_refs)
+        return
+    _scan_workflow_parsed(data, raw, path, result)
+
+
+def analyze_workflows(repo_root: Path) -> WorkflowAnalysis:
     """Scan `.github/workflows` for static patterns."""
 
     result = WorkflowAnalysis()
@@ -384,107 +544,8 @@ def analyze_workflows(repo_root: Path) -> WorkflowAnalysis:  # noqa: C901
 
     signal_acc: set[str] = set()
     for path in sorted(wf_dir.glob("*.yml")) + sorted(wf_dir.glob("*.yaml")):
-        result.workflow_paths.append(path)
-        raw = path.read_text(encoding="utf-8", errors="replace")
-
-        if _content_has_token(raw, "pull_request_target"):
-            result.uses_pull_request_target.append(path)
-
-        signal_acc.update(_collect_sast_ci_signals(raw))
-        if re.search(r"dependency-review-action", raw, re.IGNORECASE) or re.search(
-            r"advanced-security\/dependency-review-action", raw, re.IGNORECASE
-        ):
-            result.has_dependency_review = True
-        if re.search(
-            r"actions/attest-build-provenance|actions/attest\b|slsa|provenance|attestation"
-            r"|slsa-framework/slsa-github-generator|sigstore/cosign-installer|cosign\s+sign",
-            raw,
-            re.IGNORECASE,
-        ):
-            result.has_artifact_attestation = True
-
-        if (
-            re.search(
-                r"(?m)(^\s*merge_group:\s*$|merge-queue|github\s+merge\s+queue)",
-                raw,
-                re.IGNORECASE,
-            )
-            and path not in result.merge_queue_signal_paths
-        ):
-            result.merge_queue_signal_paths.append(path)
-        _scan_reusable_workflow_pins(
-            raw,
-            path,
-            mutable_out=result.reusable_workflow_mutable_ref_paths,
-            call_out=result.reusable_workflow_call_paths,
-        )
-
-        try:
-            data: Any = load_yaml_file(path)
-        except Exception as exc:  # noqa: BLE001 - surface parse error without crashing engine
-            result.parse_errors.append((path, str(exc)))
-            _scan_uses_for_mutable(raw, path, result.mutable_action_refs)
-            continue
-
-        if not isinstance(data, dict):
-            result.parse_errors.append((path, "workflow root must be a mapping"))
-            _scan_uses_for_mutable(raw, path, result.mutable_action_refs)
-            continue
-
-        if "permissions" not in data:
-            result.missing_top_level_permissions.append(path)
-
-        perms = data.get("permissions")
-        if perms == "write-all" or perms == "read-all":
-            result.suspicious_permissions.append((path, str(perms)))
-        elif isinstance(perms, dict) and perms.get("contents") == "write":
-            result.suspicious_permissions.append((path, "contents: write at workflow level"))
-
-        _scan_uses_for_mutable(raw, path, result.mutable_action_refs)
-
-        jobs = data.get("jobs")
-        if isinstance(jobs, dict):
-            if _contains_pr_event(data, raw):
-                for job in jobs.values():
-                    if isinstance(job, dict) and _is_self_hosted_runs_on(job.get("runs-on")):
-                        result.pr_self_hosted_runner_paths.append(path)
-                        break
-
-            for job_name, job in jobs.items():
-                if not isinstance(job, dict):
-                    continue
-                if (
-                    isinstance(job.get("uses"), str)
-                    and job.get("secrets") == "inherit"
-                    and path not in result.reusable_secrets_inherit_paths
-                ):
-                    result.reusable_secrets_inherit_paths.append(path)
-                jperms = job.get("permissions")
-                if jperms == "write-all":
-                    result.broad_job_permissions.append((path, f"{job_name}: write-all"))
-                elif isinstance(jperms, dict):
-                    for scope in ("contents", "actions", "packages", "deployments"):
-                        if str(jperms.get(scope, "")).lower() == "write":
-                            result.broad_job_permissions.append((path, f"{job_name}: {scope}=write"))
-                            break
-
-            _collect_implicit_permission_risks(data, path, result.implicit_permission_risks)
-
-        if _detect_release_workflow(data, raw):
-            result.release_workflow_paths.append(path)
-            if "concurrency" not in data:
-                result.release_workflows_missing_concurrency.append(path)
-
-        if re.search(
-            r"aws-actions/configure-aws-credentials|azure/login|google-github-actions/auth|gcloud auth|kubectl|helm",
-            raw,
-            re.IGNORECASE,
-        ):
-            result.cloud_deploy_workflow_paths.append(path)
-            if _workflow_has_oidc_posture(raw, data):
-                result.cloud_deploy_with_oidc_paths.append(path)
+        _analyze_one_workflow(path, result, signal_acc)
 
     result.sast_ci_signals = sorted(signal_acc)
     result.has_codeql_or_security_scan = bool(signal_acc)
-
     return result

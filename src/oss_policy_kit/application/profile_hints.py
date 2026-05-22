@@ -151,38 +151,40 @@ def _append_signal(signals: list[dict[str, str]], sig_id: str, detail: str) -> N
     signals.append({"id": sig_id, "detail": detail})
 
 
-def _collect_tech_stack_signals(  # noqa: C901
-    repo_root: Path,
-) -> tuple[list[dict[str, str]], list[str], bool, str | None]:
-    """Detect common language/runtime markers; returns signals, notes, Dockerfile->L2 flag, primary stack label."""
-
-    found: list[dict[str, str]] = []
-    notes: list[str] = []
-    prefer_l2 = False
-    primary: str | None = None
+def _detect_container_stack(repo_root: Path, found: list[dict[str, str]]) -> bool:
+    """Append a container signal when a Dockerfile/compose is present; return prefer-L2 flag."""
 
     if (
         (repo_root / "Dockerfile").is_file()
         or (repo_root / "docker-compose.yml").is_file()
         or (repo_root / "docker-compose.yaml").is_file()
     ):
-        prefer_l2 = True
         _append_signal(
             found,
             "container_docker",
             "Container workload detected via Dockerfile or docker-compose.",
         )
+        return True
+    return False
 
-    if (repo_root / "package.json").is_file():
-        primary = primary or "Node.js"
-        _append_signal(found, "node_js", "Node.js project detected via package.json")
-        if any((repo_root / name).is_file() for name in ("package-lock.json", "yarn.lock", "pnpm-lock.yaml")):
-            _append_signal(found, "node_lockfile", "Node lockfile present (reproducible installs).")
-        else:
-            notes.append("Add package-lock.json or yarn.lock to enable reproducible builds.")
+
+def _detect_node_stack(repo_root: Path, found: list[dict[str, str]], notes: list[str]) -> str | None:
+    """Append Node.js signals/notes; return the primary stack label or None."""
+
+    if not (repo_root / "package.json").is_file():
+        return None
+    _append_signal(found, "node_js", "Node.js project detected via package.json")
+    if any((repo_root / name).is_file() for name in ("package-lock.json", "yarn.lock", "pnpm-lock.yaml")):
+        _append_signal(found, "node_lockfile", "Node lockfile present (reproducible installs).")
+    else:
+        notes.append("Add package-lock.json or yarn.lock to enable reproducible builds.")
+    return "Node.js"
+
+
+def _detect_python_stack(repo_root: Path, found: list[dict[str, str]], notes: list[str]) -> str | None:
+    """Append Python signals/notes; return the primary stack label or None."""
 
     if (repo_root / "pyproject.toml").is_file():
-        primary = primary or "Python"
         _append_signal(found, "python_pyproject", "Python project detected via pyproject.toml")
         try:
             body = (repo_root / "pyproject.toml").read_text(encoding="utf-8", errors="replace")
@@ -193,33 +195,54 @@ def _collect_tech_stack_signals(  # noqa: C901
             notes.append("Ruff is configured under pyproject.toml - align CI quality gates with the same rules.")
         if "[tool.mypy]" in body or "python -m mypy" in bl:
             notes.append("Mypy is referenced - keep static type checks in CI for stronger supply-chain posture.")
-    elif (repo_root / "requirements.txt").is_file():
-        primary = primary or "Python"
+        return "Python"
+    if (repo_root / "requirements.txt").is_file():
         _append_signal(found, "python_requirements", "Python project detected via requirements.txt")
-    elif (repo_root / "setup.py").is_file() or (repo_root / "setup.cfg").is_file():
-        primary = primary or "Python"
+        return "Python"
+    if (repo_root / "setup.py").is_file() or (repo_root / "setup.cfg").is_file():
         _append_signal(found, "python_setup", "Python project detected via setup.py/setup.cfg")
+        return "Python"
+    return None
 
-    if (repo_root / "go.mod").is_file():
-        primary = primary or "Go"
-        _append_signal(found, "go_module", "Go module detected via go.mod")
 
-    if (repo_root / "pom.xml").is_file():
-        primary = primary or "Java/Maven"
-        _append_signal(found, "java_maven", "Java/Maven project detected via pom.xml")
+# (marker filenames, primary label, signal id, signal detail) for single-file stacks.
+_SIMPLE_STACK_MARKERS: tuple[tuple[tuple[str, ...], str, str, str], ...] = (
+    (("go.mod",), "Go", "go_module", "Go module detected via go.mod"),
+    (("pom.xml",), "Java/Maven", "java_maven", "Java/Maven project detected via pom.xml"),
+    (
+        ("build.gradle", "build.gradle.kts"),
+        "Java/Kotlin (Gradle)",
+        "java_gradle",
+        "Java/Kotlin project detected via build.gradle",
+    ),
+    (("Cargo.toml",), "Rust", "rust_cargo", "Rust project detected via Cargo.toml"),
+)
 
-    if (repo_root / "build.gradle").is_file() or (repo_root / "build.gradle.kts").is_file():
-        primary = primary or "Java/Kotlin (Gradle)"
-        _append_signal(found, "java_gradle", "Java/Kotlin project detected via build.gradle")
 
-    if (repo_root / "Cargo.toml").is_file():
-        primary = primary or "Rust"
-        _append_signal(found, "rust_cargo", "Rust project detected via Cargo.toml")
+def _detect_simple_stacks(repo_root: Path, found: list[dict[str, str]], primary: str | None) -> str | None:
+    """Append signals for single-file language markers; return the first primary label seen."""
 
+    for markers, label, sig_id, detail in _SIMPLE_STACK_MARKERS:
+        if any((repo_root / m).is_file() for m in markers):
+            primary = primary or label
+            _append_signal(found, sig_id, detail)
     if list(repo_root.glob("*.csproj")) or list(repo_root.glob("*.sln")):
         primary = primary or "C#/.NET"
         _append_signal(found, "dotnet_csproj", "C#/.NET project detected via .csproj or .sln")
+    return primary
 
+
+def _collect_tech_stack_signals(
+    repo_root: Path,
+) -> tuple[list[dict[str, str]], list[str], bool, str | None]:
+    """Detect common language/runtime markers; returns signals, notes, Dockerfile->L2 flag, primary stack label."""
+
+    found: list[dict[str, str]] = []
+    notes: list[str] = []
+    prefer_l2 = _detect_container_stack(repo_root, found)
+    primary = _detect_node_stack(repo_root, found, notes)
+    primary = primary or _detect_python_stack(repo_root, found, notes)
+    primary = _detect_simple_stacks(repo_root, found, primary)
     return found, notes, prefer_l2, primary
 
 
@@ -315,174 +338,204 @@ def _collect_signals(
     return signals
 
 
-def _suggestions_for_platform(  # noqa: C901
-    platform: str,
+def _append_gh_release_hardening(
+    out: list[tuple[int, str, str, list[str]]],
+    *,
+    can_rh2: bool,
+    can_rh1: bool,
+    wf_paths: list[Path],
+    github_ev: list[Path],
+) -> None:
+    """Append the GitHub release-hardening-2/-1 suggestion when its signals are present."""
+
+    if can_rh2:
+        gh_keys = ("github_actions_workflows", "github_evidence_json_files")
+        bo = [x for x in gh_keys if _bo_hit(x, wf_paths, github_ev)]
+        if not bo:
+            bo = ["github_actions_workflows"] if wf_paths else ["github_evidence_json_files"]
+        out.append(
+            (
+                300,
+                "github-release-hardening-2",
+                (
+                    "GitHub Actions workflows AND GitHub-shaped release evidence JSON are both "
+                    "present; evaluate declared release posture with github-release-hardening-2 "
+                    "(verify evidence JSONs are filled, not templates)."
+                ),
+                _normalize_based_on(bo, wf_paths, github_ev),
+            )
+        )
+    elif can_rh1:
+        out.append(
+            (
+                290,
+                "github-release-hardening-1",
+                (
+                    "Evidence directory is empty but GitHub workflows exist; "
+                    "add GitHub evidence JSON, then use release-hardening-1 as a starting ladder."
+                ),
+                ["evidence_dir_empty", "github_actions_workflows"],
+            )
+        )
+
+
+def _suggestions_github(
     *,
     wf_paths: list[Path],
+    github_ev: list[Path],
     az_paths: list[Path],
     buildspec: bool,
-    ev_dir: Path,
-    ev_json: list[Path],
-    github_ev: list[Path],
-    azure_ev: list[Path],
-    aws_ev: list[Path],
+    empty_evidence_dir: bool,
 ) -> list[tuple[int, str, str, list[str]]]:
-    """Return (priority, profile_id, rationale, based_on) for one platform, in user-facing order."""
+    """GitHub-platform profile suggestions (see _suggestions_for_platform)."""
 
     out: list[tuple[int, str, str, list[str]]] = []
-    empty_evidence_dir = ev_dir.is_dir() and not ev_json
+    # release-hardening-2 requires BOTH a CI signal AND release-shaped evidence
+    # (M-005): a single intentionally-unsafe workflow alone is not justification
+    # to recommend a release-track profile.
+    can_rh2 = bool(wf_paths) and bool(github_ev)
+    can_rh1 = empty_evidence_dir and bool(wf_paths) and not github_ev
+    if wf_paths and not github_ev:
+        out.append(
+            (
+                320,
+                "github-level-1",
+                (
+                    "GitHub workflows are visible but release evidence is not present yet; "
+                    "start with github-level-1 and escalate after evidence maturity."
+                ),
+                ["github_actions_workflows"],
+            )
+        )
+    _append_gh_release_hardening(
+        out, can_rh2=can_rh2, can_rh1=can_rh1, wf_paths=wf_paths, github_ev=github_ev
+    )
+    if wf_paths and github_ev:
+        tier = "github-level-2" if len(wf_paths) >= 2 else "github-level-1"
+        out.append(
+            (
+                200,
+                tier,
+                (
+                    "GitHub Actions workflows are visible in the clone; pick a GitHub ladder profile "
+                    "that matches your desired strictness."
+                ),
+                ["github_actions_workflows"],
+            )
+        )
+    # MELHORIA-001 / F-001: evidence files for GitHub exist but NO CI signal
+    # in the clone (and no other platform's CI either). Surface a weak
+    # suggestion + explicit rationale. If another platform (Azure / AWS) has
+    # CI signals, suppress this fallback — the adopter is clearly on that
+    # platform, and a GitHub recommendation would be misleading.
+    no_other_ci = not az_paths and not buildspec
+    if github_ev and not wf_paths and no_other_ci:
+        # Suggest the starter ladder (github-level-1), not release-hardening:
+        # the adopter clearly lacks CI altogether, so release-track guidance
+        # would be misleading. The rationale explains that the evidence is
+        # currently unused. Keeps consistency with M-005 (no release-hardening
+        # without CI signal).
+        out.append(
+            (
+                150,
+                "github-level-1",
+                (
+                    "GitHub-shaped evidence JSON files were found but no .github/workflows/ "
+                    "files exist in this clone. The evidence is currently unused — start "
+                    "from github-level-1 and add a workflow first (or confirm you are "
+                    "pointing --target at the correct repository root), then re-run "
+                    "recommend-profile to graduate to a release-hardening profile."
+                ),
+                ["github_evidence_json_files"],
+            )
+        )
+    return out
 
-    if platform == "github":
-        # release-hardening-2 requires BOTH a CI signal AND release-shaped evidence
-        # (M-005): a single intentionally-unsafe workflow alone is not justification
-        # to recommend a release-track profile.
-        can_rh2 = bool(wf_paths) and bool(github_ev)
-        can_rh1 = empty_evidence_dir and bool(wf_paths) and not github_ev
-        if wf_paths and not github_ev:
-            out.append(
-                (
-                    320,
-                    "github-level-1",
-                    (
-                        "GitHub workflows are visible but release evidence is not present yet; "
-                        "start with github-level-1 and escalate after evidence maturity."
-                    ),
-                    ["github_actions_workflows"],
-                )
-            )
-        if can_rh2:
-            gh_keys = ("github_actions_workflows", "github_evidence_json_files")
-            bo = [x for x in gh_keys if _bo_hit(x, wf_paths, github_ev)]
-            if not bo:
-                bo = ["github_actions_workflows"] if wf_paths else ["github_evidence_json_files"]
-            out.append(
-                (
-                    300,
-                    "github-release-hardening-2",
-                    (
-                        "GitHub Actions workflows AND GitHub-shaped release evidence JSON are both "
-                        "present; evaluate declared release posture with github-release-hardening-2 "
-                        "(verify evidence JSONs are filled, not templates)."
-                    ),
-                    _normalize_based_on(bo, wf_paths, github_ev),
-                )
-            )
-        elif can_rh1:
-            out.append(
-                (
-                    290,
-                    "github-release-hardening-1",
-                    (
-                        "Evidence directory is empty but GitHub workflows exist; "
-                        "add GitHub evidence JSON, then use release-hardening-1 as a starting ladder."
-                    ),
-                    ["evidence_dir_empty", "github_actions_workflows"],
-                )
-            )
-        if wf_paths and github_ev:
-            tier = "github-level-2" if len(wf_paths) >= 2 else "github-level-1"
-            out.append(
-                (
-                    200,
-                    tier,
-                    (
-                        "GitHub Actions workflows are visible in the clone; pick a GitHub ladder profile "
-                        "that matches your desired strictness."
-                    ),
-                    ["github_actions_workflows"],
-                )
-            )
-        # MELHORIA-001 / F-001: evidence files for GitHub exist but NO CI signal
-        # in the clone (and no other platform's CI either). Surface a weak
-        # suggestion + explicit rationale. If another platform (Azure / AWS) has
-        # CI signals, suppress this fallback — the adopter is clearly on that
-        # platform, and a GitHub recommendation would be misleading.
-        no_other_ci = not az_paths and not buildspec
-        if github_ev and not wf_paths and no_other_ci:
-            # Suggest the starter ladder (github-level-1), not release-hardening:
-            # the adopter clearly lacks CI altogether, so release-track guidance
-            # would be misleading. The rationale explains that the evidence is
-            # currently unused. Keeps consistency with M-005 (no release-hardening
-            # without CI signal).
-            out.append(
-                (
-                    150,
-                    "github-level-1",
-                    (
-                        "GitHub-shaped evidence JSON files were found but no .github/workflows/ "
-                        "files exist in this clone. The evidence is currently unused — start "
-                        "from github-level-1 and add a workflow first (or confirm you are "
-                        "pointing --target at the correct repository root), then re-run "
-                        "recommend-profile to graduate to a release-hardening profile."
-                    ),
-                    ["github_evidence_json_files"],
-                )
-            )
-        return out
 
-    if platform == "azure":
-        # See github branch above: BOTH signals required for release-hardening-2 (M-005).
-        can_rh2 = bool(az_paths) and bool(azure_ev)
-        can_rh1 = empty_evidence_dir and bool(az_paths) and not azure_ev
-        if can_rh2:
-            az_keys = ("azure_pipelines_yaml", "azure_evidence_json_files")
-            bo = [x for x in az_keys if _bo_hit_az(x, az_paths, azure_ev)]
-            if not bo:
-                bo = ["azure_pipelines_yaml"] if az_paths else ["azure_evidence_json_files"]
-            out.append(
-                (
-                    300,
-                    "azure-release-hardening-2",
-                    (
-                        "Azure Pipelines YAML AND Azure-shaped release evidence JSON are both "
-                        "present; evaluate declared release posture with azure-release-hardening-2 "
-                        "(verify evidence JSONs are filled, not templates)."
-                    ),
-                    _normalize_based_on_az(bo, az_paths, azure_ev),
-                )
-            )
-        elif can_rh1:
-            out.append(
-                (
-                    290,
-                    "azure-release-hardening-1",
-                    (
-                        "Evidence directory is empty but Azure Pipelines YAML exists; "
-                        "add Azure evidence JSON, then use azure-release-hardening-1 as a starting ladder."
-                    ),
-                    ["evidence_dir_empty", "azure_pipelines_yaml"],
-                )
-            )
-        if az_paths:
-            out.append(
-                (
-                    200,
-                    "azure-level-1",
-                    "Azure Pipelines definitions are present; evaluate clone-visible Azure CI governance.",
-                    ["azure_pipelines_yaml"],
-                )
-            )
-        # MELHORIA-001 / F-001: Azure evidence without Azure Pipelines (and
-        # no other platform's CI), see the GitHub branch above.
-        no_other_ci = not wf_paths and not buildspec
-        if azure_ev and not az_paths and no_other_ci:
-            out.append(
-                (
-                    150,
-                    "azure-level-1",
-                    (
-                        "Azure-shaped evidence JSON files were found but no Azure Pipelines YAML "
-                        "exists in this clone. The evidence is currently unused — start from "
-                        "azure-level-1 and add a pipeline first (or confirm you are pointing "
-                        "--target at the correct repository root), then re-run recommend-profile "
-                        "to graduate to a release-hardening profile."
-                    ),
-                    ["azure_evidence_json_files"],
-                )
-            )
-        return out
+def _suggestions_azure(
+    *,
+    az_paths: list[Path],
+    azure_ev: list[Path],
+    wf_paths: list[Path],
+    buildspec: bool,
+    empty_evidence_dir: bool,
+) -> list[tuple[int, str, str, list[str]]]:
+    """Azure-platform profile suggestions (see _suggestions_for_platform)."""
 
-    # aws
+    out: list[tuple[int, str, str, list[str]]] = []
+    # See github branch above: BOTH signals required for release-hardening-2 (M-005).
+    can_rh2 = bool(az_paths) and bool(azure_ev)
+    can_rh1 = empty_evidence_dir and bool(az_paths) and not azure_ev
+    if can_rh2:
+        az_keys = ("azure_pipelines_yaml", "azure_evidence_json_files")
+        bo = [x for x in az_keys if _bo_hit_az(x, az_paths, azure_ev)]
+        if not bo:
+            bo = ["azure_pipelines_yaml"] if az_paths else ["azure_evidence_json_files"]
+        out.append(
+            (
+                300,
+                "azure-release-hardening-2",
+                (
+                    "Azure Pipelines YAML AND Azure-shaped release evidence JSON are both "
+                    "present; evaluate declared release posture with azure-release-hardening-2 "
+                    "(verify evidence JSONs are filled, not templates)."
+                ),
+                _normalize_based_on_az(bo, az_paths, azure_ev),
+            )
+        )
+    elif can_rh1:
+        out.append(
+            (
+                290,
+                "azure-release-hardening-1",
+                (
+                    "Evidence directory is empty but Azure Pipelines YAML exists; "
+                    "add Azure evidence JSON, then use azure-release-hardening-1 as a starting ladder."
+                ),
+                ["evidence_dir_empty", "azure_pipelines_yaml"],
+            )
+        )
+    if az_paths:
+        out.append(
+            (
+                200,
+                "azure-level-1",
+                "Azure Pipelines definitions are present; evaluate clone-visible Azure CI governance.",
+                ["azure_pipelines_yaml"],
+            )
+        )
+    # MELHORIA-001 / F-001: Azure evidence without Azure Pipelines (and
+    # no other platform's CI), see the GitHub branch above.
+    no_other_ci = not wf_paths and not buildspec
+    if azure_ev and not az_paths and no_other_ci:
+        out.append(
+            (
+                150,
+                "azure-level-1",
+                (
+                    "Azure-shaped evidence JSON files were found but no Azure Pipelines YAML "
+                    "exists in this clone. The evidence is currently unused — start from "
+                    "azure-level-1 and add a pipeline first (or confirm you are pointing "
+                    "--target at the correct repository root), then re-run recommend-profile "
+                    "to graduate to a release-hardening profile."
+                ),
+                ["azure_evidence_json_files"],
+            )
+        )
+    return out
+
+
+def _suggestions_aws(
+    *,
+    buildspec: bool,
+    aws_ev: list[Path],
+    wf_paths: list[Path],
+    az_paths: list[Path],
+    empty_evidence_dir: bool,
+) -> list[tuple[int, str, str, list[str]]]:
+    """AWS-platform profile suggestions (see _suggestions_for_platform)."""
+
+    out: list[tuple[int, str, str, list[str]]] = []
     # See github branch above: BOTH signals required for release-hardening-2 (M-005).
     can_rh2 = bool(buildspec) and bool(aws_ev)
     can_rh1 = empty_evidence_dir and bool(buildspec) and not aws_ev
@@ -545,6 +598,45 @@ def _suggestions_for_platform(  # noqa: C901
     return out
 
 
+def _suggestions_for_platform(
+    platform: str,
+    *,
+    wf_paths: list[Path],
+    az_paths: list[Path],
+    buildspec: bool,
+    ev_dir: Path,
+    ev_json: list[Path],
+    github_ev: list[Path],
+    azure_ev: list[Path],
+    aws_ev: list[Path],
+) -> list[tuple[int, str, str, list[str]]]:
+    """Return (priority, profile_id, rationale, based_on) for one platform, in user-facing order."""
+
+    empty_evidence_dir = ev_dir.is_dir() and not ev_json
+    if platform == "github":
+        return _suggestions_github(
+            wf_paths=wf_paths,
+            github_ev=github_ev,
+            az_paths=az_paths,
+            buildspec=buildspec,
+            empty_evidence_dir=empty_evidence_dir,
+        )
+    if platform == "azure":
+        return _suggestions_azure(
+            az_paths=az_paths,
+            azure_ev=azure_ev,
+            wf_paths=wf_paths,
+            buildspec=buildspec,
+            empty_evidence_dir=empty_evidence_dir,
+        )
+    return _suggestions_aws(
+        buildspec=buildspec,
+        aws_ev=aws_ev,
+        wf_paths=wf_paths,
+        az_paths=az_paths,
+        empty_evidence_dir=empty_evidence_dir,
+    )
+
 def _bo_hit(name: str, wf_paths: list[Path], github_ev: list[Path]) -> bool:
     if name == "github_actions_workflows":
         return bool(wf_paths)
@@ -596,7 +688,141 @@ def _normalize_based_on_aws(bo: list[str], buildspec: bool, aws_ev: list[Path]) 
     return out
 
 
-def build_profile_recommendation(repo_root: Path) -> ProfileRecommendation:  # noqa: C901
+def _merge_platform_suggestions(
+    order: list[str],
+    *,
+    wf_paths: list[Path],
+    az_paths: list[Path],
+    buildspec: bool,
+    ev_dir: Path,
+    ev_json: list[Path],
+    github_ev: list[Path],
+    azure_ev: list[Path],
+    aws_ev: list[Path],
+) -> list[dict[str, Any]]:
+    """Collect, rank, and de-duplicate per-platform suggestions (top 3)."""
+
+    merged: list[tuple[int, int, str, str, list[str]]] = []
+    for order_idx, plat in enumerate(order):
+        for prio, pid, rationale, based_on in _suggestions_for_platform(
+            plat,
+            wf_paths=wf_paths,
+            az_paths=az_paths,
+            buildspec=buildspec,
+            ev_dir=ev_dir,
+            ev_json=ev_json,
+            github_ev=github_ev,
+            azure_ev=azure_ev,
+            aws_ev=aws_ev,
+        ):
+            merged.append((prio, order_idx, pid, rationale, based_on))
+
+    merged.sort(key=lambda t: (-t[0], t[1]))
+    suggestions: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for _prio, _order_idx, pid, rationale, based_on in merged:
+        if pid in seen or len(suggestions) >= 3:
+            continue
+        suggestions.append({"profile_id": pid, "rationale": rationale, "based_on": list(dict.fromkeys(based_on))})
+        seen.add(pid)
+    return suggestions
+
+
+def _multi_platform_notes(order: list[str]) -> list[str]:
+    """Notes explaining ranked multi-platform CI detection (empty for 0/1 platform)."""
+
+    if len(order) <= 1:
+        return []
+    primary = order[0]
+    pretty = {"github": "GitHub Actions", "azure": "Azure Pipelines", "aws": "AWS CodeBuild"}.get(primary, primary)
+    tail = ", ".join({"github": "GitHub", "azure": "Azure", "aws": "AWS"}.get(p, p) for p in order[1:])
+    return [
+        (
+            f"Multiple CI platforms detected in this clone (primary ranked: {pretty}; also: {tail}). "
+            "Profile suggestions prioritize the strongest platform signals first."
+        ),
+        (
+            "Pass --platform github | azure | aws (on `init`) or --profile <id> (on `evaluate`) "
+            "to override and fix the platform family yourself."
+        ),
+    ]
+
+
+def _no_platform_fallback(
+    *,
+    other_ev: list[Path],
+    wf_paths: list[Path],
+    az_paths: list[Path],
+    buildspec: bool,
+    github_ev: list[Path],
+    azure_ev: list[Path],
+    aws_ev: list[Path],
+    ev_dir: Path,
+    ev_json: list[Path],
+    prefer_l2_container: bool,
+    tech_ids: set[str],
+    tech_primary: str | None,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Suggestions + notes when no CI platform was detected at all."""
+
+    notes: list[str] = []
+    suggestions: list[dict[str, Any]] = []
+    if other_ev and not (wf_paths or az_paths or buildspec or github_ev or azure_ev or aws_ev):
+        notes.append(
+            "Evidence JSON uses non-bundled filenames; add platform-specific template names "
+            "(or CI signals) so release-hardening suggestions can align to GitHub, Azure, or AWS."
+        )
+    if ev_dir.is_dir() and not ev_json and not (wf_paths or az_paths or buildspec):
+        notes.append(
+            "An empty .oss-policy-kit/evidence/ directory was found without CI signals; "
+            "run scaffold-evidence for the correct platform or remove the folder if unused."
+        )
+    if prefer_l2_container or "container_docker" in tech_ids:
+        notes.append(
+            "Container workloads benefit from stricter workflow and supply-chain controls "
+            "(image provenance, pinned actions, SBOM signals) - github-level-2 is a stronger starting point."
+        )
+        suggestions.append(
+            {
+                "profile_id": "github-level-2",
+                "rationale": (
+                    "Container signals detected (Dockerfile / compose). github-level-2 is recommended "
+                    "as a baseline because it emphasizes CI workflow hardening and supply-chain adjacent "
+                    "checks relevant to container build and publish paths."
+                ),
+                "based_on": (["container_docker"] if "container_docker" in tech_ids else sorted(tech_ids)),
+            }
+        )
+    elif tech_ids:
+        stack = tech_primary or "application"
+        suggestions.append(
+            {
+                "profile_id": "github-level-1",
+                "rationale": (
+                    f"github-level-1 is recommended as a starting baseline for your {stack} project; "
+                    "it covers SAST, dependency audit, and governance signals relevant to typical CI pipelines."
+                ),
+                "based_on": sorted(tech_ids),
+            }
+        )
+    else:
+        notes.append(
+            "Few strong platform signals were detected; defaulting to a conservative GitHub baseline profile."
+        )
+        suggestions.append(
+            {
+                "profile_id": "github-level-1",
+                "rationale": (
+                    "No GitHub/Azure/AWS CI or bundled-shaped evidence JSON detected; "
+                    "github-level-1 is the safest default ladder."
+                ),
+                "based_on": [],
+            }
+        )
+    return suggestions, notes
+
+
+def build_profile_recommendation(repo_root: Path) -> ProfileRecommendation:
     """Inspect *repo_root* and return up to three profile suggestions with rationale."""
 
     wf_paths = _workflow_yaml_paths(repo_root)
@@ -620,102 +846,40 @@ def build_profile_recommendation(repo_root: Path) -> ProfileRecommendation:  # n
         aws_ev=aws_ev,
     )
 
-    merged: list[tuple[int, int, str, str, list[str]]] = []
-    for order_idx, plat in enumerate(order):
-        for prio, pid, rationale, based_on in _suggestions_for_platform(
-            plat,
-            wf_paths=wf_paths,
-            az_paths=az_paths,
-            buildspec=buildspec,
-            ev_dir=ev_dir,
-            ev_json=ev_json,
-            github_ev=github_ev,
-            azure_ev=azure_ev,
-            aws_ev=aws_ev,
-        ):
-            merged.append((prio, order_idx, pid, rationale, based_on))
+    suggestions = _merge_platform_suggestions(
+        order,
+        wf_paths=wf_paths,
+        az_paths=az_paths,
+        buildspec=buildspec,
+        ev_dir=ev_dir,
+        ev_json=ev_json,
+        github_ev=github_ev,
+        azure_ev=azure_ev,
+        aws_ev=aws_ev,
+    )
 
-    merged.sort(key=lambda t: (-t[0], t[1]))
-    suggestions: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for _prio, _order_idx, pid, rationale, based_on in merged:
-        if pid in seen:
-            continue
-        if len(suggestions) >= 3:
-            break
-        suggestions.append({"profile_id": pid, "rationale": rationale, "based_on": list(dict.fromkeys(based_on))})
-        seen.add(pid)
-
-    notes: list[str] = []
-    if len(order) > 1:
-        primary = order[0]
-        pretty = {"github": "GitHub Actions", "azure": "Azure Pipelines", "aws": "AWS CodeBuild"}.get(primary, primary)
-        tail = ", ".join({"github": "GitHub", "azure": "Azure", "aws": "AWS"}.get(p, p) for p in order[1:])
-        notes.append(
-            f"Multiple CI platforms detected in this clone (primary ranked: {pretty}; also: {tail}). "
-            "Profile suggestions prioritize the strongest platform signals first.",
-        )
-        notes.append(
-            "Pass --platform github | azure | aws (on `init`) or --profile <id> (on `evaluate`) "
-            "to override and fix the platform family yourself.",
-        )
+    notes = _multi_platform_notes(order)
     tech_ids = {s["id"] for s in tech_signals}
     if tech_notes:
         notes.extend(tech_notes)
 
     if not order:
-        if other_ev and not (wf_paths or az_paths or buildspec or github_ev or azure_ev or aws_ev):
-            notes.append(
-                "Evidence JSON uses non-bundled filenames; add platform-specific template names "
-                "(or CI signals) so release-hardening suggestions can align to GitHub, Azure, or AWS."
-            )
-        if ev_dir.is_dir() and not ev_json and not (wf_paths or az_paths or buildspec):
-            notes.append(
-                "An empty .oss-policy-kit/evidence/ directory was found without CI signals; "
-                "run scaffold-evidence for the correct platform or remove the folder if unused."
-            )
-        if prefer_l2_container or "container_docker" in tech_ids:
-            notes.append(
-                "Container workloads benefit from stricter workflow and supply-chain controls "
-                "(image provenance, pinned actions, SBOM signals) - github-level-2 is a stronger starting point."
-            )
-            suggestions.append(
-                {
-                    "profile_id": "github-level-2",
-                    "rationale": (
-                        "Container signals detected (Dockerfile / compose). github-level-2 is recommended "
-                        "as a baseline because it emphasizes CI workflow hardening and supply-chain adjacent "
-                        "checks relevant to container build and publish paths."
-                    ),
-                    "based_on": (["container_docker"] if "container_docker" in tech_ids else sorted(tech_ids)),
-                }
-            )
-        elif tech_ids:
-            stack = tech_primary or "application"
-            suggestions.append(
-                {
-                    "profile_id": "github-level-1",
-                    "rationale": (
-                        f"github-level-1 is recommended as a starting baseline for your {stack} project; "
-                        "it covers SAST, dependency audit, and governance signals relevant to typical CI pipelines."
-                    ),
-                    "based_on": sorted(tech_ids),
-                }
-            )
-        else:
-            notes.append(
-                "Few strong platform signals were detected; defaulting to a conservative GitHub baseline profile."
-            )
-            suggestions.append(
-                {
-                    "profile_id": "github-level-1",
-                    "rationale": (
-                        "No GitHub/Azure/AWS CI or bundled-shaped evidence JSON detected; "
-                        "github-level-1 is the safest default ladder."
-                    ),
-                    "based_on": [],
-                }
-            )
+        fb_suggestions, fb_notes = _no_platform_fallback(
+            other_ev=other_ev,
+            wf_paths=wf_paths,
+            az_paths=az_paths,
+            buildspec=buildspec,
+            github_ev=github_ev,
+            azure_ev=azure_ev,
+            aws_ev=aws_ev,
+            ev_dir=ev_dir,
+            ev_json=ev_json,
+            prefer_l2_container=prefer_l2_container,
+            tech_ids=tech_ids,
+            tech_primary=tech_primary,
+        )
+        suggestions.extend(fb_suggestions)
+        notes.extend(fb_notes)
 
     return ProfileRecommendation(signals_detected=signals, suggestions=suggestions, notes=notes)
 

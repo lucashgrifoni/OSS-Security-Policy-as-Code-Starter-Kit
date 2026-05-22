@@ -43,6 +43,8 @@ import yaml
 from oss_policy_kit.cli.common import app, stderr_console, write_stdout_text
 from oss_policy_kit.domain.errors import InvalidInputError
 
+_GITHUB_DIR = ".github"
+
 _DEFAULT_OUTPUT = Path("security-insights.yml")
 _INSIGHTS_SCHEMA_VERSION = "1.0.0"
 
@@ -100,10 +102,10 @@ def _security_md_email(security_md: Path | None) -> str | None:
 
 def _has_dependabot_or_renovate(root: Path) -> bool:
     return (
-        (root / ".github" / "dependabot.yml").is_file()
-        or (root / ".github" / "dependabot.yaml").is_file()
+        (root / _GITHUB_DIR / "dependabot.yml").is_file()
+        or (root / _GITHUB_DIR / "dependabot.yaml").is_file()
         or (root / "renovate.json").is_file()
-        or (root / ".github" / "renovate.json").is_file()
+        or (root / _GITHUB_DIR / "renovate.json").is_file()
         or (root / ".renovaterc").is_file()
         or (root / ".renovaterc.json").is_file()
     )

@@ -6,6 +6,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.table import Table
@@ -178,8 +179,78 @@ def scaffold_evidence_cmd(
         raise typer.Exit(code=2) from exc
 
 
+def _build_evidence_collector(
+    plat: str,
+    platform: str,
+    repo: Path,
+    repo_slug: str | None,
+) -> tuple[GitHubEvidenceCollector | AzureDevOpsEvidenceCollector | AWSEvidenceCollector, str]:
+    """Build the platform collector and resolve its repo slug (validates required credentials)."""
+
+    if plat == "github":
+        return _github_collector(repo, repo_slug)
+    if plat == "azure":
+        return _azure_collector(repo_slug)
+    if plat == "aws":
+        return _aws_collector(repo_slug)
+    raise InvalidInputError(f"Unsupported --platform {platform!r}; use github, azure, or aws.")
+
+
+def _github_collector(repo: Path, repo_slug: str | None) -> tuple[GitHubEvidenceCollector, str]:
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if not token:
+        raise OSError(
+            "GITHUB_TOKEN is not set. Export a token with permission to read the repository "
+            "(and security analysis where applicable)."
+        )
+    slug = (repo_slug or "").strip() or read_github_repo_slug_from_git_config(repo) or ""
+    if not slug:
+        raise InvalidInputError(
+            "Could not determine GitHub repo slug; pass --repo org/repo or add an origin remote pointing to GitHub."
+        )
+    return GitHubEvidenceCollector(token), slug
+
+
+def _azure_collector(repo_slug: str | None) -> tuple[AzureDevOpsEvidenceCollector, str]:
+    org = os.environ.get("AZURE_DEVOPS_ORG", "").strip()
+    pat = os.environ.get("AZURE_DEVOPS_TOKEN", "").strip()
+    if not org or not pat:
+        raise OSError(
+            "AZURE_DEVOPS_ORG and AZURE_DEVOPS_TOKEN must be set for Azure DevOps collection "
+            "(PAT with Code, Build, and Project read access)."
+        )
+    slug = (repo_slug or "").strip()
+    if not slug:
+        raise InvalidInputError("Azure DevOps requires --repo ProjectName/repoName (no automatic slug detection yet).")
+    return AzureDevOpsEvidenceCollector(organization=org, personal_access_token=pat), slug
+
+
+def _aws_collector(repo_slug: str | None) -> tuple[AWSEvidenceCollector, str]:
+    build_n = os.environ.get("AWS_CODEBUILD_PROJECT", "").strip()
+    pipe_n = os.environ.get("AWS_CODEPIPELINE_NAME", "").strip()
+    if not build_n and not pipe_n:
+        raise InvalidInputError("For AWS, set AWS_CODEBUILD_PROJECT and/or AWS_CODEPIPELINE_NAME in the environment.")
+    return AWSEvidenceCollector(), (repo_slug or "").strip()
+
+
+def _write_collected_evidence(rows: list[Any], *, plat: str, output_dir: Path | None, repo: Path) -> None:
+    """Write each collected evidence row to disk and print a summary table."""
+
+    table = Table(title=f"collect-evidence ({plat})", show_lines=True)
+    table.add_column("Evidence file", style="cyan", no_wrap=True)
+    table.add_column("Source", style="dim")
+    dest = (output_dir or (repo / ".oss-policy-kit" / "evidence")).resolve()
+    dest.mkdir(parents=True, exist_ok=True)
+    for row in rows:
+        out_path = dest / f"{row.evidence_key}.json"
+        out_path.write_text(json.dumps(row.data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        table.add_row(str(out_path.name), row.source_url)
+    stderr_console().print(table)
+    stderr_console().print(f"[green]Wrote[/green] {len(rows)} file(s) under {dest}")
+
+
 @app.command("collect-evidence")
-def collect_evidence_cmd(  # noqa: C901
+def collect_evidence_cmd(
     target: Path = typer.Option(..., "--target", "-t", help="Repository root path."),
     platform: str = typer.Option(
         ...,
@@ -225,66 +296,12 @@ def collect_evidence_cmd(  # noqa: C901
             )
             return
         repo = resolve_existing_dir(str(target))
-
-        collector: GitHubEvidenceCollector | AzureDevOpsEvidenceCollector | AWSEvidenceCollector
-        slug: str
-
-        if plat == "github":
-            token = os.environ.get("GITHUB_TOKEN", "").strip()
-            if not token:
-                raise OSError(
-                    "GITHUB_TOKEN is not set. Export a token with permission to read the repository "
-                    "(and security analysis where applicable)."
-                )
-            slug = (repo_slug or "").strip() or read_github_repo_slug_from_git_config(repo) or ""
-            if not slug:
-                raise InvalidInputError(
-                    "Could not determine GitHub repo slug; pass --repo org/repo or add an origin remote "
-                    "pointing to GitHub."
-                )
-            collector = GitHubEvidenceCollector(token)
-        elif plat == "azure":
-            org = os.environ.get("AZURE_DEVOPS_ORG", "").strip()
-            pat = os.environ.get("AZURE_DEVOPS_TOKEN", "").strip()
-            if not org or not pat:
-                raise OSError(
-                    "AZURE_DEVOPS_ORG and AZURE_DEVOPS_TOKEN must be set for Azure DevOps collection "
-                    "(PAT with Code, Build, and Project read access)."
-                )
-            slug = (repo_slug or "").strip()
-            if not slug:
-                raise InvalidInputError(
-                    "Azure DevOps requires --repo ProjectName/repoName (no automatic slug detection yet)."
-                )
-            collector = AzureDevOpsEvidenceCollector(organization=org, personal_access_token=pat)
-        elif plat == "aws":
-            build_n = os.environ.get("AWS_CODEBUILD_PROJECT", "").strip()
-            pipe_n = os.environ.get("AWS_CODEPIPELINE_NAME", "").strip()
-            slug = (repo_slug or "").strip()
-            if not build_n and not pipe_n:
-                raise InvalidInputError(
-                    "For AWS, set AWS_CODEBUILD_PROJECT and/or AWS_CODEPIPELINE_NAME in the environment."
-                )
-            collector = AWSEvidenceCollector()
-        else:
-            raise InvalidInputError(f"Unsupported --platform {platform!r}; use github, azure, or aws.")
-
+        collector, slug = _build_evidence_collector(plat, platform, repo, repo_slug)
         try:
             rows = collector.collect(slug)
         except ValueError as exc:
             raise InvalidInputError(str(exc)) from exc
-
-        table = Table(title=f"collect-evidence ({plat})", show_lines=True)
-        table.add_column("Evidence file", style="cyan", no_wrap=True)
-        table.add_column("Source", style="dim")
-        dest = (output_dir or (repo / ".oss-policy-kit" / "evidence")).resolve()
-        dest.mkdir(parents=True, exist_ok=True)
-        for row in rows:
-            out_path = dest / f"{row.evidence_key}.json"
-            out_path.write_text(json.dumps(row.data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-            table.add_row(str(out_path.name), row.source_url)
-        stderr_console().print(table)
-        stderr_console().print(f"[green]Wrote[/green] {len(rows)} file(s) under {dest}")
+        _write_collected_evidence(rows, plat=plat, output_dir=output_dir, repo=repo)
     except OSError as exc:
         stderr_console().print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=2) from exc

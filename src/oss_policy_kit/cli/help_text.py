@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+_EXIT_CODES_HEADING = "EXIT CODES"
+_EXIT_CODE_2_LINE = "  2  Invalid usage, missing input, or validation/load error."
+_EXIT_CODE_3_LINE = "  3  Unexpected internal error."
+
 ROOT_CLI_EPILOG = "\n\n".join(
     [
         "----------------------------------------------------------------------",
@@ -29,12 +33,12 @@ ROOT_CLI_EPILOG = "\n\n".join(
         "  python -m oss_policy_kit recommend-profile --target .",
         "",
         "----------------------------------------------------------------------",
-        "EXIT CODES",
+        _EXIT_CODES_HEADING,
         "----------------------------------------------------------------------",
         "  0  Success; fail-on threshold not violated (when --fail-on applies).",
         "  1  Evaluation finished; fail-on threshold violated.",
-        "  2  Invalid usage, missing input, or validation/load error.",
-        "  3  Unexpected internal error.",
+        _EXIT_CODE_2_LINE,
+        _EXIT_CODE_3_LINE,
         "",
         "----------------------------------------------------------------------",
         "WINDOWS",
@@ -75,12 +79,12 @@ EVALUATE_EPILOG = "\n\n".join(
         "             Operational warnings alone do NOT trigger this gate.",
         "",
         "----------------------------------------------------------------------",
-        "EXIT CODES",
+        _EXIT_CODES_HEADING,
         "----------------------------------------------------------------------",
         "  0  Evaluation completed; fail-on threshold not violated.",
         "  1  Evaluation completed; fail-on threshold violated.",
-        "  2  Invalid usage, missing input, or validation/load error.",
-        "  3  Unexpected internal error.",
+        _EXIT_CODE_2_LINE,
+        _EXIT_CODE_3_LINE,
     ]
 )
 
@@ -97,12 +101,12 @@ EVALUATE_MANY_EPILOG = "\n\n".join(
         "  python -m oss_policy_kit evaluate-many --target-root ./mono --profiles github-level-1 --skip-non-repos",
         "",
         "----------------------------------------------------------------------",
-        "EXIT CODES",
+        _EXIT_CODES_HEADING,
         "----------------------------------------------------------------------",
         "  0  Batch finished; fail-on threshold not violated (when --fail-on applies).",
         "  1  Batch finished; fail-on threshold violated.",
-        "  2  Invalid usage, missing input, or validation/load error.",
-        "  3  Unexpected internal error.",
+        _EXIT_CODE_2_LINE,
+        _EXIT_CODE_3_LINE,
         "",
         "----------------------------------------------------------------------",
         "TIPS",

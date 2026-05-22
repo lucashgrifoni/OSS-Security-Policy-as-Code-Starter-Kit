@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 
 import typer
 
@@ -21,14 +22,76 @@ from oss_policy_kit.infrastructure.k8s.scanner import (
     DEFAULT_INCLUDE_GLOBS,
     DEFAULT_TIMEOUT_SECONDS,
     EVIDENCE_FILENAME,
+    K8sScanOutcome,
     render_evidence_payload,
     run_scan,
     write_evidence,
 )
 
 
+def _emit_scan_k8s_human(outcome: K8sScanOutcome, evidence_path: Path) -> None:
+    """Write the human-format scan-k8s summary line plus helm/parse diagnostics to the console."""
+
+    write_stdout_text(
+        f"scan-k8s: {outcome.status} -- "
+        f"files={len(outcome.files_scanned)} "
+        f"helm_skipped={len(outcome.helm_templates_skipped)} "
+        f"findings={len(outcome.findings)} "
+        f"-> {evidence_path}\n",
+    )
+    if outcome.helm_render_attempted and not outcome.helm_available:
+        stderr_console().print(
+            "[yellow]--helm-render requested but the `helm` CLI was not on PATH[/yellow]; "
+            "scan continued without rendering charts. Install Helm 3.x to enable the pre-pass."
+        )
+    if outcome.helm_render_attempted and outcome.helm_render_errors:
+        stderr_console().print(
+            f"[yellow]{len(outcome.helm_render_errors)} chart(s) failed to render[/yellow]; "
+            "see helm_render_errors in the evidence file."
+        )
+    if outcome.helm_render_attempted and outcome.helm_charts_rendered:
+        stderr_console().print(
+            f"[green]Rendered {len(outcome.helm_charts_rendered)} Helm chart(s)[/green] "
+            "and merged the manifests into the scan."
+        )
+    if outcome.helm_templates_skipped:
+        stderr_console().print(
+            f"[yellow]{len(outcome.helm_templates_skipped)} Helm template(s) skipped[/yellow] "
+            "(contain {{ ... }} markers); pass --helm-render to render them before scanning."
+        )
+    if outcome.parse_errors:
+        stderr_console().print(
+            f"[yellow]{len(outcome.parse_errors)} file(s) failed to parse[/yellow]; "
+            "see diagnostics.parse_errors in the evidence file."
+        )
+
+
+def _run_scan_k8s(target: str, include: str, exclude: str, timeout: int, *, helm_render: bool, fmt: str) -> None:
+    """Resolve target, run the K8s scan, write evidence, and emit the chosen output format."""
+
+    repo = resolve_existing_dir(target)
+    include_tuple = tuple(g.strip() for g in include.split(",") if g.strip()) or DEFAULT_INCLUDE_GLOBS
+    exclude_tuple = tuple(g.strip() for g in exclude.split(",") if g.strip()) or None
+    outcome = run_scan(
+        repo,
+        include_globs=include_tuple,
+        exclude_globs=exclude_tuple,
+        timeout_seconds=timeout,
+        helm_render=helm_render,
+    )
+    payload = render_evidence_payload(outcome, target=repo)
+    evidence_path = write_evidence(payload, repo_root=repo, filename=EVIDENCE_FILENAME)
+    if outcome.status == "error":
+        stderr_console().print(f"[red]Kubernetes scan failed:[/red] see diagnostics in {evidence_path.name}.")
+        raise typer.Exit(code=2)
+    if fmt == "json":
+        sys.stdout.write(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+    else:
+        _emit_scan_k8s_human(outcome, evidence_path)
+
+
 @app.command("scan-k8s")
-def scan_k8s_cmd(  # noqa: C901
+def scan_k8s_cmd(
     target: str = typer.Option(
         ".",
         "--target",
@@ -80,64 +143,7 @@ def scan_k8s_cmd(  # noqa: C901
         raise typer.BadParameter("--format must be human or json.")
 
     try:
-        repo = resolve_existing_dir(target)
-        include_tuple = tuple(g.strip() for g in include.split(",") if g.strip())
-        if not include_tuple:
-            include_tuple = DEFAULT_INCLUDE_GLOBS
-        exclude_tuple = tuple(g.strip() for g in exclude.split(",") if g.strip()) or None
-
-        outcome = run_scan(
-            repo,
-            include_globs=include_tuple,
-            exclude_globs=exclude_tuple,
-            timeout_seconds=timeout,
-            helm_render=helm_render,
-        )
-        payload = render_evidence_payload(outcome, target=repo)
-        evidence_path = write_evidence(payload, repo_root=repo, filename=EVIDENCE_FILENAME)
-
-        if outcome.status == "error":
-            stderr_console().print(
-                f"[red]Kubernetes scan failed:[/red] see diagnostics in {evidence_path.name}.",
-            )
-            raise typer.Exit(code=2)
-
-        if fmt == "json":
-            sys.stdout.write(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
-        else:
-            write_stdout_text(
-                f"scan-k8s: {outcome.status} -- "
-                f"files={len(outcome.files_scanned)} "
-                f"helm_skipped={len(outcome.helm_templates_skipped)} "
-                f"findings={len(outcome.findings)} "
-                f"-> {evidence_path}\n",
-            )
-            if outcome.helm_render_attempted and not outcome.helm_available:
-                stderr_console().print(
-                    "[yellow]--helm-render requested but the `helm` CLI was not on PATH[/yellow]; "
-                    "scan continued without rendering charts. Install Helm 3.x to enable the pre-pass."
-                )
-            if outcome.helm_render_attempted and outcome.helm_render_errors:
-                stderr_console().print(
-                    f"[yellow]{len(outcome.helm_render_errors)} chart(s) failed to render[/yellow]; "
-                    "see helm_render_errors in the evidence file."
-                )
-            if outcome.helm_render_attempted and outcome.helm_charts_rendered:
-                stderr_console().print(
-                    f"[green]Rendered {len(outcome.helm_charts_rendered)} Helm chart(s)[/green] "
-                    "and merged the manifests into the scan."
-                )
-            if outcome.helm_templates_skipped:
-                stderr_console().print(
-                    f"[yellow]{len(outcome.helm_templates_skipped)} Helm template(s) skipped[/yellow] "
-                    "(contain {{ ... }} markers); pass --helm-render to render them before scanning."
-                )
-            if outcome.parse_errors:
-                stderr_console().print(
-                    f"[yellow]{len(outcome.parse_errors)} file(s) failed to parse[/yellow]; "
-                    "see diagnostics.parse_errors in the evidence file."
-                )
-
+        _run_scan_k8s(target, include, exclude, timeout, helm_render=helm_render, fmt=fmt)
     except OssPolicyKitError as exc:
         stderr_console().print(f"[red]Error:[/red] {exc.message}")
         raise typer.Exit(code=2) from exc

@@ -312,43 +312,38 @@ def scaffold_evidence_files(
     Unless *force* is True, existing files are left unchanged and listed under ``skipped``.
     """
 
-    plat = platform.lower().strip()
     attested = scaffold_attested_date_yyyy_mm_dd(today=today)
-    if plat == "github":
-        templates = {**_github_templates(attested), **_common_templates(attested, "github")}
-    elif plat == "azure":
-        templates = {**_azure_templates(attested), **_common_templates(attested, "azure-devops")}
-    elif plat == "aws":
-        templates = {**_aws_templates(attested), **_common_templates(attested, "aws-iam")}
-    else:
-        raise InvalidInputError("platform must be one of: github, azure, aws")
+    templates = _select_evidence_templates(platform.lower().strip(), attested)
 
     result = ScaffoldEvidenceResult()
     ev = repo_root / ".oss-policy-kit" / "evidence"
     ev.mkdir(parents=True, exist_ok=True)
 
     for name, payload in templates.items():
-        dest = ev / name
         text = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
-        if dest.is_file():
-            if not force:
-                result.skipped.append(dest)
-                continue
-            dest.write_text(text, encoding="utf-8")
-            result.overwritten.append(dest)
-        else:
-            dest.write_text(text, encoding="utf-8")
-            result.created.append(dest)
-
-    readme = ev / "README.md"
-    if readme.is_file():
-        if not force:
-            result.skipped.append(readme)
-        else:
-            readme.write_text(_README_BODY, encoding="utf-8")
-            result.overwritten.append(readme)
-    else:
-        readme.write_text(_README_BODY, encoding="utf-8")
-        result.created.append(readme)
-
+        _write_scaffold_file(ev / name, text, force=force, result=result)
+    _write_scaffold_file(ev / "README.md", _README_BODY, force=force, result=result)
     return result
+
+
+def _select_evidence_templates(plat: str, attested: str) -> dict[str, Any]:
+    """Return the JSON evidence templates for a platform (github/azure/aws)."""
+
+    if plat == "github":
+        return {**_github_templates(attested), **_common_templates(attested, "github")}
+    if plat == "azure":
+        return {**_azure_templates(attested), **_common_templates(attested, "azure-devops")}
+    if plat == "aws":
+        return {**_aws_templates(attested), **_common_templates(attested, "aws-iam")}
+    raise InvalidInputError("platform must be one of: github, azure, aws")
+
+
+def _write_scaffold_file(dest: Path, text: str, *, force: bool, result: ScaffoldEvidenceResult) -> None:
+    """Write one scaffold file, recording it under created/overwritten/skipped on ``result``."""
+
+    if dest.is_file() and not force:
+        result.skipped.append(dest)
+        return
+    bucket = result.overwritten if dest.is_file() else result.created
+    dest.write_text(text, encoding="utf-8")
+    bucket.append(dest)

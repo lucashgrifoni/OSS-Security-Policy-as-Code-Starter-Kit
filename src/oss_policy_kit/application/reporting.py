@@ -20,6 +20,9 @@ from oss_policy_kit.application.evidence_projection import (
 )
 from oss_policy_kit.domain.models import ControlResult, ControlStatus, ExecutionReport, LiveCollectionMetadata
 
+_REPORTS_V03_DIR = "reports/0.3"
+_REPORTS_V10_DIR = "reports/1.0"
+
 REPORT_JSON_SCHEMA_URL_V0_1 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.1"
 REPORT_JSON_SCHEMA_URL_V0_2 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.2"
 REPORT_JSON_SCHEMA_URL_V0_3 = "https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/0.3"
@@ -72,24 +75,24 @@ def _effective_schema_version(report: ExecutionReport, schema_version_override: 
         return REPORT_JSON_SCHEMA_URL_V0_1
     if "reports/0.2" in o or o.rstrip("/").endswith("0.2"):
         return REPORT_JSON_SCHEMA_URL_V0_2
-    if "reports/0.3" in o or o.rstrip("/").endswith("0.3"):
+    if _REPORTS_V03_DIR in o or o.rstrip("/").endswith("0.3"):
         return REPORT_JSON_SCHEMA_URL_V0_3
-    if "reports/1.0" in o or o.rstrip("/").endswith("1.0"):
+    if _REPORTS_V10_DIR in o or o.rstrip("/").endswith("1.0"):
         return REPORT_JSON_SCHEMA_URL_V1_0
     return report.schema_version
 
 
 def _emit_contract_v2(schema_version_effective: str) -> bool:
     # v0.2 and v0.3 share the same per-control extension fields (assurance, etc.).
-    return "reports/0.2" in schema_version_effective or "reports/0.3" in schema_version_effective
+    return "reports/0.2" in schema_version_effective or _REPORTS_V03_DIR in schema_version_effective
 
 
 def _emit_contract_v3(schema_version_effective: str) -> bool:
-    return "reports/0.3" in schema_version_effective
+    return _REPORTS_V03_DIR in schema_version_effective
 
 
 def _emit_contract_v1_0(schema_version_effective: str) -> bool:
-    return "reports/1.0" in schema_version_effective
+    return _REPORTS_V10_DIR in schema_version_effective
 
 
 def _emit_contract_v2_0(schema_version_effective: str) -> bool:
@@ -124,7 +127,7 @@ def compute_summary_by_gate_role(summary_by_status: dict[str, int]) -> dict[str,
 
 GATE_EXECUTION_MODEL_V1: dict[str, Any] = {
     "model_version": 1,
-    "report_contract": "reports/0.3",
+    "report_contract": _REPORTS_V03_DIR,
     "fail_on_semantics": {
         "none": {"exit_1_from_results": False},
         "fail": {
@@ -146,7 +149,7 @@ GATE_EXECUTION_MODEL_V1: dict[str, Any] = {
 
 GATE_EXECUTION_MODEL_V2: dict[str, Any] = {
     "model_version": 2,
-    "report_contract": "reports/1.0",
+    "report_contract": _REPORTS_V10_DIR,
     "fail_on_semantics": {
         "none": {"exit_1_from_results": False},
         "fail": {
@@ -173,7 +176,46 @@ _AZURE_PROFILE_PREFIX = "azure-"
 _AWS_PROFILE_PREFIX = "aws-"
 
 
-def derive_profile_metadata(profile_id: str) -> dict[str, Any]:  # noqa: C901
+def _profile_family(pid: str) -> str | None:
+    if pid.startswith(_GITHUB_PROFILE_PREFIX):
+        return "github"
+    if pid.startswith(_AZURE_PROFILE_PREFIX):
+        return "azure"
+    if pid.startswith(_AWS_PROFILE_PREFIX):
+        return "aws"
+    return None
+
+
+def _profile_level(pid: str) -> str | None:
+    for token in ("level-1", "level-2", "level-3"):
+        if token in pid:
+            return "L" + token.split("-", 1)[1]
+    return None
+
+
+def _profile_posture(pid: str) -> str | None:
+    if pid.startswith(("github-aws-", "github-azure-")):
+        return "multi_platform_advisory_hybrid"
+    if pid.endswith("-level-1") or pid.endswith("release-hardening-1"):
+        return "starter"
+    if pid.endswith("-level-2"):
+        return "advisory"
+    if pid.endswith("-level-3") or pid.endswith("release-hardening-3"):
+        return "hard_gate"
+    if pid.endswith("release-hardening-2"):
+        return "release_track"
+    return None
+
+
+def _recommended_gate(posture: str | None, is_release_track: bool) -> str | None:
+    if posture in {"starter", "release_track", "hard_gate"} or is_release_track:
+        return "--fail-on fail"
+    if posture in {"advisory", "multi_platform_advisory_hybrid"}:
+        return "--fail-on none"
+    return None
+
+
+def derive_profile_metadata(profile_id: str) -> dict[str, Any]:
     """Derive lightweight profile metadata from a profile id for reports/1.0.
 
     Falls back to ``None`` for fields that cannot be inferred from the id alone.
@@ -182,47 +224,14 @@ def derive_profile_metadata(profile_id: str) -> dict[str, Any]:  # noqa: C901
     """
 
     pid = profile_id.strip()
-    family: str | None = None
-    if pid.startswith(_GITHUB_PROFILE_PREFIX):
-        family = "github"
-    elif pid.startswith(_AZURE_PROFILE_PREFIX):
-        family = "azure"
-    elif pid.startswith(_AWS_PROFILE_PREFIX):
-        family = "aws"
-
-    level: str | None = None
-    for token in ("level-1", "level-2", "level-3"):
-        if token in pid:
-            level = "L" + token.split("-", 1)[1]
-            break
-
     is_release_track = "release-hardening" in pid
-
-    posture: str | None = None
-    is_hybrid = pid.startswith(("github-aws-", "github-azure-"))
-    if is_hybrid:
-        posture = "multi_platform_advisory_hybrid"
-    elif pid.endswith("-level-1") or pid.endswith("release-hardening-1"):
-        posture = "starter"
-    elif pid.endswith("-level-2"):
-        posture = "advisory"
-    elif pid.endswith("-level-3") or pid.endswith("release-hardening-3"):
-        posture = "hard_gate"
-    elif pid.endswith("release-hardening-2"):
-        posture = "release_track"
-
-    recommended_gate: str | None = None
-    if posture in {"starter", "release_track", "hard_gate"} or is_release_track:
-        recommended_gate = "--fail-on fail"
-    elif posture in {"advisory", "multi_platform_advisory_hybrid"}:
-        recommended_gate = "--fail-on none"
-
+    posture = _profile_posture(pid)
     return {
-        "family": family,
-        "level": level,
+        "family": _profile_family(pid),
+        "level": _profile_level(pid),
         "posture": posture,
         "is_release_track": is_release_track,
-        "recommended_gate": recommended_gate,
+        "recommended_gate": _recommended_gate(posture, is_release_track),
     }
 
 
@@ -555,7 +564,7 @@ def report_to_dict_v2_0(
         "live_collection": _live_collection_dict(report.live_collection),
         "weighted_score": weighted_score_block,
         "migration": {
-            "from": "reports/1.0",
+            "from": _REPORTS_V10_DIR,
             "status_mapping": "docs/reports-contract-v2.0.md#mapping-from-reports10-to-reports20",
         },
         "extensions": {},
@@ -686,30 +695,7 @@ def write_markdown_report(  # noqa: C901
             f"(critical=3, high=2, medium=1). Controls with status `not-applicable` or `not-evaluated` are excluded."
         )
         lines.append("")
-    insights = compute_priority_insights(report)
-    lines.append("## Prioritization (structural causes)")
-    lines.append("")
-    lines.append("### Top structural buckets")
-    lines.append("")
-    for row in insights["top_structural_causes"][:5]:
-        b, n = row["bucket"], row["count"]
-        lines.append(f"- **{b}** — {n} control(s) failing or requiring manual review in this bucket.")
-    if not insights["top_structural_causes"]:
-        lines.append("- (no aggregated structural findings in this run)")
-    lines.append("")
-    lines.append("### Recommended next actions")
-    lines.append("")
-    for item in insights["recommended_actions"][:5]:
-        lines.append(f"- {item}")
-    lines.append("")
-    lines.append("### Failing controls by category")
-    lines.append("")
-    if insights["failing_controls_by_category"]:
-        for cat, ids in sorted(insights["failing_controls_by_category"].items()):
-            lines.append(f"- **{cat}**: {', '.join(f'`{i}`' for i in ids)}")
-    else:
-        lines.append("- (no controls in `fail` or `manual-review-required`)")
-    lines.append("")
+    lines.extend(_md_prioritization_lines(report))
     lines.append("## Waivers and trust boundary")
     lines.append("")
     lines.append(
@@ -739,60 +725,104 @@ def write_markdown_report(  # noqa: C901
         for w in report.operational_warnings:
             lines.append(f"- {w}")
         lines.append("")
-    if report.scorecard_supplemental:
-        lines.append("## Scorecard supplemental")
-        lines.append("")
-        ss = report.scorecard_supplemental
-        lines.append(f"- **Loaded**: `{ss.get('loaded')}`")
-        lines.append(f"- **Check count**: {ss.get('check_count')}")
-        influenced = ss.get("influenced_control_ids") or []
-        if influenced:
-            lines.append(f"- **Influenced controls**: {', '.join(f'`{c}`' for c in influenced)}")
-        else:
-            lines.append("- **Influenced controls**: (none in this run)")
-        lines.append(f"- **Workflows satisfied CodeQL signal**: `{ss.get('workflows_satisfied_codeql_signal')}`")
-        lines.append(f"- **Explanation**: {ss.get('explanation', '')}")
-        lines.append("")
-    lines.append("## Controls")
-    lines.append("")
-    lines.append("| ID | Category | Lifecycle | Assurance | Status | Confidence | Reason | Remediation | Waiver |")
-    lines.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+    lines.extend(_md_scorecard_supplemental_lines(report))
+    lines.extend(_md_controls_table_lines(report))
+    lines.extend(_md_control_detail_lines(report))
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _md_prioritization_lines(report: ExecutionReport) -> list[str]:
+    """Markdown lines for the structural-prioritization section."""
+
+    insights = compute_priority_insights(report)
+    out: list[str] = ["## Prioritization (structural causes)", "", "### Top structural buckets", ""]
+    for row in insights["top_structural_causes"][:5]:
+        b, n = row["bucket"], row["count"]
+        out.append(f"- **{b}** — {n} control(s) failing or requiring manual review in this bucket.")
+    if not insights["top_structural_causes"]:
+        out.append("- (no aggregated structural findings in this run)")
+    out.extend(["", "### Recommended next actions", ""])
+    out.extend(f"- {item}" for item in insights["recommended_actions"][:5])
+    out.extend(["", "### Failing controls by category", ""])
+    if insights["failing_controls_by_category"]:
+        for cat, ids in sorted(insights["failing_controls_by_category"].items()):
+            out.append(f"- **{cat}**: {', '.join(f'`{i}`' for i in ids)}")
+    else:
+        out.append("- (no controls in `fail` or `manual-review-required`)")
+    out.append("")
+    return out
+
+
+def _md_scorecard_supplemental_lines(report: ExecutionReport) -> list[str]:
+    """Markdown lines for the optional Scorecard-supplemental section (empty when absent)."""
+
+    if not report.scorecard_supplemental:
+        return []
+    ss = report.scorecard_supplemental
+    influenced = ss.get("influenced_control_ids") or []
+    influenced_line = (
+        f"- **Influenced controls**: {', '.join(f'`{c}`' for c in influenced)}"
+        if influenced
+        else "- **Influenced controls**: (none in this run)"
+    )
+    return [
+        "## Scorecard supplemental",
+        "",
+        f"- **Loaded**: `{ss.get('loaded')}`",
+        f"- **Check count**: {ss.get('check_count')}",
+        influenced_line,
+        f"- **Workflows satisfied CodeQL signal**: `{ss.get('workflows_satisfied_codeql_signal')}`",
+        f"- **Explanation**: {ss.get('explanation', '')}",
+        "",
+    ]
+
+
+def _md_controls_table_lines(report: ExecutionReport) -> list[str]:
+    """Markdown lines for the controls summary table."""
+
+    out: list[str] = [
+        "## Controls",
+        "",
+        "| ID | Category | Lifecycle | Assurance | Status | Confidence | Reason | Remediation | Waiver |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
     for r in report.results:
-        w = ""
-        if r.waiver:
-            w = f"yes ({r.waiver.owner})"
+        w = f"yes ({r.waiver.owner})" if r.waiver else ""
         reason = r.reason.replace("|", "\\|")
         rem = r.remediation.replace("|", "\\|")
-        row = (
+        out.append(
             f"| `{r.control_id}` | {r.category} | {r.lifecycle} | `{r.assurance}` |"
             f" `{r.status.value}` | {r.confidence} | {reason} | {rem} | {w} |"
         )
-        lines.append(row)
-    lines.append("")
-    lines.append("## Detail")
-    lines.append("")
+    out.append("")
+    return out
+
+
+def _md_control_detail_lines(report: ExecutionReport) -> list[str]:
+    """Markdown lines for the per-control detail section."""
+
+    out: list[str] = ["## Detail", ""]
     for r in report.results:
-        lines.append(f"### `{r.control_id}` - {r.title}")
-        lines.append("")
-        lines.append(f"- **Status**: `{r.status.value}`")
-        lines.append(f"- **Lifecycle**: {r.lifecycle}")
-        lines.append(f"- **Assurance**: `{r.assurance}`")
-        lines.append(f"- **Evidence collection method**: `{r.evidence_collection_method}`")
-        lines.append(f"- **Confidence**: {r.confidence}")
-        lines.append(f"- **Reason**: {r.reason}")
-        lines.append(f"- **Remediation**: {r.remediation}")
+        out.append(f"### `{r.control_id}` - {r.title}")
+        out.append("")
+        out.append(f"- **Status**: `{r.status.value}`")
+        out.append(f"- **Lifecycle**: {r.lifecycle}")
+        out.append(f"- **Assurance**: `{r.assurance}`")
+        out.append(f"- **Evidence collection method**: `{r.evidence_collection_method}`")
+        out.append(f"- **Confidence**: {r.confidence}")
+        out.append(f"- **Reason**: {r.reason}")
+        out.append(f"- **Remediation**: {r.remediation}")
         if r.evidence_sources:
-            lines.append("- **Evidence**:")
-            for e in r.evidence_sources:
-                lines.append(f"  - `{e}`")
+            out.append("- **Evidence**:")
+            out.extend(f"  - `{e}`" for e in r.evidence_sources)
         if r.waiver:
-            lines.append("- **Waiver**:")
-            lines.append(f"  - **Owner**: {r.waiver.owner}")
-            lines.append(f"  - **Justification**: {r.waiver.justification}")
+            out.append("- **Waiver**:")
+            out.append(f"  - **Owner**: {r.waiver.owner}")
+            out.append(f"  - **Justification**: {r.waiver.justification}")
             if r.waiver.expires_at:
-                lines.append(f"  - **Expires**: {r.waiver.expires_at.isoformat()}")
-        lines.append("")
-    path.write_text("\n".join(lines), encoding="utf-8")
+                out.append(f"  - **Expires**: {r.waiver.expires_at.isoformat()}")
+        out.append("")
+    return out
 
 
 def write_reports(
@@ -865,48 +895,54 @@ def render_drift_report(report: DriftReport, fmt: str, *, color: bool = True) ->
     if f == "json":
         return json.dumps(_drift_report_dict(report), indent=2, ensure_ascii=False) + "\n"
     if f in {"markdown", "md"}:
-        lines = [
-            "# Drift report",
-            "",
-        ]
-        if report.profile_mismatch:
-            lines.extend(
-                [
-                    "> **Note:** Before profile "
-                    f"(`{report.before_profile_id}`) differs from after profile (`{report.after_profile_id}`). "
-                    "New or removed controls may reflect profile scope change, not posture change.",
-                    "",
-                ]
-            )
+        return _drift_markdown(report)
+    return _drift_table(report, color)
+
+
+def _drift_markdown(report: DriftReport) -> str:
+    """Render a drift report as Markdown."""
+
+    lines = ["# Drift report", ""]
+    if report.profile_mismatch:
         lines.extend(
             [
-                f"- **Before**: `{report.before_path}`",
-                f"- **After**: `{report.after_path}`",
-                f"- **Kit versions**: {report.before_kit_version} → {report.after_kit_version}",
-                f"- **Regressions**: {len(report.regressions)}",
-                f"- **Improvements**: {len(report.improvements)}",
+                "> **Note:** Before profile "
+                f"(`{report.before_profile_id}`) differs from after profile (`{report.after_profile_id}`). "
+                "New or removed controls may reflect profile scope change, not posture change.",
                 "",
-                "## Regressions",
-                "",
-                "| Control | Before | After |",
-                "| --- | --- | --- |",
             ]
         )
-        for d in report.regressions:
-            lines.append(f"| `{d.control_id}` | `{d.before_status}` | `{d.after_status}` |")
-        lines.extend(["", "## Improvements", "", "| Control | Before | After |", "| --- | --- | --- |"])
-        for d in report.improvements:
-            lines.append(f"| `{d.control_id}` | `{d.before_status}` | `{d.after_status}` |")
-        if report.new_controls:
-            lines.extend(["", "## New controls in after", ""])
-            lines.extend(f"- `{c}`" for c in report.new_controls)
-        if report.removed_controls:
-            lines.extend(["", "## Removed controls (present only in before)", ""])
-            lines.extend(f"- `{c}`" for c in report.removed_controls)
-        if report.expired_waivers:
-            lines.extend(["", "## Expired waivers", ""])
-            lines.extend(f"- `{c}`" for c in report.expired_waivers)
-        return "\n".join(lines) + "\n"
+    lines.extend(
+        [
+            f"- **Before**: `{report.before_path}`",
+            f"- **After**: `{report.after_path}`",
+            f"- **Kit versions**: {report.before_kit_version} → {report.after_kit_version}",
+            f"- **Regressions**: {len(report.regressions)}",
+            f"- **Improvements**: {len(report.improvements)}",
+            "",
+            "## Regressions",
+            "",
+            "| Control | Before | After |",
+            "| --- | --- | --- |",
+        ]
+    )
+    lines.extend(f"| `{d.control_id}` | `{d.before_status}` | `{d.after_status}` |" for d in report.regressions)
+    lines.extend(["", "## Improvements", "", "| Control | Before | After |", "| --- | --- | --- |"])
+    lines.extend(f"| `{d.control_id}` | `{d.before_status}` | `{d.after_status}` |" for d in report.improvements)
+    if report.new_controls:
+        lines.extend(["", "## New controls in after", ""])
+        lines.extend(f"- `{c}`" for c in report.new_controls)
+    if report.removed_controls:
+        lines.extend(["", "## Removed controls (present only in before)", ""])
+        lines.extend(f"- `{c}`" for c in report.removed_controls)
+    if report.expired_waivers:
+        lines.extend(["", "## Expired waivers", ""])
+        lines.extend(f"- `{c}`" for c in report.expired_waivers)
+    return "\n".join(lines) + "\n"
+
+
+def _drift_table(report: DriftReport, color: bool) -> str:
+    """Render a drift report as a Rich table (with trailing platform notes)."""
 
     buf = StringIO()
     console = Console(file=buf, width=120, force_terminal=color, color_system=("standard" if color else None))

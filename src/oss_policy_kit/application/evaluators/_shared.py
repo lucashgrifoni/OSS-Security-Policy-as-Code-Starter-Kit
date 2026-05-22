@@ -11,7 +11,7 @@ import contextlib
 import importlib.metadata
 import json
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -47,6 +47,18 @@ from oss_policy_kit.infrastructure.azure_pipeline_parser import AzurePipelineAna
 from oss_policy_kit.infrastructure.gitlab_ci_parser import GitLabCiAnalysis
 from oss_policy_kit.infrastructure.workflow_parser import WorkflowAnalysis
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
+
+_DOT_MCP_JSON = ".mcp.json"
+_GITHUB_DIR = ".github"
+_KIT_DIR = ".oss-policy-kit"
+_MAILTO = "mailto:"
+_MCP_JSON = "mcp.json"
+_PACKAGE_JSON = "package.json"
+_PYPROJECT_TOML = "pyproject.toml"
+_README_MD = "README.md"
+_REQUIREMENTS_TXT = "requirements.txt"
+_SECURITY_AT = "security@"
+_SECURITY_MD = "SECURITY.md"
 
 NO_AZURE_PIPELINES_REASON = "No Azure pipeline files present."
 NO_AWS_BUILDSPEC_REASON = "No AWS buildspec files present in supported paths."
@@ -194,7 +206,7 @@ class EvalContext:
 
 
 def _exists_ci_readme(repo: Path) -> bool:
-    p = repo / ".github" / "workflows" / "README.md"
+    p = repo / _GITHUB_DIR / "workflows" / _README_MD
     return p.is_file()
 
 
@@ -203,7 +215,7 @@ def _has_changelog(repo: Path) -> bool:
         repo / "CHANGELOG.md",
         repo / "CHANGES.md",
         repo / "docs" / "CHANGELOG.md",
-        repo / ".github" / "RELEASE.md",
+        repo / _GITHUB_DIR / "RELEASE.md",
     ]
     return any(p.is_file() for p in names)
 
@@ -219,11 +231,11 @@ def _has_license(repo: Path) -> bool:
 
 
 def _has_codeowners(repo: Path) -> bool:
-    return (repo / "CODEOWNERS").is_file() or (repo / ".github" / "CODEOWNERS").is_file()
+    return (repo / "CODEOWNERS").is_file() or (repo / _GITHUB_DIR / "CODEOWNERS").is_file()
 
 
 def _read_security(repo: Path) -> str | None:
-    for name in ("SECURITY.md", "security.md"):
+    for name in (_SECURITY_MD, "security.md"):
         p = repo / name
         if p.is_file():
             return p.read_text(encoding="utf-8", errors="replace")
@@ -254,8 +266,8 @@ def _gov_disc_013_private_reporting_signals(lower: str) -> bool:
     if any(
         k in lower
         for k in (
-            "security@",
-            "mailto:",
+            _SECURITY_AT,
+            _MAILTO,
             "private vulnerability reporting",
             "report a vulnerability",
             "private report via github",
@@ -276,13 +288,13 @@ def _gov_disc_013_private_reporting_signals(lower: str) -> bool:
             "private vulnerability",
             "do not open a public issue",
             "before public disclosure",
-            "security@",
-            "mailto:",
+            _SECURITY_AT,
+            _MAILTO,
         )
     ):
         return True
     disclosure_en = "responsible disclosure" in lower or "coordinated disclosure" in lower
-    if disclosure_en and any(x in lower for x in ("privat", "privad", "mailto:", "security@", "canal")):
+    if disclosure_en and any(x in lower for x in ("privat", "privad", _MAILTO, _SECURITY_AT, "canal")):
         return True
     # Portuguese: inequivocal private / coordinated reporting phrasing
     if any(
@@ -299,12 +311,12 @@ def _gov_disc_013_private_reporting_signals(lower: str) -> bool:
     ):
         return True
     div_pt = "divulgacao responsavel" in lower or "divulgação responsável" in lower
-    return div_pt and any(x in lower for x in ("privad", "privat", "canal", "email", "mailto:", "security@"))
+    return div_pt and any(x in lower for x in ("privad", "privat", "canal", "email", _MAILTO, _SECURITY_AT))
 
 
 def _github_workflow_raw_suggests_release_or_deploy(raw: str) -> bool:
     lower = raw.lower()
-    if re.search(r"(^|\n)\s*release\s*:", raw) or re.search(r"\bon\s*:\s*\n?\s*release\b", lower):
+    if re.search(r"(^|\n)\s*release\s*:", raw) or re.search(r"\bon\s*:\s*release\b", lower):
         return True
     push_main = "push" in lower and ("branches:" in lower or "branches :" in lower)
     push_main = push_main and ("main" in lower or "master" in lower)
@@ -341,7 +353,7 @@ def _workflow_text_has_long_lived_cloud_secret(text: str) -> bool:
     for snippet in _LONG_LIVED_CLOUD_SECRET_SNIPPETS:
         if snippet.lower() in lower:
             return True
-    for m in re.finditer(r"\$\{\{\s*secrets\.([A-Za-z0-9_]+)\s*\}\}", text):
+    for m in re.finditer(r"\$\{\{\s*secrets\.(\w+)\s*\}\}", text):
         name_u = m.group(1).upper()
         for frag in ("SECRET_KEY", "CLIENT_SECRET", "SA_KEY", "ACCESS_KEY"):
             if frag in name_u:
@@ -365,31 +377,42 @@ def _reusable_workflow_ref_has_full_sha(ref: str) -> bool:
     return bool(re.fullmatch(r"[0-9a-f]{40}", pin.strip().lower()))
 
 
-def _iter_structured_workflow_uses_strings(doc: dict[str, Any]) -> list[str]:
-    out: list[str] = []
+def _iter_workflow_jobs(doc: dict[str, Any]) -> Iterator[tuple[str, dict[str, Any]]]:
+    """Yield ``(job_name, job_dict)`` for every job in a workflow document."""
+
     jobs = doc.get("jobs")
     if not isinstance(jobs, dict):
+        return
+    for job_name, job in jobs.items():
+        if isinstance(job, dict):
+            yield str(job_name), job
+
+
+def _job_uses_locations(job_name: str, job: dict[str, Any]) -> list[tuple[str, str, str]]:
+    """Return ``(job_name, step_label, uses)`` tuples for one job (job-level + step-level)."""
+
+    out: list[tuple[str, str, str]] = []
+    ju = job.get("uses")
+    if isinstance(ju, str):
+        out.append((job_name, "job", ju.strip()))
+    steps = job.get("steps")
+    if not isinstance(steps, list):
         return out
-    for _job_name, job in jobs.items():
-        if not isinstance(job, dict):
+    for idx, step in enumerate(steps):
+        if not isinstance(step, dict):
             continue
-        ju = job.get("uses")
-        if isinstance(ju, str):
-            out.append(ju.strip())
-        steps = job.get("steps")
-        if isinstance(steps, list):
-            for step in steps:
-                if isinstance(step, dict):
-                    su = step.get("uses")
-                    if isinstance(su, str):
-                        out.append(su.strip())
+        su = step.get("uses")
+        if not isinstance(su, str):
+            continue
+        label = step.get("name") if isinstance(step.get("name"), str) else None
+        out.append((job_name, label or f"step[{idx}]", su.strip()))
     return out
 
 
 def _iter_structured_workflow_uses_with_location(
     doc: dict[str, Any],
 ) -> list[tuple[str, str, str]]:
-    """Yield ``(job_name, step_label, uses)`` for every structural ``uses:`` string.
+    """Return ``(job_name, step_label, uses)`` for every structural ``uses:`` string.
 
     ``step_label`` is ``job`` when the ``uses`` is at the job level, or the step ``name``/``uses``
     identifier when at the step level. This lets evaluators report exact workflow locations
@@ -397,28 +420,13 @@ def _iter_structured_workflow_uses_with_location(
     """
 
     out: list[tuple[str, str, str]] = []
-    jobs = doc.get("jobs")
-    if not isinstance(jobs, dict):
-        return out
-    for job_name, job in jobs.items():
-        if not isinstance(job, dict):
-            continue
-        ju = job.get("uses")
-        if isinstance(ju, str):
-            out.append((str(job_name), "job", ju.strip()))
-        steps = job.get("steps")
-        if isinstance(steps, list):
-            for idx, step in enumerate(steps):
-                if not isinstance(step, dict):
-                    continue
-                su = step.get("uses")
-                if not isinstance(su, str):
-                    continue
-                label = step.get("name") if isinstance(step.get("name"), str) else None
-                if not label:
-                    label = f"step[{idx}]"
-                out.append((str(job_name), label, su.strip()))
+    for job_name, job in _iter_workflow_jobs(doc):
+        out.extend(_job_uses_locations(job_name, job))
     return out
+
+
+def _iter_structured_workflow_uses_strings(doc: dict[str, Any]) -> list[str]:
+    return [uses for _job, _label, uses in _iter_structured_workflow_uses_with_location(doc)]
 
 
 def _reusable_workflow_uses_from_strings(uses_values: list[str]) -> list[str]:
@@ -532,7 +540,7 @@ def _python_lock_or_pins(repo: Path) -> bool:
         return True
     if (repo / "requirements.lock").is_file() or (repo / "requirements-lock.txt").is_file():
         return True
-    req = repo / "requirements.txt"
+    req = repo / _REQUIREMENTS_TXT
     if req.is_file():
         with contextlib.suppress(OSError):
             body = req.read_text(encoding="utf-8", errors="replace")
@@ -597,7 +605,7 @@ def _digest_placeholder_manual_review(evidence: Path) -> EvalOutcome:
 
 
 def _azure_governance_evidence_dict(ctx: EvalContext) -> dict[str, Any] | None:
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "azure-pipeline-governance.json"
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / "azure-pipeline-governance.json"
     if not evidence.is_file():
         return None
     data, error, _ph = _validate_json_evidence(
@@ -653,6 +661,27 @@ def _detect_sbom_format(content: str) -> str | None:
     return None
 
 
+def _detect_spdx_version(sample: str) -> tuple[str, str] | None:
+    """Detect SPDX 3.x JSON-LD or SPDX 2.x JSON/tag-value; return ``("spdx", version)`` or None."""
+
+    # SPDX 3.x JSON-LD
+    if "spdx.dev/spec/3" in sample or '"@context"' in sample and "spdx" in sample.lower():
+        m = re.search(r'"specVersion"\s*:\s*"(3\.\d+\.\d+)"', sample)
+        if m:
+            return ("spdx", m.group(1))
+        if "spdx.dev/spec/3" in sample:
+            return ("spdx", "3.0")
+    # SPDX 2.x JSON
+    m = re.search(r'"spdxVersion"\s*:\s*"SPDX-(\d+\.\d+)"', sample)
+    if m:
+        return ("spdx", m.group(1))
+    # SPDX tag-value (2.x)
+    m = re.search(r"SPDXVersion:\s*SPDX-(\d+\.\d+)", sample)
+    if m:
+        return ("spdx", m.group(1))
+    return None
+
+
 def _detect_sbom_format_and_version(content: str) -> tuple[str | None, str | None]:
     """Return ``(format, version)`` for an SBOM blob; either may be None.
 
@@ -670,26 +699,11 @@ def _detect_sbom_format_and_version(content: str) -> tuple[str | None, str | Non
     sample = content[:8000]
     # CycloneDX JSON
     if '"bomFormat"' in sample and ("CycloneDX" in sample or "cyclonedx" in sample.lower()):
-        ver = None
         m = re.search(r'"specVersion"\s*:\s*"(\d+\.\d+)"', sample)
-        if m:
-            ver = m.group(1)
-        return ("cyclonedx", ver)
-    # SPDX 3.x JSON-LD
-    if "spdx.dev/spec/3" in sample or '"@context"' in sample and "spdx" in sample.lower():
-        m = re.search(r'"specVersion"\s*:\s*"(3\.\d+\.\d+)"', sample)
-        if m:
-            return ("spdx", m.group(1))
-        if "spdx.dev/spec/3" in sample:
-            return ("spdx", "3.0")
-    # SPDX 2.x JSON
-    m = re.search(r'"spdxVersion"\s*:\s*"SPDX-(\d+\.\d+)"', sample)
-    if m:
-        return ("spdx", m.group(1))
-    # SPDX tag-value (2.x)
-    m = re.search(r"SPDXVersion:\s*SPDX-(\d+\.\d+)", sample)
-    if m:
-        return ("spdx", m.group(1))
+        return ("cyclonedx", m.group(1) if m else None)
+    spdx = _detect_spdx_version(sample)
+    if spdx is not None:
+        return spdx
     return (_detect_sbom_format(content), None)
 
 
@@ -699,6 +713,23 @@ _BSI_CPE_PATTERN = re.compile(r'"(cpe|cpe22Type|cpe23Type)"')
 _BSI_LICENSE_PATTERN = re.compile(r'"(licenses?|licenseConcluded|licenseDeclared)"', re.IGNORECASE)
 _BSI_SUPPLIER_PATTERN = re.compile(r'"(supplier|originator|publisher|author)"', re.IGNORECASE)
 _BSI_VULN_PATTERN = re.compile(r'"vulnerabilities"\s*:\s*\[')
+
+
+def _bsi_v2_1_in_scope(fmt: str | None, version: str | None) -> bool:
+    """True when the SBOM format/version is in scope for BSI TR-03183-2 v2.1.0 (CycloneDX 1.6+, SPDX 3.0+)."""
+
+    if fmt not in {"cyclonedx", "spdx"}:
+        return False
+    if fmt == "cyclonedx":
+        if version is None:
+            return False
+        try:
+            major, minor = version.split(".", 1)
+            if int(major) < 1 or (int(major) == 1 and int(minor) < 6):
+                return False
+        except (ValueError, AttributeError):
+            return False
+    return not (fmt == "spdx" and (version is None or not version.startswith("3.")))
 
 
 def _validate_bsi_tr_03183_v2_1(content: str, fmt: str | None, version: str | None) -> dict[str, bool] | None:
@@ -720,18 +751,7 @@ def _validate_bsi_tr_03183_v2_1(content: str, fmt: str | None, version: str | No
     should pair this with a dedicated BSI conformance tool.
     """
 
-    if fmt not in {"cyclonedx", "spdx"}:
-        return None
-    if fmt == "cyclonedx":
-        if version is None:
-            return None
-        try:
-            major, minor = version.split(".", 1)
-            if int(major) < 1 or (int(major) == 1 and int(minor) < 6):
-                return None
-        except (ValueError, AttributeError):
-            return None
-    if fmt == "spdx" and (version is None or not version.startswith("3.")):
+    if not _bsi_v2_1_in_scope(fmt, version):
         return None
 
     return {
@@ -808,7 +828,7 @@ def _disclosure_sla_signal_match(repo: Path) -> tuple[Path, str] | None:
     judgement belongs to the operator / auditor.
     """
 
-    for rel in ("SECURITY.md", ".github/SECURITY.md", "docs/SECURITY.md"):
+    for rel in (_SECURITY_MD, ".github/SECURITY.md", "docs/SECURITY.md"):
         p = repo / rel
         if not p.is_file():
             continue
@@ -868,10 +888,24 @@ def _workflow_text(path: Path) -> str:
         return ""
 
 
+def _classify_self_hosted_runner(text: str) -> tuple[bool, bool]:
+    """Return ``(is_self_hosted, is_ephemeral)`` from raw workflow text via the runner pattern."""
+
+    is_self = False
+    is_ephemeral = False
+    for match in _SELF_HOSTED_PATTERN.finditer(text):
+        line = match.group(1).strip().lower()
+        if "self-hosted" in line:
+            is_self = True
+            if "ephemeral" in line:
+                is_ephemeral = True
+    return is_self, is_ephemeral
+
+
 def _self_hosted_workflow_paths(repo: Path) -> tuple[list[Path], list[Path]]:
     """Return (all_self_hosted_paths, paths_marked_ephemeral) by raw scanning workflow YAMLs."""
 
-    wf_dir = repo / ".github" / "workflows"
+    wf_dir = repo / _GITHUB_DIR / "workflows"
     if not wf_dir.is_dir():
         return [], []
     all_self: list[Path] = []
@@ -880,14 +914,7 @@ def _self_hosted_workflow_paths(repo: Path) -> tuple[list[Path], list[Path]]:
         text = _workflow_text(yml)
         if not text:
             continue
-        is_self = False
-        is_ephemeral = False
-        for match in _SELF_HOSTED_PATTERN.finditer(text):
-            line = match.group(1).strip().lower()
-            if "self-hosted" in line:
-                is_self = True
-                if "ephemeral" in line:
-                    is_ephemeral = True
+        is_self, is_ephemeral = _classify_self_hosted_runner(text)
         if is_self:
             all_self.append(yml)
             if is_ephemeral:
@@ -932,6 +959,18 @@ _SAST_SEMGREP_SCHEMA_PREFIX = "oss-policy-kit/evidence/sast-semgrep/"
 _MAX_SARIF_JSON_DEPTH = 200
 
 
+def _advance_json_string(ch: str, escaped: bool) -> tuple[bool, bool]:
+    """Step the in-string scanner; return ``(still_in_string, escaped_next)``."""
+
+    if escaped:
+        return True, False
+    if ch == "\\":
+        return True, True
+    if ch == '"':
+        return False, False
+    return True, False
+
+
 def _max_json_nesting_depth(raw: str) -> int:
     """Max bracket-nesting depth of a JSON text, ignoring brackets inside strings."""
     depth = 0
@@ -940,34 +979,20 @@ def _max_json_nesting_depth(raw: str) -> int:
     escaped = False
     for ch in raw:
         if in_string:
-            if escaped:
-                escaped = False
-            elif ch == "\\":
-                escaped = True
-            elif ch == '"':
-                in_string = False
+            in_string, escaped = _advance_json_string(ch, escaped)
             continue
         if ch == '"':
             in_string = True
-        elif ch == "{" or ch == "[":
+        elif ch in "{[":
             depth += 1
-            if depth > max_depth:
-                max_depth = depth
-        elif ch == "}" or ch == "]":
+            max_depth = max(max_depth, depth)
+        elif ch in "}]":
             depth -= 1
     return max_depth
 
 
-def _parse_sarif_findings(  # noqa: C901
-    sarif_path: Path,
-) -> tuple[dict[str, int] | None, str | None]:
-    """Return ({"error": int, "warning": int, "note": int, "none": int}, None)
-    on success, or (None, error_message) on parse failure.
-
-    SARIF 2.1.0 result-level levels are: error, warning, note, none. When a
-    result omits ``level``, the rule's ``defaultConfiguration.level`` applies
-    (per the SARIF spec). Missing both is treated as ``warning`` per the spec.
-    """
+def _load_sarif_runs(sarif_path: Path) -> tuple[list[Any] | None, str | None]:
+    """Read + validate a SARIF file, returning ``(runs_list, None)`` or ``(None, error)``."""
 
     try:
         raw = sarif_path.read_text(encoding="utf-8")
@@ -991,36 +1016,65 @@ def _parse_sarif_findings(  # noqa: C901
     runs = doc.get("runs") or []
     if not isinstance(runs, list):
         return None, "SARIF 'runs' is not an array."
+    return runs, None
+
+
+def _sarif_rule_levels(run: dict[str, Any]) -> dict[str, str]:
+    """Map ``ruleId -> defaultConfiguration.level`` for one SARIF run."""
+
+    rule_levels: dict[str, str] = {}
+    rules = ((run.get("tool") or {}).get("driver") or {}).get("rules") or []
+    if not isinstance(rules, list):
+        return rule_levels
+    for rule in rules:
+        if not isinstance(rule, dict):
+            continue
+        rid = rule.get("id")
+        if not isinstance(rid, str):
+            continue
+        default_level = (rule.get("defaultConfiguration") or {}).get("level")
+        if isinstance(default_level, str):
+            rule_levels[rid] = default_level
+    return rule_levels
+
+
+def _count_sarif_run(run: dict[str, Any], rule_levels: dict[str, str], counts: dict[str, int]) -> None:
+    """Tally one run's result levels into ``counts`` (in place)."""
+
+    results = run.get("results") or []
+    if not isinstance(results, list):
+        return
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        level = result.get("level")
+        if not isinstance(level, str):
+            rid = result.get("ruleId")
+            level = rule_levels.get(rid, "warning") if isinstance(rid, str) else "warning"
+        level = level.lower()
+        if level not in counts:
+            level = "warning"
+        counts[level] += 1
+
+
+def _parse_sarif_findings(
+    sarif_path: Path,
+) -> tuple[dict[str, int] | None, str | None]:
+    """Return ({"error": int, "warning": int, "note": int, "none": int}, None)
+    on success, or (None, error_message) on parse failure.
+
+    SARIF 2.1.0 result-level levels are: error, warning, note, none. When a
+    result omits ``level``, the rule's ``defaultConfiguration.level`` applies
+    (per the SARIF spec). Missing both is treated as ``warning`` per the spec.
+    """
+
+    runs, err = _load_sarif_runs(sarif_path)
+    if err is not None or runs is None:
+        return None, err
     counts: dict[str, int] = {"error": 0, "warning": 0, "note": 0, "none": 0}
     for run in runs:
-        if not isinstance(run, dict):
-            continue
-        rule_levels: dict[str, str] = {}
-        rules = ((run.get("tool") or {}).get("driver") or {}).get("rules") or []
-        if isinstance(rules, list):
-            for rule in rules:
-                if not isinstance(rule, dict):
-                    continue
-                rid = rule.get("id")
-                if not isinstance(rid, str):
-                    continue
-                default_level = (rule.get("defaultConfiguration") or {}).get("level")
-                if isinstance(default_level, str):
-                    rule_levels[rid] = default_level
-        results = run.get("results") or []
-        if not isinstance(results, list):
-            continue
-        for result in results:
-            if not isinstance(result, dict):
-                continue
-            level = result.get("level")
-            if not isinstance(level, str):
-                rid = result.get("ruleId")
-                level = rule_levels.get(rid, "warning") if isinstance(rid, str) else "warning"
-            level = level.lower()
-            if level not in counts:
-                level = "warning"
-            counts[level] += 1
+        if isinstance(run, dict):
+            _count_sarif_run(run, _sarif_rule_levels(run), counts)
     return counts, None
 
 
@@ -1113,7 +1167,24 @@ _ZIZMOR_SEVERITY_KEYS: tuple[str, ...] = (
 )
 
 
-def _parse_zizmor_severity_properties(  # noqa: C901
+def _iter_sarif_results(doc: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    """Yield each ``result`` dict across all runs of a SARIF document."""
+
+    runs = doc.get("runs") or []
+    if not isinstance(runs, list):
+        return
+    for run in runs:
+        if not isinstance(run, dict):
+            continue
+        results = run.get("results") or []
+        if not isinstance(results, list):
+            continue
+        for result in results:
+            if isinstance(result, dict):
+                yield result
+
+
+def _parse_zizmor_severity_properties(
     sarif_path: Path,
 ) -> tuple[dict[str, int] | None, str | None]:
     """Return zizmor-specific severity counts from ``result.properties``.
@@ -1143,26 +1214,18 @@ def _parse_zizmor_severity_properties(  # noqa: C901
     runs = doc.get("runs") or []
     if not isinstance(runs, list):
         return None, "SARIF 'runs' is not an array."
-    counts: dict[str, int] = {k: 0 for k in _ZIZMOR_SEVERITY_KEYS}
-    for run in runs:
-        if not isinstance(run, dict):
+    counts: dict[str, int] = dict.fromkeys(_ZIZMOR_SEVERITY_KEYS, 0)
+    for result in _iter_sarif_results(doc):
+        props = result.get("properties") or {}
+        if not isinstance(props, dict):
             continue
-        results = run.get("results") or []
-        if not isinstance(results, list):
+        sev = props.get("security_severity_level")
+        if not isinstance(sev, str):
             continue
-        for result in results:
-            if not isinstance(result, dict):
-                continue
-            props = result.get("properties") or {}
-            if not isinstance(props, dict):
-                continue
-            sev = props.get("security_severity_level")
-            if not isinstance(sev, str):
-                continue
-            key = sev.strip().lower()
-            if key not in counts:
-                key = "unknown"
-            counts[key] += 1
+        key = sev.strip().lower()
+        if key not in counts:
+            key = "unknown"
+        counts[key] += 1
     return counts, None
 
 
@@ -1213,7 +1276,7 @@ _AI_SECURITY_HEADINGS: tuple[str, ...] = (
 
 
 def _scan_readme_for_section(repo: Path, headings: tuple[str, ...]) -> Path | None:
-    for rel in ("SECURITY.md", "README.md", ".github/SECURITY.md", "docs/SECURITY.md"):
+    for rel in (_SECURITY_MD, _README_MD, ".github/SECURITY.md", "docs/SECURITY.md"):
         p = repo / rel
         if not p.is_file():
             continue
@@ -1225,7 +1288,7 @@ def _scan_readme_for_section(repo: Path, headings: tuple[str, ...]) -> Path | No
 
 
 def _scan_for_llm_sdks(repo: Path) -> Path | None:
-    for rel in ("requirements.txt", "pyproject.toml", "package.json", "Pipfile", "poetry.lock"):
+    for rel in (_REQUIREMENTS_TXT, _PYPROJECT_TOML, _PACKAGE_JSON, "Pipfile", "poetry.lock"):
         p = repo / rel
         if not p.is_file():
             continue
@@ -1296,9 +1359,9 @@ _AI_AGENT_TEXT_PATTERNS: tuple[str, ...] = (
     "*.md",
 )
 _MCP_CONFIG_PATHS: tuple[str, ...] = (
-    "mcp.json",
+    _MCP_JSON,
     "mcp.config.json",
-    ".mcp.json",
+    _DOT_MCP_JSON,
     ".mcp/config.json",
     ".cursor/mcp.json",
     ".vscode/mcp.json",
@@ -1402,18 +1465,21 @@ _AI_AGENT_PINNED_MODEL_RE = re.compile(
 )
 
 
+def _is_ai_agent_text_file(p: Path) -> bool:
+    """True for a regular file not inside a skipped directory."""
+
+    return p.is_file() and not any(part in _AI_AGENT_SKIP_DIRS for part in p.parts)
+
+
 def _iter_ai_agent_text_files(repo: Path) -> list[Path]:
     found: list[Path] = []
     for pat in _AI_AGENT_TEXT_PATTERNS:
         with contextlib.suppress(OSError):
             for p in repo.rglob(pat):
-                if not p.is_file():
-                    continue
-                if any(part in _AI_AGENT_SKIP_DIRS for part in p.parts):
-                    continue
-                found.append(p)
-                if len(found) >= 200:
-                    return found
+                if _is_ai_agent_text_file(p):
+                    found.append(p)
+                    if len(found) >= 200:
+                        return found
     return found
 
 
@@ -1462,7 +1528,7 @@ def _codeowners_covers_prompt_path(repo: Path, prompt_dir: Path) -> tuple[Path, 
 
 
 def _ai_agent_evidence_path(ctx: EvalContext, filename: str) -> Path:
-    return ctx.repo_root / ".oss-policy-kit" / "evidence" / "ai-agent" / filename
+    return ctx.repo_root / _KIT_DIR / "evidence" / "ai-agent" / filename
 
 
 def _load_ai_agent_evidence(
@@ -1560,7 +1626,7 @@ def _read_first_existing(repo: Path, relpaths: tuple[str, ...]) -> tuple[Path | 
 
 
 def _load_ai_system_doc(ctx: EvalContext) -> tuple[dict[str, Any] | None, Path]:
-    p = ctx.repo_root / ".oss-policy-kit" / "evidence" / "ai-system-technical-doc.json"
+    p = ctx.repo_root / _KIT_DIR / "evidence" / "ai-system-technical-doc.json"
     if not p.is_file():
         return None, p
     with contextlib.suppress(OSError, json.JSONDecodeError):
@@ -1607,7 +1673,40 @@ def _annex_iv_section(ctx: EvalContext, field: str, label: str, remediation: str
 _OSV_SARIF_RELPATH = ".oss-policy-kit/evidence/sast/osv-scanner.sarif.json"
 
 
-def _scan_sarif_epss_kev(  # noqa: C901
+def _safe_float(raw: Any) -> float | None:
+    """Coerce a value to float, returning None for None / non-numeric input."""
+
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _classify_epss_kev_result(
+    result: Any, epss_threshold: float, cvss_threshold: float
+) -> tuple[str | None, str | None]:
+    """Return ``(kev_ident, high_epss_ident)`` for one SARIF result (each None when not applicable)."""
+
+    if not isinstance(result, dict):
+        return None, None
+    props = result.get("properties")
+    if not isinstance(props, dict):
+        return None, None
+    ident = str(result.get("ruleId") or props.get("cve") or props.get("id") or "finding")
+    kev_flag = props.get("kev")
+    kev_str = kev_flag.strip().lower() if isinstance(kev_flag, str) else ""
+    is_kev = kev_flag in (True, 1) or kev_str in {"true", "yes", "1"}
+    epss_val = _safe_float(props.get("epss_score", props.get("epss")))
+    cvss_val = _safe_float(props.get("cvss_score", props.get("security-severity")))
+    is_high_epss = (
+        epss_val is not None and epss_val >= epss_threshold and (cvss_val is None or cvss_val >= cvss_threshold)
+    )
+    return (ident if is_kev else None), (ident if is_high_epss else None)
+
+
+def _scan_sarif_epss_kev(
     sarif_path: Path, *, epss_threshold: float = 0.5, cvss_threshold: float = 7.0
 ) -> tuple[list[str], list[str], str | None]:
     """Return ``(kev_ids, high_epss_ids, error)`` from SARIF result.properties."""
@@ -1621,39 +1720,17 @@ def _scan_sarif_epss_kev(  # noqa: C901
         return [], [], "SARIF top-level is not an object."
     kev: list[str] = []
     high_epss: list[str] = []
-    runs = doc.get("runs")
-    for run in runs if isinstance(runs, list) else []:
-        if not isinstance(run, dict):
-            continue
-        results = run.get("results")
-        for result in results if isinstance(results, list) else []:
-            if not isinstance(result, dict):
-                continue
-            props = result.get("properties")
-            if not isinstance(props, dict):
-                continue
-            ident = str(result.get("ruleId") or props.get("cve") or props.get("id") or "finding")
-            kev_flag = props.get("kev")
-            kev_str = kev_flag.strip().lower() if isinstance(kev_flag, str) else ""
-            if kev_flag in (True, 1) or kev_str in {"true", "yes", "1"}:
-                kev.append(ident)
-            epss_raw = props.get("epss_score", props.get("epss"))
-            cvss_raw = props.get("cvss_score", props.get("security-severity"))
-            epss_val: float | None = None
-            cvss_val: float | None = None
-            with contextlib.suppress(TypeError, ValueError):
-                if epss_raw is not None:
-                    epss_val = float(epss_raw)
-            with contextlib.suppress(TypeError, ValueError):
-                if cvss_raw is not None:
-                    cvss_val = float(cvss_raw)
-            if epss_val is not None and epss_val >= epss_threshold and (cvss_val is None or cvss_val >= cvss_threshold):
-                high_epss.append(ident)
+    for result in _iter_sarif_results(doc):
+        kev_id, high_id = _classify_epss_kev_result(result, epss_threshold, cvss_threshold)
+        if kev_id is not None:
+            kev.append(kev_id)
+        if high_id is not None:
+            high_epss.append(high_id)
     return kev, high_epss, None
 
 
 def _branch_protection_evidence(ctx: EvalContext) -> tuple[dict[str, Any] | None, Path]:
-    p = ctx.repo_root / ".oss-policy-kit" / "evidence" / "branch-protection.json"
+    p = ctx.repo_root / _KIT_DIR / "evidence" / "branch-protection.json"
     if not p.is_file():
         return None, p
     with contextlib.suppress(OSError, json.JSONDecodeError):
@@ -1663,7 +1740,7 @@ def _branch_protection_evidence(ctx: EvalContext) -> tuple[dict[str, Any] | None
     return None, p
 
 
-_MCP_CONFIG_FILES: tuple[str, ...] = ("mcp.json", ".mcp.json", "mcp_server.json", "server.json")
+_MCP_CONFIG_FILES: tuple[str, ...] = (_MCP_JSON, _DOT_MCP_JSON, "mcp_server.json", "server.json")
 _MCP_DEP_HINTS: tuple[str, ...] = (
     "modelcontextprotocol",
     "model-context-protocol",
@@ -1680,7 +1757,7 @@ def _mcp_applicable(repo: Path) -> tuple[bool, list[Path]]:
         p = repo / rel
         if p.is_file():
             found.append(p)
-    for rel in ("pyproject.toml", "package.json", "requirements.txt"):
+    for rel in (_PYPROJECT_TOML, _PACKAGE_JSON, _REQUIREMENTS_TXT):
         p = repo / rel
         if p.is_file():
             with contextlib.suppress(OSError):
@@ -1704,7 +1781,7 @@ def _mcp_na(reason_kind: str) -> EvalOutcome:
 
 def _mcp_text_signal(repo: Path, found: list[Path], needles: tuple[str, ...]) -> Path | None:
     scan: list[Path] = list(found)
-    for rel in ("README.md", "SECURITY.md", "docs/mcp-server-security.md", "mcp.json", ".mcp.json"):
+    for rel in (_README_MD, _SECURITY_MD, "docs/mcp-server-security.md", _MCP_JSON, _DOT_MCP_JSON):
         p = repo / rel
         if p.is_file() and p not in scan:
             scan.append(p)
@@ -1736,7 +1813,7 @@ _AGENT_PATH_HINTS: tuple[str, ...] = ("agents", "agent.py", "agent.ts", "system_
 
 def _agentic_applicable(repo: Path) -> tuple[bool, list[Path]]:
     found: list[Path] = []
-    for rel in ("pyproject.toml", "package.json", "requirements.txt"):
+    for rel in (_PYPROJECT_TOML, _PACKAGE_JSON, _REQUIREMENTS_TXT):
         p = repo / rel
         if p.is_file():
             with contextlib.suppress(OSError):
@@ -1767,7 +1844,7 @@ def _agentic_signal(
     repo: Path, found: list[Path], needles: tuple[str, ...], extra_docs: tuple[str, ...] = ()
 ) -> Path | None:
     scan: list[Path] = []
-    for rel in ("README.md", "SECURITY.md", *extra_docs):
+    for rel in (_README_MD, _SECURITY_MD, *extra_docs):
         p = repo / rel
         if p.is_file():
             scan.append(p)

@@ -40,6 +40,8 @@ from typing import Any
 
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 
+_HMAC_COMPARE_DIGEST = "hmac.compare_digest"
+
 _SCAN_FILE_LIMIT = 400
 _SCAN_BYTES_PER_FILE = 16 * 1024
 _SCAN_EXTS: frozenset[str] = frozenset(
@@ -88,7 +90,7 @@ _SIGNATURE_HINTS: tuple[str, ...] = (
     "verify_signature",
     "verifysignature",
     "validate_signature",
-    "hmac.compare_digest",
+    _HMAC_COMPARE_DIGEST,
     "compare_digest",
     "constant_time_compare",
     "constanttimecompare",
@@ -286,7 +288,7 @@ _HMAC_PRIMITIVE_HINTS: tuple[str, ...] = (
     "hmac.new",
     "createhmac",
     "crypto.createhmac",
-    "hmac.compare_digest",
+    _HMAC_COMPARE_DIGEST,
     "hmac_sha256",
     "hmacsha256",
     "compute_signature",
@@ -296,7 +298,7 @@ _HMAC_PRIMITIVE_HINTS: tuple[str, ...] = (
 )
 
 _TIMING_SAFE_HINTS: tuple[str, ...] = (
-    "hmac.compare_digest",
+    _HMAC_COMPARE_DIGEST,
     "compare_digest",
     "constant_time_compare",
     "constanttimecompare",
