@@ -6,6 +6,18 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [6.3.1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.3.0...v6.3.1) (2026-05-23)
+
+
+### Notes
+
+* align docs/ with v6.3.0 reality ([b25322b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b25322b006afb19774487bc45395488d9a2e038e))
+* allow CodeQL bundle download under harden-runner egress block ([23b7aae](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/23b7aaead5788e62cffdd209602ac05614295ba8))
+* **gitpage:** add standalone preview.html ([a2f478f](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a2f478f71ab14450a78bd6c861e32d4e7cb89ea3))
+* **gitpage:** rebuild bundle.js/site.css from updated jsx sources ([7e200aa](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/7e200aa7e8afba505f84063f2aab5020ffc267b8))
+* **gitpage:** update landing page layout, hero, and section content ([16e3cea](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/16e3ceab600d6b6375ca43a02227c80952f504c0))
+* sync changelog/README/docs to v6.3.0 reality ([4b26e3f](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4b26e3fb10fc1c17c836965bc2eaee6ff6303988))
+
 ## [6.3.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.2.0...v6.3.0) (2026-05-22)
 
 
