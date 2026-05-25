@@ -6,6 +6,19 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [6.5.1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.5.0...v6.5.1) (2026-05-25)
+
+
+### Notes
+
+* align advertised current release to v6.5.0 in README and at-a-glance ([b9d6572](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b9d6572fc9f7df438c22c2dc76b600a110a50ea6))
+* **deps:** bump docker/build-push-action from 7.1.0 to 7.2.0 ([#58](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/58)) ([fd05e27](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/fd05e2798faff0969661c701a07ad63097a8f6f6))
+* **deps:** bump docker/login-action from 4.1.0 to 4.2.0 ([#55](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/55)) ([4f44076](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4f44076470b53079e8267a2f7c321f3ed32b3df4))
+* **deps:** bump docker/setup-buildx-action from 4.0.0 to 4.1.0 ([#57](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/57)) ([0e42cb8](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0e42cb800913ab347df8470a7741a07ebabf1bc4))
+* **deps:** bump github/codeql-action from 4.35.5 to 4.36.0 ([#56](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/56)) ([f104d24](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f104d2418d59a71fbaaad2daf8ee4dd2d449c19e))
+* **deps:** bump step-security/harden-runner from 2.19.3 to 2.19.4 ([#54](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/54)) ([e1423af](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e1423af2526d67ab8922796585aa40c7a26a80ad))
+* document why publish workflows keep harden-runner in audit ([#61](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/61)) ([7a49d79](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/7a49d794d0eb3ddd5dd1b5b054bf291b9b30d120))
+
 ## [6.5.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.4.0...v6.5.0) (2026-05-25)
 
 
