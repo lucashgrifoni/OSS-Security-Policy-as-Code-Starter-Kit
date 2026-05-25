@@ -1,13 +1,13 @@
 # Reports contract `reports/2.0`
 
-> **Available since v6.0.0 as an opt-in contract.** `reports/2.0` shipped in v6.0.0. As of v6.3.0, `reports/1.0` **remains the default**; select `2.0` explicitly with `--report-json-contract=2.0`. The default-switch is deferred to a later v6.x point release (ADR-013). The standalone `scripts/migrate-1.0-to-2.0.py` converts existing `1.0` reports offline. See ADR-013 for the breaking-change rationale.
+> **Available since v6.0.0 as an opt-in contract.** `reports/2.0` shipped in v6.0.0. As of v6.4.0, `reports/1.0` **remains the default**; select `2.0` explicitly with `--report-json-contract=2.0`. The default switch is deferred; v7.0.0 is the earliest candidate. The standalone `scripts/migrate-1.0-to-2.0.py` converts existing `1.0` reports offline. See ADR-013 for the breaking-change rationale.
 
 ## TL;DR
 
 - `reports/2.0` is a **new JSON report contract** that replaces the seven-state vocabulary of `reports/1.0` with a tighter five-state vocabulary aligned with Scorecard v6.
 - Five states: **`PASS` / `FAIL` / `UNKNOWN` / `NOT_APPLICABLE` / `ATTESTED`**.
 - `UNKNOWN` gains a sub-field `reason` so the granularity of the old seven states is preserved where it matters (`manual-review-required`, `not-observable-in-clone`, etc.).
-- **Default contract as of v6.3.0**: `reports/1.0`. `reports/2.0` is opt-in via `--report-json-contract=2.0`; the default-switch is deferred to a later v6.x point release (ADR-013).
+- **Default contract as of v6.4.0**: `reports/1.0`. `reports/2.0` is opt-in via `--report-json-contract=2.0`; the default switch is deferred and v7.0.0 is the earliest candidate.
 - A **migration script** (`scripts/migrate-1.0-to-2.0.py`) converts existing `reports/1.0` JSON to `reports/2.0` for adopters with long-lived dashboards.
 
 ## Why a new contract
@@ -40,10 +40,13 @@
 ## Selecting a contract
 
 ```text
-# Default in v6.0.0: reports/2.0
+# Default through v6.4.0: reports/1.0
 oss-policy-kit evaluate --target . --profile github-level-1
 
-# Opt out: reports/1.0 (with deprecation warning on stderr)
+# Opt in: reports/2.0
+oss-policy-kit evaluate --target . --profile github-level-1 --report-json-contract=2.0
+
+# Explicit legacy/default selection: reports/1.0
 oss-policy-kit evaluate --target . --profile github-level-1 --report-json-contract=1.0
 
 # Legacy contracts also remain selectable:
@@ -55,9 +58,9 @@ oss-policy-kit evaluate --target . --profile github-level-1 --report-json-contra
 
 | Version | `reports/1.0` status |
 |---|---|
-| v6.0.0 GA | Selectable via flag, deprecation warning on stderr. |
-| v6.0.x patches | Same as v6.0.0 GA. |
-| v6.1.0 | **Removed.** `--report-json-contract=1.0` becomes a usage error. |
+| v6.0.0 GA | `reports/1.0` is the **default**; `reports/2.0` is opt-in via `--report-json-contract=2.0`. |
+| v6.0.x – v6.4.0 | Unchanged — `reports/1.0` **remains the default** through the v6.x line. The earlier plan to remove `1.0` in v6.1.0 was **not** carried out; no removal has shipped. |
+| v7.0.0 (planned, no committed date) | Earliest candidate for making `reports/2.0` the default and deprecating `1.0`. Removal will be announced a full minor line ahead. |
 
 `reports/0.3` and `0.2` continue to be selectable per existing precedent; they are legacy contracts kept for older dashboard compatibility and have separate removal cycles.
 
@@ -82,7 +85,7 @@ It is intentionally **lossless** — every distinction in `reports/1.0` survives
 
 For each consumer of `evaluation-report.json`:
 
-1. **Decide migration cadence**. Convert all consumers to `reports/2.0` during the v6.0.x line (before v6.1.0 removes `1.0`).
+1. **Decide migration cadence**. `reports/1.0` remains the default through the v6.x line, so migration is not yet forced; convert consumers to `reports/2.0` ahead of the v7.0.0 line, which is the earliest candidate for flipping the default.
 2. **Update the contract identifier check**. `reports/2.0` advertises `"contract_version": "reports/2.0"` at the top.
 3. **Re-map status switches**. Use the mapping table above. The most common gotcha: `degraded` is now `FAIL` with `degraded: true`; consumers that treated `degraded` as PASS-ish must switch to the explicit flag.
 4. **Handle `UNKNOWN.reason`** for any logic that previously branched on `manual-review-required`, `skipped`, or `error`. All three converge under `UNKNOWN` with distinct `reason` values.

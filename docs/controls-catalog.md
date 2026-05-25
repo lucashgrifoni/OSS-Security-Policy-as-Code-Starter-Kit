@@ -4,6 +4,8 @@ Single-page reference generated from the bundled control catalog and profiles. T
 
 Current bundled state: **212 controls** across **56 bundled profiles**. Regenerate this page whenever the catalog or profile membership changes (`python scripts/generate-controls-catalog.py`).
 
+> **Tip:** for an interactive, filterable view of this same catalog (filter by family, assurance, lifecycle, or profile membership, plus text search) see the **Control catalog** section of the project landing page: <https://lucashgrifoni.github.io/OSS-Security-Policy-as-Code-Starter-Kit/#catalog>.
+
 ## By Category
 
 | Category | Count |

@@ -13,11 +13,11 @@ from oss_policy_kit.cli.common import (
     stderr_console,
     warn_if_batch_skipped_directories,
 )
-from oss_policy_kit.cli.help_text import EVALUATE_MANY_EPILOG
+from oss_policy_kit.cli.help_text import CMD_PANEL_EVALUATE, EVALUATE_MANY_EPILOG
 from oss_policy_kit.domain.errors import InvalidInputError, OssPolicyKitError
 
 
-@app.command("evaluate-many", epilog=EVALUATE_MANY_EPILOG)
+@app.command("evaluate-many", epilog=EVALUATE_MANY_EPILOG, rich_help_panel=CMD_PANEL_EVALUATE)
 def evaluate_many_cmd(
     target_root: Path = typer.Option(
         ...,

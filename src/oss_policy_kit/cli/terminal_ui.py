@@ -276,6 +276,9 @@ def render_eval_results_table(report: ExecutionReport, *, unicode_icons: bool = 
         title=f"[bold cyan]Profile: {report.profile_id}[/bold cyan]  [dim]|[/dim]  Target: [dim]{target_name}[/dim]",
         show_lines=False,
         expand=False,
+        box=box.ROUNDED,
+        border_style=STYLE_BORDER_SOFT,
+        header_style=_BOLD_CYAN,
     )
     table.add_column("ID", style="cyan", no_wrap=True, min_width=14)
     table.add_column("Status", no_wrap=True, min_width=18)
@@ -439,14 +442,58 @@ def max_gap_line_chars(*, stream: Any = None, cap: int = 200, fallback_width: in
 
 
 CLI_BANNER_MIN_COLUMNS = 52
-_CLI_BANNER_FULL = """       /\\
-      /  \\      OSS Policy Kit
-     /_/\\_\\     clone-visible security posture
-     \\ \\/ /     GitHub | Azure | AWS
-      \\  /
-       \\/
 
-  Evaluate governance, CI hygiene, and release evidence"""
+# Branded banner ("refined summit") shown above interactive ``--help``.
+# Two art variants: Unicode for capable terminals, ASCII fallback for legacy
+# Windows codepages. Text column is aligned ``_BANNER_ART_WIDTH + 3`` in.
+_BANNER_WORDMARK = "OSS Policy Kit"
+_BANNER_TAGLINE = "clone-visible security posture"
+_BANNER_PLATFORMS = "GitHub | Azure | AWS"
+_BANNER_PURPOSE = "Evaluate governance, CI hygiene, and release evidence"
+_BANNER_ART_WIDTH = 10
+_BANNER_ART_UNICODE = ("    ▲", "   ╱ ╲", "  ╱ ✓ ╲", " ╱─────╲", "▔▔▔▔▔▔▔▔▔")
+_BANNER_ART_ASCII = ("    /\\", "   /  \\", "  / ++ \\", " /------\\", "----------")
+
+
+def _kit_version() -> str:
+    """Package version for the banner strip (lazy import avoids cycles)."""
+
+    from oss_policy_kit import __version__
+
+    return __version__
+
+
+def _banner_text_rows() -> list[str]:
+    """Right-column text rows aligned to the 5-line art: wordmark+version, tagline, platforms."""
+
+    return ["", f"{_BANNER_WORDMARK}  v{_kit_version()}", _BANNER_TAGLINE, _BANNER_PLATFORMS, ""]
+
+
+def _compose_banner(*, unicode_art: bool) -> str:
+    """Plain (un-styled) banner string: art column + aligned text, then the purpose line."""
+
+    art = _BANNER_ART_UNICODE if unicode_art else _BANNER_ART_ASCII
+    lines: list[str] = []
+    for art_line, text in zip(art, _banner_text_rows(), strict=True):
+        lines.append(f"{art_line.ljust(_BANNER_ART_WIDTH)}   {text}".rstrip() if text else art_line)
+    lines.append("")
+    lines.append(f"{' ' * _BANNER_ART_WIDTH}   {_BANNER_PURPOSE}")
+    return "\n".join(lines)
+
+
+def _styled_banner_rows() -> list[tuple[str, list[tuple[str, str]]]]:
+    """(art_line, [(text, style), ...]) rows for the colored TTY banner."""
+
+    version = _kit_version()
+    return [
+        (_BANNER_ART_UNICODE[0], []),
+        (_BANNER_ART_UNICODE[1], [(_BANNER_WORDMARK, _BOLD_CYAN), (f"  v{version}", STYLE_MUTED)]),
+        (_BANNER_ART_UNICODE[2], [(_BANNER_TAGLINE, STYLE_MUTED)]),
+        (_BANNER_ART_UNICODE[3], [(_BANNER_PLATFORMS, STYLE_EMPHASIS)]),
+        (_BANNER_ART_UNICODE[4], []),
+        ("", []),
+        ("", [(_BANNER_PURPOSE, STYLE_MUTED)]),
+    ]
 
 
 def sanitize_cli_display_text(text: str) -> str:
@@ -489,7 +536,7 @@ def should_show_cli_banner(*, stream: Any | None = None) -> bool:
 def cli_banner_plain() -> str:
     """ASCII banner and tagline for Click help formatters (no Rich markup)."""
 
-    return _CLI_BANNER_FULL
+    return _compose_banner(unicode_art=False)
 
 
 def write_cli_banner_to_formatter(formatter: Any) -> None:
@@ -498,18 +545,20 @@ def write_cli_banner_to_formatter(formatter: Any) -> None:
     if not should_show_cli_banner():
         return
     formatter.write_paragraph()
-    for raw_line in _CLI_BANNER_FULL.splitlines():
+    for raw_line in cli_banner_plain().splitlines():
         line = raw_line.rstrip("\n")
         formatter.write_text(f"{line}\n")
     formatter.write_paragraph()
 
 
 def print_cli_banner_before_typer_rich_help() -> None:
-    """Emit the ASCII banner on Typer's Rich help console (stdout) when TTY/width gates pass.
+    """Emit the branded banner on Typer's Rich help console (stdout) when TTY/width gates pass.
 
     Typer's Rich help path does not use a Click ``HelpFormatter``; it prints via
     ``typer.rich_utils.rich_format_help``. This helper uses the same Rich console Typer
-    uses so the banner appears immediately above the styled help.
+    uses so the banner appears immediately above the styled help. Color is applied only
+    when the console supports it (``NO_COLOR``/``dumb``/pipe fall back to plain text), and
+    the Unicode art falls back to ASCII on legacy codepages.
     """
 
     if not should_show_cli_banner():
@@ -519,9 +568,107 @@ def print_cli_banner_before_typer_rich_help() -> None:
     except ImportError:
         return
     console = typer_rich_utils._get_rich_console(stderr=False)
-    for raw_line in cli_banner_plain().splitlines():
-        console.print(raw_line, highlight=False, markup=False, emoji=False)
+    unicode_art = stream_supports_unicode(sys.stdout)
+    if console.no_color:
+        for raw_line in _compose_banner(unicode_art=unicode_art).splitlines():
+            console.print(raw_line, highlight=False, markup=False, emoji=False)
+        console.print()
+        return
+    if not unicode_art:
+        # Color allowed but glyphs are not encodable: keep ASCII art, drop styling
+        # rather than risk a UnicodeEncodeError on the art rows.
+        for raw_line in _compose_banner(unicode_art=False).splitlines():
+            console.print(raw_line, highlight=False, markup=False, emoji=False)
+        console.print()
+        return
+    for art_line, segments in _styled_banner_rows():
+        row = Text()
+        row.append(art_line.ljust(_BANNER_ART_WIDTH), style=STYLE_EMPHASIS)
+        if segments:
+            row.append("   ")
+            for seg_text, seg_style in segments:
+                row.append(seg_text, style=seg_style)
+        console.print(row, highlight=False)
     console.print()
+
+
+def _help_epilog_console() -> Console:
+    """Rich console Typer uses for the root help (so epilog panels match the help above)."""
+
+    try:
+        from typer import rich_utils as typer_rich_utils
+
+        return typer_rich_utils._get_rich_console(stderr=False)
+    except ImportError:
+        return build_stdout_console()
+
+
+def print_root_help_epilog_panels(*, console: Console | None = None) -> None:
+    """Render the root ``--help`` epilog (Examples / Exit codes / Windows) as Rich panels.
+
+    Replaces the flat ASCII ``----`` rules with soft-bordered panels so the bottom of the
+    help screen shares one visual language with the Options/Commands panels above.
+    """
+
+    from oss_policy_kit.cli.help_text import ROOT_EXAMPLES, ROOT_EXIT_CODES, ROOT_WINDOWS_NOTE
+
+    c = console or _help_epilog_console()
+    pw = primary_panel_width(c.width)
+    runner = "oss-policy-kit"
+
+    # Wrap long commands inside the panel and indent continuation lines so a
+    # wrapped flag never starts at column 0 against the left border.
+    cmd_width = max(24, pw - 8)
+    examples = Text()
+    for i, (desc, cmd) in enumerate(ROOT_EXAMPLES):
+        if i:
+            examples.append("\n\n")
+        examples.append(desc, style=STYLE_MUTED)
+        wrapped = textwrap.wrap(
+            f"{runner} {cmd}",
+            width=cmd_width,
+            break_long_words=False,
+            break_on_hyphens=False,
+        ) or [f"{runner} {cmd}"]
+        examples.append(f"\n  $ {wrapped[0]}", style=STYLE_EMPHASIS)
+        for cont in wrapped[1:]:
+            examples.append(f"\n      {cont}", style=STYLE_EMPHASIS)
+    c.print(
+        Align(
+            Panel(
+                examples,
+                title=Text("Examples", style=_BOLD_CYAN),
+                border_style=STYLE_BORDER_SOFT,
+                box=box.ROUNDED,
+                width=pw,
+            ),
+            align="left",
+        )
+    )
+
+    exit_codes = Text()
+    for i, (code, meaning) in enumerate(ROOT_EXIT_CODES):
+        if i:
+            exit_codes.append("\n")
+        exit_codes.append(f"{code}  ", style=_BOLD_CYAN)
+        exit_codes.append(meaning, style="default")
+    c.print(
+        Align(
+            Panel(
+                exit_codes,
+                title=Text("Exit codes", style=_BOLD_CYAN),
+                border_style=STYLE_BORDER_SOFT,
+                box=box.ROUNDED,
+                width=pw,
+            ),
+            align="left",
+        )
+    )
+
+    windows = Text()
+    windows.append("Windows  ", style=_BOLD_CYAN)
+    windows.append(ROOT_WINDOWS_NOTE, style=STYLE_MUTED)
+    c.print(Align(windows, align="left", width=pw))
 
 
 def _status_glyph(name: str, *, unicode_icons: bool) -> str:

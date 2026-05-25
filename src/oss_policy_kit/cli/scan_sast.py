@@ -29,6 +29,7 @@ from oss_policy_kit.cli.common import (
     stderr_console,
     write_stdout_text,
 )
+from oss_policy_kit.cli.help_text import CMD_PANEL_SCAN
 from oss_policy_kit.domain.errors import InvalidInputError, OssPolicyKitError
 from oss_policy_kit.infrastructure.scanners.semgrep_adapter import (
     DEFAULT_RULESETS,
@@ -40,7 +41,7 @@ from oss_policy_kit.infrastructure.scanners.semgrep_adapter import (
 )
 
 
-@app.command("scan-sast")
+@app.command("scan-sast", rich_help_panel=CMD_PANEL_SCAN)
 def scan_sast_cmd(
     target: str = typer.Option(
         ".",

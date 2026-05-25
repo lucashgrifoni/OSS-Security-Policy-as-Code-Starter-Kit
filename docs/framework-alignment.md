@@ -21,7 +21,7 @@ documents how its honest signals align with each framework's expectations so ope
 navigate from a framework requirement back to a concrete control or evidence file.
 
 > **v6.0.0 framework expansion — shipped.** The three framework areas formerly tracked as
-> roadmap items all shipped in the v6.0.0–v6.3.0 line: **NIST SP 800-218A** (Generative AI
+> roadmap items all shipped in the v6.0.0–v6.4.0 line: **NIST SP 800-218A** (Generative AI
 > SSDF, profile `appsec-llm-ssdf-218a-1`), **EU AI Act Article 11 + Annex IV** (profile
 > `cra-eu-ai-act-art11-1`, `LLM-AI-ACT-*` controls), and **OpenSSF Security Insights 1.0
 > emit** (the `emit-insights` subcommand). The Roadmap sections at the end of this page are
@@ -663,7 +663,7 @@ Bundled controls (already in v5.9.x): `GOV-DISC-065`, `REL-CHANGE-012`, `SAST-OS
 
 **Hard caveat (see [`eu-ai-act-readiness.md`](eu-ai-act-readiness.md))**: this profile is **not** a conformity assessment under the AI Act. Conformity assessment requires a notified body and is outside the kit's scope. The profile produces a clone-side posture indicator that adopters can use as evidence input; the formal CE-marking process is external. ADR-010 documents the design rationale.
 
-**Coverage (shipped, v6.x)**: 3 advisory controls + 4 bundled signals. Profile is advisory (`--fail-on degraded`). The EU CRA Article 13/14 product-class obligations are covered separately by the `CRA-ART-*` / `CRA-PRODUCT-*` families (ADR-020); a dedicated mapping table for those is pending (see the snapshot notice).
+**Coverage (shipped, v6.x)**: 3 advisory controls + 4 bundled signals. Profile is advisory (`--fail-on degraded`). The EU CRA Article 13/14 product-class obligations are covered separately by the `CRA-ART-*` / `CRA-PRODUCT-*` families (ADR-020) and documented in [`cra-readiness.md`](cra-readiness.md).
 
 ## OpenSSF Security Insights 1.0 — emit (shipped in v6.0.0)
 
