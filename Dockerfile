@@ -1,4 +1,5 @@
-# Official container image for oss-policy-kit (v5.9.0+).
+# Official container image for oss-policy-kit (builds the current source tree;
+# containerized since v5.9.0). The published image is tagged per release on GHCR.
 #
 # Design choices:
 #
@@ -14,8 +15,8 @@
 #
 # Example usage (adopter side):
 #
-#   docker build -t oss-policy-kit:5.9.0 .
-#   docker run --rm -v "$(pwd):/work" -w /work oss-policy-kit:5.9.0 \
+#   docker build -t oss-policy-kit:latest .
+#   docker run --rm -v "$(pwd):/work" -w /work oss-policy-kit:latest \
 #     evaluate --target . --profile github-level-1 --summary-only
 #
 # The publish workflow builds from the checked-out tag instead of installing

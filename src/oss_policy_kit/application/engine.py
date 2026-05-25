@@ -109,7 +109,8 @@ def map_status_to_reports_v2(status: str) -> tuple[str, str | None]:
     """Map a v5.x status string to the (state, reason) pair of reports/2.0.
 
     See docs/reports-contract-v2.0.md for the full mapping table and the
-    deprecation timeline (reports/1.0 is selectable in v6.0.x, removed in v6.1.0).
+    deprecation timeline (reports/1.0 remains the default through v6.x; v7.0.0 is
+    the earliest candidate for a default switch).
     """
     key = status.strip().lower()
     if key in REPORTS_V2_STATUS_MAP:

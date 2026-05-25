@@ -17,6 +17,7 @@ import typer
 
 from oss_policy_kit.adapters.local_paths import resolve_existing_dir
 from oss_policy_kit.cli.common import app, stderr_console, write_stdout_text
+from oss_policy_kit.cli.help_text import CMD_PANEL_SCAN
 from oss_policy_kit.domain.errors import OssPolicyKitError
 from oss_policy_kit.infrastructure.iac.pulumi.scanner import (
     DEFAULT_INCLUDE_GLOBS,
@@ -28,7 +29,7 @@ from oss_policy_kit.infrastructure.iac.pulumi.scanner import (
 )
 
 
-@app.command("scan-pulumi")
+@app.command("scan-pulumi", rich_help_panel=CMD_PANEL_SCAN)
 def scan_pulumi_cmd(
     target: str = typer.Option(
         ".",

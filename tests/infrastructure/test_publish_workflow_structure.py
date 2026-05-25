@@ -13,6 +13,7 @@ _WORKFLOW_PATH = Path(__file__).parents[2] / ".github" / "workflows" / "publish-
 _CONTAINER_WORKFLOW_PATH = Path(__file__).parents[2] / ".github" / "workflows" / "publish-container.yml"
 _DOCKERFILE_PATH = Path(__file__).parents[2] / "Dockerfile"
 _DOCKERIGNORE_PATH = Path(__file__).parents[2] / ".dockerignore"
+_HARDEN_RUNNER_ACTION = "step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5"
 
 
 def _load_workflow() -> dict:
@@ -128,3 +129,20 @@ def test_release_workflows_use_non_canceling_concurrency() -> None:
         concurrency = workflow.get("concurrency", {})
         assert concurrency.get("group") == f"{name}-${{{{ github.ref }}}}"
         assert concurrency.get("cancel-in-progress") is False
+
+
+def test_publish_workflows_start_each_job_with_harden_runner_audit() -> None:
+    """Publish jobs should audit egress before any checkout, download, build, or upload step."""
+    workflows = {
+        "publish-pypi": _load_workflow(),
+        "publish-container": _load_container_workflow(),
+    }
+    for workflow_name, workflow in workflows.items():
+        for job_name, job in workflow["jobs"].items():
+            first_step = job["steps"][0]
+            assert first_step["uses"].startswith(_HARDEN_RUNNER_ACTION), (
+                f"{workflow_name}:{job_name} must start with the pinned harden-runner action"
+            )
+            assert first_step.get("with", {}).get("egress-policy") == "audit", (
+                f"{workflow_name}:{job_name} should remain in audit until publish egress is reviewed"
+            )

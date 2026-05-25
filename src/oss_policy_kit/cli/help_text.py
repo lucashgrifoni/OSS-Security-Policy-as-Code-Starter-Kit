@@ -1,6 +1,44 @@
-"""CLI epilog blocks shared across Typer commands."""
+"""CLI epilog blocks and Rich help-panel names shared across Typer commands."""
 
 from __future__ import annotations
+
+# --- Rich help-panel names (TTY ``--help`` grouping) -------------------------
+# ASCII-only titles so they render on legacy Windows codepages without error.
+# Root-callback option groups (the bare ``--help`` screen).
+OPT_PANEL_CORE = "Core"
+OPT_PANEL_OUTPUT = "Output & reports"
+OPT_PANEL_CI = "CI gate"
+OPT_PANEL_EVIDENCE = "Evidence inputs"
+OPT_PANEL_DIAGNOSTICS = "Diagnostics"
+OPT_PANEL_META = "Meta"
+
+# Command groups (the bare ``--help`` Commands section).
+CMD_PANEL_EVALUATE = "Evaluate"
+CMD_PANEL_DISCOVER = "Discover & init"
+CMD_PANEL_SCAN = "Evidence (scan)"
+CMD_PANEL_COLLECT = "Evidence (collect & scaffold)"
+CMD_PANEL_EXPORT = "Export & emit"
+
+# --- Structured root epilog (rendered as Rich panels in TTY ``--help``) -------
+# Each example is (description, command-without-the-runner-prefix). The Rich
+# renderer prefixes a short ``$ oss-policy-kit`` to keep the block scannable
+# instead of repeating ``python -m oss_policy_kit`` on every line.
+ROOT_EXAMPLES: tuple[tuple[str, str], ...] = (
+    ("Baseline evaluation (writes reports under ./out)", "evaluate --target . --profile github-level-1"),
+    ("CI gate (exit 1 when any control is fail)", "evaluate --target . --profile github-level-1 --fail-on fail"),
+    ("JSON summary on stdout", "evaluate --target . --profile github-level-1 --format json --summary-only"),
+    ("List bundled profiles", "profiles"),
+    ("Many repos under one parent folder", "evaluate-many --target-root ./repos --profiles github-level-1"),
+    ("Evidence JSON templates (release-hardening)", "scaffold-evidence --target . --platform github"),
+    ("Heuristic profile suggestions", "recommend-profile --target ."),
+)
+ROOT_EXIT_CODES: tuple[tuple[str, str], ...] = (
+    ("0", "Success; fail-on threshold not violated (when --fail-on applies)."),
+    ("1", "Evaluation finished; fail-on threshold violated."),
+    ("2", "Invalid usage, missing input, or validation/load error."),
+    ("3", "Unexpected internal error."),
+)
+ROOT_WINDOWS_NOTE = "Prefer `python -m oss_policy_kit` if the oss-policy-kit script is not on PATH."
 
 _EXIT_CODES_HEADING = "EXIT CODES"
 _EXIT_CODE_2_LINE = "  2  Invalid usage, missing input, or validation/load error."

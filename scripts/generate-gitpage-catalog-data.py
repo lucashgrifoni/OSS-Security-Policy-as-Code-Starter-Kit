@@ -37,9 +37,7 @@ _LIFECYCLE_ORDER = ("stable", "experimental", "deprecated")
 
 
 def _profile_ids(root: Path) -> list[str]:
-    return sorted(
-        p.name for p in (root / "profiles").iterdir() if (p / "profile.yaml").is_file()
-    )
+    return sorted(p.name for p in (root / "profiles").iterdir() if (p / "profile.yaml").is_file())
 
 
 def _ordered(values: set[str], preferred: tuple[str, ...]) -> list[str]:

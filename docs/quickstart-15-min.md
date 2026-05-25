@@ -23,7 +23,7 @@ pip install oss-policy-kit
 oss-policy-kit --version
 ```
 
-Expected output: a version line like `6.3.0`. If `oss-policy-kit` is
+Expected output: a version line like `6.4.0`. If `oss-policy-kit` is
 not on `PATH`, use `python -m oss_policy_kit` instead (works identically
 on every command below).
 
@@ -123,7 +123,7 @@ list each applied waiver, its owner, and its expiry date.
 Use the bundled GitHub Action:
 
 ```yaml
-- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v6.3.0
+- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v6.4.0
   with:
     profile: github-level-1
     fail-on: fail

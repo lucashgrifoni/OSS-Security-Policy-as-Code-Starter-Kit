@@ -25,6 +25,7 @@ from oss_policy_kit.cli.common import (
     normalize_profiles_format,
     stderr_console,
 )
+from oss_policy_kit.cli.help_text import CMD_PANEL_DISCOVER
 from oss_policy_kit.domain.errors import InvalidInputError, LoadError, OssPolicyKitError
 
 _FAIL_ON_FAIL = "--fail-on fail"
@@ -539,7 +540,7 @@ def _print_profiles_json(rows: list[_ProfileDisplayRow] | None = None) -> None:
     sys.stdout.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
 
 
-@app.command("profiles")
+@app.command("profiles", rich_help_panel=CMD_PANEL_DISCOVER)
 def profiles_cmd(
     output_format: str = typer.Option(
         "compact",
