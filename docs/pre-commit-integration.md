@@ -31,7 +31,7 @@ In your repository's `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit
-    rev: v5.9.0  # always pin to a tag; floating refs are not supported
+    rev: v6.4.0  # always pin to a tag; floating refs are not supported
     hooks:
       - id: oss-policy-kit-evaluate
 ```
@@ -41,7 +41,7 @@ For an advisory profile (e.g. CRA preparation):
 ```yaml
 repos:
   - repo: https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit
-    rev: v5.9.0
+    rev: v6.4.0
     hooks:
       - id: oss-policy-kit-evaluate-degraded
 ```

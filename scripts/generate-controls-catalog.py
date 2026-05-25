@@ -74,6 +74,13 @@ def _build() -> str:
         "(`python scripts/generate-controls-catalog.py`)."
     )
     lines.append("")
+    lines.append(
+        "> **Tip:** for an interactive, filterable view of this same catalog (filter by family, "
+        "assurance, lifecycle, or profile membership, plus text search) see the **Control catalog** "
+        "section of the project landing page: "
+        "<https://lucashgrifoni.github.io/OSS-Security-Policy-as-Code-Starter-Kit/#catalog>."
+    )
+    lines.append("")
     lines.append("## By Category")
     lines.append("")
     lines.append("| Category | Count |")

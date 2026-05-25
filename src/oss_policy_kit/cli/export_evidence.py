@@ -37,6 +37,7 @@ from typing import Any
 import typer
 
 from oss_policy_kit.cli.common import app, stderr_console, write_stdout_text
+from oss_policy_kit.cli.help_text import CMD_PANEL_EXPORT
 from oss_policy_kit.domain.errors import InvalidInputError
 
 _DEFAULT_OUTPUT = Path("evidence-export.json")
@@ -87,8 +88,9 @@ def _render_chainloop(report: dict[str, Any]) -> dict[str, Any]:
     """Render the evaluation report as a Chainloop attestation envelope.
 
     EXPERIMENTAL in v6.0.0. The Chainloop ingest spec is pre-1.0; this
-    shape may change inside the v6.0.x line. ADR-012 documents the
-    rationale and the stabilization commitment for v6.1.0.
+    shape may change inside the v6.x line. ADR-012 documents the rationale
+    for keeping the renderer experimental until adopter feedback and upstream
+    spec stability justify promotion.
     """
     now = _now_iso8601_z()
     profile_id = report.get("profile", {}).get("id") if isinstance(report.get("profile"), dict) else None
@@ -110,8 +112,8 @@ def _render_chainloop(report: dict[str, Any]) -> dict[str, Any]:
         "experimental": True,
         "experimental_note": (
             "Chainloop ingest spec is pre-1.0; this attestation envelope shape "
-            "may change inside the v6.0.x line. See ADR-012 for the stabilization "
-            "commitment in v6.1.0."
+            "may change inside the v6.x line. See ADR-012 for the experimental "
+            "format rationale and promotion criteria."
         ),
     }
 
@@ -185,7 +187,7 @@ def _validate(doc: dict[str, Any], fmt: str) -> list[str]:
     return errs
 
 
-@app.command("export-evidence")
+@app.command("export-evidence", rich_help_panel=CMD_PANEL_EXPORT)
 def export_evidence_cmd(
     target: Path = typer.Option(
         Path("."),
@@ -240,6 +242,6 @@ def export_evidence_cmd(
         c = stderr_console()
         c.print(
             "[yellow]export-evidence:[/yellow] chainloop format is experimental in v6.0.0; "
-            "output shape may change inside the v6.0.x line (see ADR-012)."
+            "output shape may change inside the v6.x line (see ADR-012)."
         )
     write_stdout_text(f"export-evidence: wrote {output} (format={fmt})\n")
