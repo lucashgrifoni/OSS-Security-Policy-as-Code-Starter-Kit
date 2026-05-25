@@ -6,6 +6,23 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [6.5.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.4.0...v6.5.0) (2026-05-25)
+
+
+### Highlights
+
+* **cli:** brand the --help screen and group options/commands ([#59](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/59)) ([91d0ee3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/91d0ee346bdd8d265b1fee03ec69ac30ba7f0df0))
+
+
+### Notes
+
+* audit publish workflow egress ([66301a0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/66301a00165161c71c8a19ababe2a8d7592afce2))
+* complete v6.x framework mapping for the 8 non-AI control families ([e56a704](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e56a704e6801f15902ccd2dc1eeec71bc867a705))
+* fix two stale control IDs in framework-alignment (v6 renames) ([45c0644](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/45c064491e820bf911ca2a9030c37858f23293eb))
+* **gitpage:** add interactive filterable control catalog ([3d96274](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3d962743fce51733e3891055549af23fe47bea36))
+* refresh framework-alignment to v6.x reality and add policy-engine comparison ([15a58f2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/15a58f2120d8b79fc739b55c1623823a52dedc82))
+* refresh v6.4.0 docs and local controls ([94f2edc](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/94f2edc005c5034160ad52b9ec5306440d9c1a7b))
+
 ## [6.4.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.3.0...v6.4.0) (2026-05-23)
 
 

@@ -16,6 +16,7 @@ from oss_policy_kit.cli.common import (
     stderr_console,
     write_wrapped_stdout_block,
 )
+from oss_policy_kit.cli.help_text import CMD_PANEL_DISCOVER
 from oss_policy_kit.domain.errors import OssPolicyKitError
 
 
@@ -37,7 +38,7 @@ def _write_recommend_text(rec: ProfileRecommendation) -> None:
             write_wrapped_stdout_block("  - ", str(note), "    ")
 
 
-@app.command("recommend-profile")
+@app.command("recommend-profile", rich_help_panel=CMD_PANEL_DISCOVER)
 def recommend_profile_cmd(
     target: str = typer.Option(..., "--target", "-t", help="Repository root to inspect for CI platform signals."),
     output_format: str = typer.Option(

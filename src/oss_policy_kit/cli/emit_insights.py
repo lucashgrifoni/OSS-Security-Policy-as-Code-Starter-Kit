@@ -41,6 +41,7 @@ import typer
 import yaml
 
 from oss_policy_kit.cli.common import app, stderr_console, write_stdout_text
+from oss_policy_kit.cli.help_text import CMD_PANEL_EXPORT
 from oss_policy_kit.domain.errors import InvalidInputError
 
 _GITHUB_DIR = ".github"
@@ -220,7 +221,7 @@ def _validate_insights_structure(doc: dict[str, Any]) -> list[str]:
     return errs
 
 
-@app.command("emit-insights")
+@app.command("emit-insights", rich_help_panel=CMD_PANEL_EXPORT)
 def emit_insights_cmd(
     target: Path = typer.Option(
         Path("."),

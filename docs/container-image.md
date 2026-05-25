@@ -10,13 +10,13 @@ Adopters can build locally today; CI automation activates when a tag is pushed.
 ## Build
 
 ```bash
-docker build -t oss-policy-kit:5.9.0 .
+docker build -t oss-policy-kit:6.4.0 .
 ```
 
 The image installs from the checked-out source tree. The build arg is retained for image labels and release tag plumbing:
 
 ```bash
-docker build --build-arg KIT_VERSION=5.9.0 -t oss-policy-kit:5.9.0 .
+docker build --build-arg KIT_VERSION=6.4.0 -t oss-policy-kit:6.4.0 .
 ```
 
 ## Run
@@ -27,7 +27,7 @@ The image runs as a non-root user (uid 10001, container-baseline-1 expectation) 
 docker run --rm \
   -v "$(pwd):/work" \
   -w /work \
-  oss-policy-kit:5.9.0 \
+  oss-policy-kit:6.4.0 \
   evaluate --target . --profile github-level-1 --summary-only
 ```
 
@@ -38,7 +38,7 @@ docker run --rm \
   -v "$(pwd):/work" \
   -w /work \
   -e GITHUB_TOKEN \
-  oss-policy-kit:5.9.0 \
+  oss-policy-kit:6.4.0 \
   collect-evidence --target . --platform github --repo owner/name
 ```
 
@@ -48,7 +48,7 @@ For `emit-vex` against an existing OSV-Scanner SARIF in your repo:
 docker run --rm \
   -v "$(pwd):/work" \
   -w /work \
-  oss-policy-kit:5.9.0 \
+  oss-policy-kit:6.4.0 \
   emit-vex --waivers waivers/waivers.yaml --output vex.cyclonedx.json
 ```
 
@@ -76,11 +76,11 @@ The `publish-container` workflow handles the release flow on `v*` tag pushes:
 To verify a published image:
 
 ```bash
-cosign verify ghcr.io/<owner>/oss-policy-kit:5.9.0 \
+cosign verify ghcr.io/<owner>/oss-policy-kit:6.4.0 \
   --certificate-identity-regexp 'https://github.com/<owner>/.+' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
 
-gh attestation verify oci://ghcr.io/<owner>/oss-policy-kit:5.9.0 \
+gh attestation verify oci://ghcr.io/<owner>/oss-policy-kit:6.4.0 \
   --repo <owner>/OSS-Security-Policy-as-Code-Starter-Kit
 ```
 

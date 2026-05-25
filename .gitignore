@@ -2,6 +2,7 @@
 .claude/
 .cursorrules
 .vscode/
+/melhorias/
 
 # Ignore local kit output everywhere; do not remove this broad rule.
 .oss-policy-kit/

@@ -19,6 +19,7 @@ from oss_policy_kit.cli.common import (
     stderr_console,
     write_wrapped_stdout_block,
 )
+from oss_policy_kit.cli.help_text import CMD_PANEL_COLLECT
 from oss_policy_kit.domain.errors import InvalidInputError, OssPolicyKitError
 from oss_policy_kit.infrastructure.collectors.aws_collector import AWSEvidenceCollector
 from oss_policy_kit.infrastructure.collectors.azure_collector import AzureDevOpsEvidenceCollector
@@ -121,7 +122,7 @@ def _print_collect_dry_run_preview(
     console.print("\n[dim]Run without --dry-run to execute (credentials required).[/dim]")
 
 
-@app.command("scaffold-evidence")
+@app.command("scaffold-evidence", rich_help_panel=CMD_PANEL_COLLECT)
 def scaffold_evidence_cmd(
     target: str = typer.Option(
         ...,
@@ -282,7 +283,7 @@ def _write_collected_evidence(rows: list[Any], *, plat: str, output_dir: Path | 
     stderr_console().print(f"[green]Wrote[/green] {len(rows)} file(s) under {dest}")
 
 
-@app.command("collect-evidence")
+@app.command("collect-evidence", rich_help_panel=CMD_PANEL_COLLECT)
 def collect_evidence_cmd(
     target: Path = typer.Option(..., "--target", "-t", help="Repository root path."),
     platform: str = typer.Option(

@@ -33,7 +33,7 @@ The subcommand:
 | `chainloop` | experimental | Chainloop attestation envelope (JSON) wrapping the kit's report + SARIF. |
 | `sarif` | stable | Re-export of the SARIF the `evaluate` subcommand already produces. Provided for parity with the registry pattern. |
 
-Planned for a future release (not yet shipped as of v6.3.0):
+Planned for a future release (not yet shipped as of v6.4.0):
 
 | Format | Notes |
 |---|---|
@@ -47,9 +47,9 @@ Chainloop's ingest spec is pre-1.0 and has changed twice since 2024. ADR-012 doc
 
 - The **subcommand surface** (`export-evidence`, `--format`, `--output`, `--target`) is stable.
 - The **output shape for `--format chainloop`** may change in v6.0.x if Chainloop maintainers revise their spec. The CHANGELOG will call out any change.
-- Promotion to **stable** happens in v6.1.0 based on adopter feedback and Chainloop spec stability.
+- Promotion to **stable** depends on adopter feedback and Chainloop spec stability; no v6.x promotion date is committed.
 
-Adopters running `export-evidence --format chainloop` in production should pin the kit version explicitly and read the CHANGELOG before upgrading inside the v6.0.x line.
+Adopters running `export-evidence --format chainloop` in production should pin the kit version explicitly and read the CHANGELOG before upgrading inside the v6.x line.
 
 ## What `export-evidence` will not do
 

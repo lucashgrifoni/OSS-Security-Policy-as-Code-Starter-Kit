@@ -14,11 +14,11 @@ from oss_policy_kit.cli.common import (
     stderr_console,
     write_stdout_text,
 )
-from oss_policy_kit.cli.help_text import DIFF_REPORTS_EPILOG
+from oss_policy_kit.cli.help_text import CMD_PANEL_EVALUATE, DIFF_REPORTS_EPILOG
 from oss_policy_kit.domain.errors import InvalidInputError, OssPolicyKitError
 
 
-@app.command("diff-reports", epilog=DIFF_REPORTS_EPILOG)
+@app.command("diff-reports", epilog=DIFF_REPORTS_EPILOG, rich_help_panel=CMD_PANEL_EVALUATE)
 def diff_reports_cmd(
     before: Path = typer.Option(..., "--before", help="Path to the earlier evaluation-report.json."),
     after: Path = typer.Option(..., "--after", help="Path to the more recent evaluation-report.json."),

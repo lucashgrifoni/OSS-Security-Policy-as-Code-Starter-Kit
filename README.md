@@ -14,7 +14,7 @@ Pass/fail security policy gates for OSS repositories, with explicit assurance gr
 
 | Current release | Bundled profiles | Controls | CLI commands | Python |
 |---|---:|---:|---:|---|
-| v6.4.0 | 56 | 212 | 17 | 3.12+ |
+| v6.5.0 | 56 | 212 | 17 | 3.12+ |
 
 Use it when you need a local-first gate that combines repository governance, CI/CD hardening, release posture, scanner evidence, waivers, and framework-oriented reporting. It is not a vulnerability scanner, certification engine, or legal compliance guarantee.
 
@@ -88,7 +88,7 @@ Full profile guide: [docs/profiles/overview.md](docs/profiles/overview.md).
 ## GitHub Action
 
 ```yaml
-- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v6.3.0
+- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v6.4.0
   with:
     profile: github-level-1
     fail-on: fail
