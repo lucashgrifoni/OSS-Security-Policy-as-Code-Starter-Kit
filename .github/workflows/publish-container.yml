@@ -48,8 +48,9 @@ jobs:
       - name: Harden runner network audit
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          # TODO: tighten to `block` after reviewing a container publish audit run
-          # and pinning required GitHub/GHCR/Docker Hub/Sigstore endpoints.
+          # 'audit' (not 'block') by design: this job hits rotating GitHub Actions artifact
+          # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
+          # break releases; harden-runner's global C2/exfil blocklist still applies. (egress audit v6.5.0)
           egress-policy: audit
 
       - name: Check out the source tag

@@ -41,8 +41,9 @@ jobs:
       - name: Harden runner network audit
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          # TODO: tighten to `block` after reviewing a tag-publish audit run
-          # and pinning required PyPI/TestPyPI/GitHub/Sigstore endpoints.
+          # 'audit' (not 'block') by design: these jobs hit rotating GitHub Actions artifact
+          # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
+          # break releases; harden-runner's global C2/exfil blocklist still applies. (egress audit v6.5.0)
           egress-policy: audit
 
       # v4: tags pinned to immutable SHAs (supply-chain hardening).
@@ -108,8 +109,9 @@ jobs:
       - name: Harden runner network audit
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          # TODO: tighten to `block` after reviewing a tag-publish audit run
-          # and pinning required GitHub release asset endpoints.
+          # 'audit' (not 'block') by design: these jobs hit rotating GitHub Actions artifact
+          # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
+          # break releases; harden-runner's global C2/exfil blocklist still applies. (egress audit v6.5.0)
           egress-policy: audit
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -161,8 +163,9 @@ jobs:
       - name: Harden runner network audit
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          # TODO: tighten to `block` after reviewing a TestPyPI audit run
-          # and pinning required TestPyPI/Sigstore endpoints.
+          # 'audit' (not 'block') by design: these jobs hit rotating GitHub Actions artifact
+          # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
+          # break releases; harden-runner's global C2/exfil blocklist still applies. (egress audit v6.5.0)
           egress-policy: audit
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -192,8 +195,9 @@ jobs:
       - name: Harden runner network audit
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
         with:
-          # TODO: tighten to `block` after reviewing a PyPI audit run
-          # and pinning required PyPI/Sigstore endpoints.
+          # 'audit' (not 'block') by design: these jobs hit rotating GitHub Actions artifact
+          # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
+          # break releases; harden-runner's global C2/exfil blocklist still applies. (egress audit v6.5.0)
           egress-policy: audit
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
