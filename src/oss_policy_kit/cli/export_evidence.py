@@ -37,6 +37,7 @@ from typing import Any
 import typer
 
 from oss_policy_kit.cli.common import app, stderr_console, write_stdout_text
+from oss_policy_kit.cli.help_text import CMD_PANEL_EXPORT
 from oss_policy_kit.domain.errors import InvalidInputError
 
 _DEFAULT_OUTPUT = Path("evidence-export.json")
@@ -186,7 +187,7 @@ def _validate(doc: dict[str, Any], fmt: str) -> list[str]:
     return errs
 
 
-@app.command("export-evidence")
+@app.command("export-evidence", rich_help_panel=CMD_PANEL_EXPORT)
 def export_evidence_cmd(
     target: Path = typer.Option(
         Path("."),

@@ -34,6 +34,7 @@ from oss_policy_kit.cli.common import (
     stderr_console,
     write_stdout_text,
 )
+from oss_policy_kit.cli.help_text import CMD_PANEL_DISCOVER
 from oss_policy_kit.domain.errors import InvalidInputError, OssPolicyKitError
 
 
@@ -172,7 +173,7 @@ def _build_json_payload(
     }
 
 
-@app.command("init")
+@app.command("init", rich_help_panel=CMD_PANEL_DISCOVER)
 def init_cmd(
     target: str = typer.Option(
         ".",

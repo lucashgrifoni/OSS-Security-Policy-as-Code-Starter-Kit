@@ -35,6 +35,39 @@ from oss_policy_kit.cli.common import app, prepare_cli_args
 
 __all__ = ["app", "main", "prepare_cli_args"]
 
+# Deterministic command order for ``--help`` (drives the Rich help-panel order and the
+# within-panel order). Decorator registration order is import-order dependent (and
+# ``evaluate`` transitively imports ``profiles``), so we sort explicitly instead. Names
+# not listed keep their registration order after the listed ones.
+_COMMAND_DISPLAY_ORDER: tuple[str, ...] = (
+    "evaluate",
+    "evaluate-many",
+    "diff-reports",
+    "profiles",
+    "recommend-profile",
+    "init",
+    "scan-iac",
+    "scan-k8s",
+    "scan-cfn",
+    "scan-pulumi",
+    "scan-bicep",
+    "scan-sast",
+    "scaffold-evidence",
+    "collect-evidence",
+    "emit-vex",
+    "emit-insights",
+    "export-evidence",
+)
+
+
+def _order_registered_commands() -> None:
+    rank = {name: i for i, name in enumerate(_COMMAND_DISPLAY_ORDER)}
+    fallback = len(rank)
+    app.registered_commands.sort(key=lambda info: rank.get(info.name or "", fallback))
+
+
+_order_registered_commands()
+
 
 def main() -> None:
     for stream in (sys.stdout, sys.stderr):

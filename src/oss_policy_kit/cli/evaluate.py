@@ -15,7 +15,16 @@ from oss_policy_kit.cli.common import (
     execute_evaluate,
     stderr_console,
 )
-from oss_policy_kit.cli.help_text import EVALUATE_EPILOG
+from oss_policy_kit.cli.help_text import (
+    CMD_PANEL_EVALUATE,
+    EVALUATE_EPILOG,
+    OPT_PANEL_CI,
+    OPT_PANEL_CORE,
+    OPT_PANEL_DIAGNOSTICS,
+    OPT_PANEL_EVIDENCE,
+    OPT_PANEL_META,
+    OPT_PANEL_OUTPUT,
+)
 from oss_policy_kit.cli.profiles import _print_profiles_table
 from oss_policy_kit.domain.errors import LoadError
 
@@ -29,6 +38,7 @@ def cli_root(
         "-V",
         help="Show kit version and exit.",
         is_eager=True,
+        rich_help_panel=OPT_PANEL_META,
     ),
     profile: str | None = typer.Option(
         None,
@@ -39,6 +49,7 @@ def cli_root(
             "External YAML required fields: id, title, controls (list of control IDs). "
             "Use the 'profiles' subcommand to list built-in options."
         ),
+        rich_help_panel=OPT_PANEL_CORE,
     ),
     show_profiles: bool = typer.Option(
         False,
@@ -48,36 +59,42 @@ def cli_root(
             "DEPRECATED — use the 'profiles' subcommand. Show bundled profiles with full "
             "audience and description details, and exit."
         ),
+        rich_help_panel=OPT_PANEL_META,
     ),
     output_dir: Path = typer.Option(
         Path("out"),
         "--output-dir",
         "-o",
         help="Directory where evaluation-report.json and evaluation-report.md will be written.",
+        rich_help_panel=OPT_PANEL_OUTPUT,
     ),
     waivers: Path | None = typer.Option(
         None,
         "--waivers",
         "-w",
         help="Optional waivers YAML file.",
+        rich_help_panel=OPT_PANEL_EVIDENCE,
     ),
     scorecard_json: Path | None = typer.Option(
         None,
         "--scorecard-json",
         "-sj",
         help="Optional OpenSSF Scorecard export used as supplemental evidence.",
+        rich_help_panel=OPT_PANEL_EVIDENCE,
     ),
     kit_root: Path | None = typer.Option(
         None,
         "--kit-root",
         "-k",
         help="Override the bundled controls/ and profiles/ directory.",
+        rich_help_panel=OPT_PANEL_EVIDENCE,
     ),
     target_opt: str | None = typer.Option(
         None,
         "--target",
         "-t",
         help="Repository root to evaluate.",
+        rich_help_panel=OPT_PANEL_CORE,
     ),
     output_format: str = typer.Option(
         "human",
@@ -89,12 +106,14 @@ def cli_root(
             "Aliases: table, compact, detailed -> human layout."
         ),
         case_sensitive=False,
+        rich_help_panel=OPT_PANEL_OUTPUT,
     ),
     summary_only: bool = typer.Option(
         False,
         "--summary-only",
         "-so",
         help="Print only the summary on stdout.",
+        rich_help_panel=OPT_PANEL_OUTPUT,
     ),
     fail_on: str = typer.Option(
         "none",
@@ -106,18 +125,21 @@ def cli_root(
             "degraded=exit 1 on fail or manual-review-required. "
             "Operational warnings alone do not trigger this gate."
         ),
+        rich_help_panel=OPT_PANEL_CI,
     ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
         "-v",
         help="Print per-control evaluation lines to stdout (dim), pipe-friendly.",
+        rich_help_panel=OPT_PANEL_DIAGNOSTICS,
     ),
     report_json_contract: str = typer.Option(
         "1.0",
         "--report-json-contract",
         help=("evaluation-report.json contract: 1.0 (default), 2.0, 0.3, or 0.2. '0.1' was removed in v5."),
         case_sensitive=False,
+        rich_help_panel=OPT_PANEL_OUTPUT,
     ),
     sarif_output: Path | None = typer.Option(
         None,
@@ -126,12 +148,14 @@ def cli_root(
             "Optional SARIF 2.1.0 output path. If relative, resolved under --output-dir. "
             "Emits one SARIF result per fail or manual-review-required finding."
         ),
+        rich_help_panel=OPT_PANEL_OUTPUT,
     ),
     quiet: bool = typer.Option(
         False,
         "--quiet",
         "-q",
         help="Suppress operational warning lines on stderr while keeping normal stdout output.",
+        rich_help_panel=OPT_PANEL_DIAGNOSTICS,
     ),
     debug: bool = typer.Option(
         False,
@@ -141,6 +165,7 @@ def cli_root(
             "evidence). Opt-in; stdout output is unchanged. Place before a subcommand, e.g. "
             "`oss-policy-kit --debug evaluate ...`."
         ),
+        rich_help_panel=OPT_PANEL_DIAGNOSTICS,
     ),
 ) -> None:
     """Evaluate without typing `evaluate` (same flags as the subcommand)."""
@@ -187,7 +212,7 @@ def cli_root(
     )
 
 
-@app.command("evaluate", epilog=EVALUATE_EPILOG)
+@app.command("evaluate", epilog=EVALUATE_EPILOG, rich_help_panel=CMD_PANEL_EVALUATE)
 def evaluate_cmd(
     target_pos: str | None = typer.Argument(
         default=None,
@@ -203,36 +228,42 @@ def evaluate_cmd(
             "the profile recorded there (run `oss-policy-kit init` to create it). "
             "Use the 'profiles' subcommand to list built-in options."
         ),
+        rich_help_panel=OPT_PANEL_CORE,
     ),
     output_dir: Path = typer.Option(
         Path("out"),
         "--output-dir",
         "-o",
         help="Directory where evaluation-report.json and evaluation-report.md will be written.",
+        rich_help_panel=OPT_PANEL_OUTPUT,
     ),
     waivers: Path | None = typer.Option(
         None,
         "--waivers",
         "-w",
         help="Optional waivers YAML file.",
+        rich_help_panel=OPT_PANEL_EVIDENCE,
     ),
     scorecard_json: Path | None = typer.Option(
         None,
         "--scorecard-json",
         "-sj",
         help="Optional OpenSSF Scorecard export used as supplemental evidence.",
+        rich_help_panel=OPT_PANEL_EVIDENCE,
     ),
     kit_root: Path | None = typer.Option(
         None,
         "--kit-root",
         "-k",
         help="Override the bundled controls/ and profiles/ directory.",
+        rich_help_panel=OPT_PANEL_EVIDENCE,
     ),
     target_opt: str | None = typer.Option(
         None,
         "--target",
         "-t",
         help="Repository root to evaluate.",
+        rich_help_panel=OPT_PANEL_CORE,
     ),
     output_format: str = typer.Option(
         "human",
@@ -244,12 +275,14 @@ def evaluate_cmd(
             "Aliases: table, compact, detailed -> human layout."
         ),
         case_sensitive=False,
+        rich_help_panel=OPT_PANEL_OUTPUT,
     ),
     summary_only: bool = typer.Option(
         False,
         "--summary-only",
         "-so",
         help="Print only the summary on stdout.",
+        rich_help_panel=OPT_PANEL_OUTPUT,
     ),
     fail_on: str = typer.Option(
         "none",
@@ -261,18 +294,21 @@ def evaluate_cmd(
             "degraded=exit 1 on fail or manual-review-required. "
             "Operational warnings alone do not trigger this gate."
         ),
+        rich_help_panel=OPT_PANEL_CI,
     ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
         "-v",
         help="Print per-control evaluation lines to stdout (dim); json mode unchanged.",
+        rich_help_panel=OPT_PANEL_DIAGNOSTICS,
     ),
     report_json_contract: str = typer.Option(
         "1.0",
         "--report-json-contract",
         help=("evaluation-report.json contract: 1.0 (default), 2.0, 0.3, or 0.2. '0.1' was removed in v5."),
         case_sensitive=False,
+        rich_help_panel=OPT_PANEL_OUTPUT,
     ),
     sarif_output: Path | None = typer.Option(
         None,
@@ -281,12 +317,14 @@ def evaluate_cmd(
             "Optional SARIF 2.1.0 output path. If relative, resolved under --output-dir. "
             "Emits one SARIF result per fail or manual-review-required finding."
         ),
+        rich_help_panel=OPT_PANEL_OUTPUT,
     ),
     quiet: bool = typer.Option(
         False,
         "--quiet",
         "-q",
         help="Suppress operational warning lines on stderr while keeping normal stdout output.",
+        rich_help_panel=OPT_PANEL_DIAGNOSTICS,
     ),
     include_absolute_path: bool = typer.Option(
         False,
@@ -298,6 +336,7 @@ def evaluate_cmd(
             "when downstream tooling specifically expects an absolute path; sharing reports "
             "publicly with absolute paths leaks the auditor's home directory or username."
         ),
+        rich_help_panel=OPT_PANEL_OUTPUT,
     ),
 ) -> None:
     """Evaluate a local repository clone against a bundled profile.

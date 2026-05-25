@@ -49,11 +49,17 @@ class OssPolicyKitTyperGroup(TyperGroup):
         rich_mode = self.rich_markup_mode
         if rich_mode is None:
             return super().format_help(ctx, formatter)
-        return typer_rich_utils.rich_format_help(
-            obj=self,
-            ctx=ctx,
-            markup_mode=rich_mode,
-        )
+        # Suppress Typer's flat plain-text epilog on the Rich path; we render it as
+        # soft-bordered panels below so the whole screen shares one visual language.
+        # The non-Rich path above still uses the plain ``epilog`` string.
+        saved_epilog = self.epilog
+        self.epilog = None
+        try:
+            typer_rich_utils.rich_format_help(obj=self, ctx=ctx, markup_mode=rich_mode)
+        finally:
+            self.epilog = saved_epilog
+        terminal_ui.print_root_help_epilog_panels()
+        return None
 
 
 app = typer.Typer(
