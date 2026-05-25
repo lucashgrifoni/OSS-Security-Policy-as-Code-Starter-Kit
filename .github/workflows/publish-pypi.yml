@@ -39,7 +39,7 @@ jobs:
       attestations: write
     steps:
       - name: Harden runner network audit
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           # 'audit' (not 'block') by design: these jobs hit rotating GitHub Actions artifact
           # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
@@ -107,7 +107,7 @@ jobs:
       contents: write
     steps:
       - name: Harden runner network audit
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           # 'audit' (not 'block') by design: these jobs hit rotating GitHub Actions artifact
           # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
@@ -161,7 +161,7 @@ jobs:
       id-token: write
     steps:
       - name: Harden runner network audit
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           # 'audit' (not 'block') by design: these jobs hit rotating GitHub Actions artifact
           # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
@@ -193,7 +193,7 @@ jobs:
       id-token: write
     steps:
       - name: Harden runner network audit
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           # 'audit' (not 'block') by design: these jobs hit rotating GitHub Actions artifact
           # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
