@@ -6,6 +6,16 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [7.0.1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v7.0.0...v7.0.1) (2026-06-02)
+
+
+### Notes
+
+* correct post-v7.0.0 drift (CLI count 19, reports/2.0 default label, action [@v7](https://github.com/v7).0.0) ([154d3aa](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/154d3aa3f48c5050c13f9fa7b20431d1b0168175))
+* correct post-v7.0.0 drift (CLI count, reports/2.0 default, action pin) ([8443a55](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/8443a55836f6e6a5b5f671fb8da757ffc3900461))
+* **deps:** bump docker/setup-qemu-action from 4.0.0 to 4.1.0 ([c5afb6a](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c5afb6a688c05987d3b539268d8d6c7affdd339c))
+* **deps:** bump docker/setup-qemu-action from 4.0.0 to 4.1.0 ([799d053](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/799d053e25fdafac354b93e3d90da7406b17b4f1))
+
 ## [7.0.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v6.7.0...v7.0.0) (2026-06-02)
 
 
