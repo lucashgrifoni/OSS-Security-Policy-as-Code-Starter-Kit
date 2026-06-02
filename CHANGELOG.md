@@ -6,6 +6,14 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [7.0.2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v7.0.1...v7.0.2) (2026-06-02)
+
+
+### Notes
+
+* **readme:** bump GitHub Action usage example to [@v7](https://github.com/v7).0.1 ([f33a8d5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f33a8d5cd5f1a5bb20de2beef6d56ce302c90b16))
+* **readme:** bump GitHub Action usage example to [@v7](https://github.com/v7).0.1 ([49aae81](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/49aae81cc71137b2df4ffd2495eaf2498dbaeb6c))
+
 ## [7.0.1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v7.0.0...v7.0.1) (2026-06-02)
 
 
