@@ -6,6 +6,20 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [8.1.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v8.0.0...v8.1.0) (2026-06-19)
+
+
+### Highlights
+
+* **action:** emit a GitHub Actions job summary + per-finding annotations ([6a99765](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/6a99765928b72464f5ed986771374ffd9e04bb0f))
+* **cli:** add diff-catalogs subcommand for control/profile delta (T1.4) ([93f4661](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/93f466161fbb29c754448b8b7266e444a22d2420))
+* **cli:** add ingest-scorecard to corroborate controls from a Scorecard result (T2.3) ([2d2f892](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2d2f8926371000061d5c2b39eccb1586bc0b2768))
+* **cli:** emit-insights --merge — idempotent Security Insights fragment ([1df1ba4](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/1df1ba4ab93139186e60b7ec4080d1b16f53d30c))
+* **controls:** add CRA-ART13-SUPPORT-003 security-update support-period signal (T2.4) ([c78ccb8](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c78ccb8a24ab3caf0c0d132a825b63d887732da3))
+* **controls:** add OSPS-DO-07 build-instructions signal (GOV-BUILD-072) ([a74b346](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a74b34615a24710699d7a41057349b4ff9996c34))
+* **export:** add Gemara Layer 5 Evaluation Log export format (T2.1, ADR-042) ([83fc924](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/83fc92480d46bedfe3fca6103cef3e197d2ccde1))
+* **export:** enrich OSCAL assessment-results export with assurance grade, repo subject + assessment-log (T2.2) ([325ebca](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/325ebcabf3a8185fb37fada9dbb4335ca4d3f29a))
+
 ## [8.0.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v7.3.0...v8.0.0) (2026-06-18)
 
 
