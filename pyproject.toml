@@ -37,7 +37,7 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=4.1",
     "hypothesis>=6.0,<7",
-    "ruff==0.15.16",  # pinned: ruff format output changes between versions; keep CI and local identical
+    "ruff==0.15.18",  # pinned: ruff format output changes between versions; keep CI and local identical
   "mypy>=1.11",
   "bandit>=1.7.9",
   "pip-audit>=2.7",
