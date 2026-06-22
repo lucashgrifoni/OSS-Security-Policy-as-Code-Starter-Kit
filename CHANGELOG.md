@@ -6,6 +6,27 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [9.0.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v8.1.0...v9.0.0) (2026-06-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **reports:** the legacy report contracts reports/0.1, reports/0.2, reports/0.3, and reports/1.0 are removed. `--report-json-contract` (and the oss-policy-kit.yaml report_json_contract key) accept only `2.0`; pinning a removed contract now exits 2 with guidance instead of falling back. Consumers that parsed the legacy JSON shape must move to reports/2.0 (controls/id/state under `controls`, profile under `profile`). See docs/v9.0.0-migration-guide.md. Ships in v9.0.0.
+* **profiles:** the profile id `cra-eu-ready-2-1` is renamed to `cra-eu-conformance-evidence-1`. The old id still resolves as a deprecated alias (with a warning) through the v9.x line and is removed in v10.0.0; update your `--profile` / config references. Ships in v9.0.0.
+* **profiles:** the `cra-eu-ready-2-1` profile now requires additional obligation-evidence controls to pass; a repository that passed the previous readiness bundle may resolve to manual-review-required for the new controls until the corresponding evidence (VDP, SBOM, retention policy, audit streaming, provenance verification) is present. Recommended `--fail-on degraded` for this advisory profile. Ships in v9.0.0.
+
+### Highlights
+
+* **profiles:** rename cra-eu-ready-2-1 to cra-eu-conformance-evidence-1 + deprecated alias (ADR-029, v9.0.0 Track B slice 2) ([97ddd37](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/97ddd37f13fd0701561d98d8b93d0b44b1411340))
+* **profiles:** tighten cra-eu-ready-2-1 to CRA conformance-evidence (ADR-029, v9.0.0 Track B slice 1) ([b1ae1f8](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b1ae1f873a41ebe09c00ce5872389dd0190016c8))
+* **reports:** remove legacy pre-2.0 report contracts; reports/2.0 is the only contract (ADR-043, v9.0.0 Track A) ([ddc6f43](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/ddc6f4336b744ad3856b34c6fa3340c91802ca08))
+
+
+### Notes
+
+* **adr:** ratify the v9-&gt;v10 breaking sequence (ADR-029, ADR-043, ADR-030) ([07418e3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/07418e322f65df36389c04bf4efea2f390bd7ee3))
+* **cra:** finish ADR-029 rename ripple + document conformance-evidence sequencing (v9.0.0 Track B slice 3) ([898b3d0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/898b3d0712f6e9847d1d0c1fc95173ccdc26bc4e))
+
 ## [8.1.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v8.0.0...v8.1.0) (2026-06-19)
 
 
