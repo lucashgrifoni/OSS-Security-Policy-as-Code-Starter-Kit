@@ -6,6 +6,13 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [9.0.1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v9.0.0...v9.0.1) (2026-06-22)
+
+
+### Improvements
+
+* **cli:** fail-closed on blank report contract + sanitize errors + honest init (9.0.1) ([8554cf3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/8554cf3c28f970687a0dd35758572e89b8377e0a))
+
 ## [9.0.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v8.1.0...v9.0.0) (2026-06-22)
 
 
