@@ -6,6 +6,19 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [9.0.2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v9.0.1...v9.0.2) (2026-06-29)
+
+
+### Improvements
+
+* v9.0.2 hotfix — 12 raio-x defects (crashes, exit-3, path leaks, dishonest gates, silent waivers) ([8fb353a](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/8fb353a446002f7853cdda90391403046954f678))
+
+
+### Notes
+
+* **readme:** use canonical CRA profile id in the profiles table ([8355aa2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/8355aa293825eace8646ccf6969dfb9b677ba745))
+* reflect reports/2.0 as the only contract (ADR-043) across current docs ([2fac8d3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2fac8d342d0ecbcc83993dabb06ca92ed926c559))
+
 ## [9.0.1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v9.0.0...v9.0.1) (2026-06-22)
 
 
