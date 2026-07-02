@@ -6,6 +6,24 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [9.0.3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v9.0.2...v9.0.3) (2026-07-02)
+
+
+### Improvements
+
+* **catalog:** retitle SAST-OSV-068 — the kit ingests OSV verdicts, it is not reachability-aware ([becb213](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/becb2130a08b74b7a42267bec027f611196f08ab))
+* **clock:** honor SOURCE_DATE_EPOCH for every outcome-affecting clock read; freeze the suite clock ([431c29b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/431c29b2096592f167f34a20564f53a877a35c7e))
+* **export-evidence:** build Gemara state maps from pairs to clear a Snyk Code false positive ([91f4e5c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/91f4e5cac34e133935ee4f6e876d0588a3a44f01))
+* **reports:** formalize SELF_ATTESTED in the published reports/2.0 schema (9.0.3) ([eec4930](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/eec4930a4ab8f00687b44b7634461481234bdb21))
+
+
+### Notes
+
+* **adr:** ADR-030 amendment re-grounding the v10.0.0 surface; flip ADR-021 to accepted ([513a74c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/513a74c7e9f3306c005d569aa24b113d9158088e))
+* **deps:** bump actions/setup-python from 6.2.0 to 6.3.0 ([#107](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/107)) ([b9a0234](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b9a0234fd8a4f46cf546104e4a9347b73afac054))
+* **security:** make Snyk Code + Snyk Open Source advisory (continue-on-error) ([4e3055c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4e3055c897e03698eb22b8e900813bf7d90096bd))
+* **security:** suppress reviewed Snyk Code false positive via .snyk; keep the gate strict ([47c5cf0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/47c5cf0164d939348dd9a507cc3869e691539fba))
+
 ## [9.0.2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v9.0.1...v9.0.2) (2026-06-29)
 
 
