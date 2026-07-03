@@ -14,7 +14,7 @@ Pass/fail security policy gates for OSS repositories, with explicit assurance gr
 
 | Current release | Bundled profiles | Controls | CLI commands | Python |
 |---|---:|---:|---:|---|
-| v9.0.3 <!-- x-release-please-version --> | 56 | 222 | 23 | 3.12+ |
+| v10.0.0 <!-- x-release-please-version --> | 56 | 222 | 23 | 3.12+ |
 
 Use it when you need a local-first gate that combines repository governance, CI/CD hardening, release posture, scanner evidence, waivers, and framework-oriented reporting. It is not a vulnerability scanner, certification engine, or legal compliance guarantee.
 

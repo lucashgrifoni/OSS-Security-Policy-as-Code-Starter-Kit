@@ -6,6 +6,28 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v9.0.3...v10.0.0) (2026-07-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* the `cra-eu-ready-2-1` profile alias is removed (use `cra-eu-conformance-evidence-1`); the legacy evaluation-report v1/v2/v3 schema files no longer ship in the wheel or the reports/schema mirror; the `migrate-1.0-to-2.0.py` helper script is removed; `export-evidence` no longer accepts pre-2.0 report shapes (reports/2.0 fields are required). This release also introduces the normalized finding surface (ADR-030): the `correlate-findings` command, the findings/1.0 artifact contract, and the opt-in `evaluate --with-findings-summary` embed.
+
+### Highlights
+
+* **cli:** correlate-findings command — first user-visible finding surface (ADR-030 A-S6) ([2de2e58](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2de2e587f1d2d9a1325df64de859727480e5b59f))
+* **findings:** cross-scanner correlation engine (ADR-030 A-S4) ([e638f0c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e638f0cd88d8be4af6935f2d59383e942a6b9aff))
+* **findings:** domain finding model + kit-evidence normalizers (ADR-030 A-S2) ([dde11f0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/dde11f069896f2f0aedad91464d898dfd182f2a4))
+* **findings:** external-SARIF normalizers (ADR-030 A-S3) ([c577599](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c577599503ec75716bc6a8f4ad406b45174c25eb))
+* **findings:** findings/1.0 contract + artifact assembler (ADR-030 A-S5) ([9da8a3d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9da8a3df47e43b4f94b784628f5edf5ff69d3af8))
+* **findings:** waiver linkage, offline enrichment, SARIF export, evaluate embed (ADR-030 A-S6b/S7/S8/S9) ([5025455](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/50254559ce8057879786710bdf15cc241fc99c95))
+* v10.0.0 breaking cleanups — CRA alias removal, legacy schema deletion, export-evidence pure reports/2.0 (ADR-029/ADR-030 Track B) ([471f959](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/471f959eabbcea57284e5d01079b9eb1db6f66f4))
+
+
+### Notes
+
+* findings-correlation guide, v10.0.0 migration guide, 23-command surface (ADR-030 A-S10) ([b91d052](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b91d052451441315a4f460987eee370efdee8523))
+
 ## [9.0.3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v9.0.2...v9.0.3) (2026-07-02)
 
 
