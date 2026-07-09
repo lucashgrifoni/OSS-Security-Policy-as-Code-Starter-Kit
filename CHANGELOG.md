@@ -6,6 +6,13 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.0...v10.0.1) (2026-07-09)
+
+
+### Improvements
+
+* privacy, contract-honesty and UX hardening from extreme end-user raio-x (v10.0.1) ([fdc692b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/fdc692b8d06f26f5eff74b8e3b5705b21b18accf))
+
 ## [10.0.0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v9.0.3...v10.0.0) (2026-07-03)
 
 
