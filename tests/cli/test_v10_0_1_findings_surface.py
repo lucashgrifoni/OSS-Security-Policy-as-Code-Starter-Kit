@@ -241,13 +241,25 @@ def test_x3_04_relative_enrichment_missing_reports_clean_error(tmp_path: Path, m
 # --------------------------------------------------------------------------- #
 
 
-def test_x2_f5_nondir_target_error_has_no_abs_path(tmp_path: Path) -> None:
-    missing = tmp_path / "SECRET-HOME" / "nope"
-    result = _invoke(["correlate-findings", "--target", str(missing), "--output", str(tmp_path / "f.json")])
+def test_x2_f5_nondir_target_error_echoes_user_string_not_resolved_path(tmp_path: Path, monkeypatch) -> None:
+    """A relative --target is echoed verbatim, never as its resolved absolute path (M-002).
+
+    Echoing back the string the user typed is not a leak; resolving it is, because the
+    resolved form exposes the cwd / home directory (and the OS username with it). The
+    target must therefore be RELATIVE here: given an absolute --target the user's own
+    string already is the absolute path, so there is nothing the error could withhold.
+    """
+
+    (tmp_path / "SECRET-HOME").mkdir()
+    monkeypatch.chdir(tmp_path)
+    result = _invoke(["correlate-findings", "--target", "SECRET-HOME/nope", "--output", str(tmp_path / "f.json")])
     assert result.exit_code == 2, result.output
     assert "is not a directory" in result.output
-    # The message must not echo target.resolve() (absolute path / username).
-    assert str(missing.resolve()) not in result.output
+    assert "SECRET-HOME/nope" in result.output  # the user's own string, echoed verbatim
+    # ...but never the resolved absolute form, which would carry the cwd / username.
+    assert str((tmp_path / "SECRET-HOME" / "nope").resolve()) not in result.output
+    assert str(tmp_path.resolve()) not in result.output
+    assert "Traceback" not in result.output
 
 
 def test_x2_f4_empty_target_rejected_cleanly(tmp_path: Path) -> None:
