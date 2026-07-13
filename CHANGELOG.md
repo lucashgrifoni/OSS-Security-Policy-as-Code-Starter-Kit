@@ -6,6 +6,23 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.1...v10.0.2) (2026-07-13)
+
+
+### Improvements
+
+* exit-code, determinism and privacy hardening from second extreme end-user raio-x (v10.0.2) ([44b9421](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/44b9421417c8ac92f1c26853b465cfa1397b326e))
+
+
+### Notes
+
+* align living docs with real v10.0.1 behavior (docs-vs-reality audit) ([1ea37ad](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/1ea37ad4092780560815374e863f5533c446b1ae))
+* **deps:** bump docker/build-push-action from 7.2.0 to 7.3.0 ([#116](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/116)) ([709f601](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/709f601ac61af0efbdaf7e2f7942b006afe32246))
+* **deps:** bump docker/login-action from 4.2.0 to 4.4.0 ([#120](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/120)) ([9ba4db1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9ba4db15c47cc9974aea8f6f195f4615202e9d16))
+* **deps:** bump docker/setup-qemu-action from 4.1.0 to 4.2.0 ([#117](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/117)) ([186904d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/186904da9ce7f5bb0d887f2330f6c2ab927b1c09))
+* **deps:** bump github/codeql-action from 4.36.2 to 4.36.3 (all sub-actions) ([feaaf1b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/feaaf1b0375ded41293c8440bf5c76cd7f5b97f4))
+* **deps:** bump github/codeql-action from 4.36.3 to 4.37.0 (all sub-actions) ([4c85a4d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4c85a4d075b5a22bcefa046cf6f96123ed2faa78))
+
 ## [10.0.1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.0...v10.0.1) (2026-07-09)
 
 
