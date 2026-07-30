@@ -6,6 +6,23 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.2...v10.0.3) (2026-07-30)
+
+
+### Improvements
+
+* **ci:** unbreak the test suite and the SAST gate — pinned clock in tests, SHA-pinned starter templates ([b270893](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b270893974f6c6964351328c0eb226a87e3af7ec))
+* **packaging:** ship py.typed and stop the documented Action references going stale ([11aec53](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/11aec538d1c47823a6421eb55d1ea0ff410209e5))
+
+
+### Notes
+
+* **deps-dev:** bump ruff to 0.16.0 and apply its formatter output ([e34b224](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e34b224993fb6a39642f7fbb725360a4220c1ee9))
+* **deps:** bump codeql-action to v4.37.1, setup-node to v6.5.0, pypi-publish to v1.14.1 ([6a8bfa0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/6a8bfa03b67e18d87596d49b9e964a77eba743a4))
+* **deps:** bump docker/setup-buildx-action from 4.1.0 to 4.2.0 ([#125](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/125)) ([0e06d85](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0e06d85d98cfeac87d6dc15604cb8fd432262231))
+* **deps:** bump step-security/harden-runner from 2.19.4 to 2.20.0 (all pins) ([5e7c5d3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/5e7c5d3ac97a923151c871939fcda169cae1f97e))
+* **gitpage:** bump tailwindcss and the tailwind CLI to 4.3.3 and rebuild the served assets ([2fc8bcd](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2fc8bcdeb965546692d6cff3a91a081cbd4fee83))
+
 ## [10.0.2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.1...v10.0.2) (2026-07-13)
 
 
