@@ -6,6 +6,13 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.4](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.3...v10.0.4) (2026-07-31)
+
+
+### Improvements
+
+* **docs:** SHA-pin the documented codeql-action reference and guard the class ([eae8db7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/eae8db77bff1ee2967884f7ccf411b55e2b17744))
+
 ## [10.0.3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.2...v10.0.3) (2026-07-30)
 
 
