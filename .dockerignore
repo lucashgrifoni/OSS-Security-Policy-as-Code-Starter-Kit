@@ -16,6 +16,14 @@ dist/
 build/
 *.egg-info/
 melhorias/
+# Assistant instruction files are local operating context. They are gitignored, so
+# they never reach a clone — but a maintainer building from a working tree would
+# otherwise pull them into the build context.
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.cursorrules
+.aider*
 out/
 tests/
 docs/

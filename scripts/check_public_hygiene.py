@@ -69,6 +69,28 @@ DEFAULT_FORBIDDEN_TOKENS: tuple[tuple[str, str, bool], ...] = (
     ("azure-pat-like", r"\b[a-z0-9]{52}\b", True),
 )
 
+# Filenames that must never be tracked, matched on basename regardless of directory.
+#
+# Content scanning alone does not catch these: an assistant instruction file holds
+# ordinary prose, so every token regex above passes it. CLAUDE.md was tracked for a
+# month and this scanner reported OK the whole time, because it was asking the wrong
+# question — "does this file contain a forbidden string?" instead of "should this file
+# be here at all?".
+#
+# These files carry standing authorizations, private remote names, and local workflow
+# notes. They are operating context for whoever runs the assistant, never project surface.
+FORBIDDEN_TRACKED_FILENAMES: frozenset[str] = frozenset(
+    {
+        "CLAUDE.md",
+        "AGENTS.md",
+        "GEMINI.md",
+        ".cursorrules",
+        ".aider.conf.yml",
+        "copilot-instructions.md",
+    }
+)
+
+
 # Files whose content is allowed to contain high-signal synthetic credentials.
 ALLOWLISTED_PATHS: frozenset[str] = frozenset(
     {
@@ -195,6 +217,14 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     total_violations = 0
+
+    # Filename check first: a forbidden file is a violation whatever its content.
+    for f in sorted(files):
+        if f.name in FORBIDDEN_TRACKED_FILENAMES:
+            rel = f.relative_to(root).as_posix()
+            print(f"[hygiene] {rel}  [forbidden-tracked-filename]  agent instruction file must not be public")
+            total_violations += 1
+
     for f in sorted(files):
         rel = f.relative_to(root).as_posix()
         violations = _scan_file(f, forbidden=forbidden, relative_for_allowlist=rel)
