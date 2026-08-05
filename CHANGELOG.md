@@ -6,6 +6,18 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.4...v10.0.5) (2026-08-05)
+
+
+### Improvements
+
+* **templates:** refresh the action pins adopters copy and label every one ([3665bd5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3665bd5ed3084f29607eeeb2eeb911e3b3067c63))
+
+
+### Notes
+
+* **deps:** consolidate the codeql-action and login-action bumps ([33024e6](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/33024e6fb45d743238c0aeda2195a93a7df84430))
+
 ## [10.0.4](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.3...v10.0.4) (2026-07-31)
 
 
