@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oss-policy-kit"
-version = "10.0.5"
+version = "10.0.6"
 description = "Open source starter kit for adopting OSS security baselines via policy packs, templates, evidence, and remediation."
 readme = "README.md"
 license = "Apache-2.0"

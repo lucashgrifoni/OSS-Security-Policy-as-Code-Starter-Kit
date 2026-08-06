@@ -6,6 +6,28 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.6](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.5...v10.0.6) (2026-08-06)
+
+
+### Improvements
+
+* **cli:** keep machine output machine-readable and fail closed on unusable inputs ([0cf15ca](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0cf15ca56be2b6d580b809b64f08ae70aa9b7858))
+* **cli:** make an empty enum value fail closed instead of disabling the feature ([dede348](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/dede348221694c1db8f56936c324981f06bb0790))
+* **drift:** read reports/2.0 so the diff-reports regression gate can fire ([f41f3b6](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f41f3b6393768f7d9551b3c7d79a1a33880c4290))
+* **findings:** attribute SARIF drops honestly and stop waivers applying by accident ([ede288a](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/ede288aeb3a47dd478dc3fe5d965fc778d531b3c))
+* **gitpage:** correct the counts and the contract claim the landing page states ([e49211d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e49211deb66171c19a484f812a307fd4b8a9b065))
+* **input:** make every hostile document a usage error, and stop swallowing write failures ([1eb13ad](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/1eb13ad187d1e60ece6ddf6604a4bd5fdb9b29a7))
+* **input:** refuse an over-nested document by an explicit budget, not by stack exhaustion ([6c6c542](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/6c6c5427976b15c6060155a003c5f326a803615c))
+* **messages:** tell adopters something true and actionable when a scan cannot run ([3a81329](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3a813297a4955aa114bee5111a241b2b6412428b))
+* **reporting:** stop shareable artifacts from leaking paths or corrupting tables ([3f43873](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3f438739345eb0e8a31ae640475c5c943ad7cc17))
+
+
+### Notes
+
+* complete the repository layout and say what must never be committed ([14e6d9f](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/14e6d9fd6899ee64e05810f58169c35514595ef3))
+* **readme:** give assurance grading its own section and state the status ([75e2fcc](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/75e2fcc8dd76ef037c04bd808f272e95f6c67d2f))
+* regenerate the shipped sample reports, and add the guard that should have caught them ([0187fe5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0187fe5822351c02a1e9cf58fd44a16a535be7db))
+
 ## [10.0.5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.4...v10.0.5) (2026-08-05)
 
 
