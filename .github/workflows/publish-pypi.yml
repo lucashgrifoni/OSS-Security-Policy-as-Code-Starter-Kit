@@ -54,7 +54,9 @@ jobs:
           python-version: "3.12"
 
       - name: Install build tools
-        run: pip install build twine
+        # Hash-pinned (Scorecard Pinned-Dependencies). This job builds and signs the
+        # artifact adopters install, so anything that enters it is in the trusted path.
+        run: pip install --require-hashes -r .github/requirements/build-tools.txt
 
       - name: Build wheel and sdist
         run: python -m build
@@ -70,7 +72,7 @@ jobs:
 
       - name: Generate SBOM
         run: |
-          pip install cyclonedx-bom
+          pip install --require-hashes -r .github/requirements/build-tools.txt
           mkdir -p artifacts
           python -m cyclonedx_py environment --of JSON -o artifacts/sbom.cyclonedx.json
 

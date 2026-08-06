@@ -106,7 +106,14 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install Semgrep
-        run: python -m pip install --upgrade "semgrep>=1.100.0,<2"
+        # Hash-pinned (Scorecard Pinned-Dependencies): the scanner that decides whether
+        # this repository ships is itself a supply-chain dependency, and a range like
+        # ">=1.100.0,<2" let any release inside it -- and every transitive package --
+        # enter the job unverified. Regenerate with:
+        #   uv pip compile .github/requirements/semgrep.in --generate-hashes \
+        #     --python-version 3.12 --python-platform linux \
+        #     -o .github/requirements/semgrep.txt
+        run: python -m pip install --require-hashes -r .github/requirements/semgrep.txt
 
       - name: Scan application and workflow code
         # `examples/vulnerable-repo/` is a deliberately insecure fixture: the kit ships it so
@@ -618,7 +625,7 @@ jobs:
         # [dev] dependency with no fix must be recorded as a documented
         # exception, never silenced with a blind --ignore-vuln.
         run: |
-          python -m pip install pip-audit
+          python -m pip install --require-hashes -r .github/requirements/pip-audit.txt
           python -m pip_audit --desc --skip-editable
 
   sast-bandit:
@@ -651,5 +658,5 @@ jobs:
         # Gate: fail on medium+ severity AND medium+ confidence findings
         # (-ll -ii). Lower-signal findings are reported but non-blocking.
         run: |
-          python -m pip install bandit
+          python -m pip install --require-hashes -r .github/requirements/bandit.txt
           python -m bandit -q -r src/oss_policy_kit -ll -ii

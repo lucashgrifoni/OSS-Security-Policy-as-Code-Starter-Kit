@@ -144,8 +144,14 @@ jobs:
           cache: pip
 
       - name: Install build tools
+        # Hash-pinned (Scorecard Pinned-Dependencies). The `-e ".[dev]"` line below is
+        # deliberately NOT hash-pinned: it installs this project from source with the
+        # ranges pyproject.toml declares, which is what the test suite is meant to run
+        # against. Pinning it here would test a frozen tree rather than the one adopters
+        # resolve, and hide a dependency break until release day.
         run: |
-          python -m pip install -U pip build twine cyclonedx-bom
+          python -m pip install -U pip
+          python -m pip install --require-hashes -r .github/requirements/build-tools.txt
           python -m pip install -e ".[dev]"
 
       - name: Clean artifact directories
