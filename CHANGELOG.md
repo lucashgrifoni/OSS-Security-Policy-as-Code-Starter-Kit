@@ -6,6 +6,21 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.8](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.7...v10.0.8) (2026-08-07)
+
+
+### Improvements
+
+* **ci:** allow api.deps.dev so dependency review can run when a PR adds dependencies ([3eef5b3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3eef5b35cc016033af0ec51f5280cbd141386b8d))
+* **ci:** record the mcp advisories as a reasoned exception, not a silenced one ([497f6b7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/497f6b78e98d3b8331742a982c4a68f31f89be49))
+* **init:** read stack labels from profile_hints instead of a second copy ([209813d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/209813d44f475aef92115e83a40da2fd6a2a5a3c))
+* **reports:** map the two ControlStatus members that reached adopters as unmapped ([7d3172d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/7d3172d784d2c410515603653a9ec6b781bfbce9))
+
+
+### Notes
+
+* **waivers:** name expires_at as canonical and expires_on as the accepted legacy spelling ([8aab34f](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/8aab34f42878e60fa5bb3e476b2849dc8a605755))
+
 ## [10.0.7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.6...v10.0.7) (2026-08-07)
 
 
