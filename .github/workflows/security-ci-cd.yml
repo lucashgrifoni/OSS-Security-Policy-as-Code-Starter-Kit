@@ -539,12 +539,21 @@ jobs:
             github.com:443
             api.github.com:443
             api.securityscorecards.dev:443
+            api.deps.dev:443
 
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           persist-credentials: false
 
+      # `api.deps.dev` is required above: dependency-review-action queries deps.dev for
+      # package metadata, and only does so when the pull request actually introduces
+      # dependencies. Every earlier PR had an empty dependency delta, so the call was
+      # never made and the missing endpoint stayed invisible — the job passed by having
+      # nothing to look up. The first PR to add dependencies (the hash-pinned lockfiles
+      # in .github/requirements/) hit the block and surfaced as a bare `fetch failed`,
+      # with the cause only visible in the Harden-Runner log line `domain not allowed:
+      # api.deps.dev.`.
       - name: Review new dependencies introduced by the pull request
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
