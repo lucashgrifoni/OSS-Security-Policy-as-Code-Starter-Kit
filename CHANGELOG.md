@@ -6,6 +6,23 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.6...v10.0.7) (2026-08-07)
+
+
+### Improvements
+
+* **cli:** make exit 3 mean a defect in the kit, and stop guessing which reads are guarded ([b8e688d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b8e688d47cc3280be0cefbed780e2fa4f95d7b07))
+* **cli:** redact the home directory at the output boundary, not command by command ([30c05d1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/30c05d189227f59a5841bbdea969ec46ef21b143))
+* **cli:** stop Rich deleting the part of a message the adopter has to act on ([336e3a4](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/336e3a4220f8457c1f5f35378605f17b3e2fed09))
+* close the 26 findings left from the pre-publish clean-room ([bdbd900](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/bdbd9007856f870a125dd28f8d8feacf88f73b86))
+* **export:** stop a passing repository becoming a page of code-scanning alerts ([6658a60](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/6658a60ed032f55597438a9b20b04a1816b5bdf3))
+* **input:** apply the depth budget to every reader, not the two it reached first ([1f59d5d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/1f59d5dcdae32a36a9b724f8f46d0a23635c5f65))
+* **packaging:** ship the workflow templates, so the documented quickstart works ([cc17b08](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/cc17b088694c2c1de951838944f06d92b28499d6))
+* **reporting:** stop a held file handle failing the run, and a failed batch reporting PASSED ([e54fb9f](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e54fb9fd2a3d872a8a75cd523cd478b459941fc2))
+* **reporting:** stop advising deletion of evidence the kit wrote, and lose no report to a race ([4c1be41](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4c1be419e2c815b2666bb5663a0d94814bc9d1b6))
+* **sca:** stop asserting "no KEV" over a SARIF that carries no KEV data ([f4684ad](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f4684ad08ed83441fc6dd9cbfe348a77c9bc5a94))
+* **waivers:** honour expires_on on the surface the documentation sends people to ([84bd38e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/84bd38efa1bf13fb76008dda9df5bc70b6e647a7))
+
 ## [10.0.6](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.5...v10.0.6) (2026-08-06)
 
 
