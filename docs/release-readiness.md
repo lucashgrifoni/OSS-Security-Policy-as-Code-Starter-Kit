@@ -80,7 +80,7 @@ This script grep-scans tracked files for the forbidden tokens and exits non-zero
 - [ ] `README.md` explains what the project is and is not
 - [ ] `SECURITY.md` matches the actual vulnerability reporting path
 - [ ] `CHANGELOG.md` reflects the intended release
-- [ ] `pyproject.toml` version matches `src/oss_policy_kit/__init__.py` (for example `10.0.1` on the current release line)
+- [ ] `pyproject.toml` version matches `src/oss_policy_kit/__init__.py` (the two must agree; the value itself is whatever the release is cutting)
 
 ## Quality gates
 
