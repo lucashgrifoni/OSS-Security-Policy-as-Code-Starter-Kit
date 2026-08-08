@@ -6,6 +6,19 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.9](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.8...v10.0.9) (2026-08-08)
+
+
+### Improvements
+
+* **docs:** stop the new waivers table shadowing the quick-reference rows ([1097841](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/109784156a280a208615f69839f29cc832c76490))
+
+
+### Notes
+
+* stop two version examples from claiming to be current ([9f914ea](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9f914ea88157d374ef2de96eadbe4b5c21c25961))
+* **waivers:** record why a gate fails and a document warns ([dff217b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/dff217b8dcfcf408e52642dcd0b19dec33723156))
+
 ## [10.0.8](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.7...v10.0.8) (2026-08-07)
 
 
