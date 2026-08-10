@@ -6,6 +6,13 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.10](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.9...v10.0.10) (2026-08-10)
+
+
+### Improvements
+
+* **aws:** report a buildspec once per finding, not once per risky variable ([cec6c70](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/cec6c7019a299a23222e1fe536d3a1e2b27374ab))
+
 ## [10.0.9](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.8...v10.0.9) (2026-08-10)
 
 

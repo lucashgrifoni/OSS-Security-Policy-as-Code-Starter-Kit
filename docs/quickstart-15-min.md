@@ -123,7 +123,7 @@ list each applied waiver, its owner, and its expiry date.
 Use the bundled GitHub Action:
 
 ```yaml
-- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.9 # x-release-please-version
+- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.10 # x-release-please-version
   with:
     profile: github-level-1
     fail-on: fail
