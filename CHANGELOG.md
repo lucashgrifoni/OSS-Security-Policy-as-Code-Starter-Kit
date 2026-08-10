@@ -6,6 +6,27 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.9](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.8...v10.0.9) (2026-08-10)
+
+
+### Improvements
+
+* **ci:** harden the workflows the kit's own scanner flags, and run it in CI ([f2bf0cd](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f2bf0cd09cf8feea2daaa1866c3ae5959dce8f7c))
+* **docs:** stop the new waivers table shadowing the quick-reference rows ([1097841](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/109784156a280a208615f69839f29cc832c76490))
+* **quality:** clear the Sonar findings that were real, keep the ones that were not ([c30a46f](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c30a46f7068b1ddb22ec76c7d2e1f6f9d8b31983))
+* **quality:** split the densest functions, make asserts name their failure ([fa84240](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/fa84240aa99df61b4bbd1837166f97540912485f))
+* **recommend:** drop the release-hardening fallback that cannot run ([04e6f1d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/04e6f1db0ed8f1eea1526ba1055fdcdfdb21cbb8))
+
+
+### Notes
+
+* **deps:** bump actions/checkout from 6.0.3 to 6.1.0 ([#160](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/160)) ([24e725c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/24e725cac5f10b13e2c7c1d312611679a243a4c7))
+* **deps:** bump ossf/scorecard-action from 2.4.3 to 2.4.4 ([#161](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/161)) ([3938e97](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3938e97554f31ef99bc0fda819b69d7defcdf528))
+* **deps:** bump pypa/gh-action-pypi-publish from 1.14.1 to 1.14.2 ([#159](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/159)) ([4138362](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4138362036ae6e226b74938697b2dc686c076275))
+* **deps:** bump step-security/harden-runner from 2.20.0 to 2.20.1 ([#162](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/162)) ([33b1f09](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/33b1f09c9637238928a79d7dd715cc2cf2b38365))
+* stop two version examples from claiming to be current ([9f914ea](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9f914ea88157d374ef2de96eadbe4b5c21c25961))
+* **waivers:** record why a gate fails and a document warns ([dff217b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/dff217b8dcfcf408e52642dcd0b19dec33723156))
+
 ## [10.0.8](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.7...v10.0.8) (2026-08-07)
 
 
