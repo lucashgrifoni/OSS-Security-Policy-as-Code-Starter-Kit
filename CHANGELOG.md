@@ -6,6 +6,13 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.11](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.10...v10.0.11) (2026-08-11)
+
+
+### Improvements
+
+* **iac:** an explicit encrypted=false was reported as encryption never configured ([61424d7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/61424d736f68ef28450028716a252e5b692f4d40))
+
 ## [10.0.10](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.9...v10.0.10) (2026-08-10)
 
 
