@@ -6,6 +6,13 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.13](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.12...v10.0.13) (2026-08-12)
+
+
+### Improvements
+
+* **evaluators:** unreadable GitHub evidence asked the gate to assert a failure it never established ([09e6297](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/09e62970b309ce6a8c4fb5a3904857ed0b5295c8))
+
 ## [10.0.12](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.11...v10.0.12) (2026-08-12)
 
 
