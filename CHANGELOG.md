@@ -6,6 +6,15 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.12](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.11...v10.0.12) (2026-08-12)
+
+
+### Improvements
+
+* clear the 33 Sonar findings the coverage push introduced ([e17c7b2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e17c7b29f8390d8fe44e9f36b6b1c0925189494f))
+* **evaluators:** one digest gate behind the four attestation controls ([75bcd39](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/75bcd395d9c57c6cc934e7b82cf75a3147704eb0))
+* **evaluators:** stop SAST-SEMGREP-064 reading an uncountable tally as a clean scan ([ef364c9](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/ef364c92a2786b94af3fee68ce6711d7532f8b0f))
+
 ## [10.0.11](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.10...v10.0.11) (2026-08-11)
 
 
