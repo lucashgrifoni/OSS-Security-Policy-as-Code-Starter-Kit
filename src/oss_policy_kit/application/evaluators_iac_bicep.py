@@ -7,7 +7,6 @@ exactly.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -17,6 +16,7 @@ from oss_policy_kit.application._evidence_rules import (
     rule_finding_count,
     sample_finding_files,
 )
+from oss_policy_kit.application.evaluators_common import read_scanner_evidence
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 
 _EVIDENCE_FILENAME = "iac-bicep.json"
@@ -37,25 +37,11 @@ def _load_evidence(repo_root: Path) -> tuple[dict[str, Any] | None, EvalOutcome 
             evidence_sources=[],
             confidence="medium",
         )
-    try:
-        data = json.loads(evidence.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        return None, EvalOutcome(
-            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=f"Could not parse Bicep IaC evidence file: {exc}",
-            remediation="Re-run `oss-policy-kit scan-bicep` to regenerate the evidence file.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="low",
-        )
-    schema = str(data.get("schema_version", ""))
-    if not schema.startswith(_SCHEMA_PREFIX):
-        return None, EvalOutcome(
-            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=f"Unexpected schema_version in {evidence.name}: {schema!r}. Expected prefix {_SCHEMA_PREFIX!r}.",
-            remediation="Regenerate via `oss-policy-kit scan-bicep` to align with the current contract.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="low",
-        )
+    data = read_scanner_evidence(
+        evidence, label="Bicep IaC", regenerate_cmd="oss-policy-kit scan-bicep", schema_prefix=_SCHEMA_PREFIX
+    )
+    if isinstance(data, EvalOutcome):
+        return None, data
     status = str(data.get("status", "unknown")).lower()
     if status in {"timeout", "error"}:
         return None, EvalOutcome(

@@ -57,6 +57,71 @@ _WEAK_DIGEST_PATTERNS: tuple[re.Pattern[str], ...] = (
 )
 
 
+def read_scanner_evidence(
+    evidence: Path,
+    *,
+    label: str,
+    regenerate_cmd: str,
+    schema_prefix: str,
+) -> dict[str, Any] | EvalOutcome:
+    """Read one ``scan-*`` evidence file, or say why it could not be used.
+
+    Returns the parsed object when the file carries the expected ``schema_version``,
+    else the manual-review :class:`EvalOutcome` explaining what stopped it. A union
+    rather than a ``(data, outcome)`` pair on purpose: with a pair, ``data`` stays
+    ``dict | None`` for the type checker no matter what the caller tests, so every call
+    site needs an assertion to say something the code already knows. ``isinstance``
+    narrows the union exactly.
+
+    Six evaluators had this function copied out line for line, each ending in an
+    unguarded ``data.get("schema_version", "")``. A JSON root that is not an object --
+    ``[]``, a string, a number, ``null`` -- reached that ``.get`` and raised
+    ``AttributeError``, which is not input-shaped, so the CLI's classifier correctly
+    called it a defect in the kit and exited 3. It is a defect in the kit: the evidence
+    slot is one the adopter is invited to fill, plenty of scanners emit a top-level
+    array, and ADR-045 says unreadable evidence becomes manual review. Exit 3 told them
+    to file a bug about their own file, and no report was written at all.
+
+    So the reader is one function now rather than six copies. Adding a seventh scanner
+    gets the shape guard by construction instead of by remembering.
+
+    The parse failure reports ``bad_input_detail(exc)`` rather than ``str(exc)``: the
+    latter embeds the absolute filename, which put the adopter's home directory and
+    account name into a message built to be pasted into an issue (M-002).
+    """
+
+    def _review(reason: str, remediation: str) -> EvalOutcome:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=reason,
+            remediation=remediation,
+            evidence_sources=[str(evidence.resolve())],
+            confidence="low",
+        )
+
+    regenerate = f"Re-run `{regenerate_cmd}` to regenerate the evidence file."
+    try:
+        data = json.loads(evidence.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return _review(
+            f"Could not parse {label} evidence file {evidence.name}: {bad_input_detail(exc)}",
+            regenerate,
+        )
+    if not isinstance(data, dict):
+        return _review(
+            f"{evidence.name} is valid JSON but its root is a {type(data).__name__}, not an object, "
+            f"so no {label} posture can be read from it.",
+            regenerate,
+        )
+    schema = str(data.get("schema_version", ""))
+    if not schema.startswith(schema_prefix):
+        return _review(
+            f"Unexpected schema_version in {evidence.name}: {schema!r}. Expected prefix {schema_prefix!r}.",
+            f"Regenerate via `{regenerate_cmd}` to align with the current contract.",
+        )
+    return cast(dict[str, Any], data)
+
+
 def evidence_is_api_backed(data: dict[str, Any]) -> bool:
     """True when JSON was produced by ``collect-evidence`` / cloud API collection (not manual scaffold)."""
 

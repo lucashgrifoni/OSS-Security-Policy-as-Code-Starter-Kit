@@ -27,9 +27,9 @@ from oss_policy_kit.application.evaluators._shared import (
     _reusable_workflow_ref_has_full_sha,
     checks_as_map,
     contextlib,
-    json,
     load_yaml_file,
 )
+from oss_policy_kit.application.evaluators_common import read_scanner_evidence
 
 _NO_WORKFLOWS_REASON = "No workflows present."
 
@@ -612,29 +612,14 @@ def eval_sast_semgrep_064(ctx: EvalContext) -> EvalOutcome:
             confidence="medium",
         )
 
-    try:
-        data = json.loads(evidence.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        return EvalOutcome(
-            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=f"Could not parse Semgrep evidence file: {exc}",
-            remediation="Re-run `oss-policy-kit scan-sast` to regenerate the evidence file.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="low",
-        )
-
-    schema = str(data.get("schema_version", ""))
-    if not schema.startswith(_SAST_SEMGREP_SCHEMA_PREFIX):
-        return EvalOutcome(
-            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=(
-                f"Unexpected schema_version in {evidence.name}: {schema!r}. "
-                f"Expected prefix {_SAST_SEMGREP_SCHEMA_PREFIX!r}."
-            ),
-            remediation="Regenerate via `oss-policy-kit scan-sast` to align with the current contract.",
-            evidence_sources=[str(evidence.resolve())],
-            confidence="low",
-        )
+    data = read_scanner_evidence(
+        evidence,
+        label="Semgrep SAST",
+        regenerate_cmd="oss-policy-kit scan-sast",
+        schema_prefix=_SAST_SEMGREP_SCHEMA_PREFIX,
+    )
+    if isinstance(data, EvalOutcome):
+        return data
 
     status = str(data.get("status", "unknown")).lower()
     if status == "not_available":
