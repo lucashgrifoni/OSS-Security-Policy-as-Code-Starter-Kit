@@ -126,16 +126,42 @@ def test_slsa_src_002_signature_signal_in_ruleset_dir(tmp_path: Path) -> None:
     assert sc.eval_slsa_src_002(_ctx(tmp_path / "empty")).status == ControlStatus.MANUAL_REVIEW_REQUIRED
 
 
-def test_slsa_src_003_pass(tmp_path: Path) -> None:
-    _write(
-        tmp_path, ".oss-policy-kit/evidence/branch-protection.json", json.dumps({"required_status_checks": ["build"]})
+def _branch_protection(**protections: bool) -> str:
+    """Evidence in the shape the packaged schema accepts -- flags nested, not at the root.
+
+    All five required flags are emitted, off unless a test names them; `protections` is closed
+    and lists them as required, so a block carrying only the flag under test is rejected before
+    any control reads it.
+    """
+
+    return json.dumps(
+        {
+            "schema_version": "branch-protection/v1",
+            "attested_at": "2026-06-15",
+            "attested_by": "platform-team",
+            "branch": "main",
+            "protections": {
+                "require_pull_request_reviews": False,
+                "dismiss_stale_reviews": False,
+                "require_status_checks": False,
+                "enforce_admins": False,
+                "restrict_force_push": False,
+                **protections,
+            },
+        }
     )
+
+
+def test_slsa_src_003_pass(tmp_path: Path) -> None:
+    _write(tmp_path, ".oss-policy-kit/evidence/branch-protection.json", _branch_protection(require_status_checks=True))
     assert sc.eval_slsa_src_003(_ctx(tmp_path)).status == ControlStatus.PASS
 
 
 def test_slsa_src_004_pass(tmp_path: Path) -> None:
     _write(
-        tmp_path, ".oss-policy-kit/evidence/branch-protection.json", json.dumps({"required_approving_review_count": 2})
+        tmp_path,
+        ".oss-policy-kit/evidence/branch-protection.json",
+        _branch_protection(require_pull_request_reviews=True),
     )
     assert sc.eval_slsa_src_004(_ctx(tmp_path)).status == ControlStatus.PASS
 

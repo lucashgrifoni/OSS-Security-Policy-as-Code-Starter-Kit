@@ -1,16 +1,38 @@
 # How To Interpret Results
 
-Each control in an evaluation report resolves to one of these states:
+Each control in an evaluation report resolves to one of these nine states, listed in the order the
+CLI summary prints them. The third column is how the state is projected into the `reports/2.0`
+JSON.
 
-| Status | Meaning |
-| --- | --- |
-| `pass` | A positive local signal was observed |
-| `fail` | A required signal was missing or a high-signal problem was detected |
-| `manual-review-required` | The control cannot be safely confirmed from a clone alone; review manually |
-| `self-attested` | Local evidence exists, but trust still depends on maintainer honesty or platform confirmation |
-| `not-observable` | The control exists conceptually but is not locally observable |
-| `not-applicable` | The control does not apply to the evaluated repository shape |
-| `waived` | A documented exception overrode a non-pass outcome |
+| Status | Meaning | In `reports/2.0` |
+| --- | --- | --- |
+| `pass` | A positive local signal was observed | `PASS` |
+| `attested` | A pass anchored on a verification record the kit read and checked, not on a signal it inferred | `ATTESTED` |
+| `fail` | A required signal was missing or a high-signal problem was detected | `FAIL` |
+| `manual-review-required` | The control cannot be safely confirmed from a clone alone; review manually | `UNKNOWN` + `reason: manual-review-required` |
+| `self-attested` | Local evidence exists, but trust still depends on maintainer honesty or platform confirmation | `SELF_ATTESTED` |
+| `not-evaluated` | The control was handed no input to judge, so no verdict was attempted | `UNKNOWN` + `reason: not-evaluated` |
+| `waived` | A documented exception overrode a non-pass outcome | `UNKNOWN` + `reason: waived` |
+| `not-observable` | The control exists conceptually but is not locally observable | `UNKNOWN` + `reason: not-observable-in-clone` |
+| `not-applicable` | The control does not apply to the evaluated repository shape | `NOT_APPLICABLE` |
+
+Five of the nine collapse into `UNKNOWN`, and the `reason` sub-field is the only thing that tells
+them apart. That collapse is the one thing to know before wiring a dashboard, because the terminal
+and `evaluation-report.md` count the nine states while `summary_by_status` in
+`evaluation-report.json` counts the six. One run of `github-level-2` prints
+
+```
+Outcome: pass=23, fail=2, not-evaluated=1, not-applicable=4
+```
+
+and writes
+
+```json
+"summary_by_status": { "FAIL": 2, "NOT_APPLICABLE": 4, "PASS": 23, "UNKNOWN": 1 }
+```
+
+So anything branching on `UNKNOWN` alone reads "nobody passed us a Scorecard file" and "branch
+protection needs a human" as the same event. Branch on `reason`.
 
 `fail` and `manual-review-required` answer different questions, and the distinction decides what
 you do next. `fail` is a statement about **your repository**: a control is not satisfied.
@@ -25,6 +47,55 @@ find the control unsatisfied, it failed to read the document that would say. See
 
 If unreadable evidence should stop a build in your context, that is a gate policy rather than a
 control verdict: `--fail-on degraded` exits 1 on `fail` **or** `manual-review-required`.
+
+### `not-evaluated` is not a verdict either
+
+`not-evaluated` and `manual-review-required` are both `UNKNOWN` on the wire, and the `reason` is
+the whole difference:
+
+- `not-evaluated` — **no input**. The kit was never handed the thing the control reads.
+- `manual-review-required` — **input, no answer**. There was a document and the kit could not
+  settle the question from it, or the fact does not live in a clone at all.
+
+It appears on ordinary runs, with stock bundled profiles and no flags:
+
+- `OSS-SCORECARD-001` on any profile from `github-level-2` up, whenever `--scorecard-json` is not passed
+- every evidence-backed control reading a `scaffold-evidence` template that still holds `REPLACE_ME`
+- `PLAT-BRPROT-015`, `GH-PLAT-024`/`025`/`026`, `GH-IMMUTREL-070` and `ORG-ACTPOL-071` when their
+  evidence file does not exist yet
+
+Which of the two you get for an absent file is per-control, not a rule: `ORG-MFA-001` and
+`SAST-SEMGREP-064` answer `manual-review-required` where the controls above answer
+`not-evaluated`. Read the control's message rather than assuming.
+
+Two consequences surprise people reading a summary:
+
+- **It trips no gate.** The exit code is decided by the `fail` and `manual-review-required` counts
+  alone, so `--fail-on fail` and `--fail-on degraded` both let `not-evaluated` through. A run whose
+  only non-`pass` outcomes are `not-evaluated` exits 0 under every policy.
+- **It is excluded from the weighted score**, exactly like `not-applicable`. The percentage
+  describes the controls the kit could reach, not the whole profile.
+
+The fix is always to supply the input — pass `--scorecard-json`, run `collect-evidence`, or fill
+the template — not to switch to a profile that does not ask for it.
+
+### When you see `attested`
+
+`attested` is the strongest positive state: the control's pass is anchored on a verification
+record with transparency-log inclusion confirmed and a `verified_at` inside the 90-day freshness
+window. Two bundled controls emit it — `PROV-VERIFY-061`, from
+`.oss-policy-kit/evidence/<platform>-provenance-artifact.json`, and `GH-IMMUTREL-070`, from
+`github-release-immutability.json`.
+
+Be precise about what that buys. CI ran `gh attestation verify` or `cosign verify-bundle` and
+wrote the outcome into the evidence file; the kit validated **that record**. It did not re-verify
+the signature. The check is fail-closed, so any gap in the record — a missing field,
+`transparency_log_inclusion: false`, a `verified_at` older than 90 days — yields `pass`, `fail` or
+`manual-review-required` depending on the control and the gap, and never `attested`.
+
+There is nothing to do about an `attested` control. It scores as a pass, so a gate that only
+understands `PASS` still behaves correctly. `--no-enable-attested` reports those controls as plain
+`pass` instead; the flag has been on by default since v8.0.0.
 
 Reports include:
 
@@ -52,7 +123,7 @@ Reports include:
 ## `all-pass` On `github-level-1` vs `github-release-hardening-1`
 
 - `github-level-1` currently evaluates 14 active controls. `all-pass` means fourteen `pass` outcomes for that profile on the current revision.
-- `github-release-hardening-1` adds `PLAT-BRPROT-015` and `GOV-EVIDFRESH-054` (16 controls total). Branch protection is enforced on GitHub, not in the clone, so a strong local repository can still end with `pass` plus `manual-review-required` or `self-attested` for that control.
+- `github-release-hardening-1` adds `PLAT-BRPROT-015` and `GOV-EVIDFRESH-054` (16 controls total). Branch protection is enforced on GitHub, not in the clone, so a strong local repository lands on `not-evaluated` for that control until `.oss-policy-kit/evidence/branch-protection.json` exists. With the file it reads `pass` or `fail` on what the file records; `manual-review-required` only when the file is present and fails its schema.
 
 That behavior is intentional. It is the tool being honest, not a defect.
 
@@ -67,16 +138,37 @@ That behavior is intentional. It is the tool being honest, not a defect.
 
 ## When `self-attested` Is Normal
 
-Examples:
+`self-attested` records a claim the kit cannot check from the clone. It scores as a pass and it
+never elevates a `fail`. On stock profiles:
 
-- `GOV-WAIV-014` as **`manual-review-required`** when no versioned in-repo waiver policy file is present (optional governance, but explicitly surfaced)
-- `PLAT-BRPROT-015` when local evidence JSON exists but platform truth still needs confirmation in GitHub
+- `ORG-MFA-001` when `.oss-policy-kit/evidence/org-mfa-posture.json` was written by hand. The same
+  file produced by `collect-evidence` is API-backed and reads `pass` instead — the state is about
+  how the evidence was obtained, not about what it says.
+- the Azure and AWS platform-evidence controls (`AZ-*`, `AWS-*`), which are maintainer-written JSON
+  asserting a platform setting
+- `GOV-DISC-013`, `CRA-ART14-COORD-002` and `GOV-DISC-065` under `--use-insights-evidence`, when the
+  target's `SECURITY-INSIGHTS.yml` declares a vulnerability-reporting channel (ADR-033)
+
+## When a non-`pass` Is The Honest Answer
+
+- `GOV-WAIV-014` reads **`manual-review-required`** when no versioned in-repo waiver policy file is
+  present (optional governance, but explicitly surfaced rather than skipped)
+- `PLAT-BRPROT-015` reads **`not-evaluated`** until platform evidence exists, then `pass` or `fail`
+  on what that evidence records. Confirming branch protection in GitHub is what produces the file;
+  it is not a separate state.
 
 ## Evidence templates vs. real evidence
 
-`scaffold-evidence` writes JSON templates with placeholder values. `evaluate` will see them as `self-attested` (or `manual-review-required` when fields are empty) — not as `pass`. This is intentional: the kit cannot distinguish a half-edited template from a completed attestation without metadata. Either fill the JSONs by hand, or use `collect-evidence` for API-backed values that carry attestation metadata.
+`scaffold-evidence` writes JSON templates with `REPLACE_ME` placeholder values. `evaluate` reads
+them as `not-evaluated` — never as `pass`, and never as `self-attested`. Every control that reads
+one lands there, and the control's message names the placeholder token it found. This is
+intentional: the kit cannot distinguish a half-edited template from a completed attestation
+without metadata, so it declines to score either. Either fill the JSONs by hand, or use
+`collect-evidence` for API-backed values that carry attestation metadata. A control that goes back
+to `not-evaluated` after you thought you had filled its file means a placeholder survived
+somewhere in it.
 
-`recommend-profile` may also suggest a `release-hardening-*` profile when it detects evidence template files under `.oss-policy-kit/evidence/`, even before those templates have been filled. Running `evaluate` against unfilled templates will surface `manual-review-required` for evidence-backed controls. Recommended flow:
+`recommend-profile` may also suggest a `release-hardening-*` profile when it detects evidence template files under `.oss-policy-kit/evidence/`, even before those templates have been filled. Recommended flow:
 
 1. `scaffold-evidence --target . --platform <github|azure|aws>`
 2. Edit the generated JSON files to replace placeholder values.
@@ -85,11 +177,11 @@ Examples:
 
 ### SAST evidence (`scan-sast` + `SAST-SEMGREP-064`)
 
-The same pattern applies to SAST evidence introduced in v5.4.0. `scan-sast` writes `.oss-policy-kit/evidence/sast-semgrep.json` with a status of `ok`, `not_available`, `timeout`, or `error`. The `SAST-SEMGREP-064` evaluator (experimental, evidence-backed, opt-in via external profile) consumes this file and:
+SAST evidence works the same way, with one difference in the missing-file case. `scan-sast` writes `.oss-policy-kit/evidence/sast-semgrep.json` with a status of `ok`, `not_available`, `timeout`, or `error`. The `SAST-SEMGREP-064` evaluator (experimental, evidence-backed, opt-in via external profile) consumes this file and:
 
 - reports `pass` when Semgrep ran cleanly with no `HIGH`/`CRITICAL` findings;
 - reports `fail` when there is at least one `HIGH` or `CRITICAL`;
-- reports `manual-review-required` when the evidence file is missing, when Semgrep was not installed (`status: not_available`), or when the run timed out / errored.
+- reports `manual-review-required` — not `not-evaluated` — when the evidence file is missing, when Semgrep was not installed (`status: not_available`), or when the run timed out / errored. So an absent SAST evidence file trips `--fail-on degraded`, where an absent platform-evidence file does not.
 
 Missing Semgrep is handled as a documented gap, not a crash. To populate real findings, install Semgrep (`pip install semgrep`, requires Python 3.12+) and re-run `scan-sast`. See `docs/cli-reference.md` for the opt-in profile template and end-to-end flow.
 
@@ -104,7 +196,9 @@ Local evaluation can inspect only what exists in the working tree. It cannot rel
 
 For those areas, the kit intentionally uses:
 
-- `manual-review-required`
+- `not-evaluated` while the platform evidence file is absent or still a template
+- `manual-review-required` where the evidence exists but cannot be read, or the question cannot be
+  settled from a clone at all
 - optional `self-attested` evidence
 - optional supplemental context such as Scorecard JSON
 
@@ -148,7 +242,7 @@ Top-level keys in the report contract (`reports/2.0`):
 - `kit_version`: OSS Policy Kit version used in evaluation.
 - `target_path`: evaluated repository path (basename by default; full path with `--include-absolute-path`).
 - `profile`: object describing the selected profile (`id`, `title`, `family`, `level`, `posture`, `is_release_track`, `recommended_gate`).
-- `summary_by_status`: aggregate counts keyed by the six states (`PASS`, `FAIL`, `UNKNOWN`, `NOT_APPLICABLE`, `ATTESTED`, `SELF_ATTESTED`).
+- `summary_by_status`: aggregate counts keyed by the six wire states (`PASS`, `FAIL`, `UNKNOWN`, `NOT_APPLICABLE`, `ATTESTED`, `SELF_ATTESTED`) — not the nine states the terminal prints. See the status table at the top of this page for which collapses into which.
 - `controls_total`: total number of evaluated controls.
 - `controls`: per-control result array — each entry carries `id`, `title`, `state`, `assurance`, `message`, `remediation`, the projected `evidence` object, and a stable `finding_id`.
 - `results_digest`: `sha256:` fingerprint over canonical control fields, stable across runs.

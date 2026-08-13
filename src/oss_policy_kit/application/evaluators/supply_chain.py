@@ -20,6 +20,7 @@ from oss_policy_kit.application.evaluators._shared import (
     Path,
     _branch_protection_evidence,
     _find_dockerfiles,
+    _parse_branch_protection_evidence,
     _scan_sarif_epss_kev,
     cast,
     contextlib,
@@ -469,10 +470,45 @@ def eval_slsa_src_002(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+# SLSA-SRC-003/004/006/007 and PLAT-BRPROT-015 read one file, so they must read it one way.
+# They did not: these four read top-level `required_status_checks`,
+# `required_approving_review_count` and `required_signatures`, which
+# evidence-branch-protection.schema.json forbids outright (`additionalProperties: false`, and
+# the flags live under `protections`), while PLAT-BRPROT-015 validated against that schema. No
+# file `scaffold-evidence` writes, no file `collect-evidence` writes, and no file the schema
+# accepts could satisfy both readers at once. Validation now happens in exactly one place --
+# `_shared._parse_branch_protection_evidence`, the reader PLAT-BRPROT-015 already uses -- so
+# the two cannot drift apart again.
+def _slsa_branch_protections(ctx: EvalContext) -> tuple[dict[str, Any] | None, Path, EvalOutcome | None]:
+    """Return ``(protections, path, refusal)`` for the branch-protection evidence file.
+
+    ``protections`` is the block of a file that passes the packaged schema. ``refusal`` is the
+    shared reader's own outcome, verbatim, when the file exists but cannot be used -- unreadable,
+    non-object root, schema violation (manual-review-required, ADR-045) or an unfilled scaffold
+    template (not-evaluated). Both are ``None`` when there is no file at all, because "absent" is
+    a different sentence per control.
+
+    Only ``pass`` and ``fail`` mean the shared reader got as far as reading the flags, so those
+    two are what makes the block usable. A schema-valid file whose flags are merely *off* is
+    usable: each control below answers for its own dimension, so the aggregate ``fail`` that
+    PLAT-BRPROT-015 reports is not a refusal here.
+    """
+
+    data, p = _branch_protection_evidence(ctx)
+    if data is None:
+        return None, p, (_parse_branch_protection_evidence(p) if p.is_file() else None)
+    verdict = _parse_branch_protection_evidence(p)
+    if verdict.status not in (ControlStatus.PASS, ControlStatus.FAIL):
+        return None, p, verdict
+    return cast(dict[str, Any], data["protections"]), p, None
+
+
 def eval_slsa_src_003(ctx: EvalContext) -> EvalOutcome:
-    """SLSA-SRC-003: Branch protection present (delegates to PLAT-BRPROT-015 evidence)."""
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "branch-protection.json"
-    if not evidence.is_file():
+    """SLSA-SRC-003: Branch protection present (same evidence and reader as PLAT-BRPROT-015)."""
+    protections, p, refusal = _slsa_branch_protections(ctx)
+    if refusal is not None:
+        return refusal
+    if protections is None:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
             reason=(
@@ -486,56 +522,58 @@ def eval_slsa_src_003(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[],
             confidence="medium",
         )
-    with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evidence.read_text(encoding="utf-8"))
-        if isinstance(data, dict) and data.get("required_status_checks"):
-            return EvalOutcome(
-                status=ControlStatus.PASS,
-                reason="Branch protection rules documented in branch-protection.json evidence file.",
-                remediation="Keep the evidence file current with the live ruleset.",
-                evidence_sources=[str(evidence.resolve())],
-                confidence="high",
-            )
+    if protections.get("require_status_checks") is True:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason="Branch protection documented in branch-protection.json: protections.require_status_checks is on.",
+            remediation="Keep the evidence file current with the live ruleset.",
+            evidence_sources=[str(p.resolve())],
+            confidence="high",
+        )
     return EvalOutcome(
-        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-        reason="branch-protection.json present but no required_status_checks documented.",
-        remediation="Populate the evidence file with the active branch protection rules.",
-        evidence_sources=[str(evidence.resolve())],
-        confidence="low",
+        status=ControlStatus.FAIL,
+        reason=(
+            "branch-protection.json attests protections.require_status_checks is off; the "
+            "protected branch merges with no required check."
+        ),
+        remediation="Require at least one status check on the protected branch, then refresh the evidence file.",
+        evidence_sources=[str(p.resolve())],
+        confidence="high",
     )
 
 
 def eval_slsa_src_004(ctx: EvalContext) -> EvalOutcome:
     """SLSA-SRC-004: Two-party review on protected branches."""
-    evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "branch-protection.json"
-    if not evidence.is_file():
+    protections, p, refusal = _slsa_branch_protections(ctx)
+    if refusal is not None:
+        return refusal
+    if protections is None:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
             reason="No branch-protection.json evidence; two-party review cannot be verified.",
             remediation=(
                 "Run `oss-policy-kit collect-evidence --platform github` and ensure the resulting "
-                "evidence file documents required_approving_review_count >= 1."
+                "evidence file sets protections.require_pull_request_reviews to true."
             ),
             evidence_sources=[],
             confidence="medium",
         )
-    with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evidence.read_text(encoding="utf-8"))
-        if isinstance(data, dict):
-            count = data.get("required_approving_review_count")
-            if isinstance(count, int) and count >= 1:
-                return EvalOutcome(
-                    status=ControlStatus.PASS,
-                    reason=f"Branch protection requires {count} approving review(s).",
-                    remediation="SLSA Source L4 requires 2+ approving reviews; consider raising the threshold.",
-                    evidence_sources=[str(evidence.resolve())],
-                    confidence="high",
-                )
+    if protections.get("require_pull_request_reviews") is True:
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=(
+                "branch-protection.json attests protections.require_pull_request_reviews is on "
+                "(at least one required reviewer before merge)."
+            ),
+            remediation="SLSA Source L4 requires 2+ approving reviews; consider raising the threshold.",
+            evidence_sources=[str(p.resolve())],
+            confidence="high",
+        )
     return EvalOutcome(
         status=ControlStatus.FAIL,
-        reason="branch-protection.json present but required_approving_review_count is missing or zero.",
-        remediation="Set required_approving_review_count >= 1 on protected branches.",
-        evidence_sources=[str(evidence.resolve())],
+        reason="branch-protection.json attests protections.require_pull_request_reviews is off; merges need no review.",
+        remediation="Require pull-request review on the protected branch, then refresh the evidence file.",
+        evidence_sources=[str(p.resolve())],
         confidence="high",
     )
 
@@ -669,27 +707,53 @@ def eval_sca_epss_001(ctx: EvalContext) -> EvalOutcome:
 
 def eval_slsa_src_006(ctx: EvalContext) -> EvalOutcome:
     """SLSA-SRC-006: signed commits required (SLSA Source L2)."""
-    data, p = _branch_protection_evidence(ctx)
-    if data is None:
+    protections, p, refusal = _slsa_branch_protections(ctx)
+    if refusal is not None:
+        return refusal
+    if protections is None:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
             reason="No branch-protection.json evidence; required-signed-commits enforcement cannot be verified.",
-            remediation="Run `oss-policy-kit collect-evidence --platform github`; ensure required_signatures: true.",
+            remediation=(
+                "Run `oss-policy-kit collect-evidence --platform github`; ensure "
+                "protections.require_signed_commits is true."
+            ),
             evidence_sources=[],
             confidence="medium",
         )
-    if data.get("required_signatures") is True or data.get("required_signed_commits") is True:
+    signed = protections.get("require_signed_commits")
+    if signed is True:
         return EvalOutcome(
             status=ControlStatus.PASS,
-            reason="branch-protection.json enforces required signed commits (SLSA Source L2).",
+            reason="branch-protection.json attests protections.require_signed_commits is on (SLSA Source L2).",
             remediation="Keep required signatures attached to all protected branches.",
             evidence_sources=[str(p.resolve())],
             confidence="high",
             evidence_collection_method=EvidenceCollectionMethod.MANUAL,
         )
+    if signed is None:
+        # `require_signed_commits` is optional in branch-protection/v1, so its absence is a gap
+        # in the attestation, not a statement that signing is unenforced (ADR-045).
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "branch-protection.json records no protections.require_signed_commits flag, so "
+                "signed-commit enforcement cannot be verified from this evidence."
+            ),
+            remediation=(
+                "Add protections.require_signed_commits to the evidence file (it is optional in "
+                "branch-protection/v1) once the repository ruleset requires signed commits."
+            ),
+            evidence_sources=[str(p.resolve())],
+            confidence="medium",
+            evidence_collection_method=EvidenceCollectionMethod.MANUAL,
+        )
     return EvalOutcome(
         status=ControlStatus.FAIL,
-        reason="branch-protection.json present but required_signatures is off (SLSA Source L2 needs signed commits).",
+        reason=(
+            "branch-protection.json attests protections.require_signed_commits is off "
+            "(SLSA Source L2 needs signed commits)."
+        ),
         remediation="Enable required signed commits via repository ruleset and refresh the evidence file.",
         evidence_sources=[str(p.resolve())],
         confidence="high",
@@ -699,33 +763,50 @@ def eval_slsa_src_006(ctx: EvalContext) -> EvalOutcome:
 
 def eval_slsa_src_007(ctx: EvalContext) -> EvalOutcome:
     """SLSA-SRC-007: two-party review threshold enforced (SLSA Source L2)."""
-    data, p = _branch_protection_evidence(ctx)
-    if data is None:
+    protections, p, refusal = _slsa_branch_protections(ctx)
+    if refusal is not None:
+        return refusal
+    if protections is None:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
             reason="No branch-protection.json evidence; two-party L2 review threshold cannot be verified.",
-            remediation="Run `collect-evidence --platform github`; set required_approving_review_count >= 2.",
+            remediation=(
+                "Run `collect-evidence --platform github`, then confirm out of band that the "
+                "protected branch requires >= 2 approving reviews."
+            ),
             evidence_sources=[],
             confidence="medium",
         )
-    count = data.get("required_approving_review_count")
-    if isinstance(count, int) and count >= 2:
-        codeowner = data.get("require_code_owner_reviews") is True
-        suffix = " with codeowner approval" if codeowner else ""
+    if protections.get("require_pull_request_reviews") is not True:
         return EvalOutcome(
-            status=ControlStatus.PASS,
-            reason=f"Branch protection requires {count} approving reviews{suffix} (SLSA Source L2).",
-            remediation="Maintain the >=2 reviewer threshold; require codeowner approval for sensitive paths.",
+            status=ControlStatus.FAIL,
+            reason=(
+                "branch-protection.json attests protections.require_pull_request_reviews is off; "
+                "zero required approvals cannot meet the SLSA Source L2 threshold of >= 2."
+            ),
+            remediation="Require pull-request review with >= 2 approvers, then refresh the evidence file.",
             evidence_sources=[str(p.resolve())],
             confidence="high",
             evidence_collection_method=EvidenceCollectionMethod.MANUAL,
         )
+    # branch-protection/v1 records *whether* review is required, never how many approvers --
+    # `protections` is closed (`additionalProperties: false`) and carries no count. Reading the
+    # >= 1 boolean as proof of >= 2 would turn unknown into clean, so the threshold stays a
+    # human check until the schema gains a field for it.
     return EvalOutcome(
-        status=ControlStatus.FAIL,
-        reason=f"required_approving_review_count is {count!r}; SLSA Source L2 requires >= 2 approvers.",
-        remediation="Raise required_approving_review_count to >= 2 on protected branches.",
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            "branch-protection.json attests that pull-request review is required, but "
+            "branch-protection/v1 records no approver count, so the SLSA Source L2 threshold of "
+            ">= 2 cannot be verified from this evidence."
+        ),
+        remediation=(
+            "Confirm the protected branch requires >= 2 approving reviews on the platform and "
+            "record that check outside this control (or waive it) until the evidence schema can "
+            "carry the threshold."
+        ),
         evidence_sources=[str(p.resolve())],
-        confidence="high",
+        confidence="medium",
         evidence_collection_method=EvidenceCollectionMethod.MANUAL,
     )
 

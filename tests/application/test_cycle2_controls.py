@@ -259,28 +259,67 @@ def test_sca_epss_manual_when_no_evidence(tmp_path: Path) -> None:
 
 
 # --- PR-25: SLSA Source L2 -------------------------------------------------
-def _write_branch_protection(repo: Path, data: dict) -> None:
+#: The five flags `protections` marks required. A partial block is rejected by the schema, so a
+#: fixture that sets only the flag under test never reaches the control at all.
+_PROTECTIONS_BASELINE = {
+    "require_pull_request_reviews": False,
+    "dismiss_stale_reviews": False,
+    "require_status_checks": False,
+    "enforce_admins": False,
+    "restrict_force_push": False,
+}
+
+
+def _branch_protection_document(protections: dict) -> dict:
+    """A schema-valid document whose flags are all off except the ones a test names."""
+
+    return {
+        "schema_version": "branch-protection/v1",
+        "attested_at": "2026-06-15",
+        "attested_by": "platform-team",
+        "branch": "main",
+        "protections": {**_PROTECTIONS_BASELINE, **protections},
+    }
+
+
+def _write_branch_protection(repo: Path, protections: dict) -> None:
+    """Write evidence in the shape ``evidence-branch-protection.schema.json`` actually accepts.
+
+    The flags live under ``protections``; the schema is closed, so a document that puts them at
+    the root is rejected and the control never sees them. These tests used to write that root
+    shape and assert a verdict, which pinned a reader no schema-valid file could satisfy.
+    """
+
     p = repo / ".oss-policy-kit" / "evidence" / "branch-protection.json"
     p.parent.mkdir(parents=True)
-    p.write_text(json.dumps(data), encoding="utf-8")
+    p.write_text(json.dumps(_branch_protection_document(protections)), encoding="utf-8")
 
 
 def test_slsa_src_006_pass_on_required_signatures(tmp_path: Path) -> None:
-    _write_branch_protection(tmp_path, {"required_signatures": True})
+    _write_branch_protection(tmp_path, {"require_signed_commits": True})
     out = eval_slsa_src_006(SimpleNamespace(repo_root=tmp_path))
     assert out.status is ControlStatus.PASS
 
 
-def test_slsa_src_007_fail_below_two_reviewers(tmp_path: Path) -> None:
-    _write_branch_protection(tmp_path, {"required_approving_review_count": 1})
+def test_slsa_src_007_fails_when_no_review_is_required_at_all(tmp_path: Path) -> None:
+    """Zero required approvals cannot reach a threshold of two, so this much IS decidable."""
+
+    _write_branch_protection(tmp_path, {"require_pull_request_reviews": False})
     out = eval_slsa_src_007(SimpleNamespace(repo_root=tmp_path))
     assert out.status is ControlStatus.FAIL
 
 
-def test_slsa_src_007_pass_with_two_reviewers(tmp_path: Path) -> None:
-    _write_branch_protection(tmp_path, {"required_approving_review_count": 2, "require_code_owner_reviews": True})
+def test_slsa_src_007_will_not_read_review_required_as_two_approvers(tmp_path: Path) -> None:
+    """`branch-protection/v1` records *whether* review is required, never how many approve.
+
+    Reading the >= 1 boolean as proof of the SLSA L2 >= 2 threshold would turn unknown into
+    clean. The control says so instead, and names the missing threshold in its remediation.
+    """
+
+    _write_branch_protection(tmp_path, {"require_pull_request_reviews": True})
     out = eval_slsa_src_007(SimpleNamespace(repo_root=tmp_path))
-    assert out.status is ControlStatus.PASS
+    assert out.status is ControlStatus.MANUAL_REVIEW_REQUIRED
+    assert "approver count" in out.reason
 
 
 # --- PR-27: MCP ------------------------------------------------------------

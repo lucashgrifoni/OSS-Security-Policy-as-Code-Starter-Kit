@@ -51,9 +51,11 @@ from oss_policy_kit.application.evaluators._shared import (
     _workflow_text,
     checks_as_map,
     contextlib,
+    has_placeholder_values,
     insights_self_attested_outcome,
     json,
 )
+from oss_policy_kit.application.input_limits import bad_input_detail
 from oss_policy_kit.domain.models import utc_now
 
 _GITHUB_DIR = ".github"
@@ -321,7 +323,13 @@ def _classify_evidence_files(
                 expiry_warns,
                 EvalOutcome(
                     status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-                    reason=f"Evidence file {path.name} is unreadable or invalid JSON: {exc}.",
+                    # M-002: an OSError stringifies with the filename it was handed, which the CLI
+                    # has already resolved -- so `{exc}` puts the auditor's home directory and OS
+                    # account name into a `reason` that reports render verbatim, in the same report
+                    # whose `target_path` was deliberately reduced to a basename. `bad_input_detail`
+                    # is the project's path-free rendering of a read failure; the file is already
+                    # named by `path.name`, which is the part the operator needs.
+                    reason=f"Evidence file {path.name} is unreadable or invalid JSON: {bad_input_detail(exc)}.",
                     remediation="Repair or regenerate the evidence JSON file.",
                     evidence_sources=[str(path.resolve())],
                     confidence="low",
@@ -695,17 +703,29 @@ def eval_org_mfa_001(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def _evidence_sbom_format(evid: Path) -> str | None:
-    """Return the documented SPDX/CycloneDX SBOM format string from one evidence file, else None."""
+def _read_evidence_json(evid: Path) -> Any:
+    """Parse one evidence file, or return None when it is absent or the kit cannot read it.
+
+    An evidence file the kit cannot read is GOV-EVIDFRESH-054's business; here it simply
+    documents nothing, so the control keeps looking for real evidence instead of ending
+    the run on it.
+    """
 
     if not evid.is_file():
         return None
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evid.read_text(encoding="utf-8"))
-        sbom_block = data.get("sbom") if isinstance(data, dict) else None
-        fmt = str(sbom_block.get("format", "")).strip() if isinstance(sbom_block, dict) else ""
-        if fmt and ("spdx" in fmt.lower() or "cyclonedx" in fmt.lower()):
-            return fmt
+        return json.loads(evid.read_text(encoding="utf-8"))
+    return None
+
+
+def _evidence_sbom_format(evid: Path) -> str | None:
+    """Return the documented SPDX/CycloneDX SBOM format string from one evidence file, else None."""
+
+    data = _read_evidence_json(evid)
+    sbom_block = data.get("sbom") if isinstance(data, dict) else None
+    fmt = str(sbom_block.get("format", "")).strip() if isinstance(sbom_block, dict) else ""
+    if fmt and ("spdx" in fmt.lower() or "cyclonedx" in fmt.lower()):
+        return fmt
     return None
 
 
@@ -715,14 +735,23 @@ def _sbom_format_from_evidence(ctx: EvalContext) -> EvalOutcome | None:
     for evid_name in ("azure-sbom-artifact.json", "aws-sbom-artifact.json"):
         evid = ctx.repo_root / _KIT_DIR / "evidence" / evid_name
         fmt = _evidence_sbom_format(evid)
-        if fmt:
-            return EvalOutcome(
-                status=ControlStatus.PASS,
-                reason=f"Evidence documents SBOM format '{fmt}' (SPDX/CycloneDX).",
-                remediation="Keep SBOM format and digest records current with each release.",
-                evidence_sources=[str(evid.resolve())],
-                confidence="medium",
-            )
+        if not fmt:
+            continue
+        # `scaffold-evidence` writes `sbom.format: "cyclonedx"` into the template, so the declared
+        # format cannot tell a filled-in attestation from a scaffold nobody edited. The artifact-bound
+        # siblings that read this same file (AZ-ARTSBOM-058, AWS-SBOMART-058) refuse it through
+        # `_evidence_placeholder_outcome` after schema validation; this reader parses the file on its
+        # own, so it applies the same gate on its own.
+        blocked = _evidence_placeholder_outcome(evid, has_placeholder_values(_read_evidence_json(evid)))
+        if blocked is not None:
+            return blocked
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"Evidence documents SBOM format '{fmt}' (SPDX/CycloneDX).",
+            remediation="Keep SBOM format and digest records current with each release.",
+            evidence_sources=[str(evid.resolve())],
+            confidence="medium",
+        )
     return None
 
 

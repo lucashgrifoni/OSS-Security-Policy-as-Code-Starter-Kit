@@ -76,7 +76,6 @@ def _prep_osps(tmp_path: Path) -> None:
 
 
 _MRR = ControlStatus.MANUAL_REVIEW_REQUIRED
-_FAIL = ControlStatus.FAIL
 
 # id, prep(tmp_path) -> writes UTF-16 evidence, invoke(tmp_path) -> EvalOutcome,
 # expected honest-degradation status (never PASS, never a crash).
@@ -130,10 +129,15 @@ _EVAL_CASES: list[tuple[str, Callable[[Path], object], Callable[[Path], s.EvalOu
         _MRR,
     ),
     (
-        "supply_chain.eval_slsa_src_004",  # supply_chain.py:522 (present-but-unverifiable fails closed)
+        # The one row that used to expect `fail`, and the asymmetry was written right here as if
+        # it were a design ("present-but-unverifiable fails closed"). It was not: ADR-045 settled
+        # that a control which cannot READ its evidence reports `manual-review-required`, and this
+        # control reached that state through a silent `contextlib.suppress` fall-through rather
+        # than an explicit error branch, which is why the ADR-045 sweep did not find it.
+        "supply_chain.eval_slsa_src_004",  # supply_chain.py, via _slsa_branch_protections
         lambda t: _write_utf16(t, f"{_KIT}/evidence/branch-protection.json"),
         lambda t: supply_chain.eval_slsa_src_004(_ctx(t)),
-        _FAIL,
+        _MRR,
     ),
 ]
 
@@ -150,8 +154,9 @@ def test_utf16_evidence_degrades_not_crashes(
 
     Before the fix the read raised UnicodeDecodeError (escaping the suppress and
     aborting the whole run with exit 3); after the fix the control degrades
-    honestly (manual-review-required, or fail-closed for controls that fail on
-    present-but-unverifiable evidence) and never silently PASSes.
+    honestly and never silently PASSes. Every row expects `manual-review-required`:
+    a control that cannot read its evidence has not established that the control is
+    unsatisfied, so it must not report `fail` either (ADR-045).
     """
     prep(tmp_path)
     outcome = invoke(tmp_path)  # must not raise

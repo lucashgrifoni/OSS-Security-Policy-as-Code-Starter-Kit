@@ -14,6 +14,7 @@ absent, and timed out.
 
 from __future__ import annotations
 
+import errno
 import json
 from pathlib import Path
 
@@ -41,10 +42,17 @@ _IDS = [name for name, _mod, _attr in _COMMANDS]
 def test_a_filesystem_error_is_the_adopters_to_fix(
     command: str, module: object, attr: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Exit 2, because an unwritable evidence directory is not the kit misbehaving."""
+    """Exit 2, because an unwritable evidence directory is not the kit misbehaving.
+
+    Raised with its ``errno``, the way a real full disk raises it. The handler reports
+    ``exc.strerror`` rather than the exception -- ``str(OSError)`` appends the resolved
+    filename, which is how a relative ``--target`` was answered with the host path
+    (see ``test_scan_error_sanitisation``) -- so a message-only fake would assert
+    against a shape the filesystem never hands these commands.
+    """
 
     def _refuse(*_a: object, **_k: object) -> object:
-        raise OSError("No space left on device")
+        raise OSError(errno.ENOSPC, "No space left on device")
 
     monkeypatch.setattr(module, attr, _refuse)
     result = runner.invoke(app, [command, "--target", str(tmp_path)])

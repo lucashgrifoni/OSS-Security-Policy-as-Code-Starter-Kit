@@ -52,6 +52,7 @@ _CODEBUILD = "aws-codebuild-project.json"
 _EVALUATORS = [
     ("eval_aws_cp_044", _PIPELINE),
     ("eval_aws_cb_045", _CODEBUILD),
+    ("eval_aws_pipeiam_056", _PIPELINE),
     ("eval_aws_cbident_057", _CODEBUILD),
 ]
 
@@ -175,7 +176,7 @@ def test_a_scaffold_still_holding_a_placeholder_earns_no_credit(tmp_path: Path, 
 
 
 # --------------------------------------------------------------------------- #
-# the IAM helper that answers None rather than an outcome
+# the IAM helper, and which states it hands back to its caller
 # --------------------------------------------------------------------------- #
 
 
@@ -185,22 +186,37 @@ def test_the_pipeline_iam_helper_answers_none_when_there_is_no_evidence(tmp_path
     assert awsev._aws_pipeiam_evidence_outcome(tmp_path / "missing.json") is None
 
 
-def test_the_pipeline_iam_helper_answers_none_on_unusable_evidence(tmp_path: Path) -> None:
-    """A schema failure here is not the helper's to report; it must not fabricate a verdict."""
+def test_the_pipeline_iam_helper_reports_unusable_evidence_instead_of_deferring(tmp_path: Path) -> None:
+    """A file it cannot read is the helper's to report -- the caller would call it missing.
+
+    Deferring here is what produced "No evidence file found at the expected path" for a file
+    that was present all along, so the state stops at the reader that discovered it.
+    """
 
     path = _evidence(tmp_path, _PIPELINE, {"unexpected": "shape"})
 
-    assert awsev._aws_pipeiam_evidence_outcome(path) is None
+    outcome = awsev._aws_pipeiam_evidence_outcome(path)
+
+    assert outcome is not None
+    assert outcome.status is ControlStatus.MANUAL_REVIEW_REQUIRED
+    assert "schema" in outcome.remediation.lower()
 
 
 def test_the_pipeline_iam_helper_answers_none_when_the_role_is_not_configured(tmp_path: Path) -> None:
-    """Well-formed evidence that simply does not claim the role is not a finding here."""
+    """Readable evidence that simply does not claim the role is not a finding here.
+
+    The document is schema-valid so the branch under test is reached at all; an earlier
+    version of this fixture omitted `attested_at` and never got past validation.
+    """
 
     path = _evidence(
         tmp_path,
         _PIPELINE,
         {
             "schema_version": "aws-codepipeline/v1",
+            "attested_at": "2026-06-15",
+            "attested_by": "platform-team",
+            "pipeline": "release-pipeline",
             "posture": {
                 "manual_approval_before_production": True,
                 "artifact_store_encryption_enabled": True,

@@ -177,8 +177,8 @@ def test_az_ident_036_with_valid_live_evidence_passes(tmp_path: Path) -> None:
 
 
 def test_aws_pipeiam_056_without_evidence_returns_manual_review(tmp_path: Path) -> None:
-    # Provide a committed CodePipeline export that hints at a service role so the
-    # "keyword signal detected" branch is exercised without evidence present.
+    # Provide a committed CodePipeline export that declares a service role so the
+    # committed-export branch is exercised without evidence present.
     pipelines_dir = tmp_path / "pipelines" / "aws"
     pipelines_dir.mkdir(parents=True, exist_ok=True)
     (pipelines_dir / "codepipeline.json").write_text(

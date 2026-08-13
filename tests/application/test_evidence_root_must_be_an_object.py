@@ -79,14 +79,32 @@ def test_two_party_review_is_not_confirmed_by_evidence_that_cannot_be_read(body:
     assert supply_chain.eval_slsa_src_004(_ctx(tmp_path)).status is not ControlStatus.PASS
 
 
-def test_two_party_review_passes_on_a_recorded_approval_count(tmp_path: Path) -> None:
+def test_two_party_review_passes_on_an_attested_review_requirement(tmp_path: Path) -> None:
     """The counterpart, and the reason the guard cannot simply refuse everything."""
 
-    _evidence(tmp_path, "branch-protection.json", json.dumps({"required_approving_review_count": 2}))
+    _evidence(
+        tmp_path,
+        "branch-protection.json",
+        json.dumps(
+            {
+                "schema_version": "branch-protection/v1",
+                "attested_at": "2026-06-15",
+                "attested_by": "platform-team",
+                "branch": "main",
+                "protections": {
+                    "require_pull_request_reviews": True,
+                    "dismiss_stale_reviews": True,
+                    "require_status_checks": True,
+                    "enforce_admins": True,
+                    "restrict_force_push": True,
+                },
+            }
+        ),
+    )
     outcome = supply_chain.eval_slsa_src_004(_ctx(tmp_path))
 
     assert outcome.status is ControlStatus.PASS
-    assert "2 approving review" in outcome.reason
+    assert "require_pull_request_reviews" in outcome.reason
 
 
 # --------------------------------------------------------------------------- #
