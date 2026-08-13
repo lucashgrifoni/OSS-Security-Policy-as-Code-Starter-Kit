@@ -10,10 +10,12 @@
 # directly. The action never modifies files in the repository: it only
 # reads them and writes reports under `output-dir`.
 #
-# Versioning: this file is published from the same tag as the PyPI wheel.
-# Pin a tag (e.g. `@v5.4.0`) for reproducibility, or `@v5` for tracking
-# the latest 5.x line. Pinning by SHA is also supported and recommended
-# for production workflows.
+# Versioning: this file is published from the same tag as the PyPI wheel, and
+# the wheel installed always matches the action revision you pinned. Pin a full
+# tag (e.g. `@v10.0.13`), a major line (`@v10`), or -- recommended for production
+# -- a commit SHA; all three resolve to the exact wheel that revision ships.
+# Override with the `kit-version` input, or set it to `latest` to opt out of
+# pinning entirely.
 
 name: 'OSS Security Policy as Code'
 description: 'Evaluate a repository against bundled OSS security baselines (governance, CI/CD, supply chain).'
@@ -60,7 +62,9 @@ inputs:
   kit-version:
     description: |
       Pin a specific oss-policy-kit version on PyPI. Defaults to the version
-      that matches this action tag. Use `latest` to track the newest 5.x.
+      that matches the action revision you pinned -- including SHA pins, which
+      resolve from the action's own checkout. Use `latest` to install the newest
+      release instead of a pinned one.
     required: false
     default: ''
   python-version:
@@ -93,14 +97,37 @@ runs:
         ACTION_REF: ${{ github.action_ref }}
       run: |
         set -euo pipefail
-        if [ -n "${INPUT_KIT_VERSION}" ]; then
+        # `latest` is the documented opt-out from pinning, and it has to be spelled as
+        # an empty pin: `pip install oss-policy-kit==latest` is not valid syntax, so
+        # passing kit-version: latest -- which this action's own input description
+        # offers -- used to fail the install step outright.
+        if [ "${INPUT_KIT_VERSION}" = "latest" ]; then
+          echo "kit_version=" >> "${GITHUB_OUTPUT}"
+        elif [ -n "${INPUT_KIT_VERSION}" ]; then
           echo "kit_version=${INPUT_KIT_VERSION}" >> "${GITHUB_OUTPUT}"
         elif [[ "${ACTION_REF}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-          # Action pinned to a release tag: install the matching wheel.
+          # Pinned to a release tag: install the matching wheel.
           echo "kit_version=${ACTION_REF#v}" >> "${GITHUB_OUTPUT}"
         else
-          # Action pinned to a branch / SHA: track latest 5.x.
-          echo "kit_version=" >> "${GITHUB_OUTPUT}"
+          # Pinned to a SHA, a major/minor tag (`@v10`), or a branch. This branch used
+          # to emit an empty pin, so `pip install oss-policy-kit` took whatever was
+          # newest on PyPI -- meaning the SHA pin this file recommends for production
+          # gave a LESS reproducible install than a tag, and the wheel could be a
+          # different major than the action code being run beside it.
+          #
+          # GITHUB_ACTION_PATH is this action's own checkout at the pinned revision, so
+          # the version that revision corresponds to is right there. Read it, and fail
+          # closed if it cannot be read rather than silently falling back to unpinned.
+          # `|| true` so a missing file reaches the error below instead of tripping
+          # `set -e` here: the run would still stop, but with no message saying why.
+          version="$(sed -n 's/^__version__ = "\([^"]*\)".*/\1/p' \
+            "${GITHUB_ACTION_PATH}/src/oss_policy_kit/__init__.py" 2>/dev/null | head -n 1 || true)"
+          if [ -z "${version}" ]; then
+            echo "::error::Could not resolve the oss-policy-kit version for action ref '${ACTION_REF}'." \
+                 "Set the 'kit-version' input explicitly (or 'latest' to track the newest release)." >&2
+            exit 1
+          fi
+          echo "kit_version=${version}" >> "${GITHUB_OUTPUT}"
         fi
 
     - name: Set up Python
@@ -123,7 +150,14 @@ runs:
         else
           python -m pip install "oss-policy-kit"
         fi
-        python -m oss_policy_kit --version
+        installed="$(python -m oss_policy_kit --version)"
+        echo "${installed}"
+        # Close the loop: a pin that resolved is only worth something if the wheel that
+        # arrived is the one that was asked for.
+        if [ -n "${KIT_VERSION}" ] && [[ "${installed}" != *"${KIT_VERSION}"* ]]; then
+          echo "::error::Requested oss-policy-kit ${KIT_VERSION} but installed '${installed}'." >&2
+          exit 1
+        fi
 
     - name: Run evaluate
       id: run
