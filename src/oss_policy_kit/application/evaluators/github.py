@@ -200,7 +200,10 @@ def eval_gh_rel_021(ctx: EvalContext) -> EvalOutcome:
         )
     return EvalOutcome(
         status=ControlStatus.PASS,
-        reason="Release/deploy workflow signals include top-level concurrency controls.",
+        # Says the level it actually checked. It read "top-level concurrency controls" while
+        # the check also accepts a group on the releasing job -- the same overclaim, in the
+        # PASS message, of the defect that widening this check set out to fix.
+        reason="Release/deploy workflows declare `concurrency:` at the workflow or job level.",
         remediation="Keep concurrency groups stable across release workflow edits.",
         evidence_sources=[],
         confidence="medium",

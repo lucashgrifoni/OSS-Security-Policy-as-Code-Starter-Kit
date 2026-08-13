@@ -165,17 +165,43 @@ _RELEASE_ACTION_RE = re.compile(
     r")\b"
 )
 
-#: ``run:`` commands that publish or deploy. Anchored on the verb, so prose that merely
-#: mentions a release does not match.
+#: ``run:`` commands that publish or deploy. Anchored on the verb at the START, so prose
+#: that merely mentions a release does not match.
+#:
+#: Deliberately NOT anchored at the end. The first version closed with ``)\b`` and wrote the
+#: JVM alternatives as ``\bpublish\b``, which requires a word boundary after the verb -- and a
+#: following capital letter never provides one. That silently dropped
+#: ``./gradlew publishToSonatype``, ``publishToMavenCentral`` and ``sbt publishSigned``, which
+#: is how essentially every JVM project publishes to Maven Central. Those workflows answered
+#: "No release or deploy workflow detected", and the substring detector this replaced had
+#: caught them, so it was a regression rather than a pre-existing gap.
+#:
+#: The cost of dropping the trailing boundary is that ``cargo publisher`` would match. That is
+#: not a shape anyone writes, and missing a real release workflow is the worse failure.
 _RELEASE_RUN_RE = re.compile(
     r"\b(?:"
-    r"twine\s+upload|(?:npm|yarn|pnpm)\s+publish|poetry\s+publish|flit\s+publish"
-    r"|cargo\s+publish|gem\s+push|dotnet\s+nuget\s+push|helm\s+push"
-    r"|(?:docker|podman|buildah)\s+push|skopeo\s+copy"
-    r"|gh\s+release\s+create|goreleaser\s+release"
-    r"|mvn\b[^\n]*\bdeploy\b|gradle\w*\b[^\n]*\bpublish\b"
-    r"|kubectl\s+apply|helm\s+upgrade|terraform\s+apply|aws\s+s3\s+sync"
-    r")\b"
+    r"twine\s+upload"
+    r"|(?:npm|yarn|pnpm)\s+publish"
+    r"|(?:poetry|flit|uv|hatch|maturin)\s+publish"
+    r"|cargo\s+publish"
+    r"|gem\s+push"
+    r"|(?:dotnet\s+)?nuget\s+push"
+    r"|helm\s+push"
+    r"|(?:docker|podman|buildah)\s+push"
+    r"|docker\s+buildx\s+(?:build|bake)[^\n]*--push"
+    r"|skopeo\s+copy"
+    r"|gh\s+release\s+(?:create|upload)"
+    r"|goreleaser\s+release"
+    r"|mvn\b[^\n]*\bdeploy"
+    r"|gradle\w*\b[^\n]*\bpublish"
+    r"|sbt\b[^\n]*\bpublish"
+    r"|kubectl\s+(?:apply|rollout|set\s+image)"
+    r"|helm\s+upgrade"
+    r"|terraform\s+apply"
+    r"|pulumi\s+up"
+    r"|(?:serverless|sls|cdk)\s+deploy"
+    r"|aws\s+s3\s+sync"
+    r")"
 )
 
 #: Workflow / job names and job ids that declare release intent. Matched only on the
@@ -223,14 +249,36 @@ def _job_publishes(job: Any) -> bool:
     return False
 
 
+def _releasing_job_ids(jobs: dict[str, Any]) -> set[str]:
+    """Job ids that actually ship something, by name or by what their steps run."""
+
+    return {
+        str(job_id)
+        for job_id, job in jobs.items()
+        if _RELEASE_NAME_RE.search(str(job_id))
+        or (isinstance(job, dict) and _RELEASE_NAME_RE.search(str(job.get("name", ""))))
+        or _job_publishes(job)
+    }
+
+
 def _declares_concurrency(data: dict[str, Any]) -> bool:
-    """True when concurrency is declared at the workflow level or on any job.
+    """True when concurrency protects the publishing, at the workflow level or on the job.
 
     GH-REL-021 reports a workflow as not declaring concurrency "at the workflow or job
-    level", but the check only ever looked at the top level. Job-level ``concurrency:``
-    is valid GitHub Actions and is the natural way to write it when one job of several
-    publishes -- so a workflow that did exactly what the remediation asks was still
-    failed, and told it had not done it.
+    level", but the check only ever looked at the top level. Job-level ``concurrency:`` is
+    valid GitHub Actions and is the natural way to write it when one job of several
+    publishes, so a workflow that did exactly what the remediation asks was failed and told
+    it had not.
+
+    Widening it to *any* job was too much, and adversarial review caught it before release:
+    a workflow with a ``concurrency`` group on a ``docs`` job and a bare ``publish`` job
+    running ``twine upload`` reported PASS, which is precisely the double-publish this
+    control exists to prevent. The group has to be where the publishing happens.
+
+    Every releasing job must carry one -- ``any`` would let a two-publisher workflow pass on
+    the strength of protecting one of them. When no job looks like the releasing job, the
+    signal came from the trigger alone and there is nothing to attribute a job-level group
+    to, so only a workflow-level declaration counts.
     """
 
     if "concurrency" in data:
@@ -238,7 +286,10 @@ def _declares_concurrency(data: dict[str, Any]) -> bool:
     jobs = data.get("jobs")
     if not isinstance(jobs, dict):
         return False
-    return any(isinstance(job, dict) and "concurrency" in job for job in jobs.values())
+    releasing = _releasing_job_ids(jobs)
+    if not releasing:
+        return False
+    return all(isinstance(jobs[job_id], dict) and "concurrency" in jobs[job_id] for job_id in releasing)
 
 
 def _detect_release_workflow(data: dict[str, Any]) -> bool:
@@ -273,14 +324,9 @@ def _detect_release_workflow(data: dict[str, Any]) -> bool:
     jobs = data.get("jobs")
     if not isinstance(jobs, dict):
         return False
-    for job_id, job in jobs.items():
-        if _RELEASE_NAME_RE.search(str(job_id)):
-            return True
-        if isinstance(job, dict) and _RELEASE_NAME_RE.search(str(job.get("name", ""))):
-            return True
-        if _job_publishes(job):
-            return True
-    return False
+    # Same helper the concurrency check uses, so "is this a release workflow" and "which job
+    # is the release" can never answer from different rules.
+    return bool(_releasing_job_ids(jobs))
 
 
 def _workflow_body_for_sast_heuristics(raw: str) -> str:

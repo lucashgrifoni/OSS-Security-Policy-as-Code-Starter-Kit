@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+
 from oss_policy_kit.infrastructure import workflow_parser as wp
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
@@ -156,6 +158,85 @@ def test_declares_concurrency_accepts_job_level() -> None:
     assert wp._declares_concurrency({"jobs": {"publish": {"concurrency": "release-${{ github.ref }}"}}})
     assert not wp._declares_concurrency({"jobs": {"publish": {"steps": []}}})
     assert not wp._declares_concurrency({})
+
+
+def test_concurrency_must_protect_the_job_that_publishes() -> None:
+    """Widening to *any* job silenced the control on the case it exists for.
+
+    Adversarial review reproduced it before release: a group on a ``docs`` job and a bare
+    ``publish`` job running ``twine upload`` reported PASS -- which is exactly the
+    double-publish GH-REL-021 is there to prevent. A group somewhere in the file is not the
+    same as a group where the publishing happens.
+    """
+
+    unprotected_publisher = {
+        "jobs": {
+            "docs": {"concurrency": "docs-${{ github.ref }}", "steps": [{"run": "mkdocs build"}]},
+            "publish": {"steps": [{"run": "twine upload dist/*"}]},
+        }
+    }
+    assert not wp._declares_concurrency(unprotected_publisher)
+
+    protected_publisher = {
+        "jobs": {
+            "docs": {"steps": [{"run": "mkdocs build"}]},
+            "publish": {"concurrency": "release-${{ github.ref }}", "steps": [{"run": "twine upload dist/*"}]},
+        }
+    }
+    assert wp._declares_concurrency(protected_publisher)
+
+    # Two publishers, one protected: protecting half of them is not protection.
+    assert not wp._declares_concurrency(
+        {
+            "jobs": {
+                "publish-pypi": {"concurrency": "a", "steps": [{"run": "twine upload dist/*"}]},
+                "publish-npm": {"steps": [{"run": "npm publish"}]},
+            }
+        }
+    )
+
+    # Signal came from the trigger alone, so there is no job to attribute a group to.
+    assert not wp._declares_concurrency(_on_true({"push": {"tags": ["v*"]}}) | {"jobs": {"build": {"steps": []}}})
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "./gradlew publishToSonatype",
+        "./gradlew publishToMavenCentral --no-daemon",
+        "./gradlew publishAllPublicationsToMavenRepository",
+        "sbt publishSigned sonatypeBundleRelease",
+        "sbt publish",
+        "uv publish",
+        "hatch publish",
+        "maturin publish",
+        "nuget push pkg.nupkg",
+        "docker buildx build --platform linux/amd64 -t x --push .",
+        "gh release upload v1 dist/app.zip",
+        "pulumi up --yes",
+        "serverless deploy --stage prod",
+        "cdk deploy --require-approval never",
+        "kubectl rollout restart deployment/api",
+        "kubectl set image deployment/api api=x:1",
+    ],
+)
+def test_publishing_commands_that_the_word_boundary_used_to_drop(command: str) -> None:
+    """`\\bpublish\\b` needs a boundary after the verb, and a capital letter is not one.
+
+    That silently dropped every namespaced Gradle and sbt task -- which is how essentially
+    every JVM project publishes to Maven Central. Those workflows answered "No release or
+    deploy workflow detected" with full confidence. The substring detector this replaced
+    caught them, so it was a regression, not a pre-existing gap.
+    """
+
+    assert wp._job_publishes({"steps": [{"run": command}]}), command
+
+
+def test_prose_still_does_not_count_as_publishing() -> None:
+    """The looser regex must not undo the fix it sits next to."""
+
+    for prose in ("echo release the hounds", "echo 'ready to publish soon'", "# deploy notes"):
+        assert not wp._job_publishes({"steps": [{"run": prose}]}), prose
 
 
 def test_step_and_job_oidc() -> None:
