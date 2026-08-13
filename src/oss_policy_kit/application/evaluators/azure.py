@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from oss_policy_kit.application.evaluators._shared import (
@@ -35,6 +36,32 @@ _AZURE_PIPELINE_GOV_REMEDIATION = (
     "Regenerate evidence using reports/schema/evidence-azure-pipeline-governance.schema.json."
 )
 _KIT_DIR = ".oss-policy-kit"
+#: A checkout step that states the setting the message claims, rather than the two words
+#: `persistcredentials` and `false` appearing anywhere in the same file.
+_PERSIST_CREDENTIALS_FALSE_RE = re.compile(
+    r"^\s*-?\s*persistCredentials\s*:\s*false\s*(?:#.*)?$", re.IGNORECASE | re.MULTILINE
+)
+
+
+def _az_unparsed_pipelines_outcome(ctx: EvalContext, *, unproven: str, remediation: str) -> EvalOutcome | None:
+    """Outcome for a pipeline file that did not parse, or None when every one of them did.
+
+    The parser records the failure and moves on, so the structural signal lists come back empty
+    for a file nobody could read -- indistinguishable, downstream, from a file that genuinely
+    lacks the posture. The GitHub family already refuses to judge on that (``eval_ci_perm_006``);
+    the Azure controls read the same empty list as a finding about the repository.
+    """
+
+    if not ctx.azure_pipelines.parse_errors:
+        return None
+    names = ", ".join(sorted({p.name for p, _ in ctx.azure_pipelines.parse_errors}))
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=f"Azure pipeline file(s) could not be parsed ({names}); {unproven} could not be confirmed.",
+        remediation=remediation,
+        evidence_sources=[str(p.resolve()) for p, _ in ctx.azure_pipelines.parse_errors],
+        confidence="low",
+    )
 
 
 def eval_az_pipe_027(ctx: EvalContext) -> EvalOutcome:
@@ -76,6 +103,13 @@ def eval_az_pipe_028(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[str(p.resolve()) for p in ctx.azure_pipelines.pr_validation_paths],
             confidence="low",
         )
+    unparsed = _az_unparsed_pipelines_outcome(
+        ctx,
+        unproven="PR validation trigger posture",
+        remediation="Fix YAML syntax errors, then re-run evaluation for structured trigger analysis.",
+    )
+    if unparsed is not None:
+        return unparsed
     return EvalOutcome(
         status=ControlStatus.FAIL,
         reason="No PR validation trigger signal detected in Azure pipelines.",
@@ -104,12 +138,18 @@ def eval_az_pipe_029(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[str(p.resolve()) for p in ctx.azure_pipelines.persist_credentials_true_paths],
             confidence="medium",
         )
+    unparsed = _az_unparsed_pipelines_outcome(
+        ctx,
+        unproven="checkout credential posture",
+        remediation="Fix YAML syntax errors, then re-run evaluation for structured checkout analysis.",
+    )
+    if unparsed is not None:
+        return unparsed
     # Check whether any pipeline explicitly sets persistCredentials: false (stronger confirmation).
     explicit_false: list[Path] = []
     for p in ctx.azure_pipelines.pipeline_paths:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
-            if "persistcredentials" in text and "false" in text:
+            if _PERSIST_CREDENTIALS_FALSE_RE.search(p.read_text(encoding="utf-8", errors="replace")):
                 explicit_false.append(p)
     if explicit_false:
         return EvalOutcome(
@@ -153,6 +193,13 @@ def eval_az_pipe_030(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[str(p.resolve()) for p in ctx.azure_pipelines.extends_template_paths],
             confidence="low",
         )
+    unparsed = _az_unparsed_pipelines_outcome(
+        ctx,
+        unproven="`extends` template posture",
+        remediation="Fix YAML syntax errors, then re-run evaluation for structured template analysis.",
+    )
+    if unparsed is not None:
+        return unparsed
     return EvalOutcome(
         status=ControlStatus.FAIL,
         reason="No `extends` template posture detected in Azure pipelines.",
@@ -469,17 +516,57 @@ def _az_ident_governance_outcome(gov: dict[str, Any], evidence: Path) -> EvalOut
     )
 
 
+def _az_ident_unusable_evidence_outcome(evidence: Path) -> EvalOutcome:
+    """ADR-045 outcome for governance evidence that is present but cannot be read as evidence.
+
+    ``_azure_governance_evidence_dict`` answers one question -- is there usable governance
+    evidence -- and returns None for an absent file and for an unreadable one alike, discarding
+    the reason. Falling through on both sent an unreadable file to the pipeline-signal tails,
+    where a repository with no Azure pipelines answered `not-applicable`: the file being
+    unreadable dropped the control out of the gate entirely. The document is re-read here for
+    the violation itself, because three of the five profiles carrying AZ-IDENT-036 carry neither
+    AZ-SCONN-056 nor AZ-WIFEV-057, and nothing else in those reports would name it.
+    """
+
+    _data, error, _ph = _validate_json_evidence(
+        evidence,
+        schema_loader=_azure_pipeline_governance_schema,
+        evidence_name=_AZURE_PIPELINE_GOV_LABEL,
+    )
+    assert error is not None
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=error,
+        remediation=_AZURE_PIPELINE_GOV_REMEDIATION,
+        evidence_sources=[str(evidence.resolve())],
+        confidence="low",
+    )
+
+
+#: Both no-evidence tails below reach the same conclusion -- nothing on the platform attests the
+#: deployment identity model -- and differ only in what the pipeline text contains. Sharing the
+#: opening keeps the conditional half conditional.
+_NO_DEPLOY_IDENTITY_EVIDENCE = (
+    "AZ-IDENT-036: No evidence file found at the expected path "
+    "(.oss-policy-kit/evidence/azure-pipeline-governance.json)"
+)
+
+
 def eval_az_ident_036(ctx: EvalContext) -> EvalOutcome:
     """AZ-IDENT-036: workload identity federation preference grounded in governance evidence when available."""
 
+    evidence = ctx.repo_root / _KIT_DIR / "evidence" / _AZURE_PIPELINE_GOV_JSON
     gov = _azure_governance_evidence_dict(ctx)
     if gov is not None:
-        evidence = ctx.repo_root / _KIT_DIR / "evidence" / _AZURE_PIPELINE_GOV_JSON
         ph = has_placeholder_values(gov)
         blocked = _evidence_placeholder_outcome(evidence, ph)
         if blocked is not None:
             return blocked
         return _az_ident_governance_outcome(gov, evidence)
+    if evidence.is_file():
+        # "No usable evidence" is what the reader above answers, and it is not the same claim as
+        # "no evidence"; the tails below make the second one.
+        return _az_ident_unusable_evidence_outcome(evidence)
 
     if not ctx.azure_pipelines.pipeline_paths:
         return EvalOutcome(
@@ -501,10 +588,8 @@ def eval_az_ident_036(ctx: EvalContext) -> EvalOutcome:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
             reason=(
-                "AZ-IDENT-036: No evidence file found at the expected path. "
-                "A keyword signal was detected in the pipeline YAML, but this cannot "
-                "prove platform-level posture. Collect evidence via the platform collector "
-                "or attest the configuration manually."
+                f"{_NO_DEPLOY_IDENTITY_EVIDENCE}. A pipeline file mentions workload identity federation, but a "
+                "keyword in YAML records what the pipeline text says, not how the service connection authenticates."
             ),
             remediation=(
                 "Run collect-evidence for Azure or add azure-pipeline-governance.json so "
@@ -519,12 +604,7 @@ def eval_az_ident_036(ctx: EvalContext) -> EvalOutcome:
         )
     return EvalOutcome(
         status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-        reason=(
-            "AZ-IDENT-036: No evidence file found at the expected path. "
-            "A keyword signal was detected in the pipeline YAML, but this cannot "
-            "prove platform-level posture. Collect evidence via the platform collector "
-            "or attest the configuration manually."
-        ),
+        reason=f"{_NO_DEPLOY_IDENTITY_EVIDENCE}, and no pipeline file mentions workload identity federation.",
         remediation=(
             "Confirm service connection authentication model (prefer workload identity federation), "
             "or add azure-pipeline-governance.json from collect-evidence."
@@ -542,6 +622,11 @@ _SCONN_UNKNOWN_REASON = (
     "Inspect the connection in Azure DevOps and attest the actual "
     "authentication method before this control can be evaluated."
 )
+_SCONN_UNSTATED_REASON = (
+    "Service connection entry states no authentication type. "
+    "Inspect the connection in Azure DevOps and attest the actual "
+    "authentication method before this control can be evaluated."
+)
 
 
 def _sconn_auth_outcome(conns: list[Any], evidence: Path) -> EvalOutcome | None:
@@ -553,9 +638,11 @@ def _sconn_auth_outcome(conns: list[Any], evidence: Path) -> EvalOutcome | None:
             continue
         raw_auth = c.get("authentication")
         if not isinstance(raw_auth, str) or not raw_auth.strip():
+            # Absent, blank or non-string. Saying the value is 'unknown' sent the operator
+            # looking for a word their file does not contain.
             return EvalOutcome(
                 status=ControlStatus.NOT_EVALUATED,
-                reason=_SCONN_UNKNOWN_REASON,
+                reason=_SCONN_UNSTATED_REASON,
                 remediation="Update the evidence file with the actual authentication value.",
                 evidence_sources=src,
                 confidence="low",
@@ -683,9 +770,11 @@ def _az_wif_posture_outcome(posture: Any, evidence: Path) -> EvalOutcome | None:
             confidence="medium",
         )
     if pref is not True:
+        # The field is present -- the branch above returned when it was not -- so the value is
+        # something other than a boolean, which is not the same fault and not the same fix.
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason="Evidence file missing posture.federated_identity_preferred field.",
+            reason=f"posture.federated_identity_preferred holds {pref!r}, which is not a boolean.",
             remediation="Set posture.federated_identity_preferred to a boolean true/false value.",
             evidence_sources=src,
             confidence="low",
@@ -694,7 +783,7 @@ def _az_wif_posture_outcome(posture: Any, evidence: Path) -> EvalOutcome | None:
 
 
 def _wif_empty_proof_fields(conn: dict[str, Any]) -> list[str]:
-    """Return WIF proof fields that are missing, non-string, or placeholder (``<...>``)."""
+    """Return WIF proof fields that are missing, non-string, blank, or placeholder (``<...>``)."""
 
     empty: list[str] = []
     for f in ("federation_subject", "issuer_url", "audience"):
@@ -717,7 +806,7 @@ def _incomplete_wif_outcome(wif_conns: list[Any], evidence: Path) -> EvalOutcome
                 status=ControlStatus.NOT_EVALUATED,
                 reason=(
                     "Workload identity federation evidence is incomplete. "
-                    "The following fields are missing or contain placeholder values: "
+                    "The following fields are missing, blank, or contain placeholder values: "
                     f"{', '.join(_wif_empty_proof_fields(conn))}. "
                     "Collect real WIF configuration values from the Azure DevOps service connection."
                 ),

@@ -16,7 +16,14 @@ from pathlib import Path
 import typer
 
 from oss_policy_kit.adapters.local_paths import resolve_existing_dir
-from oss_policy_kit.cli.common import app, exit_for_unexpected, markup_safe, stderr_console, write_stdout_text
+from oss_policy_kit.cli.common import (
+    app,
+    display_path,
+    exit_for_unexpected,
+    markup_safe,
+    stderr_console,
+    write_stdout_text,
+)
 from oss_policy_kit.cli.help_text import CMD_PANEL_SCAN
 from oss_policy_kit.cli.scan_errors import exit_for_unwritable_evidence
 from oss_policy_kit.domain.errors import OssPolicyKitError
@@ -31,15 +38,22 @@ from oss_policy_kit.infrastructure.k8s.scanner import (
 )
 
 
-def _emit_scan_k8s_human(outcome: K8sScanOutcome, evidence_path: Path) -> None:
-    """Write the human-format scan-k8s summary line plus helm/parse diagnostics to the console."""
+def _emit_scan_k8s_human(outcome: K8sScanOutcome, evidence_path: Path, *, root: Path | None = None) -> None:
+    """Write the human-format scan-k8s summary line plus helm/parse diagnostics to the console.
+
+    ``root`` is the scanned target, and is only ever the base subtracted from
+    ``evidence_path`` for display: ``write_evidence`` returns the resolved path, and
+    echoing that verbatim shipped the host layout on a successful run (M-002).
+    ``redact_home`` does not cover it -- it rewrites paths under HOME and leaves every
+    other absolute path whole.
+    """
 
     write_stdout_text(
         f"scan-k8s: {outcome.status} -- "
         f"files={len(outcome.files_scanned)} "
         f"helm_skipped={len(outcome.helm_templates_skipped)} "
         f"findings={len(outcome.findings)} "
-        f"-> {evidence_path}\n",
+        f"-> {display_path(evidence_path, root=root)}\n",
     )
     if outcome.helm_render_attempted and not outcome.helm_available:
         stderr_console().print(
@@ -91,7 +105,7 @@ def _run_scan_k8s(target: str, include: str, exclude: str, timeout: int, *, helm
     if fmt == "json":
         sys.stdout.write(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
     else:
-        _emit_scan_k8s_human(outcome, evidence_path)
+        _emit_scan_k8s_human(outcome, evidence_path, root=repo)
 
 
 @app.command("scan-k8s", rich_help_panel=CMD_PANEL_SCAN)

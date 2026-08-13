@@ -38,7 +38,32 @@ Advisory; `--fail-on degraded`.
 - Teams already at Source L1 get a clear L2 upgrade path.
 - L2 controls require branch-protection evidence; absence is manual review.
 
+## Amendment (2026-08) — the evidence shape, and why SLSA-SRC-007 is manual review
+
+The Decision above names two top-level fields, `required_signatures` and
+`required_approving_review_count`. Neither exists. `evidence-branch-protection.schema.json`
+is closed at both levels (`additionalProperties: false` on the root and on `protections`),
+the flags live under `protections`, and no approver-count field is defined anywhere in it.
+This amendment is normative and supersedes the conflicting wording; the schema itself is
+unchanged.
+
+### Amended shape
+
+1. **`SLSA-SRC-006` reads `protections.require_signed_commits`**, not top-level
+   `required_signatures`. The flag is optional in `branch-protection/v1` and
+   `collect-evidence` does not emit it, so its absence is a gap in the attestation rather
+   than a statement that signing is unenforced: the control answers
+   `manual-review-required` (ADR-045), `pass` on `true`, `fail` on `false`.
+2. **`SLSA-SRC-007` cannot verify the `>= 2` threshold at all.** The only review fact
+   `branch-protection/v1` carries is `protections.require_pull_request_reviews`, a boolean.
+   `false` is a `fail` — zero required approvals cannot meet L2. `true` proves >= 1 and says
+   nothing about >= 2, so the control answers `manual-review-required`; reading that boolean
+   as a count would turn unknown into clean, which is the one thing this kit does not do.
+   The threshold stays a human check until the evidence schema gains a field for it, and
+   changing the schema is a separate decision this amendment does not take.
+
 ## References
 
 - SLSA v1.2 Source requirements
 - v6.0.0 Cycle 2 plan, PR-25; ADR-006
+- ADR-045 — unreadable or unstated evidence is manual review, never fail

@@ -1,4 +1,4 @@
-"""A failed evidence write names the reason, never the host path -- in all six scanners.
+"""Where the evidence went is named relatively, never as a host path -- in all six scanners.
 
 The v10.0.7 m002-echo lane caught two error handlers interpolating the ``OSError``
 itself, and ``str(OSError)`` renders ``exc.filename``. The six ``scan-*`` commands
@@ -8,8 +8,15 @@ carried the same handler and were missed: with ``.oss-policy-kit`` unwritable,
 -- the operator's home directory and OS account name, in the line they paste into an
 issue, describing a location they never typed.
 
-All six are asserted, not one. Six copies of that handler was six chances to drift, and
-a fix that lands in five is the defect coming back.
+Fixing the failure arm left the **success** arm saying the same thing: ``write_evidence``
+returns a resolved path, and the summary line echoed it, so the same relative argument
+answered with ``-> C:\\...\\t\\.oss-policy-kit\\evidence\\iac-terraform.json`` on a clean
+run -- the common case, not the rare one. ``redact_home`` is not a defence here: it
+rewrites paths under HOME and leaves every other absolute path whole, so a CI runner or
+any target outside HOME shipped the full layout.
+
+All six are asserted on both arms, not one. Six copies of that code was six chances to
+drift, and a fix that lands in five is the defect coming back.
 
 Two Windows traps shape the assertions here, both inherited from
 ``test_v10_0_7_relative_paths_stay_relative``:
@@ -23,13 +30,21 @@ Two Windows traps shape the assertions here, both inherited from
   assertion fails on Windows and passes in CI. ``COLUMNS`` is pinned wide and every
   phrase is matched against whitespace-collapsed output.
 
-Every guard here was mutation-tested: the handler was reverted to ``markup_safe(exc)``,
-the test was confirmed to fail, and the fix was restored.
+A third trap applies to the success arm only. ``redact_home`` turns a path under HOME into
+``~\\...``, which is neither absolute nor recognisably the operator's -- so "the shown path
+is not absolute" passes on a machine whose temp directory sits under HOME even while the
+whole layout below it leaks. Every success assertion below is therefore an exact equality
+against the relative path the operator should read, not a negative check redaction can fake.
+
+Every guard here was mutation-tested: the handler was reverted to ``markup_safe(exc)`` and
+the summary line to ``{evidence_path}``, each test was confirmed to fail, and the fixes
+were restored.
 """
 
 from __future__ import annotations
 
 import errno
+import json
 from pathlib import Path
 from types import ModuleType
 
@@ -62,6 +77,24 @@ _COMMANDS: list[tuple[str, ModuleType]] = [
 ]
 _IDS = [name for name, _module in _COMMANDS]
 
+#: One source file per rule pack, so the JSON case below checks a populated
+#: ``files_scanned`` rather than an empty list that would pass by default.
+_SOURCES: tuple[tuple[str, str], ...] = (
+    ("main.tf", 'resource "aws_s3_bucket" "x" { acl = "private" }\n'),
+    (
+        "deploy.yaml",
+        "apiVersion: v1\nkind: Pod\nmetadata:\n  name: p\nspec:\n"
+        "  containers:\n    - name: c\n      image: nginx:1.25\n",
+    ),
+    ("stack.template", "Resources:\n  B:\n    Type: AWS::S3::Bucket\n    Properties: { AccessControl: Private }\n"),
+    ("infra.py", "import pulumi_aws as aws\naws.s3.Bucket('b', acl='private')\n"),
+    (
+        "main.bicep",
+        "resource sa 'Microsoft.Storage/storageAccounts@2023-01-01' = {\n"
+        "  name: 'x'\n  properties: { allowBlobPublicAccess: false }\n}\n",
+    ),
+)
+
 
 def _flat(text: str) -> str:
     """Collapse soft-wrap whitespace so a phrase can be matched as one unit."""
@@ -92,6 +125,23 @@ def blocked_evidence_dir(workdir: Path) -> Path:
 
     (workdir / "t" / ".oss-policy-kit").write_text("not a directory\n", encoding="utf-8")
     return workdir
+
+
+@pytest.fixture
+def sibling_target(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A current directory holding no target, beside one reached as ``../outside/t``.
+
+    The case the current directory cannot answer: nothing subtracts to a useful relative
+    path there, so this is what decides whether the operator is told the evidence
+    directory or only a bare filename.
+    """
+
+    monkeypatch.setenv("COLUMNS", _WIDE)
+    root = tmp_path / _MARKER
+    (root / "here").mkdir(parents=True)
+    (root / "outside" / "t").mkdir(parents=True)
+    monkeypatch.chdir(root / "here")
+    return root
 
 
 def _run(command: str) -> Result:
@@ -193,3 +243,79 @@ def test_a_clean_scan_of_the_same_relative_target_says_nothing_about_a_write_fai
     assert result.exit_code == 0, result.output
     assert "cannot write output" not in result.output
     assert (workdir / "t" / ".oss-policy-kit" / "evidence" / "iac-terraform.json").is_file()
+
+
+# --------------------------------------------------------------------------- #
+# the success line -- the same leak on the arm the operator actually reaches
+# --------------------------------------------------------------------------- #
+
+
+def _summary_target(result: Result, command: str) -> str:
+    """The path the one-line summary points the operator at."""
+
+    line = next(ln for ln in result.output.splitlines() if ln.startswith(f"{command}: "))
+    return line.split(" -> ", 1)[1]
+
+
+@pytest.mark.parametrize(("command", "module"), _COMMANDS, ids=_IDS)
+def test_a_successful_scan_names_the_evidence_under_the_target_as_typed(
+    command: str, module: ModuleType, workdir: Path, semgrep_absent: None
+) -> None:
+    """Relative in, relative out -- on the run that succeeds, which is nearly every run.
+
+    ``semgrep_absent`` only pins ``scan-sast`` to its ``not_available`` outcome so it
+    reaches this line on a machine that does have Semgrep; the other five ignore it.
+    """
+
+    result = _run(command)
+
+    assert result.exit_code == 0, result.output
+    # Asserted before the exact form, for the reason the failure arm above states.
+    assert _MARKER not in result.output, "the resolved evidence path leaked on the success line"
+    assert _summary_target(result, command) == str(
+        Path("t") / ".oss-policy-kit" / "evidence" / module.EVIDENCE_FILENAME
+    )
+
+
+@pytest.mark.parametrize(("command", "module"), _COMMANDS, ids=_IDS)
+def test_a_target_outside_the_current_directory_still_names_the_evidence_directory(
+    command: str, module: ModuleType, sibling_target: Path, semgrep_absent: None
+) -> None:
+    """Subtracting the current directory is not enough on its own.
+
+    ``--target ../outside/t`` leaves nothing for the current directory to remove, and the
+    fallback for that is the target itself -- not the bare filename, which would drop the
+    dot-directory the operator has no reason to guess.
+    """
+
+    result = runner.invoke(app, [command, "--target", "../outside/t"])
+
+    assert result.exit_code == 0, result.output
+    assert _MARKER not in result.output, "the resolved evidence path leaked on the success line"
+    assert _summary_target(result, command) == str(Path(".oss-policy-kit") / "evidence" / module.EVIDENCE_FILENAME)
+
+
+@pytest.mark.parametrize(("command", "module"), _COMMANDS, ids=_IDS)
+def test_the_json_summary_carries_no_host_path_either(
+    command: str, module: ModuleType, workdir: Path, semgrep_absent: None
+) -> None:
+    """``--format json`` prints the evidence payload, not the path it was written to.
+
+    Its ``target`` is already reduced to a basename and its ``files_scanned`` entries are
+    target-relative, so this arm needed no change -- which is worth pinning, because a
+    field changing shape costs a consumer more than a stderr string does.
+    """
+
+    for name, body in _SOURCES:
+        (workdir / "t" / name).write_text(body, encoding="utf-8")
+
+    result = runner.invoke(app, [command, "--target", _TARGET, "--format", "json"])
+
+    assert result.exit_code == 0, result.output
+    assert _MARKER not in result.output, "the JSON payload leaked the host path"
+    payload = json.loads(result.stdout)
+    assert payload["target"] == "t"
+    # ``scan-sast`` reports no file list at all; the other five must keep theirs relative.
+    assert all(not Path(f).is_absolute() for f in payload.get("files_scanned", ())), payload
+    # The relative path the human arm prints has to be where the file actually landed.
+    assert (workdir / "t" / ".oss-policy-kit" / "evidence" / module.EVIDENCE_FILENAME).is_file()

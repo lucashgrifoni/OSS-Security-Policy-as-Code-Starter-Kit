@@ -505,21 +505,42 @@ def eval_aws_pipeiam_056(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+#: Same shape as `_NO_PIPELINE_ROLE_EVIDENCE` above: one opening for the state both tails share,
+#: so the half that depends on the repository stays the only half that varies.
+_NO_BUILD_IDENTITY_EVIDENCE = (
+    "AWS-CBIDENT-057: No evidence file found at the expected path (.oss-policy-kit/evidence/aws-codebuild-project.json)"
+)
+
+
+def _aws_cbident_missing_evidence_reason(buildspecs: list[Path]) -> str:
+    """The sentence for an absent evidence file, conditioned on what the repository does hold.
+
+    The old wording claimed a keyword signal in the pipeline YAML on every path through this
+    branch, including repositories holding no buildspec at all. A buildspec is worth naming,
+    since it is the only AWS build file the kit reads -- but only where one was found, and only
+    for what it is: build commands, never the project record that names the execution role.
+    """
+
+    if buildspecs:
+        return (
+            f"{_NO_BUILD_IDENTITY_EVIDENCE}. A buildspec is present in the supported paths, but a "
+            "buildspec records build commands, not the CodeBuild project configuration that names "
+            "the service role and its environment variables."
+        )
+    return f"{_NO_BUILD_IDENTITY_EVIDENCE}, and no buildspec is present in the supported paths."
+
+
 def eval_aws_cbident_057(ctx: EvalContext) -> EvalOutcome:
     """AWS-CBIDENT-057: CodeBuild execution identity boundary (service role vs plaintext env credentials)."""
 
     evidence = ctx.repo_root / _KIT_DIR / "evidence" / "aws-codebuild-project.json"
     if not evidence.is_file():
+        buildspecs = ctx.aws_ci.buildspec_paths
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=(
-                "AWS-CBIDENT-057: No evidence file found at the expected path. "
-                "A keyword signal was detected in the pipeline YAML, but this cannot "
-                "prove platform-level posture. Collect evidence via the platform collector "
-                "or attest the configuration manually."
-            ),
+            reason=_aws_cbident_missing_evidence_reason(buildspecs),
             remediation="Collect CodeBuild project evidence or scaffold and attest identity fields explicitly.",
-            evidence_sources=[],
+            evidence_sources=[str(p.resolve()) for p in buildspecs],
             confidence="low",
         )
     data, error, ph = _validate_json_evidence(

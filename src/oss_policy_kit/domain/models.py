@@ -18,8 +18,9 @@ class ControlStatus(StrEnum):
     SELF_ATTESTED = "self-attested"
     # ATTESTED (ADR-028, v8.x): a passing verdict anchored on a *verified* attestation
     # (in-toto + cosign keyless), distinct from SELF_ATTESTED (maintainer self-claim) and
-    # from a deterministic PASS. Defined as a first-class state here; no bundled evaluator
-    # emits it yet — emission lands in the v8.x applicability/attestation work (opt-in).
+    # from a deterministic PASS. Emitted by PROV-VERIFY-061 and GH-IMMUTREL-070, and
+    # `evaluate --enable-attested` defaults to on since v8.0.0 (ADR-041), so a stock run
+    # reaches it whenever the verification record is complete and fresh.
     ATTESTED = "attested"
     NOT_EVALUATED = "not-evaluated"
     NOT_OBSERVABLE = "not-observable"

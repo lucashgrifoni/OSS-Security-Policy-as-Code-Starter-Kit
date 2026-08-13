@@ -192,7 +192,7 @@ SLSA v1.2 reintroduces a **Source Track** alongside the Build Track. It defines 
 | Source L1: Version control in use | `CI-WF-005`, `AZ-PIPE-027`, `AWS-CI-037` (presence implies VCS) | YES | A repo with CI files inherently has VCS. |
 | Source L2: History & provenance (branch protection, signed commits, complete history) | `PLAT-BRPROT-015`, `GH-PLAT-024`, `AZ-PLAT-034` | PARTIAL | Branch protection covered; signed-commit policy is enforceable via GitHub rulesets but the kit only confirms ruleset presence, not commit-signature posture per merged PR. |
 | Source L3: Source provenance attestations | (none) | GAP | Verifiable source-history attestations are not yet emitted by mainstream SCMs at scale. Tracked as future work in `docs/profiles/deferred-followups.md`. |
-| Source L4: Two-party review on every merged PR | `PLAT-BRPROT-015` (with `required_approving_review_count >= 2`), `GH-PLAT-024` | PARTIAL | Existing branch-protection evidence accepts an optional `required_approving_review_count` field. When set to ≥2, the result `extra` records L4 alignment; otherwise the `evidence.limitations` array notes "single-reviewer policy; SLSA Source L4 not satisfied." |
+| Source L4: Two-party review on every merged PR | `PLAT-BRPROT-015`, `GH-PLAT-024` | PARTIAL | Branch-protection evidence records `protections.require_pull_request_reviews`, a boolean: review is required, or it is not. `branch-protection/v1` is a closed schema (`additionalProperties: false`) with no approver-count field anywhere, so "two parties" is not expressible in it — a required-review boolean proves ≥1, never ≥2. Confirm the count on the platform. |
 
 **Coverage** (v5.1.0): 1 YES, 2 PARTIAL, 1 GAP. The rows above are the original cross-control
 mapping. The v6.x line adds a **dedicated `SLSA-SRC-*` family** and two bundled profiles
@@ -205,15 +205,18 @@ mapping. The v6.x line adds a **dedicated `SLSA-SRC-*` family** and two bundled 
 | `SLSA-SRC-003` Branch protection present | L2 | PARTIAL | `signal`. |
 | `SLSA-SRC-004` Two-party review required | L2 | PARTIAL | `signal`. |
 | `SLSA-SRC-005` Source-change audit log | L2 | PARTIAL | `signal`. |
-| `SLSA-SRC-006` Signed commits required | L2 | YES (with evidence) | `evidence-backed` — consumes platform evidence that signed-commit enforcement is on. |
-| `SLSA-SRC-007` Two-party review threshold enforced | L2 | YES (with evidence) | `evidence-backed` — branch-protection evidence with `required_approving_review_count >= 2`. |
+| `SLSA-SRC-006` Signed commits required | L2 | YES (with evidence) | `evidence-backed` — reads `protections.require_signed_commits`. That flag is optional in `branch-protection/v1` and `collect-evidence` does not populate it, so add it by hand; while it is absent the control answers `manual-review-required`. |
+| `SLSA-SRC-007` Two-party review threshold enforced | L2 | PARTIAL | `evidence-backed` — reads `protections.require_pull_request_reviews`. Off is a `fail` (zero approvals cannot meet ≥2); on leaves the ≥2 threshold unverifiable, because `branch-protection/v1` carries no approver count, so the control answers `manual-review-required` rather than reading a ≥1 boolean as a ≥2 count. |
 | `SLSA-SRC-008` Source-change audit log streamed externally | L2 | YES (with evidence) | `evidence-backed` — audit-stream evidence. |
 
-**SLSA Source coverage (v6.x)**: the three `evidence-backed` L2 controls (006–008) reach YES
-when `collect-evidence` populates branch-protection + audit-stream evidence; without evidence
-they return `manual-review-required` (honest gap, not a crash). L3 (verifiable source-provenance
-attestations) remains a **GAP** — mainstream SCMs do not yet emit these at scale. The
-`slsa-source-l2-1` profile is `--fail-on fail`-capable only when its evidence files are filled.
+**SLSA Source coverage (v6.x)**: without evidence the three `evidence-backed` L2 controls
+(006–008) return `manual-review-required` (honest gap, not a crash). With evidence, 008 reaches
+YES from what `collect-evidence` writes; 006 needs the optional `require_signed_commits` flag
+added by hand; and 007 stays PARTIAL for the reason in its row above — the approver count L2 asks
+for has no field in `branch-protection/v1`, so it stays a human check. L3 (verifiable
+source-provenance attestations) remains a **GAP** — mainstream SCMs do not yet emit these at
+scale. The `slsa-source-l2-1` profile is `--fail-on fail`-capable only when its evidence files
+are filled.
 
 ## NIST SSDF SP 800-218 (Rev 1.1)
 

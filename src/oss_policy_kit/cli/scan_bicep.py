@@ -14,7 +14,14 @@ import sys
 import typer
 
 from oss_policy_kit.adapters.local_paths import resolve_existing_dir
-from oss_policy_kit.cli.common import app, exit_for_unexpected, markup_safe, stderr_console, write_stdout_text
+from oss_policy_kit.cli.common import (
+    app,
+    display_path,
+    exit_for_unexpected,
+    markup_safe,
+    stderr_console,
+    write_stdout_text,
+)
 from oss_policy_kit.cli.help_text import CMD_PANEL_SCAN
 from oss_policy_kit.cli.scan_errors import exit_for_unwritable_evidence
 from oss_policy_kit.domain.errors import OssPolicyKitError
@@ -93,7 +100,7 @@ def scan_bicep_cmd(
                 f"scan-bicep: {outcome.status} -- "
                 f"files={len(outcome.files_scanned)} "
                 f"findings={len(outcome.findings)} "
-                f"-> {evidence_path}\n",
+                f"-> {display_path(evidence_path, root=repo)}\n",
             )
             if outcome.parse_errors:
                 stderr_console().print(

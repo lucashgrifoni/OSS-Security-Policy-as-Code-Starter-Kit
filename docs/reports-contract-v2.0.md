@@ -36,7 +36,7 @@
 | `not-applicable` | `NOT_APPLICABLE` | Direct. |
 | `skipped` | `UNKNOWN` with `reason: "skipped-by-flag"` | Promoted into `UNKNOWN` with reason; consumers that branched on `skipped` should branch on `reason`. |
 | `error` | `UNKNOWN` with `reason: "evaluator-error"` | Errors are not failures of the target; they are gaps in the kit's ability to evaluate. |
-| (new) | `ATTESTED` | State for controls anchored on a verified attestation. Emitted **opt-in** by `PROV-VERIFY-061` when a fully verified provenance record (transparency-log inclusion + fresh `verified_at`) is present and `evaluate --enable-attested` is set (ADR-028). Default off → that control stays `PASS`. Fail-closed: any verification gap keeps the prior `FAIL`/`UNKNOWN`, never `ATTESTED`. |
+| (new) | `ATTESTED` | State for controls anchored on a verified attestation. Emitted by `PROV-VERIFY-061` and `GH-IMMUTREL-070` when a fully verified record (transparency-log inclusion + fresh `verified_at`) is present (ADR-028). `--enable-attested` defaults to **on** since v8.0.0 (ADR-041); pass `--no-enable-attested` and those controls stay `PASS`. Fail-closed: any verification gap keeps the prior `FAIL`/`UNKNOWN`, never `ATTESTED`. |
 | `self-attested` | `SELF_ATTESTED` | Self-reported evidence (ADR-033 insights wiring, self-attested azure/aws evidence). Recorded as a claim, never verified by the kit. |
 | `waived` | `UNKNOWN` with `reason: "waived"` | The waiver block on the control carries owner/justification/expiry; waived findings stay visible but stop tripping `--fail-on`. |
 | `not-evaluated` | `UNKNOWN` with `reason: "not-evaluated"` | The control needs an input that was not supplied, so no verdict was attempted. `OSS-SCORECARD-001` without a Scorecard JSON is the common case. Supplying the input is what changes the outcome — this is not a judgement about the target. |
@@ -127,7 +127,7 @@ For each consumer of `evaluation-report.json`:
 2. **Update the contract identifier check**. `reports/2.0` advertises `"contract_version": "reports/2.0"` at the top.
 3. **Re-map status switches**. Use the mapping table above. The most common gotcha: `degraded` is now `FAIL` with `degraded: true`; consumers that treated `degraded` as PASS-ish must switch to the explicit flag.
 4. **Handle `UNKNOWN.reason`** for any logic that previously branched on `manual-review-required`, `skipped`, or `error`. All three converge under `UNKNOWN` with distinct `reason` values.
-5. **Optional**: handle `ATTESTED`. It is emitted opt-in by `PROV-VERIFY-061` under `evaluate --enable-attested` (ADR-028); it scores as a pass, so consumers that ignore it still see pass-shaped gate behavior, but adopters that want the strongest posture can branch on `ATTESTED` to require a verified attestation.
+5. **Expect `ATTESTED` on a stock run.** `--enable-attested` defaults to on since v8.0.0 (ADR-041), so `PROV-VERIFY-061` and `GH-IMMUTREL-070` reach `ATTESTED` without any flag once their verification record is complete and fresh (ADR-028). It scores as a pass, so consumers that ignore it still see pass-shaped gate behavior, but adopters that want the strongest posture can branch on `ATTESTED` to require a verified attestation.
 
 ## Why ATTESTED is its own state
 

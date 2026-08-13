@@ -890,8 +890,8 @@ def _markdown_report_text(  # noqa: C901
         )
         lines.append(
             "- Control `GOV-WAIV-014` specifically checks for a waiver policy file **inside the clone** "
-            "(for example `waivers/waivers.yaml`). It may therefore stay `not-evaluated` when no in-repo "
-            "waiver file exists even when `--waivers` waives other controls."
+            "(for example `waivers/waivers.yaml`). It may therefore stay `manual-review-required` when no "
+            "in-repo waiver file exists even when `--waivers` waives other controls."
         )
     else:
         lines.append(

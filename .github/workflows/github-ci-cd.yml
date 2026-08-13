@@ -72,6 +72,14 @@ jobs:
       - name: Mypy
         run: python -m mypy src/oss_policy_kit
 
+      - name: Public hygiene
+        # The CHANGELOG has called this a release gate since it was added, but it ran
+        # nowhere: only when somebody remembered it locally. It drifted red on master —
+        # eleven violations, all synthetic fixtures, none of them a real leak, and none
+        # of them noticed. A gate nobody triggers is not a gate, which is the same shape
+        # as the drift check that sat permanently green through three major versions.
+        run: python scripts/check_public_hygiene.py
+
       - name: Pytest
         # Measure coverage here but do not gate yet (--cov-fail-under=0); the
         # property-tests step appends and enforces the combined floor.

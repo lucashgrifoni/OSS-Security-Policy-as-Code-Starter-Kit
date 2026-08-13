@@ -59,7 +59,9 @@ the whole difference:
 
 It appears on ordinary runs, with stock bundled profiles and no flags:
 
-- `OSS-SCORECARD-001` on any profile from `github-level-2` up, whenever `--scorecard-json` is not passed
+- `OSS-SCORECARD-001` whenever `--scorecard-json` is not passed, on every bundled profile that
+  carries it: `github-level-2`, `github-level-3`, `github-release-hardening-2`,
+  `github-release-hardening-3`, `s2c2f-l1-1`, `s2c2f-l2-1`, `s2c2f-l3-1`
 - every evidence-backed control reading a `scaffold-evidence` template that still holds `REPLACE_ME`
 - `PLAT-BRPROT-015`, `GH-PLAT-024`/`025`/`026`, `GH-IMMUTREL-070` and `ORG-ACTPOL-071` when their
   evidence file does not exist yet
@@ -123,7 +125,7 @@ Reports include:
 ## `all-pass` On `github-level-1` vs `github-release-hardening-1`
 
 - `github-level-1` currently evaluates 14 active controls. `all-pass` means fourteen `pass` outcomes for that profile on the current revision.
-- `github-release-hardening-1` adds `PLAT-BRPROT-015` and `GOV-EVIDFRESH-054` (16 controls total). Branch protection is enforced on GitHub, not in the clone, so a strong local repository lands on `not-evaluated` for that control until `.oss-policy-kit/evidence/branch-protection.json` exists. With the file it reads `pass` or `fail` on what the file records; `manual-review-required` only when the file is present and fails its schema.
+- `github-release-hardening-1` adds `PLAT-BRPROT-015` and `GOV-EVIDFRESH-054` (16 controls total). Branch protection is enforced on GitHub, not in the clone, so a strong local repository lands on `not-evaluated` for that control until `.oss-policy-kit/evidence/branch-protection.json` exists. With the file it reads `pass` or `fail` on what the file records — unless the file is a template that still holds `REPLACE_ME`, which stays `not-evaluated`, or the kit cannot use the document at all (unreadable, invalid JSON, a root that is not an object, or a schema violation), which is `manual-review-required`.
 
 That behavior is intentional. It is the tool being honest, not a defect.
 
@@ -154,8 +156,8 @@ never elevates a `fail`. On stock profiles:
 - `GOV-WAIV-014` reads **`manual-review-required`** when no versioned in-repo waiver policy file is
   present (optional governance, but explicitly surfaced rather than skipped)
 - `PLAT-BRPROT-015` reads **`not-evaluated`** until platform evidence exists, then `pass` or `fail`
-  on what that evidence records. Confirming branch protection in GitHub is what produces the file;
-  it is not a separate state.
+  on what that evidence records, or `manual-review-required` when the file cannot be read.
+  Confirming branch protection in GitHub is what produces the file; it is not a separate state.
 
 ## Evidence templates vs. real evidence
 

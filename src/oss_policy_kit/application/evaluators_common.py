@@ -37,7 +37,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
 from oss_policy_kit.application.evidence_placeholders import has_placeholder_values
-from oss_policy_kit.application.input_limits import MAX_EVIDENCE_BYTES, oversize_reason
+from oss_policy_kit.application.input_limits import MAX_EVIDENCE_BYTES, bad_input_detail, oversize_reason
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 
 DIGEST_PLACEHOLDER_REASON = (
@@ -105,7 +105,12 @@ def validate_json_evidence(
     try:
         data = json.loads(evidence.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        return None, f"{evidence_name} evidence is unreadable or invalid JSON: {exc}", []
+        # M-002: this string is returned verbatim as the ``reason`` of eval_org_mfa_001 and
+        # every other control routed through here, and ``str(OSError)`` appends the resolved
+        # filename it was handed -- so ``{exc}`` published the adopter's home directory and OS
+        # account name. ``bad_input_detail`` says the same thing without naming where the file
+        # lives; the caller already identifies it by *evidence_name*.
+        return None, f"{evidence_name} evidence is unreadable or invalid JSON: {bad_input_detail(exc)}.", []
     if not isinstance(data, dict):
         return None, f"{evidence_name} evidence root must be a JSON object.", []
     try:

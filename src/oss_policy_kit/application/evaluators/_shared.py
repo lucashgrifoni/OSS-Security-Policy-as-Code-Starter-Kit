@@ -563,7 +563,13 @@ def _parse_branch_protection_evidence(evidence: Path) -> EvalOutcome:
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=f"Branch protection evidence file is unreadable or invalid JSON: {exc}",
+            # M-002: `str(OSError)` appends the filename it was handed, and by here that
+            # filename is the caller's fully resolved path -- so `{exc}` would print the
+            # adopter's home directory and OS account name in a reason the report renders
+            # verbatim. `bad_input_detail` is the project's path-free rendering of a read
+            # failure. This reader feeds PLAT-BRPROT-015 and all four SLSA-SRC-* controls,
+            # so the leak had five ways out.
+            reason=f"Branch protection evidence file is unreadable or invalid JSON: {bad_input_detail(exc)}.",
             remediation="Fix or regenerate .oss-policy-kit/evidence/branch-protection.json per the evidence schema.",
             evidence_sources=[str(evidence.resolve())],
             confidence="low",
@@ -1114,7 +1120,12 @@ _max_json_nesting_depth = max_json_nesting_depth
 
 
 def _load_sarif_runs(sarif_path: Path) -> tuple[list[Any] | None, str | None]:
-    """Read + validate a SARIF file, returning ``(runs_list, None)`` or ``(None, error)``."""
+    """Read + validate a SARIF file, returning ``(runs_list, None)`` or ``(None, error)``.
+
+    Every error string here becomes an evaluator ``reason``, so none of them may embed the
+    exception object: ``str(OSError)`` carries the filename it was handed (M-002).
+    ``bad_input_detail`` is the one place allowed to decide how a bad file is described.
+    """
 
     oversize = oversize_reason(sarif_path, MAX_SARIF_BYTES, label="SARIF")
     if oversize is not None:
@@ -1122,17 +1133,17 @@ def _load_sarif_runs(sarif_path: Path) -> tuple[list[Any] | None, str | None]:
     try:
         raw = sarif_path.read_text(encoding="utf-8")
     except OSError as exc:
-        return None, f"Could not read SARIF file: {exc}"
+        return None, f"Could not read SARIF file: {bad_input_detail(exc)}."
     except UnicodeDecodeError as exc:
-        return None, f"Could not decode SARIF file as UTF-8: {exc}"
+        return None, f"Could not decode SARIF file as UTF-8: {bad_input_detail(exc)}."
     if _max_json_nesting_depth(raw) > _MAX_SARIF_JSON_DEPTH:
         return None, "Could not parse SARIF JSON: document is too deeply nested."
     try:
         doc = json.loads(raw)
     except json.JSONDecodeError as exc:
-        return None, f"Could not parse SARIF JSON: {exc}"
-    except RecursionError as exc:
-        return None, f"Could not parse SARIF JSON: document is too deeply nested ({exc})"
+        return None, f"Could not parse SARIF JSON: {bad_input_detail(exc)}."
+    except RecursionError:
+        return None, "Could not parse SARIF JSON: document is too deeply nested."
     if (
         not isinstance(doc, dict) or doc.get("$schema", "").endswith("sarif-schema-2.1.0.json") is False
     ) and "runs" not in doc:
@@ -1332,11 +1343,11 @@ def _parse_zizmor_severity_properties(
     try:
         raw = sarif_path.read_text(encoding="utf-8")
     except OSError as exc:
-        return None, f"Could not read SARIF file: {exc}"
+        return None, f"Could not read SARIF file: {bad_input_detail(exc)}."
     try:
         doc = json.loads(raw)
     except json.JSONDecodeError as exc:
-        return None, f"Could not parse SARIF JSON: {exc}"
+        return None, f"Could not parse SARIF JSON: {bad_input_detail(exc)}."
     if not isinstance(doc, dict):
         return None, "SARIF file is not a JSON object."
     runs = doc.get("runs") or []

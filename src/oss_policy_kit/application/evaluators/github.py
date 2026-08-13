@@ -468,9 +468,11 @@ def eval_gh_immutrel_070(ctx: EvalContext) -> EvalOutcome:
     """GH-IMMUTREL-070: GitHub immutable releases / release attestation via explicit evidence.
 
     Org/release platform posture is not clone-visible, so this is evidence-backed: the file
-    is absent -> manual review (not a fail); present + valid -> PASS/FAIL on the recorded
-    posture. The kit composes GitHub's release attestation; it does not re-verify it here
-    (cryptographic verification is the deferred ATTESTED path, ADR-028).
+    is absent -> not-evaluated (the input was never supplied, so no verdict was attempted);
+    present but unreadable -> manual review (ADR-045); present + valid -> PASS/FAIL on the
+    recorded posture. The kit never re-verifies the signature itself: when the evidence
+    carries a complete, fresh verification record it upgrades PASS to ATTESTED on the
+    strength of that record (ADR-028, on by default since v8.0.0 per ADR-041).
     """
 
     evidence = ctx.repo_root / _KIT_DIR / "evidence" / "github-release-immutability.json"
@@ -530,7 +532,7 @@ def eval_gh_immutrel_070(ctx: EvalContext) -> EvalOutcome:
             confidence="medium",
             evidence_collection_method=ecm,
         )
-    # ADR-028 ATTESTED upgrade (opt-in --enable-attested): when the release attestation is
+    # ADR-028 ATTESTED upgrade (--enable-attested, on by default): when the release attestation is
     # present AND a fresh, transparency-log-confirmed verification record exists, resolve to
     # ATTESTED instead of PASS. Fail-closed — any verification gap keeps the historical PASS.
     if (

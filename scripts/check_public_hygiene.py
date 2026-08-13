@@ -125,6 +125,24 @@ ALLOWLISTED_PATHS: frozenset[str] = frozenset(
         # generic container pattern, not a real auditor or maintainer
         # home directory.
         "Dockerfile",
+        # The four below are the same case as the entries above — a leak detector
+        # needs leak-shaped fixtures — and they went red on master because this
+        # script runs nowhere in CI. It does now (github-ci-cd.yml, Quality job),
+        # so an entry added here is a decision on the record rather than a drift
+        # nobody sees.
+        #
+        # Synthetic POSIX home-shaped fixtures proving the reporting layer redacts
+        # such a path out of SARIF and report output.
+        "tests/application/test_findings_sarif_and_reporting_edges.py",
+        # Same, for the CLI's own path-display helpers: the fixtures have to be
+        # home-shaped or the redaction under test is never exercised.
+        "tests/cli/test_common_output_and_paths.py",
+        # Third AWS CI parser test embedding AWS's own published example access
+        # key to drive the plaintext-credential detector. Not a real credential.
+        "tests/infrastructure/test_aws_ci_parser_and_init_planner_edges.py",
+        # Docstring quotes the verbatim Windows error this test exists to stop
+        # reaching the operator; the account segment in it is already `<name>`.
+        "tests/cli/test_scan_error_sanitisation.py",
     }
 )
 

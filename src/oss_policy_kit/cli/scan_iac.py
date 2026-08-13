@@ -21,7 +21,14 @@ import sys
 import typer
 
 from oss_policy_kit.adapters.local_paths import resolve_existing_dir
-from oss_policy_kit.cli.common import app, exit_for_unexpected, markup_safe, stderr_console, write_stdout_text
+from oss_policy_kit.cli.common import (
+    app,
+    display_path,
+    exit_for_unexpected,
+    markup_safe,
+    stderr_console,
+    write_stdout_text,
+)
 from oss_policy_kit.cli.help_text import CMD_PANEL_SCAN
 from oss_policy_kit.cli.scan_errors import exit_for_unwritable_evidence
 from oss_policy_kit.domain.errors import OssPolicyKitError
@@ -114,11 +121,16 @@ def scan_iac_cmd(
         if fmt == "json":
             sys.stdout.write(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
         else:
+            # `write_evidence` returns the resolved path, and echoing it answered a relative
+            # --target with the host layout on a clean run -- the common case, not the rare
+            # one (M-002). `redact_home` is not the guard here: it rewrites paths under HOME
+            # and leaves every other absolute path whole, so a target outside HOME shipped
+            # the lot. Rendered at the point of display, so the write keeps its own contract.
             write_stdout_text(
                 f"scan-iac: {outcome.status} -- "
                 f"files={len(outcome.files_scanned)} "
                 f"findings={len(outcome.findings)} "
-                f"-> {evidence_path}\n",
+                f"-> {display_path(evidence_path, root=repo)}\n",
             )
             if outcome.status == "not_available":
                 stderr_console().print(
