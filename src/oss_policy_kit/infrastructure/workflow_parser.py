@@ -115,17 +115,36 @@ def _content_has_token(text: str, token: str) -> bool:
     return token in text
 
 
-def _contains_pr_event(data: dict[str, Any], raw: str) -> bool:
-    """Best-effort detection for pull-request-triggered workflows."""
+def _on_block(data: dict[str, Any]) -> Any:
+    """Return a workflow's trigger block, under whichever key YAML parked it.
 
-    on_block = data.get("on")
+    ``on`` is a YAML 1.1 boolean. An unquoted ``on:`` in a GitHub Actions workflow --
+    which is how every workflow in the wild is written -- parses to the key ``True``,
+    not to the string ``"on"``. So ``data.get("on")`` returns ``None`` for real files
+    and only ever worked on hand-built dicts in tests.
+
+    Both callers had a raw-text fallback that quietly absorbed this, which is why it
+    went unnoticed: the parsed branch never ran, the substring branch always did, and
+    the substring branch cannot tell a trigger from a comment.
+    """
+
+    block = data.get("on")
+    # ``data`` is typed ``dict[str, Any]`` because every other key in a workflow is a
+    # string; the boolean key is real at runtime regardless of the annotation.
+    return cast(dict[Any, Any], data).get(True) if block is None else block
+
+
+def _contains_pr_event(data: dict[str, Any]) -> bool:
+    """True when the workflow is triggered by a pull request."""
+
+    on_block = _on_block(data)
     if isinstance(on_block, str):
         return on_block in {"pull_request", "pull_request_target"}
     if isinstance(on_block, list):
         return any(item in {"pull_request", "pull_request_target"} for item in on_block)
     if isinstance(on_block, dict):
         return "pull_request" in on_block or "pull_request_target" in on_block
-    return "pull_request" in raw or "pull_request_target" in raw
+    return False
 
 
 def _is_self_hosted_runs_on(value: Any) -> bool:
@@ -136,14 +155,132 @@ def _is_self_hosted_runs_on(value: Any) -> bool:
     return False
 
 
-def _detect_release_workflow(data: dict[str, Any], raw: str) -> bool:
-    lower = raw.lower()
-    if any(tok in lower for tok in ("release", "deploy", "publish", "package")):
+#: Actions whose presence means the workflow ships something outward.
+_RELEASE_ACTION_RE = re.compile(
+    r"(?:^|/)(?:"
+    r"gh-action-pypi-publish|action-gh-release|create-release|release-action|release-drafter"
+    r"|goreleaser-action|release-please-action|release-please|semantic-release"
+    r"|deploy-pages|github-pages-deploy-action|action-electron-builder"
+    r"|build-push-action|ghcr-push"
+    r")\b"
+)
+
+#: ``run:`` commands that publish or deploy. Anchored on the verb, so prose that merely
+#: mentions a release does not match.
+_RELEASE_RUN_RE = re.compile(
+    r"\b(?:"
+    r"twine\s+upload|(?:npm|yarn|pnpm)\s+publish|poetry\s+publish|flit\s+publish"
+    r"|cargo\s+publish|gem\s+push|dotnet\s+nuget\s+push|helm\s+push"
+    r"|(?:docker|podman|buildah)\s+push|skopeo\s+copy"
+    r"|gh\s+release\s+create|goreleaser\s+release"
+    r"|mvn\b[^\n]*\bdeploy\b|gradle\w*\b[^\n]*\bpublish\b"
+    r"|kubectl\s+apply|helm\s+upgrade|terraform\s+apply|aws\s+s3\s+sync"
+    r")\b"
+)
+
+#: Workflow / job names and job ids that declare release intent. Matched only on the
+#: ``name:`` fields and job keys the author chose -- declared intent, not free text.
+_RELEASE_NAME_RE = re.compile(r"\b(?:release|deploy|publish|package)\w*\b", re.IGNORECASE)
+
+
+def _release_trigger(on_block: Any) -> bool:
+    """True when the workflow's triggers alone mark it as a release workflow.
+
+    ``workflow_dispatch`` is deliberately absent. A manually-dispatched workflow is a
+    manually-dispatched workflow; treating it as a release made every repo with a manual
+    utility job answer for release concurrency.
+    """
+
+    if isinstance(on_block, str):
+        return on_block == "release"
+    if isinstance(on_block, list):
+        return "release" in on_block
+    if not isinstance(on_block, dict):
+        return False
+    if "release" in on_block:
         return True
-    on_block = data.get("on")
-    if isinstance(on_block, dict) and ("release" in on_block or "workflow_dispatch" in on_block):
+    push = on_block.get("push")
+    return isinstance(push, dict) and bool(push.get("tags") or push.get("tags-ignore"))
+
+
+def _job_publishes(job: Any) -> bool:
+    """True when any step in *job* runs a publishing action or command."""
+
+    if not isinstance(job, dict):
+        return False
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return False
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        uses = step.get("uses")
+        if isinstance(uses, str) and _RELEASE_ACTION_RE.search(uses.split("@", 1)[0].lower()):
+            return True
+        run = step.get("run")
+        if isinstance(run, str) and _RELEASE_RUN_RE.search(run.lower()):
+            return True
+    return False
+
+
+def _declares_concurrency(data: dict[str, Any]) -> bool:
+    """True when concurrency is declared at the workflow level or on any job.
+
+    GH-REL-021 reports a workflow as not declaring concurrency "at the workflow or job
+    level", but the check only ever looked at the top level. Job-level ``concurrency:``
+    is valid GitHub Actions and is the natural way to write it when one job of several
+    publishes -- so a workflow that did exactly what the remediation asks was still
+    failed, and told it had not done it.
+    """
+
+    if "concurrency" in data:
         return True
-    return "tags:" in lower
+    jobs = data.get("jobs")
+    if not isinstance(jobs, dict):
+        return False
+    return any(isinstance(job, dict) and "concurrency" in job for job in jobs.values())
+
+
+def _detect_release_workflow(data: dict[str, Any]) -> bool:
+    """True when this workflow releases, deploys, or publishes something.
+
+    Read from the parsed structure, never from the workflow text. The previous version
+    lowercased the whole file and returned True on the bare substring ``release``,
+    ``deploy``, ``publish``, or ``package`` -- which meant a comment decided the answer.
+    Every workflow template this kit ships carries the line
+
+        # Actions are pinned to immutable commit SHAs (release tag in the trailing ...
+
+    so all three were classified as release workflows and failed GH-REL-021 for missing
+    ``concurrency:``. An adopter running ``init --with-workflow`` and then ``evaluate``
+    got a FAIL, produced by the kit, about a workflow the kit wrote, for a control that
+    did not apply to it. Deleting the comment made the finding disappear, which is the
+    signature of a detector reading the wrong thing.
+
+    Stripping comments before the scan would fix these three files and leave the design
+    intact: any prose in a ``name:`` or an ``echo`` would still decide it. Reading the
+    structure removes the whole class -- comments cannot reach these fields at all.
+
+    A workflow counts when its triggers say release (``on: release``, or a tag-filtered
+    push), when a job id or name declares it, or when a step actually runs a publishing
+    action or command.
+    """
+
+    if _release_trigger(_on_block(data)):
+        return True
+    if _RELEASE_NAME_RE.search(str(data.get("name", ""))):
+        return True
+    jobs = data.get("jobs")
+    if not isinstance(jobs, dict):
+        return False
+    for job_id, job in jobs.items():
+        if _RELEASE_NAME_RE.search(str(job_id)):
+            return True
+        if isinstance(job, dict) and _RELEASE_NAME_RE.search(str(job.get("name", ""))):
+            return True
+        if _job_publishes(job):
+            return True
+    return False
 
 
 def _workflow_body_for_sast_heuristics(raw: str) -> str:
@@ -474,10 +611,8 @@ def _classify_job_permissions(job_name: str, job: dict[str, Any], path: Path, re
                 break
 
 
-def _scan_workflow_jobs(
-    jobs: dict[str, Any], data: dict[str, Any], raw: str, path: Path, result: WorkflowAnalysis
-) -> None:
-    if _contains_pr_event(data, raw):
+def _scan_workflow_jobs(jobs: dict[str, Any], data: dict[str, Any], path: Path, result: WorkflowAnalysis) -> None:
+    if _contains_pr_event(data):
         for job in jobs.values():
             if isinstance(job, dict) and _is_self_hosted_runs_on(job.get("runs-on")):
                 result.pr_self_hosted_runner_paths.append(path)
@@ -502,10 +637,10 @@ def _scan_workflow_parsed(data: dict[str, Any], raw: str, path: Path, result: Wo
     _scan_uses_for_mutable(raw, path, result.mutable_action_refs)
     jobs = data.get("jobs")
     if isinstance(jobs, dict):
-        _scan_workflow_jobs(jobs, data, raw, path, result)
-    if _detect_release_workflow(data, raw):
+        _scan_workflow_jobs(jobs, data, path, result)
+    if _detect_release_workflow(data):
         result.release_workflow_paths.append(path)
-        if "concurrency" not in data:
+        if not _declares_concurrency(data):
             result.release_workflows_missing_concurrency.append(path)
     if re.search(
         r"aws-actions/configure-aws-credentials|azure/login|google-github-actions/auth|gcloud auth|kubectl|helm",
