@@ -90,6 +90,19 @@ The GitLab collector retrieves three evidence files:
 | `gitlab-mr-rules.json` | `/projects/:id/approval_rules` + `/approvals` | `GL-PIPE-011` |
 | `org-mfa-posture.json` | `/groups/:id` (`require_two_factor_authentication`) | `ORG-MFA-001` |
 
+**`gitlab-mr-rules.json` is validated against its schema.** Since v10.0.15, `GL-PIPE-011`
+checks the file against
+[`reports/schema/evidence-gitlab-mr-rules.schema.json`](../../reports/schema/evidence-gitlab-mr-rules.schema.json)
+before reading it, so `schema_version`, `attested_at`, `attested_by`, `project` and
+`min_approvers` are all required and `min_approvers` must be a whole number. A file that
+does not match reports `manual-review-required` naming the problem; a file still carrying
+`REPLACE_ME` placeholders from `scaffold-evidence` reports `not-evaluated` rather than
+counting. `min_approvers: 0` is a **FAIL** — the evidence is readable and says merge requests
+need no approval.
+
+Before v10.0.15 the schema shipped but nothing loaded it, so a one-key document, an untouched
+scaffold, and a non-integer count all reported PASS.
+
 **Collector-partial boundary (honest parity with Azure/AWS):** SBOM and provenance
 artifact digests (`PROV-VERIFY-061`, SBOM quality) stay self-attested or
 pipeline-emitted — they are not collectable from a generic REST call. `org-mfa-posture.json`

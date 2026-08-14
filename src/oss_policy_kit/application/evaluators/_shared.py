@@ -190,6 +190,10 @@ def _github_provenance_artifact_schema() -> dict[str, Any]:
     return load_evidence_schema("evidence-github-provenance-artifact.schema.json")
 
 
+def _gitlab_mr_rules_schema() -> dict[str, Any]:
+    return load_evidence_schema("evidence-gitlab-mr-rules.schema.json")
+
+
 def _audit_log_streaming_schema() -> dict[str, Any]:
     return load_evidence_schema("evidence-audit-log-streaming.schema.json")
 

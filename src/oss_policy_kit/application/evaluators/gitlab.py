@@ -7,10 +7,12 @@ from oss_policy_kit.application.evaluators._shared import (
     EvalContext,
     EvalOutcome,
     Path,
+    _evidence_placeholder_outcome,
+    _gitlab_mr_rules_schema,
     _gl_no_pipeline_response,
     _scan_gitlab_pipelines,
+    _validate_json_evidence,
     contextlib,
-    json,
 )
 
 _NO_GITLAB_PIPELINES_REASON = "No GitLab CI pipelines to evaluate."
@@ -388,39 +390,51 @@ def eval_gl_pipe_011(ctx: EvalContext) -> EvalOutcome:
     # MR review rules are a project setting; look for project-level evidence file.
     evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "gitlab-mr-rules.json"
     if evidence.is_file():
-        with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-            data = json.loads(evidence.read_text(encoding="utf-8"))
-            # `data.get("min_approvers", 0) >= 1` compared whatever was there against an int.
-            # A string -- `"min_approvers": "2"`, which is what a shell or a spreadsheet export
-            # produces -- raised TypeError, and TypeError is not input-shaped, so the run died
-            # at exit 3 with no report. `bool` is excluded deliberately: `True >= 1` is true in
-            # Python, and `"min_approvers": true` is not a number of approvers.
-            approvers = data.get("min_approvers") if isinstance(data, dict) else None
-            if isinstance(approvers, bool) or not isinstance(approvers, int | float):
-                # Its own exit, because the fall-through below says "No ... evidence" -- and
-                # the file is right there and was just parsed. ADR-045 is about the status
-                # AND the sentence: aws.py says the same thing about the same mistake.
-                # Sending an operator to create a file that exists, with no reference to the
-                # one that was read, is a worse answer than the crash this replaced.
-                return EvalOutcome(
-                    status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-                    reason=(
-                        f"gitlab-mr-rules.json is present but min_approvers is a "
-                        f"{type(approvers).__name__}, not a number of approvers, so MR approval "
-                        "enforcement cannot be read from it."
-                    ),
-                    remediation="Set `min_approvers` to a whole number in gitlab-mr-rules.json.",
-                    evidence_sources=[str(evidence.resolve())],
-                    confidence="low",
-                )
-            if approvers >= 1:
-                return EvalOutcome(
-                    status=ControlStatus.PASS,
-                    reason=f"MR rule evidence documents min_approvers={approvers}.",
-                    remediation="SLSA Source L4 requires 2+ approvers; consider raising the threshold.",
-                    evidence_sources=[str(evidence.resolve())],
-                    confidence="high",
-                )
+        # The schema for this file has shipped since the control was written -- in the wheel
+        # and in reports/schema/ -- and nothing loaded it. Hand-rolled checks stood in its
+        # place and let four things through: an untouched scaffold still carrying
+        # REPLACE_ME_GITLAB_USER reported PASS "documents min_approvers=2"; a file missing a
+        # required field, or declaring a foreign schema_version, also reported PASS; and
+        # min_approvers: 1.5 passed although the schema says integer. A schema that nothing
+        # reads is documentation of an intention, not a contract.
+        data, error, placeholders = _validate_json_evidence(
+            evidence, schema_loader=_gitlab_mr_rules_schema, evidence_name="GitLab MR rules"
+        )
+        if error:
+            return EvalOutcome(
+                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                reason=error,
+                remediation="Regenerate evidence using reports/schema/evidence-gitlab-mr-rules.schema.json.",
+                evidence_sources=[str(evidence.resolve())],
+                confidence="low",
+            )
+        blocked = _evidence_placeholder_outcome(evidence, placeholders)
+        if blocked is not None:
+            return blocked
+        assert data is not None
+        approvers = data["min_approvers"]  # schema: integer, minimum 0
+        if approvers < 1:
+            # Readable evidence showing the protection is off. ADR-045 reserves
+            # manual-review for evidence that cannot be READ; this one reads fine and says
+            # no approvals are required. It used to fall through to "No ... evidence" --
+            # the kit hiding a real finding behind a sentence denying the file exists.
+            return EvalOutcome(
+                status=ControlStatus.FAIL,
+                reason=(
+                    f"MR rule evidence documents min_approvers={approvers}: merge requests can be "
+                    "merged without an approval."
+                ),
+                remediation="Require at least one approver on the project approval settings or an approval rule.",
+                evidence_sources=[str(evidence.resolve())],
+                confidence="high",
+            )
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason=f"MR rule evidence documents min_approvers={approvers}.",
+            remediation="SLSA Source L4 requires 2+ approvers; consider raising the threshold.",
+            evidence_sources=[str(evidence.resolve())],
+            confidence="high",
+        )
     return EvalOutcome(
         status=ControlStatus.MANUAL_REVIEW_REQUIRED,
         reason=(

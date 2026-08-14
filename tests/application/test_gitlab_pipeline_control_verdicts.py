@@ -144,11 +144,38 @@ def _mr_evidence(root: Path, payload: object) -> None:
     (d / "gitlab-mr-rules.json").write_text(text, encoding="utf-8")
 
 
+#: A document that satisfies the shipped `evidence-gitlab-mr-rules.schema.json`.
+_COMPLETE_MR_EVIDENCE = {
+    "schema_version": "gitlab-mr-rules/v1",
+    "attested_at": "2026-08-14",
+    "attested_by": "lucas",
+    "project": "group/project",
+    "min_approvers": 2,
+}
+
+
 def test_mr_evidence_recording_an_approver_passes(tmp_path: Path) -> None:
-    _mr_evidence(tmp_path, {"min_approvers": 2})
+    """This used to pass with a bare ``{"min_approvers": 2}``.
+
+    The control now validates against the schema the kit has always shipped for this file,
+    and that schema has always listed `schema_version`, `attested_at`, `attested_by` and
+    `project` as required. Nothing loaded it, so a one-key document earned a PASS — as did an
+    untouched scaffold still carrying REPLACE_ME placeholders.
+    """
+
+    _mr_evidence(tmp_path, _COMPLETE_MR_EVIDENCE)
     outcome = gl.eval_gl_pipe_011(_ctx(tmp_path))
     assert outcome.status is ControlStatus.PASS
     assert "min_approvers=2" in outcome.reason
+
+
+def test_mr_evidence_missing_the_documented_fields_no_longer_passes(tmp_path: Path) -> None:
+    """The behaviour change stated as a requirement, so it cannot regress silently."""
+
+    _mr_evidence(tmp_path, {"min_approvers": 2})
+    outcome = gl.eval_gl_pipe_011(_ctx(tmp_path))
+    assert outcome.status is not ControlStatus.PASS
+    assert "schema" in outcome.reason.lower(), outcome.reason
 
 
 @pytest.mark.parametrize(
