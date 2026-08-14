@@ -103,13 +103,38 @@ def _is_immutable_action_ref(ref: str) -> bool:
     return bool(re.fullmatch(r"[0-9a-f]{7,39}", pin_l))
 
 
+def _record_mutable_ref(ref: str, path: Path, out: list[tuple[Path, str]]) -> None:
+    ref = ref.strip()
+    if not ref or ref.startswith("${{"):
+        return
+    if not _is_immutable_action_ref(ref):
+        out.append((path, ref))
+
+
+def _scan_parsed_uses_for_mutable(data: dict[str, Any], path: Path, out: list[tuple[Path, str]]) -> None:
+    """Flag mutable action pins from the steps the workflow really declares.
+
+    CI-PIN-008 used to run :data:`_MUTABLE_REF` over the file text, and that pattern has no
+    line anchor, so it matched ``uses:`` anywhere on a line -- including after a ``#``. A
+    workflow pinned entirely to commit SHAs failed the control because of one commented-out
+    step:
+
+        # - uses: actions/setup-node@v4  # disabled, too slow
+
+    A false positive rather than a false PASS, but the same defect: the adopter did the work,
+    left a note about what they removed, and the note failed them. Reproduced, then fixed by
+    reading the parsed steps.
+    """
+
+    for ref in _iter_step_uses(data):
+        _record_mutable_ref(ref, path, out)
+
+
 def _scan_uses_for_mutable(content: str, path: Path, out: list[tuple[Path, str]]) -> None:
+    """Text fallback, used only where the workflow failed to parse and there is no structure."""
+
     for m in _MUTABLE_REF.finditer(content):
-        ref = m.group(1).strip()
-        if not ref or ref.startswith("${{"):
-            continue
-        if not _is_immutable_action_ref(ref):
-            out.append((path, ref))
+        _record_mutable_ref(m.group(1), path, out)
 
 
 def _content_has_token(text: str, token: str) -> bool:
@@ -610,6 +635,56 @@ def _has_dependency_review_step(data: dict[str, Any]) -> bool:
     return any(_DEPENDENCY_REVIEW_RE.search(uses.split("@", 1)[0].strip().lower()) for uses in _iter_step_uses(data))
 
 
+#: Actions and reusable workflows that produce an attestation or a signature.
+_ATTESTATION_ACTION_RE = re.compile(
+    r"(?:^|/)(?:"
+    r"attest|attest-build-provenance|attest-sbom"
+    r"|slsa-github-generator|generator_generic_slsa3\.yml|generator_container_slsa3\.yml"
+    r"|gh-action-sigstore-python|sign-blob"
+    r")\b"
+)
+
+#: ``run:`` commands that sign or attest. Installing cosign is not signing with it.
+_ATTESTATION_RUN_RE = re.compile(r"\bcosign\s+(?:sign|attest)\b|\bsyft\s+attest\b|\bslsa-verifier\b")
+
+
+def _has_attestation_step(data: dict[str, Any]) -> bool:
+    """True when the workflow really produces provenance, an attestation, or a signature.
+
+    GH-PROV-023 used to match the bare words ``slsa``, ``provenance`` and ``attestation``
+    anywhere in the file, then return PASS **citing the workflow as its evidence**. Both of
+    these earned it:
+
+        # TODO: add SLSA provenance and cosign signing some day
+        - name: check attestation docs
+
+    A plan to add provenance became proof of provenance, with a file reference attached to
+    make it look substantiated. Reproduced on both shapes before the fix.
+
+    ``sigstore/cosign-installer`` was dropped from the action list on the way past: installing
+    cosign is not signing with it, and a workflow that installs and then signs is caught by
+    ``cosign sign`` in the run text.
+    """
+
+    for uses in _iter_step_uses(data):
+        if _ATTESTATION_ACTION_RE.search(uses.split("@", 1)[0].strip().lower()):
+            return True
+    jobs = data.get("jobs")
+    if not isinstance(jobs, dict):
+        return False
+    for job in jobs.values():
+        if not isinstance(job, dict):
+            continue
+        steps = job.get("steps")
+        if not isinstance(steps, list):
+            continue
+        for step in steps:
+            if isinstance(step, dict) and isinstance(step.get("run"), str):
+                if _ATTESTATION_RUN_RE.search(step["run"].lower()):
+                    return True
+    return False
+
+
 def _step_indicates_oidc(step: Any) -> bool:
     """True when a step uses a provider OIDC-federation action (AWS/GCP/Azure)."""
 
@@ -669,15 +744,10 @@ def _scan_workflow_raw(raw: str, path: Path, result: WorkflowAnalysis, signal_ac
     if _content_has_token(raw, "pull_request_target"):
         result.uses_pull_request_target.append(path)
     signal_acc.update(_collect_sast_ci_signals(raw))
-    # `dependency-review-action` moved to the parsed pass -- see _has_dependency_review_step.
-    # Matching it here credited SEC-DEPREV-011 for a step that existed only in a comment.
-    if re.search(
-        r"actions/attest-build-provenance|actions/attest\b|slsa|provenance|attestation"
-        r"|slsa-framework/slsa-github-generator|sigstore/cosign-installer|cosign\s+sign",
-        raw,
-        re.IGNORECASE,
-    ):
-        result.has_artifact_attestation = True
+    # `dependency-review-action` and the attestation signals moved to the parsed pass -- see
+    # _has_dependency_review_step and _has_attestation_step. Matching them here credited
+    # SEC-DEPREV-011 for a step that existed only in a comment, and GH-PROV-023 for the bare
+    # word `slsa`, `provenance` or `attestation` anywhere in the file.
     if (
         re.search(r"(?m)(^\s*merge_group:\s*$|merge-queue|github\s+merge\s+queue)", raw, re.IGNORECASE)
         and path not in result.merge_queue_signal_paths
@@ -735,9 +805,11 @@ def _scan_workflow_parsed(data: dict[str, Any], raw: str, path: Path, result: Wo
     """Parsed-dict signals: permissions, jobs, mutable refs, release + cloud-deploy posture."""
 
     _classify_top_level_permissions(data, path, result)
-    _scan_uses_for_mutable(raw, path, result.mutable_action_refs)
+    _scan_parsed_uses_for_mutable(data, path, result.mutable_action_refs)
     if _has_dependency_review_step(data):
         result.has_dependency_review = True
+    if _has_attestation_step(data):
+        result.has_artifact_attestation = True
     jobs = data.get("jobs")
     if isinstance(jobs, dict):
         _scan_workflow_jobs(jobs, data, path, result)

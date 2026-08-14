@@ -63,6 +63,19 @@ def _working_bash() -> str | None:
 
 BASH = _working_bash()
 
+# A silent skip here would put `action.yml` back where it was: shipped, and covered by
+# nothing. That file accumulated three defects while it had no test at all, so the failure
+# mode to guard is not "bash is missing" -- it is "bash went missing and the whole file
+# stopped running without anyone noticing". On a developer machine without a working bash a
+# skip is the right answer; on CI it is not, so there it fails instead.
+_ON_CI = os.environ.get("CI", "").lower() in {"1", "true", "yes"}
+
+if BASH is None and _ON_CI:  # pragma: no cover - only reachable on a runner without bash
+    raise RuntimeError(
+        "No working bash found on CI, so action.yml would ship untested. "
+        "Install bash on the runner or fix the probe in _working_bash()."
+    )
+
 pytestmark = pytest.mark.skipif(BASH is None, reason="needs a working bash to run the composite step")
 
 

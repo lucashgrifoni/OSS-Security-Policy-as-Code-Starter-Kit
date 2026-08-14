@@ -374,6 +374,113 @@ def test_oidc_posture_still_reads_job_level_and_federation_steps() -> None:
     assert not wp._workflow_has_oidc_posture({"jobs": {"d": {"steps": [{"uses": "azure/login@v2"}]}}})
 
 
+_SHA_PINNED = (
+    "name: CI\n"
+    "on:\n"
+    "  push:\n"
+    "    branches: [main]\n"
+    "permissions:\n"
+    "  contents: read\n"
+    "jobs:\n"
+    "  build:\n"
+    "    runs-on: ubuntu-latest\n"
+    "    steps:\n"
+    "      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683\n"
+    "{extra}"
+)
+
+
+def test_a_commented_out_step_does_not_make_a_pinned_workflow_unpinned(tmp_path: Path) -> None:
+    """CI-PIN-008. The pattern had no line anchor, so it matched `uses:` after a `#`.
+
+    A workflow pinned entirely to commit SHAs failed the control because of one step the
+    adopter had commented out and annotated. They did the work, left a note about what they
+    removed, and the note failed them.
+    """
+
+    commented = "      # - uses: actions/setup-node@v4  # disabled, too slow\n"
+    assert _analyze(tmp_path, "commented", _SHA_PINNED.format(extra=commented)).mutable_action_refs == []
+
+    # A block scalar, so the shell text stays opaque to YAML. Written as a plain scalar the
+    # `: ` makes the document invalid, which sends the file down the parse-failure path where
+    # scanning the text IS correct -- see the test below.
+    quoted_in_run = "      - run: |\n          echo 'put uses: actions/setup-node@v4 in your workflow'\n"
+    assert _analyze(tmp_path, "inrun", _SHA_PINNED.format(extra=quoted_in_run)).mutable_action_refs == []
+
+
+def test_an_unparseable_workflow_still_falls_back_to_scanning_the_text(tmp_path: Path) -> None:
+    """The degraded path is the one place the raw scan belongs, and it must stay.
+
+    There is no structure to read, so a text scan is the only signal available -- better an
+    over-broad answer than silently reporting a broken workflow as fully pinned.
+    """
+
+    broken = "name: CI\njobs:\n  build:\n    steps:\n      - uses: actions/setup-node@v4\n  : : :\n"
+    analysis = _analyze(tmp_path, "broken", broken)
+
+    assert analysis.parse_errors, "fixture must actually fail to parse, or this proves nothing"
+    assert [ref for _p, ref in analysis.mutable_action_refs] == ["actions/setup-node@v4"]
+
+
+def test_a_real_moving_tag_is_still_flagged(tmp_path: Path) -> None:
+    """The counterpart, so the test above cannot pass by never flagging anything."""
+
+    real = "      - uses: actions/setup-node@v4\n"
+    refs = [ref for _p, ref in _analyze(tmp_path, "real", _SHA_PINNED.format(extra=real)).mutable_action_refs]
+    assert refs == ["actions/setup-node@v4"]
+
+
+_PROV = "name: CI\non:\n  push:\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n{step}"
+
+
+@pytest.mark.parametrize(
+    ("label", "step"),
+    [
+        ("comment", "      # TODO: add SLSA provenance and cosign signing some day\n"),
+        ("step_name", "      - name: check attestation docs\n        run: echo hi\n"),
+        ("run_prose", "      - run: echo 'provenance and slsa are on the roadmap'\n"),
+        ("installer_only", "      - uses: sigstore/cosign-installer@v3\n"),
+        ("cosign_version", "      - run: cosign version\n"),
+        ("cosign_verify", "      - run: cosign verify $IMAGE\n"),
+    ],
+)
+def test_attestation_is_not_granted_by_the_word_alone(label: str, step: str, tmp_path: Path) -> None:
+    """GH-PROV-023 matched bare `slsa`/`provenance`/`attestation` and then returned PASS
+    **citing the workflow as its evidence** -- a plan to add provenance became proof of it,
+    with a file reference attached to make it look substantiated.
+
+    `installer_only` is the judgement call in this fix: installing cosign is not signing with
+    it. A workflow that installs and then signs is caught by `cosign sign` in the run text.
+    """
+
+    assert not _analyze(tmp_path, label, _PROV.format(step=step)).has_artifact_attestation
+
+
+@pytest.mark.parametrize(
+    ("label", "step"),
+    [
+        ("attest_action", "      - uses: actions/attest-build-provenance@v1\n"),
+        ("attest_sbom", "      - uses: actions/attest-sbom@v1\n"),
+        ("cosign_sign", "      - run: cosign sign --yes $IMAGE\n"),
+        ("cosign_attest", "      - run: cosign attest --predicate sbom.json $IMAGE\n"),
+    ],
+)
+def test_attestation_is_granted_by_a_real_step(label: str, step: str, tmp_path: Path) -> None:
+    assert _analyze(tmp_path, label, _PROV.format(step=step)).has_artifact_attestation
+
+
+def test_attestation_reads_the_slsa_generator_called_as_a_reusable_workflow(tmp_path: Path) -> None:
+    """The SLSA generator is a job-level `uses:`, so it has no `steps:` to walk."""
+
+    body = (
+        "name: CI\non:\n  push:\njobs:\n"
+        "  provenance:\n"
+        "    uses: slsa-framework/slsa-github-generator/.github/workflows/"
+        "generator_generic_slsa3.yml@v2.0.0\n"
+    )
+    assert _analyze(tmp_path, "slsagen", body).has_artifact_attestation
+
+
 def test_step_and_job_oidc() -> None:
     assert wp._step_indicates_oidc(
         {"uses": "aws-actions/configure-aws-credentials@v4", "with": {"role-to-assume": "arn"}}
