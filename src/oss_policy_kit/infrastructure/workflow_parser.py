@@ -679,9 +679,9 @@ def _has_attestation_step(data: dict[str, Any]) -> bool:
         if not isinstance(steps, list):
             continue
         for step in steps:
-            if isinstance(step, dict) and isinstance(step.get("run"), str):
-                if _ATTESTATION_RUN_RE.search(step["run"].lower()):
-                    return True
+            run = step.get("run") if isinstance(step, dict) else None
+            if isinstance(run, str) and _ATTESTATION_RUN_RE.search(run.lower()):
+                return True
     return False
 
 
