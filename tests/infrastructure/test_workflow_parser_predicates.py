@@ -239,6 +239,141 @@ def test_prose_still_does_not_count_as_publishing() -> None:
         assert not wp._job_publishes({"steps": [{"run": prose}]}), prose
 
 
+def _analyze(tmp_path: Path, name: str, body: str) -> wp.WorkflowAnalysis:
+    workflows = tmp_path / name / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "ci.yml").write_text(body, encoding="utf-8")
+    return wp.analyze_workflows(tmp_path / name)
+
+
+_DEPREV_STEP = (
+    "name: CI\n"
+    "on:\n"
+    "  pull_request:\n"
+    "jobs:\n"
+    "  review:\n"
+    "    runs-on: ubuntu-latest\n"
+    "    steps:\n"
+    "      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683\n"
+    "{step}"
+)
+_DEPREV_ENABLED = "      - uses: actions/dependency-review-action@v4\n"
+_DEPREV_COMMENTED = "      # - uses: actions/dependency-review-action@v4  # disabled, too noisy\n"
+
+
+def test_dependency_review_must_be_a_step_not_a_comment(tmp_path: Path) -> None:
+    """SEC-DEPREV-011 was granted by a substring match over the whole file.
+
+    A workflow with the step **commented out** reported that pull requests were screened for
+    vulnerable dependencies. Commenting a step out is the ordinary way to disable it, which
+    makes this the worst possible input to answer wrongly -- the adopter turned the control
+    off and the kit told them it was on.
+    """
+
+    assert _analyze(tmp_path, "enabled", _DEPREV_STEP.format(step=_DEPREV_ENABLED)).has_dependency_review
+    assert not _analyze(tmp_path, "commented", _DEPREV_STEP.format(step=_DEPREV_COMMENTED)).has_dependency_review
+
+
+def test_dependency_review_accepts_the_ghes_variant(tmp_path: Path) -> None:
+    step = "      - uses: advanced-security/dependency-review-action@v4\n"
+    assert _analyze(tmp_path, "ghes", _DEPREV_STEP.format(step=step)).has_dependency_review
+
+
+def test_dependency_review_is_not_granted_by_a_mention_in_a_run_block(tmp_path: Path) -> None:
+    """A shell line that talks about the action is not the action."""
+
+    step = "      - run: echo 'we should add dependency-review-action here'\n"
+    assert not _analyze(tmp_path, "runblock", _DEPREV_STEP.format(step=step)).has_dependency_review
+
+
+def test_dependency_review_matcher_is_anchored(tmp_path: Path) -> None:
+    """Only the action itself counts, not something whose name merely contains it.
+
+    Mutation testing added this one: dropping the `$` from the pattern changed nothing that
+    any test could see. The line still executed and coverage still read 100% -- executing a
+    line is not the same as checking what it decides.
+    """
+
+    fork = "      - uses: someone/dependency-review-action-fork@v1\n"
+    assert not _analyze(tmp_path, "fork", _DEPREV_STEP.format(step=fork)).has_dependency_review
+
+    prefixed = "      - uses: someone/not-dependency-review-action@v1\n"
+    assert not _analyze(tmp_path, "prefixed", _DEPREV_STEP.format(step=prefixed)).has_dependency_review
+
+
+def test_iter_step_uses_reads_job_level_reusable_workflow_calls() -> None:
+    """A job that calls a reusable workflow has a `uses:` and no `steps:` at all.
+
+    Also from mutation testing: deleting this branch broke nothing, because the only
+    consumer today -- dependency-review -- is a step action and can never appear here. It
+    stays because it is the helper's contract and because the deferred CI-PIN-008 fix needs
+    exactly this shape, but it needs a test of its own to be worth keeping.
+    """
+
+    data: dict[str, Any] = {
+        "jobs": {
+            "call": {"uses": "org/repo/.github/workflows/release.yml@v1"},
+            "build": {"steps": [{"uses": "actions/checkout@v4"}, {"run": "make"}]},
+            "broken": {"steps": "not-a-list"},
+            "alsobroken": "not-a-mapping",
+        }
+    }
+
+    assert sorted(wp._iter_step_uses(data)) == [
+        "actions/checkout@v4",
+        "org/repo/.github/workflows/release.yml@v1",
+    ]
+    assert list(wp._iter_step_uses({"jobs": "not-a-mapping"})) == []
+    assert list(wp._iter_step_uses({})) == []
+
+
+_OIDC_DEPLOY = (
+    "name: deploy\n"
+    "on:\n"
+    "  push:\n"
+    "    branches: [main]\n"
+    "{perms}"
+    "jobs:\n"
+    "  deploy:\n"
+    "    runs-on: ubuntu-latest\n"
+    "    steps:\n"
+    "      - uses: azure/login@v2\n"
+    "        with:\n"
+    "          creds: ${{ secrets.AZURE_CREDENTIALS }}\n"
+)
+
+
+def test_oidc_posture_must_be_declared_not_mentioned(tmp_path: Path) -> None:
+    """GH-DEPLOY-022 read `"id-token: write" in raw`, so a TODO about OIDC counted as OIDC.
+
+    The workflow below authenticates with a long-lived secret -- the exact posture the
+    control exists to flag -- and its only mention of `id-token: write` is a comment saying
+    the migration has not happened. It reported that OIDC federation was in use.
+    """
+
+    comment_only = _OIDC_DEPLOY.format(perms="# TODO: switch to OIDC, needs id-token: write\n")
+    declared = _OIDC_DEPLOY.format(perms="permissions:\n  id-token: write\n  contents: read\n")
+
+    assert _analyze(tmp_path, "todo", comment_only).cloud_deploy_workflow_paths, "fixture must be a deploy workflow"
+    assert not _analyze(tmp_path, "todo2", comment_only).cloud_deploy_with_oidc_paths
+    assert _analyze(tmp_path, "declared", declared).cloud_deploy_with_oidc_paths
+
+
+def test_oidc_posture_still_reads_job_level_and_federation_steps() -> None:
+    """Removing the raw branch must not cost the two parsed paths."""
+
+    assert wp._workflow_has_oidc_posture({"permissions": {"id-token": "write"}})
+    assert wp._workflow_has_oidc_posture({"jobs": {"d": {"permissions": {"id-token": "write"}}}})
+    assert wp._workflow_has_oidc_posture(
+        {
+            "jobs": {
+                "d": {"steps": [{"uses": "aws-actions/configure-aws-credentials@v4", "with": {"role-to-assume": "a"}}]}
+            }
+        }
+    )
+    assert not wp._workflow_has_oidc_posture({"jobs": {"d": {"steps": [{"uses": "azure/login@v2"}]}}})
+
+
 def test_step_and_job_oidc() -> None:
     assert wp._step_indicates_oidc(
         {"uses": "aws-actions/configure-aws-credentials@v4", "with": {"role-to-assume": "arn"}}
@@ -257,10 +392,13 @@ def test_step_and_job_oidc() -> None:
 
 
 def test_workflow_has_oidc_posture() -> None:
-    assert wp._workflow_has_oidc_posture("permissions:\n  id-token: write\n", {})
-    assert wp._workflow_has_oidc_posture("", {"permissions": {"id-token": "write"}})
-    assert wp._workflow_has_oidc_posture("", {"jobs": {"j": {"permissions": {"id-token": "write"}}}})
-    assert not wp._workflow_has_oidc_posture("", {"jobs": {}})
+    # The first case here used to be `_workflow_has_oidc_posture("permissions:\n  id-token:
+    # write\n", {})` -- raw text granting OIDC over an EMPTY parsed workflow. It pinned the
+    # defect rather than the requirement: the function no longer takes the text at all.
+    assert wp._workflow_has_oidc_posture({"permissions": {"id-token": "write"}})
+    assert wp._workflow_has_oidc_posture({"jobs": {"j": {"permissions": {"id-token": "write"}}}})
+    assert not wp._workflow_has_oidc_posture({"jobs": {}})
+    assert not wp._workflow_has_oidc_posture({})
 
 
 # --------------------------------------------------------------------------- #

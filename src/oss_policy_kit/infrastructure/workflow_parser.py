@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
@@ -567,6 +568,48 @@ def _collect_implicit_permission_risks(
             _collect_no_top_perm_risk(str(job_name), steps, path, seen, out)
 
 
+def _iter_step_uses(data: dict[str, Any]) -> Iterator[str]:
+    """Every ``uses:`` the workflow really declares, read from the parsed structure.
+
+    Covers step-level ``uses:`` and the job-level form that calls a reusable workflow. A
+    ``uses:`` written inside a comment or quoted in a ``run:`` block is not a step and does
+    not appear here, which is the entire point.
+    """
+
+    jobs = data.get("jobs")
+    if not isinstance(jobs, dict):
+        return
+    for job in jobs.values():
+        if not isinstance(job, dict):
+            continue
+        job_uses = job.get("uses")
+        if isinstance(job_uses, str):
+            yield job_uses
+        steps = job.get("steps")
+        if not isinstance(steps, list):
+            continue
+        for step in steps:
+            if isinstance(step, dict) and isinstance(step.get("uses"), str):
+                yield str(step["uses"])
+
+
+#: ``actions/dependency-review-action`` and the GHES ``advanced-security/`` variant.
+_DEPENDENCY_REVIEW_RE = re.compile(r"(?:^|/)dependency-review-action$")
+
+
+def _has_dependency_review_step(data: dict[str, Any]) -> bool:
+    """True when a real step runs the dependency-review action.
+
+    SEC-DEPREV-011 used to be granted by ``re.search("dependency-review-action", raw)`` over
+    the whole file, so a workflow that had the step COMMENTED OUT still reported PASS -- the
+    kit told an adopter their pull requests were screened for vulnerable dependencies while
+    the screening was switched off. Commenting a step out is the ordinary way to disable it,
+    which makes this the worst possible input to get wrong.
+    """
+
+    return any(_DEPENDENCY_REVIEW_RE.search(uses.split("@", 1)[0].strip().lower()) for uses in _iter_step_uses(data))
+
+
 def _step_indicates_oidc(step: Any) -> bool:
     """True when a step uses a provider OIDC-federation action (AWS/GCP/Azure)."""
 
@@ -594,9 +637,23 @@ def _job_indicates_oidc(job: Any) -> bool:
     return any(_step_indicates_oidc(step) for step in job.get("steps") or [])
 
 
-def _workflow_has_oidc_posture(raw: str, data: dict[str, Any]) -> bool:
-    if "id-token: write" in raw.lower():
-        return True
+def _workflow_has_oidc_posture(data: dict[str, Any]) -> bool:
+    """True when the workflow really requests an OIDC token or federates to a cloud provider.
+
+    This used to open with ``if "id-token: write" in raw.lower()``, so GH-DEPLOY-022 returned
+    PASS -- "this deployment uses OIDC federation" -- for a workflow where those words
+    appeared only inside a comment. A reviewer who had written
+
+        # TODO: switch to OIDC, needs id-token: write
+
+    was told the migration was already done. That is the inversion this kit exists to catch:
+    asserting a control is in place on the strength of text that describes not having it.
+
+    The raw branch added no detection the parsed checks below lack -- workflow-level
+    ``permissions``, then per-job permissions and the AWS/GCP/Azure federation steps. It only
+    added comment sensitivity, so it is gone rather than narrowed.
+    """
+
     perms = data.get("permissions")
     if isinstance(perms, dict) and str(perms.get("id-token", "")).lower() == "write":
         return True
@@ -612,10 +669,8 @@ def _scan_workflow_raw(raw: str, path: Path, result: WorkflowAnalysis, signal_ac
     if _content_has_token(raw, "pull_request_target"):
         result.uses_pull_request_target.append(path)
     signal_acc.update(_collect_sast_ci_signals(raw))
-    if re.search(r"dependency-review-action", raw, re.IGNORECASE) or re.search(
-        r"advanced-security\/dependency-review-action", raw, re.IGNORECASE
-    ):
-        result.has_dependency_review = True
+    # `dependency-review-action` moved to the parsed pass -- see _has_dependency_review_step.
+    # Matching it here credited SEC-DEPREV-011 for a step that existed only in a comment.
     if re.search(
         r"actions/attest-build-provenance|actions/attest\b|slsa|provenance|attestation"
         r"|slsa-framework/slsa-github-generator|sigstore/cosign-installer|cosign\s+sign",
@@ -681,6 +736,8 @@ def _scan_workflow_parsed(data: dict[str, Any], raw: str, path: Path, result: Wo
 
     _classify_top_level_permissions(data, path, result)
     _scan_uses_for_mutable(raw, path, result.mutable_action_refs)
+    if _has_dependency_review_step(data):
+        result.has_dependency_review = True
     jobs = data.get("jobs")
     if isinstance(jobs, dict):
         _scan_workflow_jobs(jobs, data, path, result)
@@ -694,7 +751,7 @@ def _scan_workflow_parsed(data: dict[str, Any], raw: str, path: Path, result: Wo
         re.IGNORECASE,
     ):
         result.cloud_deploy_workflow_paths.append(path)
-        if _workflow_has_oidc_posture(raw, data):
+        if _workflow_has_oidc_posture(data):
             result.cloud_deploy_with_oidc_paths.append(path)
 
 

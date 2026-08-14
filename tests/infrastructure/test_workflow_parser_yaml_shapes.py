@@ -192,12 +192,18 @@ def test_implicit_permission_scan_stops_when_jobs_is_not_a_mapping(tmp_path: Pat
 
 
 def test_oidc_posture_is_false_when_jobs_is_not_a_mapping() -> None:
-    """With no `id-token` in the raw text, the per-job scan is the only remaining source."""
+    """A malformed `jobs:` yields no OIDC signal rather than raising."""
 
-    assert wp._workflow_has_oidc_posture("name: ci\non: push\n", {"jobs": ["a"]}) is False
+    assert wp._workflow_has_oidc_posture({"jobs": ["a"]}) is False
 
 
-def test_oidc_posture_is_true_when_the_raw_text_declares_the_token() -> None:
-    """The counterpart, so the test above cannot pass merely by always returning False."""
+def test_oidc_posture_is_true_when_the_workflow_declares_the_token() -> None:
+    """The counterpart, so the test above cannot pass merely by always returning False.
 
-    assert wp._workflow_has_oidc_posture("permissions:\n  id-token: write\n", {"jobs": ["a"]}) is True
+    This pair used to be written against the raw workflow TEXT, and the second one asserted
+    that `"permissions:\\n  id-token: write\\n"` as a string made the posture true even with
+    `jobs` malformed. That was the GH-DEPLOY-022 defect stated as a requirement: the text of
+    a workflow is not the workflow, and a comment carries the same words.
+    """
+
+    assert wp._workflow_has_oidc_posture({"permissions": {"id-token": "write"}, "jobs": ["a"]}) is True
