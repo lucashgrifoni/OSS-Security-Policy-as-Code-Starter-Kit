@@ -127,6 +127,13 @@ def test_a_non_numeric_min_approvers_does_not_crash_the_run(value: str, tmp_path
     outcome = gitlab.eval_gl_pipe_011(_ctx(tmp_path))
 
     assert outcome.status.value != "pass", "a value that is not a number cannot document approvals"
+    # Asserting only the status let a false sentence through: the first version of this fix
+    # exited via the shared fall-through, which tells the operator there is NO evidence file
+    # -- about a file that is right there and was just parsed -- and attached no reference to
+    # it. Adversarial review caught it because this assertion was missing.
+    assert "present" in outcome.reason, outcome.reason
+    assert "No " not in outcome.reason, f"the file exists and was read: {outcome.reason}"
+    assert outcome.evidence_sources, "the outcome must point at the file it actually read"
 
 
 def test_a_numeric_min_approvers_still_passes(tmp_path: Path) -> None:
@@ -147,7 +154,20 @@ def test_a_boolean_min_approvers_is_not_a_number_of_approvers(tmp_path: Path) ->
     evidence_dir.mkdir(parents=True)
     (evidence_dir / "gitlab-mr-rules.json").write_text('{"min_approvers": true}', encoding="utf-8")
 
-    assert gitlab.eval_gl_pipe_011(_ctx(tmp_path)).status.value != "pass"
+    outcome = gitlab.eval_gl_pipe_011(_ctx(tmp_path))
+
+    assert outcome.status.value != "pass"
+    assert "bool" in outcome.reason, outcome.reason
+
+
+def test_an_absent_evidence_file_still_says_it_is_absent(tmp_path: Path) -> None:
+    """The counterpart. Splitting the exits must not make the absent case lie the other way."""
+
+    outcome = gitlab.eval_gl_pipe_011(_ctx(tmp_path))
+
+    assert outcome.status.value != "pass"
+    assert "No .oss-policy-kit/evidence/gitlab-mr-rules.json evidence" in outcome.reason
+    assert outcome.evidence_sources == []
 
 
 def _ctx(repo_root: Path) -> EvalContext:

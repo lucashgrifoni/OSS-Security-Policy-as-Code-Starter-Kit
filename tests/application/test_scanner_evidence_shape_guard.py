@@ -46,17 +46,27 @@ NON_OBJECT_ROOTS: tuple[tuple[str, str, str], ...] = (
 #: Anything not listed here that does it is the defect coming back.
 #:
 #: These are exemptions, not absolutions. Every one was verified behaviourally before being
-#: written down -- 24 combinations of evidence file against non-object root ([], "s", 42,
-#: null, true) driven through the real CLI, all exit 0 with a report written. They read
-#: documents with no ``schema_version`` contract, so the shared reader does not fit them;
-#: each guards the shape with ``isinstance`` before use.
+#: written down -- 64 combinations of input file against a wrong-shaped root ([], "s", 42,
+#: null, true) driven through the real CLI, all exit 0. They read documents with no
+#: ``schema_version`` contract, or packaged data rather than adopter evidence, so the shared
+#: reader does not fit them; each guards the shape before use.
+#:
+#: The point of the list is not the entries. It is that adding one is a decision somebody has
+#: to make and justify, instead of a crash an adopter discovers.
 EVIDENCE_PARSER_EXEMPTIONS: dict[str, str] = {
     "oss_policy_kit.application.evaluators_common": "defines the shared reader and the schema validator",
     "oss_policy_kit.application.evaluators._shared": "branch-protection evidence; own contract, guarded",
     "oss_policy_kit.application.evaluators.ai": "llm-release-integrity and mcp-tool-descriptions; guarded",
     "oss_policy_kit.application.evaluators.cra": "reads a SARIF drop, not a scan-* evidence file",
+    "oss_policy_kit.application.evaluators.github": "provenance-artifact evidence; guarded",
     "oss_policy_kit.application.evaluators.gitlab": "gitlab-mr-rules.json; no schema_version, guarded",
     "oss_policy_kit.application.evaluators.governance": "conformance verdict file; no schema_version, guarded",
+    "oss_policy_kit.application.evaluators.supply_chain": "sbom-quality evidence; guarded",
+    "oss_policy_kit.application.engine": "loads the packaged catalog, not adopter evidence",
+    "oss_policy_kit.application.finding_normalization": "normalises findings documents; own contract",
+    "oss_policy_kit.application.findings_report": "renders a findings document; own contract",
+    "oss_policy_kit.application.osps_coverage": "reads the packaged OSPS map",
+    "oss_policy_kit.infrastructure.aws_ci_parser": "parses buildspec / pipeline files, not evidence",
 }
 
 
@@ -137,12 +147,23 @@ def test_an_unreadable_file_does_not_name_the_host_either(tmp_path: Path) -> Non
     assert "SECRET-DIR-MARKER" not in result.reason, result.reason
 
 
-def _mentions_evidence(node: ast.AST) -> bool:
-    """True when ``evidence`` appears anywhere in this expression."""
+def _reads_a_file(node: ast.AST) -> bool:
+    """True when this expression reads a file off disk.
+
+    Matched on the CALL, not on what anyone named the variable. The first version of this
+    looked for an ``ast.Name`` called ``evidence``, so ``evidence_path``, ``evidence_file``,
+    ``report`` or ``p`` walked straight past -- and one module in the package was already
+    doing the banned thing and being missed for exactly that reason.
+
+    That mattered more than the miss itself: the docstring below claimed the check "cannot be
+    spelled around", which is the third completeness claim in this release that turned out to
+    be untrue. Naming the shape instead of the variable is what makes the claim honest.
+    """
 
     return any(
-        (isinstance(child, ast.Name) and child.id == "evidence")
-        or (isinstance(child, ast.Attribute) and child.attr == "evidence")
+        isinstance(child, ast.Call)
+        and isinstance(child.func, ast.Attribute)
+        and child.func.attr in ("read_text", "read_bytes", "open")
         for child in ast.walk(node)
     )
 
@@ -192,7 +213,7 @@ def test_no_module_parses_an_evidence_path_itself() -> None:
             func = node.func
             called = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
             if called in ("load", "loads", "safe_load") and any(
-                _mentions_evidence(arg) for arg in [*node.args, *(kw.value for kw in node.keywords)]
+                _reads_a_file(arg) for arg in [*node.args, *(kw.value for kw in node.keywords)]
             ):
                 offenders.append(f"{name}:{node.lineno} ({called})")
 

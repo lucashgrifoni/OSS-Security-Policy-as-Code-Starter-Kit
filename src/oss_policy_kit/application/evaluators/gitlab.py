@@ -396,7 +396,24 @@ def eval_gl_pipe_011(ctx: EvalContext) -> EvalOutcome:
             # at exit 3 with no report. `bool` is excluded deliberately: `True >= 1` is true in
             # Python, and `"min_approvers": true` is not a number of approvers.
             approvers = data.get("min_approvers") if isinstance(data, dict) else None
-            if not isinstance(approvers, bool) and isinstance(approvers, int | float) and approvers >= 1:
+            if isinstance(approvers, bool) or not isinstance(approvers, int | float):
+                # Its own exit, because the fall-through below says "No ... evidence" -- and
+                # the file is right there and was just parsed. ADR-045 is about the status
+                # AND the sentence: aws.py says the same thing about the same mistake.
+                # Sending an operator to create a file that exists, with no reference to the
+                # one that was read, is a worse answer than the crash this replaced.
+                return EvalOutcome(
+                    status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                    reason=(
+                        f"gitlab-mr-rules.json is present but min_approvers is a "
+                        f"{type(approvers).__name__}, not a number of approvers, so MR approval "
+                        "enforcement cannot be read from it."
+                    ),
+                    remediation="Set `min_approvers` to a whole number in gitlab-mr-rules.json.",
+                    evidence_sources=[str(evidence.resolve())],
+                    confidence="low",
+                )
+            if approvers >= 1:
                 return EvalOutcome(
                     status=ControlStatus.PASS,
                     reason=f"MR rule evidence documents min_approvers={approvers}.",
