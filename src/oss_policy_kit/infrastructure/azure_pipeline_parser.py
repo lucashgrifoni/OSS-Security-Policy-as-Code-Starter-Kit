@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application.evaluators_common import strip_yaml_comments
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
 
@@ -138,7 +139,10 @@ def analyze_azure_pipelines(repo_root: Path) -> AzurePipelineAnalysis:
     result = AzurePipelineAnalysis()
     for path in _candidate_pipeline_paths(repo_root):
         result.pipeline_paths.append(path)
-        raw_lower = path.read_text(encoding="utf-8", errors="replace").lower()
+        # Comments blanked before the token scan: every signal below asks whether the
+        # pipeline DOES something, and a comment does not run. Derived sweeping caught
+        # AZ-IDENT-036 changing verdict on a commented-out line alone.
+        raw_lower = strip_yaml_comments(path.read_text(encoding="utf-8", errors="replace")).lower()
         _scan_azure_raw_signals(path, raw_lower, result)
         try:
             data: Any = load_yaml_file(path)

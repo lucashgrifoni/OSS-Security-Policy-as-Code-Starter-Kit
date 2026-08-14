@@ -57,6 +57,7 @@ from oss_policy_kit.application.evaluators._shared import (
     insights_self_attested_outcome,
     json,
 )
+from oss_policy_kit.application.evaluators_common import strip_yaml_comments
 from oss_policy_kit.application.input_limits import bad_input_detail
 from oss_policy_kit.domain.models import utc_now
 
@@ -853,14 +854,22 @@ def _scan_repo_sbom_files(sbom_files: list[Path]) -> EvalOutcome:
 
 
 def _sbom_ci_signal(ctx: EvalContext) -> EvalOutcome | None:
-    """MANUAL outcome when CI text references SBOM tooling but no SBOM file/evidence exists."""
+    """MANUAL outcome when CI text references SBOM tooling but no SBOM file/evidence exists.
+
+    This has its own reader, spanning GitHub, Azure and AWS, and it was the last member of
+    the comment-decides-the-verdict class to fall. The derived sweep is what found it: after
+    every other site was fixed, BUILD-SBOM-QUAL-003 was still the one control that moved
+    FAIL -> UNKNOWN on three platforms at once when a single comment was added, which is
+    exactly the shape of a reader nobody had listed. Comments are blanked now, because a
+    pipeline that only mentions ``syft`` in a note does not build an SBOM.
+    """
 
     all_ci = (
         list(ctx.workflows.workflow_paths) + list(ctx.azure_pipelines.pipeline_paths) + list(ctx.aws_ci.buildspec_paths)
     )
     for p in all_ci:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = strip_yaml_comments(p.read_text(encoding="utf-8", errors="replace")).lower()
             if "cyclonedx" in text or "spdx" in text or "syft" in text:
                 return EvalOutcome(
                     status=ControlStatus.MANUAL_REVIEW_REQUIRED,

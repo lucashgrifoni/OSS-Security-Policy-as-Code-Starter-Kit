@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application.evaluators_common import strip_yaml_comments
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
 _AKIA_PATTERN = re.compile(r"\bAKIA[0-9A-Z]{16}\b")
@@ -83,12 +84,25 @@ def committed_codepipeline_export_is_minimal(path: Path) -> tuple[bool, str]:
 
 
 def _scan_buildspec_raw_non_env(path: Path, raw: str, raw_lower: str, result: AwsCiAnalysis) -> None:
-    """Heuristics that are not replaced by structured YAML env parsing."""
+    """Heuristics that are not replaced by structured YAML env parsing.
+
+    Two kinds of question live here, and they want opposite treatment of comments.
+
+    The secret checks below ask whether the file CONTAINS a credential. A key pasted into a
+    comment is still a leaked key -- arguably more so, since nobody is looking at it -- so
+    they read the file as written, comments and all.
+
+    Everything after them asks whether the build DOES something: does it run a scanner, emit
+    an SBOM, produce provenance. A comment does not run, so those read the comment-free text
+    and get it as ``capability`` below.
+    """
 
     if _AKIA_PATTERN.search(raw) or "aws_secret_access_key" in raw_lower:
         result.inline_secret_risk_paths.append(path)
     if "-----begin" in raw_lower and "private key-----" in raw_lower:
         result.inline_secret_risk_paths.append(path)
+
+    capability = strip_yaml_comments(raw_lower)
 
     scan_tokens = (
         "trivy",
@@ -101,7 +115,7 @@ def _scan_buildspec_raw_non_env(path: Path, raw: str, raw_lower: str, result: Aw
         "inspector-sbomgen",
         "amazon-inspector",
     )
-    if any(t in raw_lower for t in scan_tokens):
+    if any(t in capability for t in scan_tokens):
         result.security_scan_signal_paths.append(path)
 
     sca_tokens = (
@@ -113,11 +127,11 @@ def _scan_buildspec_raw_non_env(path: Path, raw: str, raw_lower: str, result: Aw
         "dependency-check",
         "bundler-audit",
     )
-    if any(t in raw_lower for t in sca_tokens):
+    if any(t in capability for t in sca_tokens):
         result.dependency_audit_signal_paths.append(path)
 
     sbom_tokens = ("cyclonedx", "syft", "spdx", "sbom")
-    if any(t in raw_lower for t in sbom_tokens):
+    if any(t in capability for t in sbom_tokens):
         result.sbom_signal_paths.append(path)
 
     prov_tokens = (
@@ -127,7 +141,7 @@ def _scan_buildspec_raw_non_env(path: Path, raw: str, raw_lower: str, result: Aw
         "attestation",
         "provenance",
     )
-    if any(t in raw_lower for t in prov_tokens):
+    if any(t in capability for t in prov_tokens):
         result.provenance_signal_paths.append(path)
 
 

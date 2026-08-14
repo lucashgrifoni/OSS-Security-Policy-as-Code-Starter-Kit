@@ -271,6 +271,50 @@ def _looks_like_dockerfile(name: str) -> bool:
     return True
 
 
+def strip_yaml_comments(text: str) -> str:
+    """Blank out YAML comments, keeping every line and column position.
+
+    For the checks that still scan CI files as TEXT. Structure is always the better answer
+    and is used where it exists, but some signals genuinely live inside ``script:`` and
+    ``run:`` bodies -- shell text that no YAML parser will break down for us. Those scans
+    must at least not read the parts of the file that do not execute.
+
+    A comment cannot change what a pipeline DOES, so a comment must not change a verdict.
+    Derived sweeping found this deciding verdicts on five platforms at once: GitHub, GitLab,
+    Azure Pipelines, AWS buildspec and Dockerfile. Two of them granted credit -- a PASS for a
+    protection that existed only in prose.
+
+    ``#`` only starts a comment when it is at the start of a line or preceded by whitespace,
+    and never inside a quoted scalar; ``image: alpine#3.19`` and ``run: echo "a # b"`` are
+    both left alone. Comment bodies are replaced with spaces rather than removed so that any
+    line and column an evaluator reports still points where it did.
+    """
+
+    out: list[str] = []
+    for line in text.splitlines(keepends=True):
+        quote: str | None = None
+        cut: int | None = None
+        for i, ch in enumerate(line):
+            if quote is not None:
+                if ch == quote:
+                    quote = None
+                continue
+            if ch in "\"'":
+                quote = ch
+                continue
+            if ch == "#" and (i == 0 or line[i - 1] in " \t"):
+                cut = i
+                break
+        if cut is None:
+            out.append(line)
+            continue
+        tail = line[cut:]
+        # `\r\n` first: it also ends with `\n`, and testing the other way round eats the `\r`.
+        newline = "\r\n" if tail.endswith("\r\n") else ("\n" if tail.endswith("\n") else "")
+        out.append(line[:cut] + " " * (len(tail) - len(newline)) + newline)
+    return "".join(out)
+
+
 def strip_dockerfile_comments(text: str) -> str:
     """Drop full-line ``#`` comments from a Dockerfile.
 

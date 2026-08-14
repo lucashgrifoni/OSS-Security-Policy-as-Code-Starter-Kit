@@ -30,6 +30,7 @@ from oss_policy_kit.application.evaluators_common import (
 )
 from oss_policy_kit.application.evaluators_common import (
     as_mapping,
+    strip_yaml_comments,
 )
 from oss_policy_kit.application.evaluators_common import (
     evidence_is_api_backed as _evidence_is_api_backed,
@@ -445,8 +446,15 @@ def _gov_disc_013_private_reporting_signals(lower: str) -> bool:
 
 
 def _github_workflow_raw_suggests_release_or_deploy(raw: str) -> bool:
-    lower = raw.lower()
-    if re.search(r"(^|\n)\s*release\s*:", raw) or re.search(r"\bon\s*:\s*release\b", lower):
+    """Whether a workflow looks like it releases or deploys, from its text.
+
+    Comments blanked: this decides applicability for BUILD-SBOM-QUAL-003, which the derived
+    sweep caught moving FAIL -> UNKNOWN on three platforms when a single comment was added.
+    """
+
+    stripped = strip_yaml_comments(raw)
+    lower = stripped.lower()
+    if re.search(r"(^|\n)\s*release\s*:", stripped) or re.search(r"\bon\s*:\s*release\b", lower):
         return True
     push_main = "push" in lower and ("branches:" in lower or "branches :" in lower)
     push_main = push_main and ("main" in lower or "master" in lower)
@@ -1050,8 +1058,15 @@ def _workflow_text(path: Path) -> str:
 
 
 def _classify_self_hosted_runner(text: str) -> tuple[bool, bool]:
-    """Return ``(is_self_hosted, is_ephemeral)`` from raw workflow text via the runner pattern."""
+    """Return ``(is_self_hosted, is_ephemeral)`` from workflow text via the runner pattern.
 
+    Comments are blanked first: GH-RUNNER-062 moved a repository off PASS because a
+    ``# runs-on: self-hosted`` line someone had commented out looked like a self-hosted
+    runner to it. Which runner a job uses is decided by the line that runs, not the one
+    beside it.
+    """
+
+    text = strip_yaml_comments(text)
     is_self = False
     is_ephemeral = False
     for match in _SELF_HOSTED_PATTERN.finditer(text):
@@ -1389,11 +1404,17 @@ def _parse_zizmor_severity_properties(
 
 
 def _scan_gitlab_pipelines(ctx: EvalContext, hints: tuple[str, ...]) -> list[Path]:
-    """Return GitLab pipeline files whose text contains any of ``hints`` (case-insensitive)."""
+    """Return GitLab pipeline files whose text contains any of ``hints`` (case-insensitive).
+
+    Comments are blanked first. GL-PIPE-012 granted a PASS -- "pipeline(s) document artifact
+    retention / signing posture" -- for a pipeline whose only mention of `cosign` was a note
+    saying it had not been set up yet. GL-PIPE-009 reads through the same scanner.
+    """
+
     matched: list[Path] = []
     for p in ctx.gitlab_ci.pipeline_paths:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = strip_yaml_comments(p.read_text(encoding="utf-8", errors="replace")).lower()
             if any(h in text for h in hints):
                 matched.append(p)
     return matched

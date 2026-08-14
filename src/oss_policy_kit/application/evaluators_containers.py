@@ -27,6 +27,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application.evaluators_common import strip_dockerfile_comments
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 
 # The leading run is possessive. ``FROM`` cannot begin with a space or a tab, so every
@@ -170,7 +171,10 @@ def eval_cont_runtime_003(ctx: Any) -> EvalOutcome:
         return _na_no_dockerfile()
     offenders: list[Path] = []
     for df in dockerfiles:
-        if _CURL_BASH_RE.search(_read_text(df)):
+        # `strip_dockerfile_comments` already existed for exactly this and was not applied
+        # here, so a `# curl … | sh` line explaining what NOT to do failed the control. A
+        # commented-out instruction does not run, and this control is about what runs.
+        if _CURL_BASH_RE.search(strip_dockerfile_comments(_read_text(df))):
             offenders.append(df)
     if not offenders:
         return EvalOutcome(

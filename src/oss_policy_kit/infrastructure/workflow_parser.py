@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
+from oss_policy_kit.application.evaluators_common import strip_yaml_comments
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
 
@@ -829,7 +830,18 @@ def _scan_workflow_parsed(data: dict[str, Any], raw: str, path: Path, result: Wo
 
 def _analyze_one_workflow(path: Path, result: WorkflowAnalysis, signal_acc: set[str]) -> None:
     result.workflow_paths.append(path)
-    raw = path.read_text(encoding="utf-8", errors="replace")
+    # Comments are blanked once, here, rather than at each scan below. Six controls were
+    # moved to the parsed structure in earlier releases; a derived sweep -- add ONE comment
+    # to a file and diff every verdict -- then found four more still reading this text:
+    # CI-DANGER-007 (a note saying "we deliberately do NOT use pull_request_target" failed
+    # the gate), GH-MERGEQ-053, and the APPLICABILITY of GH-DEPLOY-022 and GH-PROV-023,
+    # which is decided by the cloud-deploy regex further down. Fixing the verdict half and
+    # leaving the applicability half is how this class kept coming back.
+    #
+    # Every consumer of this text asks whether the workflow DOES something. Nothing here
+    # asks whether the file CONTAINS something -- if a secret scanner ever moves in, it must
+    # read `path` itself, because a credential in a comment is still a leaked credential.
+    raw = strip_yaml_comments(path.read_text(encoding="utf-8", errors="replace"))
     _scan_workflow_raw(raw, path, result, signal_acc)
     try:
         data: Any = load_yaml_file(path)
