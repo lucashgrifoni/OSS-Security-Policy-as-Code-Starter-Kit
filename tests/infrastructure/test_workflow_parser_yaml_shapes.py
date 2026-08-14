@@ -99,26 +99,44 @@ def test_a_workflow_with_no_jobs_at_all_is_not_an_error(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_a_checkout_without_a_token_input_uses_the_default(tmp_path: Path) -> None:
-    """No `token:` means GITHUB_TOKEN; that is not the same as an explicit non-default one."""
+_CHECKOUT_JOB = (
+    "name: ci\non: push\njobs:\n  b:\n    runs-on: ubuntu-latest\n"
+    "    steps:\n      - uses: actions/checkout@v4\n        with:\n{with_block}"
+)
 
-    _workflow(
-        tmp_path,
-        "name: ci\non: push\njobs:\n  b:\n    runs-on: ubuntu-latest\n"
-        "    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n",
-    )
-    assert analyze_workflows(tmp_path).parse_errors == []
+
+def test_a_checkout_without_a_token_input_uses_the_default(tmp_path: Path) -> None:
+    """No `token:` means GITHUB_TOKEN; that is not the same as an explicit non-default one.
+
+    Both of these asserted only ``parse_errors == []``, which is true of essentially any
+    valid YAML and so could not observe the predicate they are named for. Now they assert
+    the signal the predicate actually drives, with a positive counterpart below so a
+    detector that never fires cannot pass them.
+    """
+
+    _workflow(tmp_path, _CHECKOUT_JOB.format(with_block="          fetch-depth: 0\n"))
+
+    analysis = analyze_workflows(tmp_path)
+    assert analysis.parse_errors == []
+    assert analysis.implicit_permission_risks == []
 
 
 @pytest.mark.parametrize("token", ["", "   "])
 def test_a_blank_checkout_token_is_treated_as_the_default(token: str, tmp_path: Path) -> None:
-    _workflow(
-        tmp_path,
-        "name: ci\non: push\njobs:\n  b:\n    runs-on: ubuntu-latest\n"
-        "    steps:\n      - uses: actions/checkout@v4\n        with:\n"
-        f'          token: "{token}"\n',
-    )
-    assert analyze_workflows(tmp_path).parse_errors == []
+    _workflow(tmp_path, _CHECKOUT_JOB.format(with_block=f'          token: "{token}"\n'))
+
+    analysis = analyze_workflows(tmp_path)
+    assert analysis.parse_errors == []
+    assert analysis.implicit_permission_risks == []
+
+
+def test_a_real_pat_checkout_without_permissions_is_recorded(tmp_path: Path) -> None:
+    """The counterpart. Without it, the two tests above pass against a dead detector."""
+
+    _workflow(tmp_path, _CHECKOUT_JOB.format(with_block="          token: ${{ secrets.MY_PAT }}\n"))
+
+    risks = analyze_workflows(tmp_path).implicit_permission_risks
+    assert risks, "a non-default checkout token in a job with no `permissions:` must be recorded"
 
 
 # --------------------------------------------------------------------------- #

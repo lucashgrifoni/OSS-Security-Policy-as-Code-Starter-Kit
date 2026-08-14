@@ -29,6 +29,9 @@ from oss_policy_kit.application.evaluators_common import (
     INVALID_DIGEST_REASON as _INVALID_DIGEST_REASON,
 )
 from oss_policy_kit.application.evaluators_common import (
+    as_mapping,
+)
+from oss_policy_kit.application.evaluators_common import (
     evidence_is_api_backed as _evidence_is_api_backed,
 )
 from oss_policy_kit.application.evaluators_common import (
@@ -1144,9 +1147,20 @@ def _load_sarif_runs(sarif_path: Path) -> tuple[list[Any] | None, str | None]:
         return None, f"Could not parse SARIF JSON: {bad_input_detail(exc)}."
     except RecursionError:
         return None, "Could not parse SARIF JSON: document is too deeply nested."
-    if (
-        not isinstance(doc, dict) or doc.get("$schema", "").endswith("sarif-schema-2.1.0.json") is False
-    ) and "runs" not in doc:
+    # This condition used to be one expression, and it could not protect the test it guarded:
+    # when *doc* was not a mapping, `not isinstance(...)` short-circuited the `or` and thereby
+    # FORCED `"runs" not in doc` to run against the very non-mapping it had just detected --
+    # TypeError for a number or null, and for a string a silent substring test that fell
+    # through to `.get`. A non-string `$schema` raised on `.endswith` before the `and` was
+    # reached at all. Every one of those is exit 3 with no report, from files that third-party
+    # tools and adopter `jq` glue produce: `jq -s '.[0]' *.sarif` over an empty glob writes
+    # literally `null`. Four controls read this, across eight shipped profiles, and
+    # `evaluate-many` aborted the whole fleet on the first bad file.
+    if not isinstance(doc, dict):
+        return None, f"SARIF file root must be a JSON object, not a {type(doc).__name__}."
+    schema = doc.get("$schema")
+    declares_sarif_schema = isinstance(schema, str) and schema.endswith("sarif-schema-2.1.0.json")
+    if not declares_sarif_schema and "runs" not in doc:
         # Accept SARIF docs without an explicit $schema; just require the runs[] array.
         return None, "SARIF file missing top-level 'runs' array."
     runs = doc.get("runs") or []
@@ -1159,7 +1173,9 @@ def _sarif_rule_levels(run: dict[str, Any]) -> dict[str, str]:
     """Map ``ruleId -> defaultConfiguration.level`` for one SARIF run."""
 
     rule_levels: dict[str, str] = {}
-    rules = ((run.get("tool") or {}).get("driver") or {}).get("rules") or []
+    # `(x or {}).get(...)` reads like a null-safe walk and is not one: `or` substitutes only
+    # for a FALSY value, so `tool: "semgrep"` -- a truthy string -- reached `.get` and raised.
+    rules = as_mapping(as_mapping(as_mapping(run).get("tool")).get("driver")).get("rules") or []
     if not isinstance(rules, list):
         return rule_levels
     for rule in rules:
@@ -1168,7 +1184,7 @@ def _sarif_rule_levels(run: dict[str, Any]) -> dict[str, str]:
         rid = rule.get("id")
         if not isinstance(rid, str):
             continue
-        default_level = (rule.get("defaultConfiguration") or {}).get("level")
+        default_level = as_mapping(rule.get("defaultConfiguration")).get("level")
         if isinstance(default_level, str):
             rule_levels[rid] = default_level
     return rule_levels

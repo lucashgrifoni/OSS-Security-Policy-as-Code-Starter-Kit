@@ -390,10 +390,16 @@ def eval_gl_pipe_011(ctx: EvalContext) -> EvalOutcome:
     if evidence.is_file():
         with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
             data = json.loads(evidence.read_text(encoding="utf-8"))
-            if isinstance(data, dict) and data.get("min_approvers", 0) >= 1:
+            # `data.get("min_approvers", 0) >= 1` compared whatever was there against an int.
+            # A string -- `"min_approvers": "2"`, which is what a shell or a spreadsheet export
+            # produces -- raised TypeError, and TypeError is not input-shaped, so the run died
+            # at exit 3 with no report. `bool` is excluded deliberately: `True >= 1` is true in
+            # Python, and `"min_approvers": true` is not a number of approvers.
+            approvers = data.get("min_approvers") if isinstance(data, dict) else None
+            if not isinstance(approvers, bool) and isinstance(approvers, int | float) and approvers >= 1:
                 return EvalOutcome(
                     status=ControlStatus.PASS,
-                    reason=f"MR rule evidence documents min_approvers={data['min_approvers']}.",
+                    reason=f"MR rule evidence documents min_approvers={approvers}.",
                     remediation="SLSA Source L4 requires 2+ approvers; consider raising the threshold.",
                     evidence_sources=[str(evidence.resolve())],
                     confidence="high",

@@ -38,6 +38,7 @@ import typer
 # reads the same vulnerability_ids-keyed entries. Aliased to the historical private
 # names so behavior and existing test hooks stay byte-identical.
 from oss_policy_kit.application import vuln_waivers as _vuln_waivers_mod
+from oss_policy_kit.application.evaluators_common import as_mapping
 from oss_policy_kit.application.input_limits import (
     BAD_INPUT_ERRORS,
     MAX_SARIF_BYTES,
@@ -127,7 +128,9 @@ _SUPPORTED_VEX_FORMATS: frozenset[str] = frozenset({"cyclonedx", "openvex"})
 def _collect_sarif_rule_ids(run: dict[str, Any], ids: set[str], refs: dict[str, set[str]]) -> None:
     """Collect rule ids and their helpUri advisory references from one SARIF run."""
 
-    rules = ((run.get("tool") or {}).get("driver") or {}).get("rules") or []
+    # Same walk as _sarif_rule_levels, and it had the same defect: `(x or {})` substitutes only
+    # for a falsy value, so a truthy non-mapping reached `.get` and raised.
+    rules = as_mapping(as_mapping(as_mapping(run).get("tool")).get("driver")).get("rules") or []
     if not isinstance(rules, list):
         return
     for rule in rules:

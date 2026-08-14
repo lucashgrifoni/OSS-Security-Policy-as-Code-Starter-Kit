@@ -57,6 +57,25 @@ _WEAK_DIGEST_PATTERNS: tuple[re.Pattern[str], ...] = (
 )
 
 
+def as_mapping(value: object) -> dict[str, Any]:
+    """Return *value* if it is a mapping, else an empty one.
+
+    For walking documents an adopter supplies, where every level can be the wrong type.
+    ``(x or {}).get(...)`` looks like it does this and does not: ``or`` only substitutes when
+    *x* is falsy, so a truthy non-mapping -- a string, a number, a list -- goes straight
+    through to ``.get`` and raises ``AttributeError``. That is not an input-shaped exception,
+    so the CLI boundary correctly calls it a defect in the kit and exits 3: no report written,
+    and the adopter told to file a bug about their own file.
+
+    That is the third time this class has surfaced in one release cycle. Fixing the sites the
+    last round named did not stop it, because the next site was in a file nobody had listed.
+    A helper that reads like the broken idiom is the point: it is what someone reaches for
+    while writing the seventh one.
+    """
+
+    return value if isinstance(value, dict) else {}
+
+
 def read_scanner_evidence(
     evidence: Path,
     *,

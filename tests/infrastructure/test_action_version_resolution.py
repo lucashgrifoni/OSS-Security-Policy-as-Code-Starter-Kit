@@ -175,17 +175,25 @@ def test_an_unreadable_checkout_fails_closed(tmp_path: Path) -> None:
     assert "kit-version" in stderr, "the error must name the input that unblocks it"
 
 
-def _install(tmp_path: Path, *, kit_version: str, reports: str) -> tuple[int, str]:
+def _install(tmp_path: Path, *, kit_version: str, reports: str, checkout_reports: str | None = None) -> tuple[int, str]:
     """Run the install step against a stub `python`, returning ``(returncode, stderr)``.
 
-    *reports* is what the stub answers to ``--version``, standing in for the wheel pip
-    actually resolved. No network, no real install -- the step's decision is the subject.
+    *reports* is what the INSTALLED DISTRIBUTION answers, standing in for the wheel pip
+    resolved. *checkout_reports* is what ``-m oss_policy_kit --version`` would answer -- the
+    source tree in the workspace. They differ on purpose: the defect this guards was reading
+    the second and calling it the first. No network, no real install.
     """
 
     binstub = tmp_path / "bin"
-    binstub.mkdir(exist_ok=True)  # two invocations per test share one tmp_path
+    binstub.mkdir(exist_ok=True)  # several invocations per test share one tmp_path
     (binstub / "python").write_text(
-        f'#!/bin/sh\ncase "$*" in\n  *pip*) exit 0 ;;\n  *--version*) echo "{reports}" ; exit 0 ;;\nesac\nexit 0\n',
+        "#!/bin/sh\n"
+        'case "$*" in\n'
+        "  *pip*) exit 0 ;;\n"
+        f'  *importlib.metadata*) echo "{reports}" ; exit 0 ;;\n'
+        f'  *--version*) echo "{checkout_reports or reports}" ; exit 0 ;;\n'
+        "esac\n"
+        "exit 0\n",
         encoding="utf-8",
         newline="\n",
     )
@@ -210,11 +218,40 @@ def _install(tmp_path: Path, *, kit_version: str, reports: str) -> tuple[int, st
 def test_the_install_step_verifies_the_wheel_it_got(tmp_path: Path) -> None:
     """A pin that resolves is worth nothing if the wheel that arrives is a different one."""
 
-    rc, _ = _install(tmp_path, kit_version="10.0.13", reports="oss-policy-kit 10.0.13")
+    rc, _ = _install(tmp_path, kit_version="10.0.13", reports="10.0.13")
     assert rc == 0
 
-    rc, stderr = _install(tmp_path, kit_version="10.0.13", reports="oss-policy-kit 9.1.0")
+    rc, stderr = _install(tmp_path, kit_version="10.0.13", reports="9.1.0")
     assert rc != 0, "a mismatched wheel must fail the step, not run the evaluation"
+    assert "10.0.13" in stderr
+
+
+def test_the_check_reads_the_installed_distribution_not_the_workspace(tmp_path: Path) -> None:
+    """The defect this guards, and the reason the guard was worthless before.
+
+    The check first ran ``python -m oss_policy_kit --version`` from the workspace -- and the
+    workspace is the adopter's repository, which when that repository is this kit contains
+    ``src/oss_policy_kit/``. The import resolved to the checkout, so the guard compared the
+    pin against the source tree being evaluated and agreed with itself no matter which wheel
+    pip had installed. A verification step that verifies nothing is worse than none, because
+    it reads as proof.
+
+    Here the installed distribution and the workspace checkout disagree. The step must
+    believe the distribution.
+    """
+
+    rc, stderr = _install(tmp_path, kit_version="10.0.13", reports="9.1.0", checkout_reports="10.0.13")
+
+    assert rc != 0, "the workspace checkout agreeing with the pin must not satisfy the check"
+    assert "9.1.0" in stderr, "the error must report what was actually installed"
+
+
+def test_a_near_miss_version_does_not_satisfy_the_check(tmp_path: Path) -> None:
+    """It was a substring match, and `10.0.13` contains `10.0.1`."""
+
+    rc, stderr = _install(tmp_path, kit_version="10.0.1", reports="10.0.13")
+
+    assert rc != 0, "10.0.13 is not 10.0.1"
     assert "10.0.13" in stderr
 
 

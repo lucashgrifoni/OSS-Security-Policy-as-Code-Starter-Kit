@@ -97,11 +97,16 @@ runs:
         ACTION_REF: ${{ github.action_ref }}
       run: |
         set -euo pipefail
+        # Normalise the adopter's input before anything reads it. Whitespace is invisible in
+        # a YAML value, and a trailing space failed the job with a message that showed the
+        # requested and installed versions looking identical; a newline emitted a second line
+        # into GITHUB_OUTPUT, which is an output-injection primitive.
+        INPUT_KIT_VERSION="$(printf '%s' "${INPUT_KIT_VERSION}" | tr -d '[:space:]')"
         # `latest` is the documented opt-out from pinning, and it has to be spelled as
         # an empty pin: `pip install oss-policy-kit==latest` is not valid syntax, so
         # passing kit-version: latest -- which this action's own input description
         # offers -- used to fail the install step outright.
-        if [ "${INPUT_KIT_VERSION}" = "latest" ]; then
+        if [ "$(printf '%s' "${INPUT_KIT_VERSION}" | tr '[:upper:]' '[:lower:]')" = "latest" ]; then
           echo "kit_version=" >> "${GITHUB_OUTPUT}"
         elif [ -n "${INPUT_KIT_VERSION}" ]; then
           echo "kit_version=${INPUT_KIT_VERSION}" >> "${GITHUB_OUTPUT}"
@@ -150,12 +155,26 @@ runs:
         else
           python -m pip install "oss-policy-kit"
         fi
-        installed="$(python -m oss_policy_kit --version)"
-        echo "${installed}"
-        # Close the loop: a pin that resolved is only worth something if the wheel that
-        # arrived is the one that was asked for.
-        if [ -n "${KIT_VERSION}" ] && [[ "${installed}" != *"${KIT_VERSION}"* ]]; then
-          echo "::error::Requested oss-policy-kit ${KIT_VERSION} but installed '${installed}'." >&2
+        # Ask the INSTALLED DISTRIBUTION its version, not an import.
+        #
+        # This check first ran `python -m oss_policy_kit --version` from the workspace, and
+        # the workspace is the adopter's repository -- which, when that repository is this
+        # kit, contains `src/oss_policy_kit/`. The import then resolved to the checkout
+        # rather than to the wheel pip had just installed, so the guard compared the pin
+        # against the source tree being evaluated and would have reported agreement no
+        # matter which wheel arrived. A verification step that verifies nothing is worse
+        # than none: it reads as proof.
+        #
+        # `importlib.metadata.version` reads dist-info, so an import cannot shadow it. `-P`
+        # keeps the script directory off sys.path for the same reason.
+        installed="$(python -P -c 'from importlib.metadata import version; print(version("oss-policy-kit"))')"
+        echo "oss-policy-kit ${installed}"
+        # Exact match after trimming, not containment: `*10.0.1*` matches "10.0.13", so a
+        # near-miss version passed the check that exists to catch exactly that.
+        if [ -n "${KIT_VERSION}" ] \
+           && [ "$(printf '%s' "${installed}" | tr -d '[:space:]')" \
+              != "$(printf '%s' "${KIT_VERSION}" | tr -d '[:space:]')" ]; then
+          echo "::error::Requested oss-policy-kit ${KIT_VERSION} but installed ${installed}." >&2
           exit 1
         fi
 

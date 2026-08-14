@@ -142,8 +142,11 @@ def _manifest_from_doc(doc: Any, path: Path) -> K8sManifest | None:
         file=path,
         api_version=str(doc.get("apiVersion", "")),
         kind=str(doc.get("kind", "")),
-        namespace=str((metadata or {}).get("namespace", "default") or "default"),
-        name=str((metadata or {}).get("name", "")),
+        # `metadata` is already a dict by the line above, so the `or {}` was redundant --
+        # and redundant instances of that idiom are worth removing rather than tolerating,
+        # because they teach the shape that IS unsafe two files over.
+        namespace=str(metadata.get("namespace", "default") or "default"),
+        name=str(metadata.get("name", "")),
         body=doc,
     )
 

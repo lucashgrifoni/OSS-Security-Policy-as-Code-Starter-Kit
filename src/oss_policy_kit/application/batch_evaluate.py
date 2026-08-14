@@ -15,6 +15,7 @@ from oss_policy_kit.adapters.local_paths import resolve_existing_dir
 from oss_policy_kit.application.cli_output import FailOnPolicy, fail_on_violated
 from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.engine import evaluate_repository
+from oss_policy_kit.application.evaluators_common import as_mapping
 from oss_policy_kit.application.loader import load_catalog, load_profile_by_id, merge_kit_root
 from oss_policy_kit.application.reporting import (
     _sanitize_target_path_for_payload,
@@ -638,8 +639,8 @@ def _compute_batch_stats(rows: list[BatchRunRow], consolidated_reports: list[dic
     common_fail_count: int | None = fc_values[0] if all_tied else None
     gap_hits: Counter[str] = Counter()
     for cr in consolidated_reports:
-        ac = cr.get("action_insights") or {}
-        for ids in (ac.get("failing_controls_by_category") or {}).values():
+        ac = as_mapping(cr.get("action_insights"))
+        for ids in as_mapping(ac.get("failing_controls_by_category")).values():
             for cid in ids:
                 gap_hits[str(cid)] += 1
     return _BatchStats(

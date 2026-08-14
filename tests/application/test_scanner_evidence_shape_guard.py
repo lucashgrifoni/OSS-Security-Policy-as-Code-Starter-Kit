@@ -22,6 +22,8 @@ import ast
 import importlib
 import inspect
 import json
+import pkgutil
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -40,17 +42,22 @@ NON_OBJECT_ROOTS: tuple[tuple[str, str, str], ...] = (
     ("boolean", "true", "bool"),
 )
 
-#: The modules whose evidence reader must go through the shared guard, with the schema
-#: prefix each one expects. Adding a scanner without adding it here is the way this class
-#: comes back, so the last test asserts the list is complete.
-LOADER_MODULES: tuple[str, ...] = (
-    "oss_policy_kit.application.evaluators_iac",
-    "oss_policy_kit.application.evaluators_iac_bicep",
-    "oss_policy_kit.application.evaluators_iac_cfn",
-    "oss_policy_kit.application.evaluators_iac_pulumi",
-    "oss_policy_kit.application.evaluators_k8s",
-    "oss_policy_kit.application.evaluators.cicd",
-)
+#: Modules allowed to parse an evidence path directly, each for a stated reason.
+#: Anything not listed here that does it is the defect coming back.
+#:
+#: These are exemptions, not absolutions. Every one was verified behaviourally before being
+#: written down -- 24 combinations of evidence file against non-object root ([], "s", 42,
+#: null, true) driven through the real CLI, all exit 0 with a report written. They read
+#: documents with no ``schema_version`` contract, so the shared reader does not fit them;
+#: each guards the shape with ``isinstance`` before use.
+EVIDENCE_PARSER_EXEMPTIONS: dict[str, str] = {
+    "oss_policy_kit.application.evaluators_common": "defines the shared reader and the schema validator",
+    "oss_policy_kit.application.evaluators._shared": "branch-protection evidence; own contract, guarded",
+    "oss_policy_kit.application.evaluators.ai": "llm-release-integrity and mcp-tool-descriptions; guarded",
+    "oss_policy_kit.application.evaluators.cra": "reads a SARIF drop, not a scan-* evidence file",
+    "oss_policy_kit.application.evaluators.gitlab": "gitlab-mr-rules.json; no schema_version, guarded",
+    "oss_policy_kit.application.evaluators.governance": "conformance verdict file; no schema_version, guarded",
+}
 
 
 def _evidence(tmp_path: Path, body: str) -> Path:
@@ -140,26 +147,45 @@ def _mentions_evidence(node: ast.AST) -> bool:
     )
 
 
-def test_no_loader_parses_its_own_evidence() -> None:
-    """The guard that matters over time, and the reason it is written against the AST.
+def _iter_package_modules(package_name: str) -> Iterator[tuple[str, ast.Module]]:
+    """Every importable module in *package_name*, parsed."""
 
-    A seventh scanner added with the old copied block passes every test above -- they
-    only exercise the shared reader -- and brings the crash back. So this one is about
-    the modules, not the function.
+    package = importlib.import_module(package_name)
+    for info in pkgutil.walk_packages(package.__path__, prefix=f"{package_name}."):
+        try:
+            module = importlib.import_module(info.name)
+            source = inspect.getsource(module)
+        except (ImportError, OSError, TypeError):  # pragma: no cover - defensive
+            continue
+        yield info.name, ast.parse(source)
 
-    The first version searched the source text for ``json.loads(evidence.read_text``.
-    Mutation testing killed it: renaming the import to ``_j`` sailed straight through,
-    and that is not a hypothetical, it is what ``import json as _j`` does. Matching the
-    call structure instead of its spelling costs nothing and cannot be typo'd around.
 
-    Scoped to ``load``/``loads`` calls that mention ``evidence``, because ``cicd.py``
-    legitimately reads workflow files -- a blanket ban on ``read_text`` would be a
-    rule these modules could not follow.
+def test_no_module_parses_an_evidence_path_itself() -> None:
+    """The guard that matters over time -- and it has to be DERIVED to be worth anything.
+
+    A seventh scanner added with the old copied block passes every test above, because they
+    only exercise the shared reader. So this one is about the modules.
+
+    The first version hard-coded the six modules that had been fixed. That made the file's
+    own claim -- "a seventh scanner added with the old copied block would reintroduce the
+    crash, this fails when that happens" -- false: a seventh module is not in a list written
+    before it existed. Adversarial review caught the overclaim, which is the same defect this
+    release spent the day fixing in the product: asserting more than the check establishes.
+    It now walks the whole package.
+
+    The version before that searched the source TEXT for ``json.loads(evidence.read_text``.
+    Mutation testing killed it: ``import json as _j`` sailed straight through. Matching the
+    call structure cannot be spelled around.
+
+    Scoped to ``load``/``loads``/``safe_load`` calls whose argument mentions ``evidence``,
+    because plenty of modules legitimately read workflow and manifest files -- a blanket ban
+    on ``read_text`` would be a rule nothing could follow.
     """
 
     offenders = []
-    for name in LOADER_MODULES:
-        tree = ast.parse(inspect.getsource(importlib.import_module(name)))
+    for name, tree in _iter_package_modules("oss_policy_kit"):
+        if name in EVIDENCE_PARSER_EXEMPTIONS:
+            continue
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
@@ -171,6 +197,50 @@ def test_no_loader_parses_its_own_evidence() -> None:
                 offenders.append(f"{name}:{node.lineno} ({called})")
 
     assert not offenders, (
-        "these modules parse scanner evidence themselves instead of calling "
+        "these modules parse an evidence path themselves instead of calling "
         f"read_scanner_evidence(), so a non-object root crashes them again: {offenders}"
     )
+
+
+def test_nothing_navigates_a_document_with_the_or_empty_dict_idiom() -> None:
+    """``(x or {}).get(...)`` reads like a null-safe walk and is not one.
+
+    ``or`` substitutes only for a FALSY value, so a truthy non-mapping -- a string, a number,
+    a list -- goes straight through to ``.get`` and raises ``AttributeError``: exit 3, no
+    report, and the adopter told to file a bug about their own file.
+
+    This idiom produced two separate rounds of that crash in one release cycle, in files
+    nobody had listed the round before. Naming the sites did not stop it; forbidding the
+    shape does. Use ``as_mapping()`` instead -- it reads the same and is actually safe.
+    """
+
+    offenders = []
+    for name, tree in _iter_package_modules("oss_policy_kit"):
+        for node in ast.walk(tree):
+            # `(<anything> or {}).get(...)` / `(<anything> or []).<attr>`
+            if not isinstance(node, ast.Attribute):
+                continue
+            value = node.value
+            if not isinstance(value, ast.BoolOp) or not isinstance(value.op, ast.Or):
+                continue
+            tail = value.values[-1]
+            empty_dict = isinstance(tail, ast.Dict) and not tail.keys
+            empty_list = isinstance(tail, ast.List) and not tail.elts
+            if empty_dict or empty_list:
+                offenders.append(f"{name}:{node.lineno}")
+
+    assert not offenders, (
+        "these navigate a parsed document with `(x or {}) .attr`, which raises on a truthy "
+        f"non-mapping instead of substituting. Use as_mapping(): {offenders}"
+    )
+
+
+def test_the_evidence_parser_walk_actually_reaches_the_modules() -> None:
+    """A derived check that walks nothing passes for the wrong reason."""
+
+    names = {name for name, _tree in _iter_package_modules("oss_policy_kit")}
+
+    assert "oss_policy_kit.application.evaluators_k8s" in names
+    assert "oss_policy_kit.application.evaluators.cicd" in names
+    assert "oss_policy_kit.cli.emit_vex" in names
+    assert len(names) > 50, f"only {len(names)} modules walked -- the sweep is not reaching the package"
