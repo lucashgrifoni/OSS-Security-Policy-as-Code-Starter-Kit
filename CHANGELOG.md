@@ -6,6 +6,19 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.14](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.13...v10.0.14) (2026-08-14)
+
+
+### Improvements
+
+* **evaluators:** controls and readers that claimed more than they established ([c3919e8](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c3919e866b61170adf6a3243d34e196b735b1140))
+* **evidence:** the exit-3 class, third round, and a verification step that verified nothing ([#179](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/179)) ([9457942](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/945794241235a23491f5ce876e396949aeae884a))
+* **gitlab:** a control that said "no evidence" about a file it had just read ([#180](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/180)) ([15c6e6c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/15c6e6c22eb054cef1c22f3553ada7c3fbe27fb6))
+* three defects the kit inflicted on its own adopters ([#175](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/175)) ([a5bfbcb](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a5bfbcbf130f136ecaab6fffad0fbd4ea3dc5d2a))
+* **workflows:** the last two controls that judged a comment instead of a step ([#178](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/178)) ([46a0917](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/46a0917315ae5e0fa49fa70fe5e8b3f5fabd41b9))
+* **workflows:** the release detector I just rewrote could miss the release ([#176](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/176)) ([c53dd09](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c53dd097adad376b9c6393e1b6037bba8c899cb7))
+* **workflows:** two controls granted a PASS for security that existed only in a comment ([#177](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/177)) ([f7d505d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f7d505d36ebbe46f629f9f26db118e85d468f5c2))
+
 ## [10.0.13](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.12...v10.0.13) (2026-08-12)
 
 
