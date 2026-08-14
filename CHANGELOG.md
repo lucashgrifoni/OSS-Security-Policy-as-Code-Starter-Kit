@@ -6,6 +6,13 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.15](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.14...v10.0.15) (2026-08-14)
+
+
+### Improvements
+
+* **gitlab:** GL-PIPE-011 now validates against the schema the kit has always shipped ([#181](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/181)) ([f70c8fb](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f70c8fbb736fd4e412c5af8ffcf75768fbf20888))
+
 ## [10.0.14](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.13...v10.0.14) (2026-08-14)
 
 
