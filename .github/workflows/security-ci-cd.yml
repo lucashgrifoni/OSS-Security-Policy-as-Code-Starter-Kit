@@ -635,27 +635,12 @@ jobs:
         with:
           fail-on-severity: moderate
           comment-summary-in-pr: on-failure
-          # Three high-severity advisories against mcp 1.23.3, a transitive dependency of
-          # semgrep. Accepted with a stated reason and a removal condition, not silenced:
-          #
-          #   GHSA-hvrp-rf83-w775  task handlers expose other clients' tasks   fixed 1.27.2
-          #   GHSA-jpw9-pfvf-9f58  HTTP transport skips principal verification fixed 1.27.2
-          #   GHSA-vj7q-gjh5-988w  WebSocket transport lacks Host/Origin check fixed 1.28.1
-          #
-          # Not upgradable: semgrep 1.172.0, the latest release, declares `mcp==1.23.3` as
-          # an exact pin, so no semgrep version resolves a patched mcp.
-          #
-          # Not reachable: all three concern MCP *server transports*. This job runs
-          # `semgrep scan` over the filesystem and never starts an MCP server, so the
-          # vulnerable code is installed but never invoked.
-          #
-          # Not introduced here: master already installs mcp 1.23.3 today through the
-          # unpinned `semgrep>=1.100.0,<2` range. The lockfiles in .github/requirements/
-          # did not add this exposure, they made an existing one visible to a scanner that
-          # previously had no manifest to read.
-          #
-          # Remove this allowance as soon as semgrep depends on mcp >= 1.28.1.
-          allow-ghsas: GHSA-hvrp-rf83-w775, GHSA-jpw9-pfvf-9f58, GHSA-vj7q-gjh5-988w
+          # No advisory exceptions. This job carried three (GHSA-hvrp-rf83-w775,
+          # GHSA-jpw9-pfvf-9f58, GHSA-vj7q-gjh5-988w against mcp 1.23.3, which semgrep pinned
+          # exactly) under a stated removal condition: semgrep depending on mcp >= 1.28.1.
+          # semgrep 1.173.0 pins mcp==1.29.0, so the condition was met and the allowance is
+          # gone rather than inherited. An exception with a removal condition nobody rechecks
+          # is a permanent exception wearing a note.
 
   workflow-lint:
     name: Workflow Lint - actionlint
