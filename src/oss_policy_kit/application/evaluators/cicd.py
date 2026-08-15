@@ -22,6 +22,7 @@ from oss_policy_kit.application.evaluators._shared import (
     Path,
     _eval_sarif_adapter,
     _iter_structured_workflow_uses_with_location,
+    _lockfile_has_content,
     _parse_zizmor_severity_properties,
     _python_lock_or_pins,
     _reusable_workflow_ref_has_full_sha,
@@ -409,13 +410,16 @@ def eval_sec_pinlock_052(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
 
+    # Presence was the whole test for every ecosystem here, so a zero-byte lockfile -- what an
+    # interrupted `uv lock` or a stray `touch` leaves behind -- satisfied the control. An
+    # empty file pins nothing, and this control exists to establish that versions are fixed.
     missing: list[str] = []
     node_lock_names = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json")
-    if "node" in stacks and not any((repo / name).is_file() for name in node_lock_names):
+    if "node" in stacks and not any(_lockfile_has_content(repo / name) for name in node_lock_names):
         missing.append("Node.js lockfile (package-lock.json, yarn.lock, or pnpm-lock.yaml)")
     if "python" in stacks and not _python_lock_or_pins(repo):
         missing.append("Python lockfile or pinned requirements (== in requirements.txt, poetry.lock, etc.)")
-    if "go" in stacks and not (repo / "go.sum").is_file():
+    if "go" in stacks and not _lockfile_has_content(repo / "go.sum"):
         missing.append("go.sum")
 
     if not missing:

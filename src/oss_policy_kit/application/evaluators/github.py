@@ -144,6 +144,23 @@ def eval_gh_wf_020(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[str(sample[0].resolve())],
             confidence="medium",
         )
+    if ctx.workflows.parse_errors:
+        # Job-level permissions live in the parsed structure, so a workflow that did not
+        # parse contributed nothing to the search. Saying "no broad write scopes were
+        # detected" about it is true and useless: nothing was detected because nothing was
+        # read. Adding one invalid line to a workflow declaring `permissions: write-all`
+        # moved this control from FAIL to PASS -- the break bought the pass.
+        names = ", ".join(sorted({p.name for p, _ in ctx.workflows.parse_errors}))
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"Job-level permissions could not be read: {names} failed to parse, so this "
+                "control searched only the workflows that did."
+            ),
+            remediation="Fix the YAML syntax so job permissions can be evaluated, then re-run.",
+            evidence_sources=[str(p.resolve()) for p, _ in ctx.workflows.parse_errors],
+            confidence="low",
+        )
     return EvalOutcome(
         status=ControlStatus.PASS,
         reason="No obvious broad job-level write scopes were detected.",

@@ -18,6 +18,31 @@ from oss_policy_kit.application.evaluators._shared import (
 _NO_GITLAB_PIPELINES_REASON = "No GitLab CI pipelines to evaluate."
 
 
+def _gl_unreadable_pipelines(ctx: EvalContext, what: str) -> EvalOutcome | None:
+    """Manual review when a pipeline could not be parsed, for controls that PASS on absence.
+
+    A control whose PASS means "we looked and found nothing" must not return it when part of
+    what it was meant to look at never parsed. GL-PIPE-003 answered "No `curl|sh` / `wget|sh`
+    patterns detected in GitLab CI `script:` blocks" for a pipeline whose `script:` contained
+    exactly that, because one extra invalid line had emptied the structured scan. The break
+    bought the pass.
+
+    Controls that FAIL on a parse error -- GL-PIPE-001 exists to report exactly that -- do not
+    call this; they have already said the useful thing.
+    """
+
+    if not ctx.gitlab_ci.parse_errors:
+        return None
+    names = ", ".join(sorted({p.name for p, _ in ctx.gitlab_ci.parse_errors}))
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=f"{what} could not be read: {names} failed to parse, so this control scanned only the rest.",
+        remediation="Fix the YAML syntax in the listed pipeline file(s), then re-run evaluation.",
+        evidence_sources=[str(p.resolve()) for p, _ in ctx.gitlab_ci.parse_errors],
+        confidence="low",
+    )
+
+
 def eval_gl_pipe_001(ctx: EvalContext) -> EvalOutcome:
     """GL-PIPE-001: GitLab CI pipeline files present and parseable."""
 
@@ -136,6 +161,9 @@ def eval_gl_pipe_003(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[str(p.resolve()) for p in analysis.script_uses_curl_pipe_shell],
             confidence="high",
         )
+    unreadable = _gl_unreadable_pipelines(ctx, "`script:` blocks")
+    if unreadable is not None:
+        return unreadable
     return EvalOutcome(
         status=ControlStatus.PASS,
         reason="No `curl|sh` / `wget|sh` patterns detected in GitLab CI `script:` blocks.",

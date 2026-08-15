@@ -682,10 +682,27 @@ _GITIGNORE_SECRET_FRAGMENTS = (".env", "*.pem", "*.key", "secrets.", "credential
 _PIN_REQ_PIN = re.compile(r"==\s*[0-9A-Za-z._-]+")
 
 
+def _lockfile_has_content(path: Path) -> bool:
+    """True when a lockfile actually locks something.
+
+    ``is_file()`` was the whole test, so a zero-byte ``uv.lock`` -- what an interrupted
+    ``uv lock`` or a ``touch`` leaves behind -- satisfied SEC-PINLOCK-052 and reported
+    "Dependency lockfile or pinned requirements detected". An empty file pins nothing; the
+    control exists to establish that versions are fixed, and an empty file establishes the
+    opposite. Content is required, not just presence.
+    """
+
+    if not path.is_file():
+        return False
+    with contextlib.suppress(OSError):
+        return bool(path.read_text(encoding="utf-8", errors="replace").strip())
+    return False
+
+
 def _python_lock_or_pins(repo: Path) -> bool:
-    if (repo / "poetry.lock").is_file() or (repo / "Pipfile.lock").is_file() or (repo / "uv.lock").is_file():
+    if any(_lockfile_has_content(repo / n) for n in ("poetry.lock", "Pipfile.lock", "uv.lock")):
         return True
-    if (repo / "requirements.lock").is_file() or (repo / "requirements-lock.txt").is_file():
+    if any(_lockfile_has_content(repo / n) for n in ("requirements.lock", "requirements-lock.txt")):
         return True
     req = repo / _REQUIREMENTS_TXT
     if req.is_file():
