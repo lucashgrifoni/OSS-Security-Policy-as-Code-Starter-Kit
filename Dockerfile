@@ -25,10 +25,22 @@
 # ---------------------------------------------------------------------------
 # Stage 1: builder
 # ---------------------------------------------------------------------------
-# Base image pinned by digest (supply-chain hardening). The human-readable tag
-# is kept for clarity; .github/dependabot.yml (docker ecosystem) refreshes the
-# digest through reviewable pull requests.
-FROM python:3.12-slim-bookworm@sha256:93ab4b7fa528b25124c97bcc755415e60eb671a86b4dbe0328df2fe2d1c1193d AS builder
+# Base image pinned by digest (supply-chain hardening). The human-readable tag is
+# kept for clarity.
+#
+# NOTHING REFRESHES THIS AUTOMATICALLY, despite the docker ecosystem being
+# configured in .github/dependabot.yml. Dependabot's docker updater fires when a
+# newer TAG appears; `3.12-slim-bookworm` is a rolling tag whose name never
+# changes, so the digest behind it moves upstream and Dependabot has nothing to
+# propose. It has opened zero docker pull requests on this repository while
+# opening them routinely for pip, npm and github-actions -- the coverage looked
+# real and was not. This comment previously claimed Dependabot refreshed the
+# digest; it never has.
+#
+# Until something watches it, refresh by hand and check what it buys:
+#   docker buildx imagetools inspect python:3.12-slim-bookworm --format '{{.Manifest.Digest}}'
+#   trivy image --severity CRITICAL,HIGH --ignore-unfixed python@<digest>
+FROM python:3.12-slim-bookworm@sha256:a116514e19457bcb7af7efe9c3dd0b9b71e85b317694e7882a1c52aa15a78134 AS builder
 
 # Build-time environment hygiene. PIP_NO_CACHE_DIR keeps the wheel cache
 # out of the final image; PYTHONDONTWRITEBYTECODE avoids stray __pycache__
@@ -75,7 +87,7 @@ RUN pip install --no-cache-dir --upgrade "pip==26.1.1" \
 # ---------------------------------------------------------------------------
 # Stage 2: runtime
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm@sha256:93ab4b7fa528b25124c97bcc755415e60eb671a86b4dbe0328df2fe2d1c1193d AS runtime
+FROM python:3.12-slim-bookworm@sha256:a116514e19457bcb7af7efe9c3dd0b9b71e85b317694e7882a1c52aa15a78134 AS runtime
 
 # Container-baseline-1 expectations:
 # - non-root user
