@@ -9,21 +9,26 @@ Derived from the table itself rather than a list of commands: a row added for a 
 checked from the moment it is written, and a flag renamed in code fails here rather than in
 somebody's pipeline.
 
-`--help` is read from a subprocess, not by importing the Typer app. The rendered help is what
-an adopter actually sees, and it is the only place where Rich wrapping, hidden options and
-callback-level flags all resolve the way they will for them.
+**The flags come from the command object, not from rendered `--help`.** The first version ran
+`--help` in a subprocess, arguing that the rendered text is what an adopter sees. It passed on
+the author's machine and failed in CI on `--applicability-engine` and `--use-insights-evidence`,
+because Rich hard-wraps a long option name when the terminal is narrow -- at 80 columns those
+render as `applicability-en` and `use-insights-evi`, split across lines. Setting `COLUMNS` did
+not survive the runner.
+
+So the test was judging **layout** while claiming to judge **existence**, which is the same
+defect this release spent its time removing from the product: reading rendered text instead of
+structure. Click knows every option the command accepts, at any width, on any platform.
 """
 
 from __future__ import annotations
 
-import functools
-import os
 import re
-import subprocess
-import sys
 
 import pytest
+import typer.main
 
+from oss_policy_kit.cli.main import app
 from tests.conftest import ROOT
 
 _REFERENCE = ROOT / "docs" / "cli-reference.md"
@@ -53,26 +58,14 @@ def _documented() -> list[tuple[str, str]]:
     return pairs
 
 
-@functools.cache
-def _help_text(command: str) -> str:
-    """Cached: the table names ~127 flags across ~23 commands, and a subprocess per flag
-    turned a consistency check into two and a half minutes of the suite's wall clock."""
+def _declared_flags() -> dict[str, set[str]]:
+    """Every long option each command accepts, straight from the Click command objects."""
 
-    env = {**os.environ, "COLUMNS": "200", "NO_COLOR": "1", "TERM": "dumb"}
-    proc = subprocess.run(
-        [sys.executable, "-m", "oss_policy_kit", command, "--help"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        cwd=str(ROOT),
-        env=env,
-        timeout=120,
-    )
-    assert proc.returncode == 0, f"`{command} --help` exited {proc.returncode}: {proc.stderr[:300]}"
-    # Rich wraps long option lines; collapsing whitespace keeps a flag from being split in
-    # half by the terminal width and reported as missing.
-    return re.sub(r"\s+", " ", proc.stdout)
+    group = typer.main.get_command(app)
+    return {
+        name: {opt for param in command.params for opt in (*param.opts, *param.secondary_opts) if opt.startswith("--")}
+        for name, command in group.commands.items()
+    }
 
 
 def test_the_reference_table_was_actually_parsed() -> None:
@@ -86,10 +79,13 @@ def test_the_reference_table_was_actually_parsed() -> None:
 
 @pytest.mark.parametrize(("command", "flag"), _documented(), ids=[f"{c}{f}" for c, f in _documented()])
 def test_a_documented_flag_exists_on_the_command(command: str, flag: str) -> None:
-    help_text = _help_text(command)
+    declared = _declared_flags()
 
-    assert flag in help_text, (
-        f"docs/cli-reference.md documents `{flag}` for `{command}`, and `{command} --help` does "
-        "not offer it. An adopter copying that line gets a usage error from the tool that is "
-        "supposed to be teaching them."
+    assert command in declared, (
+        f"docs/cli-reference.md documents `{command}`, and the CLI has no such command. Available: {sorted(declared)}"
+    )
+    assert flag in declared[command], (
+        f"docs/cli-reference.md documents `{flag}` for `{command}`, and the command does not "
+        "accept it. An adopter copying that line gets a usage error from the tool that is "
+        f"supposed to be teaching them. It accepts: {sorted(declared[command])}"
     )

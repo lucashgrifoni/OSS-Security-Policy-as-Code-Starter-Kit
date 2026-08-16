@@ -37,7 +37,7 @@ jobs:
         # profile this job runs would flag it, so the template would fail the very
         # baseline it evaluates.
         #
-        # v10.0.15 or later matters here: before v10.0.14 a SHA pin fell through to an empty
+        # v10.0.14 or later matters here: before that release a SHA pin fell through to an empty
         # version and the action installed an UNPINNED wheel, so this line taught the
         # opposite of what its comment claimed.
         uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@f2e4992f755d83cd7666e2bd288e0e8b4bcaa7f5 # v10.0.15

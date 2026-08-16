@@ -18,9 +18,11 @@ from pathlib import Path
 from typing import Any
 
 from oss_policy_kit.application._evidence_rules import (
+    absent_technology_outcome,
     files_scanned_list,
     rule_finding_count,
     sample_finding_files,
+    unread_sources_note,
 )
 from oss_policy_kit.application.evaluators_common import read_scanner_evidence
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
@@ -72,6 +74,9 @@ def _make_k8s_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOutco
         sources = [str(evidence_path.resolve())]
         files_scanned = files_scanned_list(data)
         if not files_scanned:
+            blocked = absent_technology_outcome(data, technology="Kubernetes", sources=sources)
+            if blocked is not None:
+                return blocked
             return EvalOutcome(
                 status=ControlStatus.NOT_APPLICABLE,
                 reason=("No Kubernetes manifests detected in repository; control is not applicable."),
@@ -83,7 +88,10 @@ def _make_k8s_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOutco
         if count == 0:
             return EvalOutcome(
                 status=ControlStatus.PASS,
-                reason=f"No {rule_id} findings detected across {len(files_scanned)} scanned Kubernetes manifest(s).",
+                reason=(
+                    f"No {rule_id} findings detected across {len(files_scanned)} scanned Kubernetes manifest(s)."
+                    f"{unread_sources_note(data)}"
+                ),
                 remediation="Re-scan after manifest changes to keep evidence fresh.",
                 evidence_sources=sources,
                 confidence="high",

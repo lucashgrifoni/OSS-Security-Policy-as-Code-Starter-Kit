@@ -79,6 +79,7 @@ class PulumiScanOutcome:
     findings: list[PulumiFinding] = field(default_factory=list)
     scanned_at: str = ""
     diagnostics: str = ""
+    files_read: int = 0
 
 
 def _kit_version() -> str:
@@ -470,17 +471,32 @@ def run_scan(
     calls: list[PulumiCall] = []
     files_scanned: list[Path] = []
     parse_errors: list[dict[str, str]] = []
+    files_read = 0
     for f in files:
         try:
-            text = f.read_text(encoding="utf-8", errors="replace")
+            # BYTES, not text. `ast.parse` honours a PEP 263 `# -*- coding: latin-1 -*-`
+            # line and a BOM, so a legal module in another encoding still parses. Reading
+            # it as strict UTF-8 first rejected such a module and DELETED its findings --
+            # a public-read bucket went from FAIL to PASS.
+            source: bytes | str = f.read_bytes()
         except OSError as exc:
             parse_errors.append({"file": _normalize_target(repo_root, f), "error": str(exc)})
             continue
         try:
-            tree = ast.parse(text)
-        except SyntaxError as exc:
-            parse_errors.append({"file": _normalize_target(repo_root, f), "error": f"{exc.msg} (line {exc.lineno})"})
+            tree = ast.parse(source)
+        except (SyntaxError, ValueError) as exc:
+            # One handler, and the message is read defensively. Python 3.12 reports NUL
+            # bytes -- what a UTF-16 file looks like to the tokenizer -- as a SyntaxError,
+            # so the separate ValueError branch this used to carry was unreachable, and the
+            # comment inside it asserted the opposite of what the interpreter does. Older
+            # and future versions have used ValueError for the same input, which carries no
+            # `.msg` or `.lineno`, so both are caught and neither attribute is assumed.
+            detail = getattr(exc, "msg", None) or str(exc)
+            line = getattr(exc, "lineno", None)
+            where = f" (line {line})" if line is not None else ""
+            parse_errors.append({"file": _normalize_target(repo_root, f), "error": f"{detail}{where}"})
             continue
+        files_read += 1
         if not _file_imports_pulumi(tree):
             continue
         files_scanned.append(f)
@@ -492,6 +508,7 @@ def run_scan(
             findings.extend(fn(repo_root, calls))
     except Exception as exc:  # noqa: BLE001 - rule engine errors must not crash the scan
         return PulumiScanOutcome(
+            files_read=files_read,
             status="error",
             tool_version=_kit_version(),
             files_scanned=[_normalize_target(repo_root, f) for f in files_scanned],
@@ -501,6 +518,7 @@ def run_scan(
             diagnostics=f"rule engine raised {type(exc).__name__}: {exc}",
         )
     return PulumiScanOutcome(
+        files_read=files_read,
         status="ok",
         tool_version=_kit_version(),
         files_scanned=[_normalize_target(repo_root, f) for f in files_scanned],
@@ -535,6 +553,12 @@ def render_evidence_payload(outcome: PulumiScanOutcome, *, target: Path) -> dict
         "findings": [asdict(f) for f in outcome.findings],
         "diagnostics": {
             "parse_errors": outcome.parse_errors,
+            # How many candidate files the scan actually READ, which is not the same as
+            # `files_scanned`: this family filters that list down to sources of the
+            # technology, so a repository with one broken file and ten fine ones that are
+            # simply not Pulumi left it empty -- and a control read the emptiness as
+            # "nothing here was legible" and withdrew its verdict.
+            "files_read": outcome.files_read,
             "raw_message": outcome.diagnostics,
         },
     }

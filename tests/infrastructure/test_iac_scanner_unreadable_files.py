@@ -22,16 +22,30 @@ from oss_policy_kit.infrastructure.iac.pulumi import scanner as pulumi_scanner
 
 
 def _refuse_to_read(monkeypatch: pytest.MonkeyPatch, doomed_name: str) -> None:
-    """Make ``Path.read_text`` raise OSError for one specific filename."""
+    """Make the OS refuse one specific filename, whichever read the scanner uses.
+
+    Both ``read_text`` and ``read_bytes`` are doubled on purpose. This used to patch only
+    ``read_text``, and when the scanners moved to ``read_bytes`` -- so they could decode by BOM
+    instead of mangling a UTF-16 file -- the doomed file became readable again and three tests
+    started asserting nothing. The behaviour under test is "the OS would not give us this
+    file", which is independent of which method asks.
+    """
 
     real_read_text = Path.read_text
+    real_read_bytes = Path.read_bytes
 
     def _read_text(self: Path, *args: Any, **kwargs: Any) -> str:
         if self.name == doomed_name:
             raise OSError(13, "Permission denied")
         return real_read_text(self, *args, **kwargs)
 
+    def _read_bytes(self: Path) -> bytes:
+        if self.name == doomed_name:
+            raise OSError(13, "Permission denied")
+        return real_read_bytes(self)
+
     monkeypatch.setattr(Path, "read_text", _read_text)
+    monkeypatch.setattr(Path, "read_bytes", _read_bytes)
 
 
 def test_bicep_scan_records_a_file_it_could_not_open(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

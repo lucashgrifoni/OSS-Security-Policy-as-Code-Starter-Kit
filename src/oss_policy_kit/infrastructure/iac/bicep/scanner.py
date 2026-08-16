@@ -29,6 +29,7 @@ from typing import Any
 from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
 from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
+from oss_policy_kit.infrastructure.source_text import decode_source
 
 _STORAGE_ACCOUNTS_TYPE = "Microsoft.Storage/storageAccounts"
 
@@ -470,10 +471,14 @@ def run_scan(
     parse_errors: list[dict[str, str]] = []
     for f in files:
         try:
-            text = f.read_text(encoding="utf-8", errors="replace")
+            raw = f.read_bytes()
         except OSError as exc:
             parse_errors.append({"file": _normalize_target(repo_root, f), "error": str(exc)})
             continue
+        # Decode by BOM. An editor that saved this as UTF-16 produced a file a human still
+        # reads as Bicep; reading it as UTF-8 turned it into mojibake with no resources in
+        # it, which scored a clean PASS over a storage account with HTTPS-only disabled.
+        text = decode_source(raw)
         files_scanned.append(f)
         resources.extend(_parse_resources(text, f))
 

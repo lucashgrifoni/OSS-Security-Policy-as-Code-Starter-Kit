@@ -22,6 +22,7 @@ from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.finding_correlation import correlate
 from oss_policy_kit.application.finding_normalization import (
     NORMALIZED_SEVERITIES,
+    kit_evidence_partial_scan_warnings,
     normalize_kit_evidence,
 )
 from oss_policy_kit.application.finding_sarif import normalize_sarif_sources
@@ -220,8 +221,19 @@ def build_findings_report(
         "findings_by_severity": by_severity,
         "findings": [_finding_to_dict(f) for f in correlated],
         "correlation": result.to_dict(),
-        "extensions": ({"waiver_warnings": waiver_warnings} if waiver_warnings else {}),
+        "extensions": _extensions(waiver_warnings, kit_evidence_partial_scan_warnings(repo_root)),
     }
+
+
+def _extensions(waiver_warnings: list[str], partial_scan_warnings: list[str]) -> dict[str, Any]:
+    """Keep `extensions` absent-when-empty, which is how consumers already read it."""
+
+    out: dict[str, Any] = {}
+    if waiver_warnings:
+        out["waiver_warnings"] = waiver_warnings
+    if partial_scan_warnings:
+        out["partial_scan_warnings"] = partial_scan_warnings
+    return out
 
 
 def build_findings_summary(repo_root: Path, *, kit_version: str) -> dict[str, Any]:

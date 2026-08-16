@@ -17,6 +17,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.infrastructure.source_text import decode_source
+
 try:  # pragma: no cover - exercised via integration paths
     import hcl2 as _hcl2  # type: ignore[import-untyped]
 
@@ -74,8 +76,11 @@ def load_hcl_file(path: Path) -> dict[str, Any]:
     if not _HCL2_AVAILABLE or _hcl2 is None:
         raise HclLoadError(path, RuntimeError("python-hcl2 is not installed"))
     try:
-        with path.open("r", encoding="utf-8") as fp:
-            raw = _hcl2.load(fp)
+        # Decode by BOM before handing text to hcl2. An editor that saved this as UTF-16
+        # left a file a human still reads as Terraform, and reading it as UTF-8 raised
+        # UnicodeDecodeError -- which every control then reported as "this repository has
+        # no Terraform", a claim about the repository rather than about the read.
+        raw = _hcl2.loads(decode_source(path.read_bytes()))
     except FileNotFoundError as exc:  # pragma: no cover - caller checks existence
         raise HclLoadError(path, exc) from exc
     except Exception as exc:  # noqa: BLE001 - surface any parse failure as HclLoadError

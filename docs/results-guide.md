@@ -48,6 +48,29 @@ find the control unsatisfied, it failed to read the document that would say. See
 If unreadable evidence should stop a build in your context, that is a gate policy rather than a
 control verdict: `--fail-on degraded` exits 1 on `fail` **or** `manual-review-required`.
 
+A related rule applies one level down, to individual **source files a scanner could not parse**.
+When `scan-iac`, `scan-bicep`, `scan-cfn`, `scan-pulumi` or `scan-k8s` records entries in
+`diagnostics.parse_errors` — a file saved as UTF-16 is the common cause — the family's controls
+behave like this:
+
+| What the scan managed | Verdict | Why |
+|---|---|---|
+| **Nothing** parsed, at least one file failed | `manual-review-required` | `not-applicable` would say *"this repository has no Terraform"*, and a decoding failure is not evidence for that. "Nothing here" and "nothing legible" are different claims. |
+| Something parsed, no findings | `pass`, **and the reason names the skipped files** | The result was always true — it just never said what it covered. |
+| Something parsed, a finding | `fail`, unchanged | Unread sources can only *add* violations, so a real finding stays in `--fail-on fail`. |
+
+The middle row is deliberate rather than lenient. `scan-k8s` globs `**/*.yaml` across the whole
+tree, so on a repository that keeps a malformed YAML fixture on purpose — which is ordinary —
+withdrawing the verdict would turn every Kubernetes control `UNKNOWN` for a file that was never
+a manifest. So an incomplete *message* gets a complete message, not a withdrawn verdict.
+
+That has a consequence worth stating plainly: **no exit-code gate fires on the middle row.**
+`--fail-on degraded` acts on `fail` and `manual-review-required`, and a `pass` is neither — so
+it stops a build for the top row and does nothing for the middle one. If a skipped file must
+stop your pipeline in every case, gate on the scanner instead: `scan-*` prints how many files
+failed to parse, and `diagnostics.parse_errors` in the evidence file is the machine-readable
+form.
+
 ### `not-evaluated` is not a verdict either
 
 `not-evaluated` and `manual-review-required` are both `UNKNOWN` on the wire, and the `reason` is

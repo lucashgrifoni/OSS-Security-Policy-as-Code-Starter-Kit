@@ -120,14 +120,24 @@ def test_bicep_templates_the_scanner_cannot_open_are_counted_out_loud(
     (tmp_path / "locked.bicep").write_text(
         "resource stg 'Microsoft.Storage/storageAccounts@2023-01-01' = {}\n", encoding="utf-8"
     )
-    original = Path.read_text
+    original_text = Path.read_text
+    original_bytes = Path.read_bytes
 
     def _refuse(self: Path, *args: object, **kwargs: object) -> str:
         if self.name == "locked.bicep":
             raise PermissionError("Access is denied")
-        return original(self, *args, **kwargs)  # type: ignore[arg-type]
+        return original_text(self, *args, **kwargs)  # type: ignore[arg-type]
 
+    def _refuse_bytes(self: Path) -> bytes:
+        if self.name == "locked.bicep":
+            raise PermissionError("Access is denied")
+        return original_bytes(self)
+
+    # Both reads are doubled: the scanner moved to `read_bytes` so it could decode a UTF-16
+    # template by its BOM rather than mangling it, and a double that names only the old method
+    # leaves the file readable -- the test then passes while asserting nothing.
     monkeypatch.setattr(Path, "read_text", _refuse)
+    monkeypatch.setattr(Path, "read_bytes", _refuse_bytes)
     result = runner.invoke(app, ["scan-bicep", "--target", str(tmp_path)])
 
     assert result.exit_code == 0, result.output

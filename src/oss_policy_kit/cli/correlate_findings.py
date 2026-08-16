@@ -254,6 +254,11 @@ def _run_correlate_findings(
     )
     for w in report.get("extensions", {}).get("waiver_warnings", []):
         stderr_console().print(f"[yellow]Waivers:[/yellow] {markup_safe(w)}")
+    # A scanner that could not decode a source file still produced usable evidence, so the run
+    # succeeds -- but `findings_total` then counts less than the repository holds, and
+    # `--fail-on-severity` decides on that number. Say so where the operator is looking.
+    for w in report.get("extensions", {}).get("partial_scan_warnings", []):
+        stderr_console().print(f"[yellow]Partial scan:[/yellow] {markup_safe(w)}")
     if enrichment_file is not None:
         _warn_if_enrichment_unused(report, _echo_path(enrichment_file, target_path))
     _write_artifact(report, output_path)

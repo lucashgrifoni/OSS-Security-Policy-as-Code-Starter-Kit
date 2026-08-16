@@ -24,12 +24,13 @@ release tag and let Dependabot bump it:
 
 That is the form used in [`templates/workflows/oss-policy-kit-marketplace-action.yml`](../templates/workflows/oss-policy-kit-marketplace-action.yml).
 
-**Pin to v10.0.15 or later.** Before v10.0.14 a SHA-pinned reference fell through to an empty
-version and the action ran `pip install oss-policy-kit` with no pin at all, taking whatever was
-newest on PyPI. Following the advice on this page therefore produced a *less* reproducible
-install than ignoring it, and the two SHAs this page and the template used to show were both
-from that period. From v10.0.15 the action reads its version out of its own checkout, so every
-pinning style resolves to the exact wheel that revision ships.
+**Pin to v10.0.14 or later.** Before that release a SHA-pinned reference fell through to an
+empty version and the action ran `pip install oss-policy-kit` with no pin at all, taking
+whatever was newest on PyPI. Following the advice on this page therefore produced a *less*
+reproducible install than ignoring it, and the two SHAs this page and the template used to
+show were both from that period. Since v10.0.14 the action reads its version out of its own
+checkout, so every pinning style resolves to the exact wheel that revision ships. The example
+above pins v10.0.15 because that is the current release, not because v10.0.14 is unsafe.
 
 ## Inputs
 

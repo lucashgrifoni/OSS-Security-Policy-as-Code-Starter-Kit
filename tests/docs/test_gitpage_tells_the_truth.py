@@ -29,45 +29,81 @@ _GITPAGE = ROOT / "gitpage"
 _BUNDLE = _GITPAGE / "bundle.js"
 _PARTS = sorted((_GITPAGE / "parts").glob("*.jsx")) + [_GITPAGE / "app.jsx"]
 
-#: A double-quoted JS string with no escapes and no embedded quote of either kind. esbuild
-#: keeps such a literal verbatim apart from re-encoding non-ASCII, so it can be searched for
-#: in the minified output without reimplementing the minifier.
-_PLAIN_LITERAL = re.compile(r'"([^"\'\\\n`${}<>]{30,})"')
+#: A quoted JS string, single or double, with no escapes and no interpolation. Ten characters
+#: is enough to be a phrase and short enough to include the page's own `Now -- v10.0` heading,
+#: which the first version's 30-character floor exempted -- so the exact claim this file was
+#: written to protect was the one thing it did not check.
+_PLAIN_LITERAL = re.compile(r'"([^"\\\n`${}<>]{10,})"' r"|'([^'\\\n`${}<>]{10,})'")
+
+#: JSX text between tags: `<p>Some visible sentence</p>`. esbuild turns this into a string
+#: argument to React.createElement, so it lands in the bundle like any other literal -- and
+#: the first version, which only read quoted literals, could not see it change.
+_JSX_TEXT = re.compile(r">([^<>{}\n]{10,})<")
+
+#: `\xHH`, `\uXXXX`, `\u{XXXXX}` as esbuild's ASCII-only output writes them.
+_ESCAPE = re.compile(r"\\u\{([0-9a-fA-F]{1,6})\}|\\u([0-9a-fA-F]{4})|\\x([0-9a-fA-F]{2})")
 
 
-def _as_esbuild_writes_it(text: str) -> str:
-    """Re-encode a literal the way esbuild's ASCII-only output writes it.
+def _decoded(bundle: str) -> str:
+    """Turn the bundle's escapes back into the characters they stand for.
 
-    Two escape forms, and it took a failing run to learn that guessing one was not enough:
-    `\\xHH` in UPPERCASE hex below U+0100 (`.` becomes `\\xB7`, `SS` becomes `\\xA7`), and
-    `\\uXXXX` in lowercase above it (`--` becomes `\\u2014`). Anything past the BMP is written
-    as its two UTF-16 code units, so the encoding walks code units rather than code points.
+    The first version went the other way -- it re-encoded each source literal into the escape
+    form it *guessed* esbuild used -- and guessed wrong twice. esbuild writes `\\xHH` in
+    UPPERCASE hex but `\\uXXXX` in uppercase too (`\\u251C`), while that code emitted lowercase;
+    every character whose hex contains a-f would have been reported as missing from a bundle
+    that was perfectly fresh. It survived only because no swept string happened to contain one.
+    A curly quote (U+201C) would have been enough.
+
+    Decoding needs no model of the minifier, so it cannot be wrong about one. Surrogate pairs
+    fall out of the UTF-16 decode for free, which also settles the `\\u{...}` question.
     """
 
-    out: list[str] = []
-    raw = text.encode("utf-16-be")
-    for code in (int.from_bytes(raw[i : i + 2], "big") for i in range(0, len(raw), 2)):
-        if code < 128:
-            out.append(chr(code))
-        elif code < 256:
-            out.append(f"\\x{code:02X}")
-        else:
-            out.append(f"\\u{code:04x}")
-    return "".join(out)
+    units: list[int] = []
+    index = 0
+    for match in _ESCAPE.finditer(bundle):
+        units.extend(ord(c) for c in bundle[index : match.start()])
+        astral, bmp, byte = match.groups()
+        units.append(int(astral or bmp or byte, 16))
+        index = match.end()
+    units.extend(ord(c) for c in bundle[index:])
+    # Surrogate pairs are two code units and must recombine; a lone surrogate must not raise.
+    return b"".join(u.to_bytes(4, "little") for u in units).decode("utf-32-le", errors="replace")
 
 
 def _visible_prose() -> list[tuple[str, str]]:
-    """(part name, literal) for every plain prose literal in the page sources."""
+    """(part name, text) for everything a reader of the page can see."""
 
     found: list[tuple[str, str]] = []
     for part in _PARTS:
         text = part.read_text(encoding="utf-8")
-        for literal in dict.fromkeys(_PLAIN_LITERAL.findall(text)):
-            # Class lists and import paths are long and space-separated too, and they are not
-            # prose. Requiring a sentence-like shape keeps the check on what a reader sees.
-            if " " in literal and not literal.startswith(("http", "./", "M", "0 0 ")):
+        candidates = [g for m in _PLAIN_LITERAL.finditer(text) for g in m.groups() if g]
+        candidates += [m.group(1) for m in _JSX_TEXT.finditer(text)]
+        for literal in dict.fromkeys(c.strip() for c in candidates):
+            if _is_prose(literal):
                 found.append((part.name, literal))
     return found
+
+
+def _is_prose(candidate: str) -> bool:
+    """Keep what a reader sees; drop what only a parser sees.
+
+    Both extractors over-match, and the filter is where that is paid for. A quote regex pairs
+    the CLOSING quote of one literal with the OPENING quote of the next, so `{ as: Tag = "div",
+    className = "" }` yields `, className = `; and `>` ... `<` spans ordinary code, so an arrow
+    function through the next JSX tag yields ` aria-hidden=`. Neither is text on the page.
+
+    Real prose starts with a word and contains no assignment. That also drops a sentence
+    containing `=`, which this page has none of -- a false negative here costs a missed staleness
+    check, while a false positive would make the fence fire on a correctly rebuilt bundle, and
+    a fence that cries wolf gets deleted.
+    """
+
+    if not candidate or " " not in candidate or "=" in candidate:
+        return False
+    if not candidate[0].isalnum():
+        return False
+    # Class lists, import paths and SVG path data are long and space-separated too.
+    return not candidate.startswith(("http", "./", "M", "0 0 "))
 
 
 def test_there_is_prose_to_check() -> None:
@@ -78,19 +114,42 @@ def test_there_is_prose_to_check() -> None:
 
 
 def test_the_published_bundle_was_rebuilt_from_the_current_sources() -> None:
-    """Every prose string in the parts must be present in the committed bundle."""
+    """Every visible string in the parts must be present in the committed bundle."""
 
-    bundle = _BUNDLE.read_text(encoding="utf-8")
+    bundle = _decoded(_BUNDLE.read_text(encoding="utf-8"))
 
-    missing = [
-        f"{part}: {literal[:70]}" for part, literal in _visible_prose() if _as_esbuild_writes_it(literal) not in bundle
-    ]
+    missing = [f"{part}: {literal[:70]}" for part, literal in _visible_prose() if literal not in bundle]
 
     assert not missing, (
         "gitpage/bundle.js does not contain these strings from the page sources, so it was not "
         "rebuilt after they changed. GitHub Pages serves the prebuilt bundle -- the deploy "
         "workflow does not run esbuild -- so until `node build-js.mjs` runs and bundle.js is "
         f"committed, visitors keep seeing the old text: {missing}"
+    )
+
+
+def test_the_bundle_publishes_nothing_the_sources_no_longer_say() -> None:
+    """The direction the presence check cannot see: a claim DELETED from the sources.
+
+    "every source string is in the bundle" is satisfied by a bundle that also contains a
+    paragraph somebody removed, which is exactly the shape of the bug this file exists for --
+    the page kept announcing v8.0.0 after the sources moved on. Deletion is the case where a
+    stale bundle keeps publishing something the maintainer decided was wrong.
+
+    Scoped to the milestone titles and era labels, which are the page's dated claims and the
+    ones that go stale. Sweeping every bundle string would flag minifier artefacts and React's
+    own text, and a fence that fires on those gets switched off.
+    """
+
+    bundle = _decoded(_BUNDLE.read_text(encoding="utf-8"))
+    sources = "\n".join(p.read_text(encoding="utf-8") for p in _PARTS)
+
+    stale = [claim for claim in re.findall(r'(?:title|era):\s*"([^"\n]{4,})"', bundle) if claim not in sources]
+
+    assert not stale, (
+        "gitpage/bundle.js still publishes these milestone claims and no page source contains "
+        "them any more, so the deploy is serving text that was deliberately removed. Run "
+        f"`node build-js.mjs` in gitpage/ and commit the result: {stale}"
     )
 
 
