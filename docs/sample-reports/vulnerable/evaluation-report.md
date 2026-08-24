@@ -1,7 +1,7 @@
 # OSS Policy Kit - evaluation report
 
 - **Generated (UTC)**: `2026-08-06T00:00:00+00:00`
-- **Kit version**: `10.0.15`
+- **Kit version**: `10.0.16`
 - **Target**: `vulnerable-repo`
 - **Profile**: `github-level-1` - GitHub OSS starter baseline (level 1)
 
