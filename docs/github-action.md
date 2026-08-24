@@ -5,7 +5,7 @@ The kit ships as a composite GitHub Action so adopters can evaluate the bundled 
 ## Quick start
 
 ```yaml
-- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.15 # x-release-please-version
+- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.16 # x-release-please-version
   with:
     profile: github-level-1
     fail-on: fail
@@ -78,7 +78,7 @@ permissions:
 ```yaml
 - name: Run oss-policy-kit
   id: oss-policy
-  uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.15 # x-release-please-version
+  uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.16 # x-release-please-version
   with:
     profile: github-level-2
     sarif-output: results.sarif
