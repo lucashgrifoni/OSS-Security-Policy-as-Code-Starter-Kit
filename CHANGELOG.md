@@ -6,6 +6,14 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.17](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.16...v10.0.17) (2026-08-24)
+
+
+### Notes
+
+* **deps:** bump codeql-action to v4.37.7 and harden-runner to v2.21.0 ([e644ad4](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e644ad48335b876ad76caa6604c0ac7607b0dad4))
+* **deps:** carry the action bumps into the templates, example and docs ([1a9bd12](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/1a9bd12cf5ed1852bd5b34be3ea57b87ff11dbee))
+
 ## [10.0.16](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.15...v10.0.16) (2026-08-24)
 
 
