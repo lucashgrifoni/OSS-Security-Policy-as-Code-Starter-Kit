@@ -32,11 +32,15 @@ jobs:
 
       - name: Run oss-policy-kit baseline
         id: oss-policy
-        # Pinned to the commit SHA of the v10.0.4 release tag. A bare `@v10.0.4`
-        # tag would still resolve, but tags are mutable — and `CI-PIN-008` in the
-        # `github-level-1` profile this job runs would flag it, so the template
-        # would fail the very baseline it evaluates.
-        uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@9782606dccf3384cd38d41fea9642e99a2d77429 # v10.0.4
+        # Pinned to the commit SHA of the v10.0.15 release tag. A bare `@v10.0.15` tag would
+        # still resolve, but tags are mutable — and `CI-PIN-008` in the `github-level-1`
+        # profile this job runs would flag it, so the template would fail the very
+        # baseline it evaluates.
+        #
+        # v10.0.14 or later matters here: before that release a SHA pin fell through to an empty
+        # version and the action installed an UNPINNED wheel, so this line taught the
+        # opposite of what its comment claimed.
+        uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@f2e4992f755d83cd7666e2bd288e0e8b4bcaa7f5 # v10.0.15
         with:
           target: '.'
           # Omit `profile` to read it from oss-policy-kit.yaml at the repo root.

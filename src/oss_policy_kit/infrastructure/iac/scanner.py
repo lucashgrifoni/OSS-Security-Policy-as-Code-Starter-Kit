@@ -31,6 +31,7 @@ from typing import Any
 
 from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
+from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
 
 from .hcl_loader import hcl2_available
 from .tf_resource_index import TfBlock, TfResourceIndex, build_index
@@ -156,20 +157,18 @@ def _walk_tf_files(
     include_globs: Iterable[str],
     exclude_globs: Iterable[str] | None,
 ) -> list[Path]:
-    """Discover ``*.tf`` files honoring ``_SKIP_DIRS`` and operator excludes."""
+    """Discover ``*.tf`` files honoring ``_SKIP_DIRS`` and operator excludes.
 
-    seen: set[Path] = set()
-    excludes = tuple(exclude_globs or ())
-    for pattern in include_globs:
-        for path in repo_root.glob(pattern):
-            if not path.is_file():
-                continue
-            if any(part in _SKIP_DIRS for part in path.parts):
-                continue
-            if any(path.match(ex) for ex in excludes):
-                continue
-            seen.add(path.resolve())
-    return sorted(seen)
+    Delegates to the shared walk, which is what the other four IaC/K8s scanners already do and
+    what its own docstring says it exists for. This walker kept its own copy, and the copy tested
+    the skip-list against the ABSOLUTE path: a repository checked out under a directory the
+    adopter happened to name ``build`` or ``venv`` scanned as if it held no Terraform at all, and
+    twelve controls then asserted that positively. The skip-list is about what lies inside the
+    repository, so it belongs on the repo-relative path.
+    """
+
+    found = walk_matching_files(repo_root, include_globs, exclude_globs, _SKIP_DIRS)
+    return sorted({p.resolve() for p in found})
 
 
 # ---------------------------------------------------------------------------

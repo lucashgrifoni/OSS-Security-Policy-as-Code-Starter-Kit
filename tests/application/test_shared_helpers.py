@@ -588,11 +588,11 @@ def test_read_lower(tmp_path: Path) -> None:
 def test_is_ai_agent_text_file(tmp_path: Path) -> None:
     good = tmp_path / "README.md"
     good.write_text("x", encoding="utf-8")
-    assert s._is_ai_agent_text_file(good)
+    assert s._is_ai_agent_text_file(good, tmp_path)
     skip = tmp_path / "node_modules" / "x.md"
     skip.parent.mkdir()
     skip.write_text("x", encoding="utf-8")
-    assert not s._is_ai_agent_text_file(skip)
+    assert not s._is_ai_agent_text_file(skip, tmp_path)
 
 
 def test_find_any_text_hint(tmp_path: Path) -> None:

@@ -81,7 +81,22 @@ COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY src ./src
 # --no-cache-dir is redundant with ENV PIP_NO_CACHE_DIR=1 above, but stated
 # explicitly so KICS "Pip install Keeping Cached Packages" reads it directly.
-RUN pip install --no-cache-dir --upgrade "pip==26.1.1" \
+#
+# The pin was 26.1.1, which is one patch below the fix for CVE-2026-8643 (path
+# traversal via console_scripts entry point names, fixed in 26.1.2). The base image
+# ships pip 25.0.1; this upgrade was already clearing three of its four advisories
+# and stopped one short of the fourth. Nothing caught that, because the Trivy jobs
+# scan the source tree and the base image, and a `pip==` pin inside a RUN string is
+# neither -- see the built-image scan in .github/workflows/github-ci-cd.yml.
+#
+# KNOWN AND NOT FIXED HERE: the runtime stage still carries the BASE image's own
+# pip 25.0.1 at /usr/local, which this venv upgrade never touches. Scanning the
+# published 10.0.15 image reports both pips. The kit never invokes pip at runtime
+# (every mention in src/ is remediation text), so removing pip from the runtime
+# image would clear those four findings and shrink the attack surface -- but that
+# change cannot be validated without building the image, so it is left for a
+# maintainer who has a working Docker daemon.
+RUN pip install --no-cache-dir --upgrade "pip==26.1.2" \
     && pip install --no-cache-dir ".[all]"
 
 # ---------------------------------------------------------------------------

@@ -6,6 +6,32 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.16](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.15...v10.0.16) (2026-08-24)
+
+
+### Improvements
+
+* **cli:** the audited repository must not quietly steer the operator ([c30d7e7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c30d7e762f3092a1db1c228b1d29c8aad93da6b9))
+* **collectors:** a repository slug must not be able to steer the API path ([cdb0913](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/cdb0913a1082b478cd84c8361e97907e504cd95d))
+* **evaluators:** a control must not claim knowledge it does not have ([4db8d04](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4db8d0436770a704f032da2ce2d0faa382803515))
+* **evaluators:** breaking a file must not earn a control a pass ([#185](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/185)) ([14a70eb](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/14a70eb0bcff0c48c44f028473c12736edc3d927))
+* **evaluators:** sweep the comment-decides-the-verdict class instead of listing its sites ([#183](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/183)) ([576dc85](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/576dc8539f0c6642112539bbb8fc26d70505ec28))
+* **findings:** a result naming three files must not be published as naming one ([b44134c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b44134c07bda7ed252154604f93ac216a302987a))
+* **iac:** where a repository is checked out is not a property of its contents ([c5da22c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c5da22c736f611aa147c96027a91aeb80e68e4f7))
+* **infrastructure:** recognise a wide encoding that carries no byte order mark ([9967651](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9967651d9bd9bf505ed7d5c69eae9c42d007571a))
+* **loader:** a missing profile must not be reported with the host path ([3f72a62](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3f72a629291d16dc1e69e3e5da522e0d98ca6fea))
+* **pages:** keep the local-only preview out of the published site ([98d0b07](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/98d0b0784b7b123764d7667ebd5163ffbb842b75))
+* **scripts:** the consumer smoke venv must not inherit the repository path ([3c54249](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3c54249801f23fbc6174233d39ff6e46c431b397))
+* **scripts:** withdraw the --venv-dir override from the consumer smoke run ([a526178](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a52617853428ac11be57671ae6506a28bc996a87))
+* **supply-chain:** the SBOM and the image describe the release, not the runner ([3c735de](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3c735de3a433192a50b72293673cd59d9fe06083))
+* the X-ray's remaining items, and a bug I introduced fixing one of them ([#187](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/187)) ([d62b924](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/d62b924ac39747b59172289e675bb631fb8ecbaa))
+* **workflows:** a composite action is executed too, and one unreadable file is not the end of the run ([aefe325](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/aefe3254fca5748b9d922bd3a9f00bde18e4ea98))
+
+
+### Notes
+
+* correct what the documentation claims, and lock each claim to the code ([5ce7026](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/5ce7026ac53d47ddc8c0b060660ff8c76cb6b649))
+
 ## [10.0.15](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.14...v10.0.15) (2026-08-14)
 
 

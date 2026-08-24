@@ -30,6 +30,7 @@ import yaml
 from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
 from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
+from oss_policy_kit.infrastructure.source_text import decode_source
 
 EVIDENCE_SCHEMA_VERSION = "oss-policy-kit/evidence/k8s-baseline/v1"
 EVIDENCE_FILENAME = "k8s-baseline.json"
@@ -151,6 +152,28 @@ def _manifest_from_doc(doc: Any, path: Path) -> K8sManifest | None:
     )
 
 
+def _files_actually_scanned(
+    repo_root: Path,
+    files: list[Path],
+    parse_errors: list[dict[str, str]],
+) -> list[str]:
+    """The files this scan actually read -- discovery minus the ones that failed to parse.
+
+    ``files_scanned`` used to be the DISCOVERED list, which made it a count of candidates
+    rather than a record of work done. Downstream that difference decides verdicts: a control
+    reads a non-empty ``files_scanned`` as "there was something here and I looked at it", so a
+    repository whose only manifest was saved as UTF-16 reported 16 clean Kubernetes controls
+    over a pod declaring `privileged: true`. Every other scanner in the kit builds this list
+    from what it parsed; this one now agrees with them.
+
+    Helm templates skipped as unrendered stay IN the list: they were read successfully and
+    deliberately not evaluated, which is a different thing from unreadable.
+    """
+
+    failed = {entry["file"] for entry in parse_errors if "file" in entry}
+    return [t for t in (_normalize_target(repo_root, p) for p in files) if t not in failed]
+
+
 def _index_manifests(
     repo_root: Path,
     files: list[Path],
@@ -162,10 +185,15 @@ def _index_manifests(
     parse_errors: list[dict[str, str]] = []
     for path in files:
         try:
-            text = path.read_text(encoding="utf-8", errors="replace")
+            raw = path.read_bytes()
         except OSError as exc:
             parse_errors.append({"file": _normalize_target(repo_root, path), "error": str(exc)})
             continue
+        # YAML 1.2 REQUIRES a processor to accept UTF-8, UTF-16 and UTF-32 with a BOM, so a
+        # UTF-16 manifest is one `kubectl apply` would install -- not a broken file. Reading
+        # it as UTF-8 produced mojibake with no `kind:` in it, and a pod declaring
+        # `privileged: true` scored a clean scan.
+        text = decode_source(raw)
         if _HELM_TEMPLATE_MARKER.search(text):
             helm_skipped.append(_normalize_target(repo_root, path))
             continue
@@ -688,7 +716,7 @@ def run_scan(
             return K8sScanOutcome(
                 status="error",
                 tool_version=_kit_version(),
-                files_scanned=[_normalize_target(repo_root, p) for p in files],
+                files_scanned=_files_actually_scanned(repo_root, files, parse_errors),
                 helm_templates_skipped=helm_skipped,
                 parse_errors=parse_errors,
                 findings=[],
@@ -704,7 +732,7 @@ def run_scan(
         return K8sScanOutcome(
             status="ok",
             tool_version=_kit_version(),
-            files_scanned=[_normalize_target(repo_root, p) for p in files],
+            files_scanned=_files_actually_scanned(repo_root, files, parse_errors),
             helm_templates_skipped=helm_skipped,
             parse_errors=parse_errors,
             findings=findings,

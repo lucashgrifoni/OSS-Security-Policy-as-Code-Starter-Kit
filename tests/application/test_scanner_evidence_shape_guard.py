@@ -63,6 +63,10 @@ EVIDENCE_PARSER_EXEMPTIONS: dict[str, str] = {
     "oss_policy_kit.application.evaluators.governance": "conformance verdict file; no schema_version, guarded",
     "oss_policy_kit.application.evaluators.supply_chain": "sbom-quality evidence; guarded",
     "oss_policy_kit.application.engine": "loads the packaged catalog, not adopter evidence",
+    "oss_policy_kit.infrastructure.iac.hcl_loader": (
+        "parses HCL source, not a JSON/YAML document -- there is no root object to be the "
+        "wrong shape, and a parse failure is already an HclLoadError the scanner records"
+    ),
     "oss_policy_kit.application.finding_normalization": "normalises findings documents; own contract",
     "oss_policy_kit.application.findings_report": "renders a findings document; own contract",
     "oss_policy_kit.application.osps_coverage": "reads the packaged OSPS map",

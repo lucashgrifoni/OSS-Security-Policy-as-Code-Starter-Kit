@@ -10,12 +10,16 @@
 # directly. The action never modifies files in the repository: it only
 # reads them and writes reports under `output-dir`.
 #
-# Versioning: this file is published from the same tag as the PyPI wheel, and
-# the wheel installed always matches the action revision you pinned. Pin a full
-# tag (e.g. `@v10.0.13`), a major line (`@v10`), or -- recommended for production
-# -- a commit SHA; all three resolve to the exact wheel that revision ships.
-# Override with the `kit-version` input, or set it to `latest` to opt out of
-# pinning entirely.
+# Versioning: this file is published from the same tag as the PyPI wheel, and the
+# wheel installed always matches the action revision you pinned. Pin a full release
+# tag (e.g. `@v10.0.15`) or -- recommended for production -- the commit SHA of one.
+# Override with the `kit-version` input, or set it to `latest` to opt out of pinning.
+#
+# A major-line pin such as `@v10` RESOLVES correctly if you create that tag, but this
+# repository does not publish one, so nobody can actually use it. This comment used to
+# offer it as a supported option. A rolling major tag is deliberately not published:
+# it has to be moved on every release, and a release that forgets leaves everyone
+# pinned to it silently on an old version -- the opposite of what pinning is for.
 
 name: 'OSS Security Policy as Code'
 description: 'Evaluate a repository against bundled OSS security baselines (governance, CI/CD, supply chain).'

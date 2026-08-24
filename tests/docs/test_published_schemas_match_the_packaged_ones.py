@@ -38,10 +38,25 @@ PACKAGED_ONLY = {
     "profile-spec.schema.json",
 }
 
-#: Published output contracts, not evidence inputs, so they have no packaged twin.
+#: Published output contracts. They are exempt from the FLAT name parity above because their
+#: packaged copies live one directory down -- `data/schema/reports/2.0.json` and
+#: `data/schema/findings/1.0.json` -- so a name-set comparison never pairs them up.
+#:
+#: The comment here used to say they "have no packaged twin", which is false: both twins exist,
+#: and both are what the code actually validates against. The exemption was therefore leaving the
+#: kit's two most important contracts -- the report an adopter parses and the findings artifact --
+#: as the only published schemas with no parity lock at all. Measured when this was written: both
+#: pairs are byte-identical today. `test_the_nested_contracts_match_their_published_copy` is what
+#: keeps them that way.
 PUBLISHED_ONLY = {
     "evaluation-report-2.0.schema.json",
     "findings-1.0.schema.json",
+}
+
+#: published name -> packaged path, for the contracts the flat comparison cannot pair.
+NESTED_CONTRACT_PAIRS = {
+    "evaluation-report-2.0.schema.json": ("reports", "2.0.json"),
+    "findings-1.0.schema.json": ("findings", "1.0.json"),
 }
 
 
@@ -70,6 +85,32 @@ def test_a_published_schema_is_byte_identical_to_the_packaged_one(name: str) -> 
         f"{name} differs between the wheel and reports/schema/. Controls validate against the "
         "packaged copy while remediation messages send adopters to the published one, so a "
         "drift makes one of the two a lie."
+    )
+
+
+@pytest.mark.parametrize("published_name", sorted(NESTED_CONTRACT_PAIRS))
+def test_the_nested_contracts_match_their_published_copy(published_name: str) -> None:
+    """The report and findings contracts must say the same thing in both places.
+
+    Everything the flat comparison pairs by filename is already locked. These two were exempt, so
+    the packaged schema the code validates against and the published schema an adopter reads could
+    drift apart with nothing failing -- on precisely the two contracts the product is built around.
+
+    Compared as parsed JSON rather than as bytes: a reformat is not drift, and asserting on bytes
+    would make this fail for a reason nobody cares about.
+    """
+
+    import json
+
+    subdirectory, packaged_name = NESTED_CONTRACT_PAIRS[published_name]
+    published = PUBLISHED / published_name
+    packaged = PACKAGED / subdirectory / packaged_name
+
+    assert published.is_file(), f"{published_name} is no longer published under reports/schema/"
+    assert packaged.is_file(), f"{subdirectory}/{packaged_name} is no longer packaged in the wheel"
+    assert json.loads(published.read_text(encoding="utf-8")) == json.loads(packaged.read_text(encoding="utf-8")), (
+        f"{published_name} and {subdirectory}/{packaged_name} have drifted. One of them is what "
+        "the code validates against and the other is what an adopter reads; drift makes one a lie."
     )
 
 

@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -135,7 +135,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -176,8 +176,14 @@ jobs:
       - name: Twine check
         run: python scripts/twine_check_dist.py
 
+      # Same rule the publishing workflow follows: inventory the built distribution, not whatever
+      # this runner happens to have installed. Without a path argument the generator described the
+      # CI environment -- dev tooling included -- which is not what the wheel carries.
       - name: Generate CycloneDX SBOM
-        run: python -m cyclonedx_py environment --output-format JSON --output-file dist/sbom.cyclonedx.json
+        run: |
+          python -m venv .sbom-env
+          .sbom-env/bin/python -m pip install dist/*.whl
+          python -m cyclonedx_py environment .sbom-env --output-format JSON --output-file dist/sbom.cyclonedx.json
 
       - name: Smoke install wheel
         run: |
@@ -203,7 +209,7 @@ jobs:
     # not push, and needs no registry credentials.
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           # `audit` for the same reason as the base-image scan and publish-container.yml:
           # pulling from Docker Hub crosses dynamic CloudFront hosts that allowed-endpoints
@@ -238,3 +244,42 @@ jobs:
             exit 1
           fi
           echo "runs as uid ${uid}"
+
+      # Nothing scanned the image this build produces. The four Trivy jobs in
+      # security-ci-cd.yml are `scan-type: fs` against the source tree, plus one
+      # `scan-type: image` against the pinned BASE image -- and neither can see what
+      # the build ADDS on top of the base: the venv, the `[all]` dependency closure,
+      # and the pip the builder upgrades into it.
+      #
+      # Measured on the published `ghcr.io/lucashgrifoni/oss-policy-kit:10.0.15`, which
+      # is also `latest`: 32 fixable vulnerabilities, 2 CRITICAL and 9 HIGH. Most came
+      # from a base digest that was refreshed one day AFTER that release, so a build from
+      # the current Dockerfile no longer carries them -- but nothing in CI would have
+      # said so either way, which is the actual defect. The fs scan reports zero and
+      # never mentions pip, because a `pip==` pin inside a RUN string is not a manifest.
+      - name: Inventory the built image
+        # Reports MEDIUM and up so the layer the other jobs cannot see is at least
+        # visible in the log. Does not gate: the step below does that.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          scan-type: image
+          image-ref: oss-policy-kit:ci
+          scanners: vuln
+          severity: MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+          format: table
+
+      - name: Fail on fixable high-severity vulnerabilities in the built image
+        # This one has teeth. `ignore-unfixed` keeps it actionable: every finding it
+        # reports has a published fix, so going red always means there is something to
+        # do -- refresh the base digest, or move a pinned version.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          scan-type: image
+          image-ref: oss-policy-kit:ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table

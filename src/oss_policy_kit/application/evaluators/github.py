@@ -83,6 +83,21 @@ def eval_gh_wf_018(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[str(p.resolve()) for p in ctx.workflows.reusable_secrets_inherit_paths],
             confidence="medium",
         )
+    if ctx.workflows.parse_errors:
+        # A workflow that did not parse contributed nothing to the search, so "not
+        # detected" would be true and useless -- nothing was detected because nothing
+        # was read. One invalid character used to buy this control a pass.
+        unread = ", ".join(sorted({p.name for p, _ in ctx.workflows.parse_errors}))
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"Reusable-workflow secret flow could not be read: {unread} failed to parse, so this "
+                "control searched only the files that did."
+            ),
+            remediation="Fix the YAML syntax so reusable workflow calls can be read, then re-run.",
+            evidence_sources=[str(p.resolve()) for p, _ in ctx.workflows.parse_errors],
+            confidence="low",
+        )
     return EvalOutcome(
         status=ControlStatus.PASS,
         reason="No reusable workflow calls using `secrets: inherit` were detected.",
@@ -114,6 +129,21 @@ def eval_gh_wf_019(ctx: EvalContext) -> EvalOutcome:
             ),
             evidence_sources=[str(p.resolve()) for p in ctx.workflows.pr_self_hosted_runner_paths],
             confidence="medium",
+        )
+    if ctx.workflows.parse_errors:
+        # A workflow that did not parse contributed nothing to the search, so "not
+        # detected" would be true and useless -- nothing was detected because nothing
+        # was read. One invalid character used to buy this control a pass.
+        unread = ", ".join(sorted({p.name for p, _ in ctx.workflows.parse_errors}))
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"Runner labels on pull-request triggers could not be read: {unread} failed to parse, so this "
+                "control searched only the files that did."
+            ),
+            remediation="Fix the YAML syntax so runner labels can be evaluated, then re-run.",
+            evidence_sources=[str(p.resolve()) for p, _ in ctx.workflows.parse_errors],
+            confidence="low",
         )
     return EvalOutcome(
         status=ControlStatus.PASS,
@@ -180,6 +210,21 @@ def eval_gh_rel_021(ctx: EvalContext) -> EvalOutcome:
             remediation="Define release/package workflows with explicit concurrency groups.",
             evidence_sources=[],
             confidence="high",
+        )
+    if ctx.workflows.parse_errors:
+        # A workflow that did not parse contributed nothing to the search, so "not
+        # detected" would be true and useless -- nothing was detected because nothing
+        # was read. One invalid character used to buy this control a pass.
+        unread = ", ".join(sorted({p.name for p, _ in ctx.workflows.parse_errors}))
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"Release/deploy workflow detection could not be read: {unread} failed to parse, so this "
+                "control searched only the files that did."
+            ),
+            remediation="Fix the YAML syntax so release workflows can be detected, then re-run.",
+            evidence_sources=[str(p.resolve()) for p, _ in ctx.workflows.parse_errors],
+            confidence="low",
         )
     if not ctx.workflows.release_workflow_paths:
         return EvalOutcome(
@@ -308,7 +353,7 @@ def _gh_provenance_verification_recorded(evidence_path: Path) -> bool:
     if not evidence_path.is_file():
         return False
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evidence_path.read_text(encoding="utf-8"))
+        data = json.loads(evidence_path.read_text(encoding="utf-8-sig"))
         if isinstance(data, dict):
             verification = data.get("verification")
             if isinstance(verification, dict) and verification.get("transparency_log_inclusion"):
@@ -330,6 +375,21 @@ def eval_gh_prov_023(ctx: EvalContext) -> EvalOutcome:
     has_release_intent = bool(ctx.workflows.release_workflow_paths or ctx.workflows.cloud_deploy_workflow_paths)
     if not has_release_intent and _any_github_workflow_suggests_release_or_deploy(ctx):
         has_release_intent = True
+    if ctx.workflows.parse_errors:
+        # A workflow that did not parse contributed nothing to the search, so "not
+        # detected" would be true and useless -- nothing was detected because nothing
+        # was read. One invalid character used to buy this control a pass.
+        unread = ", ".join(sorted({p.name for p, _ in ctx.workflows.parse_errors}))
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"Release-intent detection could not be read: {unread} failed to parse, so this "
+                "control searched only the files that did."
+            ),
+            remediation="Fix the YAML syntax so release workflows can be detected, then re-run.",
+            evidence_sources=[str(p.resolve()) for p, _ in ctx.workflows.parse_errors],
+            confidence="low",
+        )
     if not has_release_intent:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,

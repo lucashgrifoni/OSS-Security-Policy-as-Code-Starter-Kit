@@ -39,7 +39,7 @@ jobs:
       attestations: write
     steps:
       - name: Harden runner network audit
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           # 'audit' (not 'block') by design: these jobs hit rotating GitHub Actions artifact
           # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
@@ -72,11 +72,27 @@ jobs:
         with:
           subject-path: "dist/*"
 
+      # The SBOM has to inventory the RELEASE, not the runner. `cyclonedx_py environment` with no
+      # path takes the current environment, and the line above has just filled it with the build
+      # tools -- so the file published with v10.0.15 listed 61 components (twine, build, keyring,
+      # SecretStorage, certifi) with `oss-policy-kit` absent and the wheel's real closure
+      # (click, jsonschema, pyyaml, typer) absent too. An adopter matching CVEs against it was
+      # scanning the publishing machine.
+      #
+      # So the generator runs from HERE against a throwaway environment that holds the built
+      # wheel. Generating from inside that environment instead would pull cyclonedx-py's own
+      # dependencies into the inventory; measured, that was the difference between 46 components
+      # and the 18 the artifact actually has.
+      #
+      # Limitation worth naming: the closure is whatever pip resolves at publish time, so this
+      # inventories the release as built, not as any later adopter will install it.
       - name: Generate SBOM
         run: |
           pip install --require-hashes -r .github/requirements/build-tools.txt
           mkdir -p artifacts
-          python -m cyclonedx_py environment --of JSON -o artifacts/sbom.cyclonedx.json
+          python -m venv .sbom-env
+          .sbom-env/bin/python -m pip install dist/*.whl
+          python -m cyclonedx_py environment .sbom-env --of JSON -o artifacts/sbom.cyclonedx.json
 
       - name: Stage provenance bundle for release assets
         run: |
@@ -111,7 +127,7 @@ jobs:
       contents: write
     steps:
       - name: Harden runner network audit
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           # 'audit' (not 'block') by design: these jobs hit rotating GitHub Actions artifact
           # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
@@ -165,7 +181,7 @@ jobs:
       id-token: write
     steps:
       - name: Harden runner network audit
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           # 'audit' (not 'block') by design: these jobs hit rotating GitHub Actions artifact
           # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
@@ -197,7 +213,7 @@ jobs:
       id-token: write
     steps:
       - name: Harden runner network audit
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           # 'audit' (not 'block') by design: these jobs hit rotating GitHub Actions artifact
           # endpoints with no wildcard support in allowed-endpoints, so an exact block list would

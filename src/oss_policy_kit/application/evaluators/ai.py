@@ -12,6 +12,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _AI_AGENT_TEST_PATTERNS,
     _AI_AGENT_TOOL_ALLOWLIST_PATHS,
     _AI_AGENT_TOOL_WILDCARD_HINTS,
+    _AI_MODEL_ALIASES,
     _AI_SECURITY_HEADINGS,
     _INTENDED_PURPOSE_HEADINGS,
     _LLM_SDK_HINTS,
@@ -30,16 +31,27 @@ from oss_policy_kit.application.evaluators._shared import (
     _agentic_signal,
     _annex_iv_section,
     _codeowners_covers_prompt_path,
+    _configured_value_mentions,
     _find_any_text_hint,
     _find_prompt_registry,
+    _has_content,
+    _hint_on_a_line_that_claims_it_exists,
+    _holds_a_non_empty_file,
+    _is_digest_shaped,
+    _is_real_version,
+    _is_vendored,
     _iter_ai_agent_text_files,
+    _llm_sdk_scan,
     _load_ai_agent_evidence,
     _mcp_applicable,
     _mcp_na,
     _mcp_text_signal,
+    _names_mention_any,
+    _parts_within_repo,
+    _raw_text_mentions,
     _read_lower,
-    _scan_for_llm_sdks,
-    _scan_readme_for_section,
+    _scan_readme_for_heading,
+    _update_config_names,
     contextlib,
     json,
 )
@@ -47,7 +59,7 @@ from oss_policy_kit.application.evaluators._shared import (
 
 def eval_llm_218a_po_001(ctx: EvalContext) -> EvalOutcome:
     """LLM-218A-PO-001: AI Security Considerations section present."""
-    p = _scan_readme_for_section(ctx.repo_root, _AI_SECURITY_HEADINGS)
+    p = _scan_readme_for_heading(ctx.repo_root, _AI_SECURITY_HEADINGS)
     if p is None:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -72,7 +84,8 @@ def eval_llm_218a_po_002(ctx: EvalContext) -> EvalOutcome:
     """LLM-218A-PO-002: Prompt / system-instruction registry directory present."""
     for rel in ("prompts", "system_prompts", "system-prompts", "prompt-registry"):
         d = ctx.repo_root / rel
-        if d.is_dir():
+        # `mkdir prompts` used to satisfy this. A registry is the prompts, not the directory.
+        if d.is_dir() and _holds_a_non_empty_file(d):
             return EvalOutcome(
                 status=ControlStatus.PASS,
                 reason=f"Prompt registry directory detected: {rel}/.",
@@ -109,8 +122,14 @@ def eval_llm_218a_ps_001(ctx: EvalContext) -> EvalOutcome:
             confidence="medium",
         )
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evidence.read_text(encoding="utf-8"))
-        if isinstance(data, dict) and data.get("model_sha") and data.get("model_version"):
+        data = json.loads(evidence.read_text(encoding="utf-8-sig"))
+        # Truthiness credited `model_sha: "x"` and `model_version: "TBD"`. The digest has to have
+        # the shape of one and the version has to name a version.
+        if (
+            isinstance(data, dict)
+            and _is_digest_shaped(data.get("model_sha"))
+            and _is_real_version(data.get("model_version"))
+        ):
             return EvalOutcome(
                 status=ControlStatus.PASS,
                 reason=(f"LLM release-integrity evidence present (model_version={data.get('model_version')})."),
@@ -131,7 +150,7 @@ def eval_llm_218a_ps_002(ctx: EvalContext) -> EvalOutcome:
     """LLM-218A-PS-002: Model versioning artifacts (signal-grade)."""
     for rel in ("models/MODEL_CARD.md", "MODEL_CARD.md", "model-card.md", "docs/model-card.md"):
         p = ctx.repo_root / rel
-        if p.is_file():
+        if _has_content(p):
             return EvalOutcome(
                 status=ControlStatus.PASS,
                 reason=f"Model card found at {rel}; model versioning artifact present.",
@@ -150,11 +169,27 @@ def eval_llm_218a_ps_002(ctx: EvalContext) -> EvalOutcome:
 
 def eval_llm_218a_pw_001(ctx: EvalContext) -> EvalOutcome:
     """LLM-218A-PW-001: LLM SDK dependencies declared."""
-    p = _scan_for_llm_sdks(ctx.repo_root)
+    p, conclusive = _llm_sdk_scan(ctx.repo_root)
+    if p is None and not conclusive:
+        # A repository with no manifest, or one the reader could not parse, is one the kit knows
+        # nothing about. Answering `not-applicable` there states that LLM controls do not apply --
+        # a claim about the repository, in the state no summary counts.
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "No readable dependency manifest, so whether this repository uses an LLM SDK could not be determined."
+            ),
+            remediation=(
+                "Add or repair a dependency manifest (pyproject.toml, requirements.txt, "
+                "package.json, Pipfile) so the declared dependencies can be read."
+            ),
+            evidence_sources=[],
+            confidence="low",
+        )
     if p is None:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No LLM SDK dependency detected; LLM controls do not apply to this repo.",
+            reason="Every dependency manifest was read and none declares an LLM SDK.",
             remediation="If this repo uses an LLM SDK (transformers / openai / anthropic / langchain), declare it.",
             evidence_sources=[],
             confidence="medium",
@@ -174,7 +209,9 @@ def eval_llm_218a_pw_002(ctx: EvalContext) -> EvalOutcome:
     for pattern in ("test_*prompt*injection*.py", "test_*adversarial*.py", "test_*jailbreak*.py"):
         with contextlib.suppress(OSError):
             for p in ctx.repo_root.rglob(pattern):
-                if p.is_file():
+                # The sweep had no skip list, so a test inside site-packages counted as the
+                # adopter's own; and an empty file named like a test is a filename, not a test.
+                if not _is_vendored(p, ctx.repo_root) and _has_content(p):
                     found.append(p)
     if not found:
         return EvalOutcome(
@@ -207,16 +244,23 @@ def eval_llm_218a_rv_001(ctx: EvalContext) -> EvalOutcome:
     for p in candidates:
         if not p.is_file():
             continue
-        with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
-            if any(sdk in text for sdk in _LLM_SDK_HINTS):
-                return EvalOutcome(
-                    status=ControlStatus.PASS,
-                    reason=f"Dependency-update config ({p.name}) explicitly references an LLM SDK.",
-                    remediation="Keep the SDK in the config so security updates land promptly.",
-                    evidence_sources=[str(p.resolve())],
-                    confidence="low",
-                )
+        # `# no openai packages are used in this repo` used to satisfy "explicitly references an
+        # LLM SDK". Only a key that SELECTS a package counts now; a config the parser cannot read
+        # keeps the old text read, so the parser cannot become a way to lose the entry.
+        selectors = _update_config_names(p)
+        references = (
+            _raw_text_mentions(p, _LLM_SDK_HINTS)
+            if selectors is None
+            else _names_mention_any(selectors, _LLM_SDK_HINTS)
+        )
+        if references:
+            return EvalOutcome(
+                status=ControlStatus.PASS,
+                reason=f"Dependency-update config ({p.name}) explicitly references an LLM SDK.",
+                remediation="Keep the SDK in the config so security updates land promptly.",
+                evidence_sources=[str(p.resolve())],
+                confidence="low",
+            )
     return EvalOutcome(
         status=ControlStatus.MANUAL_REVIEW_REQUIRED,
         reason="Dependency-update config does not explicitly reference an LLM SDK.",
@@ -228,7 +272,7 @@ def eval_llm_218a_rv_001(ctx: EvalContext) -> EvalOutcome:
 
 def eval_llm_ai_act_001(ctx: EvalContext) -> EvalOutcome:
     """LLM-AI-ACT-001: Intended purpose / users / limitations documented (Annex IV §1)."""
-    p = _scan_readme_for_section(ctx.repo_root, _INTENDED_PURPOSE_HEADINGS)
+    p = _scan_readme_for_heading(ctx.repo_root, _INTENDED_PURPOSE_HEADINGS)
     if p is None:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -255,14 +299,19 @@ def eval_llm_ai_act_001(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def _file_has_output_filter(p: Path) -> bool:
+def _file_has_output_filter(p: Path, repo_root: Path) -> bool:
     """True when a non-vendored code file references an output-filter / moderation hint."""
 
-    if not p.is_file() or any(skip in p.parts for skip in (".git", ".venv", "node_modules", "__pycache__")):
+    parts = _parts_within_repo(p, repo_root)
+    if not p.is_file() or any(skip in parts for skip in (".git", ".venv", "node_modules", "__pycache__")):
         return False
     with contextlib.suppress(OSError):
-        text = p.read_text(encoding="utf-8", errors="replace").lower()
-        return any(h in text for h in _OUTPUT_FILTER_HINTS)
+        text = p.read_text(encoding="utf-8", errors="replace")
+        # `# TODO: add guardrails` used to satisfy an EU AI Act conformance claim, on a line whose
+        # whole content is that the filter is missing. The hint has to sit on a line that does not
+        # say it is pending -- read wherever it appears, so a docstring describing real behaviour
+        # still counts as the evidence it is.
+        return _hint_on_a_line_that_claims_it_exists(text, _OUTPUT_FILTER_HINTS)
     return False
 
 
@@ -273,7 +322,7 @@ def _find_output_filter_files(repo_root: Path, limit: int = 5) -> list[Path]:
     for ext in ("*.py", "*.js", "*.ts", "*.mjs"):
         with contextlib.suppress(OSError):
             for p in repo_root.rglob(ext):
-                if _file_has_output_filter(p):
+                if _file_has_output_filter(p, repo_root):
                     matched.append(p)
                     if len(matched) >= limit:
                         return matched
@@ -317,7 +366,7 @@ def eval_llm_ai_act_003(ctx: EvalContext) -> EvalOutcome:
                 confidence="medium",
             )
     # Fall back to SECURITY.md section
-    section_match = _scan_readme_for_section(ctx.repo_root, _RISK_MGMT_HEADINGS)
+    section_match = _scan_readme_for_heading(ctx.repo_root, _RISK_MGMT_HEADINGS)
     if section_match is not None:
         return EvalOutcome(
             status=ControlStatus.PASS,
@@ -633,7 +682,10 @@ def eval_ai_agent_010(ctx: EvalContext) -> EvalOutcome:
                 evidence_sources=[str(p.resolve())],
                 confidence="medium",
             )
-        if "model" in text and any(h in text for h in ("gpt-", "claude", "gemini", "mistral", "llama")):
+        # A provider name anywhere in the file used to be enough, so a changelog line saying the
+        # team *rejected* a model failed the repository under `--fail-on fail`. The alias has to
+        # sit on the value side of a binding before this counts as a model that is configured.
+        if _configured_value_mentions(text, _AI_MODEL_ALIASES):
             unpinned.append(p)
     if unpinned:
         return EvalOutcome(
@@ -730,7 +782,7 @@ def eval_mcp_tool_hash_001(ctx: EvalContext) -> EvalOutcome:
     evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "mcp-tool-descriptions.json"
     if evidence.is_file():
         with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-            data = json.loads(evidence.read_text(encoding="utf-8"))
+            data = json.loads(evidence.read_text(encoding="utf-8-sig"))
             text = json.dumps(data).lower() if data is not None else ""
             if "sha256" in text or "hash" in text:
                 return EvalOutcome(

@@ -51,6 +51,39 @@ def test_sample_report_is_on_the_only_contract_the_kit_emits(lab: str) -> None:
 
 
 @pytest.mark.parametrize("lab", LABS)
+def test_sample_report_was_produced_by_the_kit_that_ships_with_it(lab: str) -> None:
+    """The version stamp is part of "what the current CLI writes", and nothing was reading it.
+
+    The four guards here checked contract, schema, redaction and JSON/MD agreement, and the
+    samples still drifted: they carried `kit_version 10.0.5` while the kit shipped 10.0.15, ten
+    patch releases later. A reader is told these files are the way to see a report without running
+    anything, so a stale stamp says the kit last produced this a version it did not.
+
+    Regenerating showed the drift was exactly one line per file and nothing else -- the verdicts,
+    reasons and remediation text were identical across those ten releases. That is a good sign
+    about contract stability and a bad one about this guard: the only field that moved was the
+    only field nobody compared.
+
+    Both formats are checked. The Markdown is what most readers open, and it carries its own copy
+    of the stamp, so a JSON-only assertion would leave half the samples able to drift.
+    """
+
+    from oss_policy_kit import __version__
+
+    assert _report(lab)["kit_version"] == __version__, (
+        f"docs/sample-reports/{lab}/evaluation-report.json was produced by kit "
+        f"{_report(lab)['kit_version']}, and this tree is {__version__}. Regenerate both labs with "
+        "the commands in docs/sample-reports/README.md, with SOURCE_DATE_EPOCH exported -- never "
+        "by editing the version string, which would claim a freshness the file does not have."
+    )
+
+    markdown = (SAMPLES / lab / "evaluation-report.md").read_text(encoding="utf-8")
+    assert f"`{__version__}`" in markdown, (
+        f"docs/sample-reports/{lab}/evaluation-report.md does not name kit {__version__}"
+    )
+
+
+@pytest.mark.parametrize("lab", LABS)
 def test_sample_report_validates_against_the_published_schema(lab: str) -> None:
     schema = json.loads(SCHEMA_2_0.read_text(encoding="utf-8"))
 

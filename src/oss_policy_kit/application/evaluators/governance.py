@@ -318,7 +318,7 @@ def _classify_evidence_files(
     expiry_warns: list[str] = []
     for path in json_files:
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8-sig"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             return (
                 stale,
@@ -717,7 +717,7 @@ def _read_evidence_json(evid: Path) -> Any:
     if not evid.is_file():
         return None
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return json.loads(evid.read_text(encoding="utf-8"))
+        return json.loads(evid.read_text(encoding="utf-8-sig"))
     return None
 
 
@@ -1590,7 +1590,7 @@ def eval_osps_scorecard_v6_001(ctx: EvalContext) -> EvalOutcome:
             confidence="medium",
         )
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evidence.read_text(encoding="utf-8"))
+        data = json.loads(evidence.read_text(encoding="utf-8-sig"))
         if isinstance(data, dict):
             verdict = str(data.get("conformance") or data.get("result") or data.get("overall") or "").strip().lower()
             if verdict in {"pass", "passed", "conformant", "true"}:

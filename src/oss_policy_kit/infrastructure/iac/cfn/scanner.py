@@ -31,6 +31,7 @@ import yaml
 from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
 from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
+from oss_policy_kit.infrastructure.source_text import decode_source
 
 _S3_BUCKET_TYPE = "AWS::S3::Bucket"
 
@@ -78,6 +79,7 @@ class CfnScanOutcome:
     findings: list[CfnFinding] = field(default_factory=list)
     scanned_at: str = ""
     diagnostics: str = ""
+    files_read: int = 0
 
 
 def _kit_version() -> str:
@@ -202,7 +204,13 @@ def _load_cfn(path: Path) -> dict[str, Any] | None:
     failed to parse, so the caller can surface it instead of dropping it.
     """
 
-    text = path.read_text(encoding="utf-8", errors="replace")
+    # Decode by BOM, not as UTF-8 only. A UTF-16 template is what PowerShell's `Out-File`
+    # writes by default and JSON parsers detect the encoding themselves (RFC 4627), so
+    # such a file is legal input, not a broken one. Reading it as UTF-8 produced mojibake
+    # that failed the `_looks_like_cfn` sniff below and left through the *not a template*
+    # door; refusing it outright instead degraded whole control families on repositories
+    # that merely contain a UTF-16 appsettings.json and no CloudFormation at all.
+    text = decode_source(path.read_bytes())
     if path.suffix.lower() == ".json":
         try:
             parsed = _json.loads(text)
@@ -613,12 +621,14 @@ def run_scan(
     parsed: list[tuple[Path, dict[str, Any]]] = []
     files_scanned: list[Path] = []
     parse_errors: list[dict[str, str]] = []
+    files_read = 0
     for f in files:
         try:
             tpl = _load_cfn(f)
         except (OSError, CfnParseError) as exc:
             parse_errors.append({"file": _normalize_target(repo_root, f), "error": str(exc)})
             continue
+        files_read += 1
         if tpl is None:
             continue
         files_scanned.append(f)
@@ -633,6 +643,7 @@ def run_scan(
             findings.extend(fn(repo_root, parsed))
     except Exception as exc:  # noqa: BLE001 - rule engine errors must not crash the scan
         return CfnScanOutcome(
+            files_read=files_read,
             status="error",
             tool_version=_kit_version(),
             files_scanned=[_normalize_target(repo_root, f) for f in files_scanned],
@@ -642,6 +653,7 @@ def run_scan(
             diagnostics=f"rule engine raised {type(exc).__name__}: {exc}",
         )
     return CfnScanOutcome(
+        files_read=files_read,
         status="ok",
         tool_version=_kit_version(),
         files_scanned=[_normalize_target(repo_root, f) for f in files_scanned],
@@ -676,6 +688,12 @@ def render_evidence_payload(outcome: CfnScanOutcome, *, target: Path) -> dict[st
         "findings": [asdict(f) for f in outcome.findings],
         "diagnostics": {
             "parse_errors": outcome.parse_errors,
+            # How many candidate files the scan actually READ, which is not the same as
+            # `files_scanned`: this family filters that list down to sources of the
+            # technology, so a repository with one broken file and ten fine ones that are
+            # simply not CloudFormation left it empty -- and a control read the emptiness as
+            # "nothing here was legible" and withdrew its verdict.
+            "files_read": outcome.files_read,
             "raw_message": outcome.diagnostics,
         },
     }

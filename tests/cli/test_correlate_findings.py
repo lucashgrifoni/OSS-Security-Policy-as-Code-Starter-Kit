@@ -269,3 +269,25 @@ def test_help_via_subprocess_exit_0() -> None:
     flat = " ".join(_ANSI_RE.sub("", proc.stdout).split())
     assert "correlate-findings" in flat
     assert "--fail-on-severity" in flat
+
+
+def test_a_partial_scan_is_said_out_loud_not_only_written_to_the_artifact(tmp_path: Path) -> None:
+    """`findings_total` reads as a total, and `--fail-on-severity` decides on that number.
+
+    When a scanner could not read one of its sources, the count is of what it managed to look
+    at. The artifact records that under `extensions.partial_scan_warnings`; an operator reading
+    the terminal would never open the artifact to find out, so it is printed too.
+    """
+
+    evidence = _iac_evidence([_crit()])
+    evidence["diagnostics"] = {"parse_errors": [{"file": "unreadable.tf", "error": "bad"}], "raw_message": ""}
+    _write(tmp_path, "iac-terraform.json", evidence)
+
+    result = _invoke(["correlate-findings", "--target", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "Partial scan" in result.output, f"the skipped file was never mentioned: {result.output}"
+    assert "unreadable.tf" in result.output, f"the warning does not name the file: {result.output}"
+
+    artifact = json.loads((tmp_path / ".oss-policy-kit" / "findings.json").read_text(encoding="utf-8"))
+    assert artifact["extensions"]["partial_scan_warnings"], "the artifact lost the warning the CLI printed"

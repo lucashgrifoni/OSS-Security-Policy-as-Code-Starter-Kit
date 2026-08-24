@@ -25,6 +25,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application._evidence_rules import _phrase, unread_sources
 from oss_policy_kit.application.input_limits import MAX_EVIDENCE_BYTES, oversize_reason
 from oss_policy_kit.domain.findings import (
     FindingLocation,
@@ -190,7 +191,7 @@ def _read_source(repo_root: Path, filename: str, default_tool: str) -> tuple[dic
         # RecursionError guards deeply-nested input: json.loads raises it (not
         # JSONDecodeError) past the recursion limit, and it must degrade to an
         # honest "unreadable" record, never crash correlate-findings with exit 3.
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, RecursionError):
         return None, SourceRecord(path=rel, kind="kit-evidence", tool=default_tool, status="unreadable")
     if not isinstance(payload, dict):
@@ -208,6 +209,37 @@ def _read_source(repo_root: Path, filename: str, default_tool: str) -> tuple[dic
         schema_version=str(payload["schema_version"]) if payload.get("schema_version") else None,
     )
     return payload, record
+
+
+def kit_evidence_partial_scan_warnings(repo_root: Path) -> list[str]:
+    """Name the source files the scanners could not parse, per evidence file.
+
+    A scanner that cannot decode a file records it in `diagnostics.parse_errors` and scans on.
+    The correlated artifact is then honestly labelled -- `sources_read` says the evidence file
+    was read `ok`, and it was -- while `findings_total` counts only what the scanners managed
+    to look at. Nothing in the artifact said a file had been skipped, and `--fail-on-severity`
+    gates pipelines on that number.
+
+    `sources_read[].status` is a closed enum with `additionalProperties: false`, so the record
+    itself cannot carry this. `extensions` is the contract's sanctioned free-form block and
+    already carries `waiver_warnings` the same way.
+
+    Shares `unread_source_files` with the control evaluators so "the scanner could not read
+    this" has one definition rather than two that drift.
+    """
+
+    warnings: list[str] = []
+    for filename, default_tool, _normalizer in KIT_EVIDENCE_SOURCES:
+        payload, _record = _read_source(repo_root, filename, default_tool)
+        if payload is None:
+            continue
+        shown, total = unread_sources(payload)
+        if shown:
+            warnings.append(
+                f"{filename}: the scanner could not parse {_phrase(shown, total)}, so findings from "
+                "those file(s) are absent from this artifact."
+            )
+    return warnings
 
 
 def normalize_kit_evidence(repo_root: Path) -> tuple[list[NormalizedFinding], list[SourceRecord]]:

@@ -5,7 +5,7 @@ The kit ships as a composite GitHub Action so adopters can evaluate the bundled 
 ## Quick start
 
 ```yaml
-- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.15 # x-release-please-version
+- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.16 # x-release-please-version
   with:
     profile: github-level-1
     fail-on: fail
@@ -16,13 +16,21 @@ A release tag is readable, but it is still mutable. For maximum supply-chain ass
 release tag and let Dependabot bump it:
 
 ```yaml
-- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@4dc762d87933601cd30faa3c006d9fd53acef60c # v10.0.2
+- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@f2e4992f755d83cd7666e2bd288e0e8b4bcaa7f5 # v10.0.15
   with:
     profile: github-level-1
     fail-on: fail
 ```
 
 That is the form used in [`templates/workflows/oss-policy-kit-marketplace-action.yml`](../templates/workflows/oss-policy-kit-marketplace-action.yml).
+
+**Pin to v10.0.14 or later.** Before that release a SHA-pinned reference fell through to an
+empty version and the action ran `pip install oss-policy-kit` with no pin at all, taking
+whatever was newest on PyPI. Following the advice on this page therefore produced a *less*
+reproducible install than ignoring it, and the two SHAs this page and the template used to
+show were both from that period. Since v10.0.14 the action reads its version out of its own
+checkout, so every pinning style resolves to the exact wheel that revision ships. The example
+above pins v10.0.15 because that is the current release, not because v10.0.14 is unsafe.
 
 ## Inputs
 
@@ -70,7 +78,7 @@ permissions:
 ```yaml
 - name: Run oss-policy-kit
   id: oss-policy
-  uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.15 # x-release-please-version
+  uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.16 # x-release-please-version
   with:
     profile: github-level-2
     sarif-output: results.sarif
@@ -85,6 +93,6 @@ permissions:
 
 ## Honesty contract
 
-The action runs the same `evaluate` command you would run locally. It does not collect platform evidence via the GitHub API: that requires `GITHUB_TOKEN` and `collect-evidence`, which is intentionally out of scope of the basic Marketplace action. To include platform evidence, run `oss-policy-kit collect-evidence` in a previous step and point the action at the resulting `oss-policy-reports/` artifacts via `--with-evidence` (manual flow) or commit the evidence files under `.oss-policy-kit/evidence/` before the evaluate step (recommended for hardened release workflows).
+The action runs the same `evaluate` command you would run locally. It does not collect platform evidence via the GitHub API: that requires `GITHUB_TOKEN` and `collect-evidence`, which is intentionally out of scope of the basic Marketplace action. To include platform evidence, run `oss-policy-kit collect-evidence` in a previous step: it writes into `<target>/.oss-policy-kit/evidence/`, which is exactly where the evaluate step reads from, so no extra flag is involved. For hardened release workflows you can instead commit those evidence files ahead of time.
 
 A full reusable example lives at [`templates/workflows/oss-policy-kit-marketplace-action.yml`](../templates/workflows/oss-policy-kit-marketplace-action.yml).

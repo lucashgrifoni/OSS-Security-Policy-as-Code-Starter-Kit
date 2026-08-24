@@ -180,6 +180,67 @@ def test_cli_reference_states_the_shipped_default_of_every_flag_it_rates() -> No
     assert wrong == [], f"cli-reference.md misstates a shipped default: {wrong}"
 
 
+#: A reference-table row: `| `command` | required | optional | description |`
+_TABLE_ROW = re.compile(r"^\|\s*`(?P<command>[a-z][a-z0-9-]*)`\s*\|(?P<rest>.*)\|\s*$")
+
+#: `--include` (csv glob, default `**/*.yaml`/`**/*.yml`) -- a VALUE default, written as a run of
+#: backticked tokens separated by slashes.
+_VALUE_DEFAULT = re.compile(
+    r"`--(?P<flag>[a-z][a-z0-9-]*)`\s*\([^)]*?default\s+(?P<values>`[^`)]+`(?:\s*/\s*`[^`)]+`)*)"
+)
+
+
+def _documented_value_defaults() -> list[tuple[str, str, list[str]]]:
+    """(command, flag, documented values) for every value default the reference table states."""
+
+    out: list[tuple[str, str, list[str]]] = []
+    for line in _CLI_REFERENCE.read_text(encoding="utf-8").splitlines():
+        row = _TABLE_ROW.match(line)
+        if not row:
+            continue
+        columns = [c.strip() for c in row.group("rest").split("|")]
+        for match in _VALUE_DEFAULT.finditer(" ".join(columns[:2])):
+            values = re.findall(r"`([^`]+)`", match.group("values"))
+            out.append((row.group("command"), match.group("flag"), values))
+    return out
+
+
+def test_cli_reference_states_the_shipped_value_of_every_default_it_spells_out() -> None:
+    """A documented default that is missing an entry costs coverage in silence.
+
+    The sibling guard above reads the polarity of BOOLEAN defaults, and only off `evaluate`. It
+    was green while `scan-cfn --include` was documented as `**/*.yml`/`**/*.yaml`/`**/*.json`,
+    three quarters of the truth: the shipped default also carries `**/*.template`. An adopter
+    pinning the documented default into CI stops scanning CloudFormation `.template` files and
+    nothing tells them -- the scan still succeeds, over fewer files.
+
+    Only comma-separated string defaults are compared, because those are the ones where "the
+    documented list" and "the shipped list" are the same kind of thing. Anything else is skipped
+    rather than guessed at, and the count assertion below keeps that skip from swallowing the
+    whole check.
+    """
+
+    import typer.main
+
+    from oss_policy_kit.cli.main import app
+
+    commands = typer.main.get_command(app).commands
+    compared: list[str] = []
+    wrong: list[str] = []
+    for command, flag, documented in _documented_value_defaults():
+        params = {p.name: p for p in commands[command].params} if command in commands else {}
+        parameter = params.get(flag.replace("-", "_"))
+        if parameter is None or not isinstance(parameter.default, str) or "," not in parameter.default:
+            continue
+        shipped = [piece.strip() for piece in parameter.default.split(",")]
+        compared.append(f"{command} --{flag}")
+        if sorted(shipped) != sorted(documented):
+            wrong.append(f"{command} --{flag}: documented {documented}, ships {shipped}")
+
+    assert compared, "no comma-separated default was compared; the pattern stopped matching the table"
+    assert wrong == [], f"cli-reference.md misstates a shipped default: {wrong}"
+
+
 def test_markdown_report_names_the_status_gov_waiv_014_returns(tmp_path: Path) -> None:
     returned = EVALUATOR_REGISTRY["GOV-WAIV-014"](_ctx(tmp_path, "github-level-3")).status
     report = ExecutionReport(

@@ -57,7 +57,7 @@ def _has_real_evidence(evidence_dir: Path) -> bool:
         return False
     for path in sorted(evidence_dir.glob("*.json")):
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8-sig"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
         if not has_placeholder_values(data):

@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from oss_policy_kit.application.evaluators_common import strip_yaml_comments
+from oss_policy_kit.application.input_limits import bad_input_detail
+from oss_policy_kit.infrastructure.source_text import decode_source
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
 
@@ -17,6 +19,11 @@ class WorkflowAnalysis:
     """Aggregated signals from all workflows in a repository."""
 
     workflow_paths: list[Path] = field(default_factory=list)
+    #: `action.yml` / `action.yaml` at the repository root and under `.github/actions/`. A
+    #: composite action's steps run exactly like a workflow's, so its `uses:` refs count toward
+    #: CI-PIN-008 -- without this, a workflow pinned entirely to SHAs vouched for a composite
+    #: action running `some-vendor/publish@main`.
+    composite_action_paths: list[Path] = field(default_factory=list)
     missing_top_level_permissions: list[Path] = field(default_factory=list)
     uses_pull_request_target: list[Path] = field(default_factory=list)
     mutable_action_refs: list[tuple[Path, str]] = field(default_factory=list)
@@ -619,6 +626,69 @@ def _iter_step_uses(data: dict[str, Any]) -> Iterator[str]:
                 yield str(step["uses"])
 
 
+def _iter_composite_action_uses(data: dict[str, Any]) -> Iterator[str]:
+    """Every ``uses:`` a composite action declares, read from the parsed structure.
+
+    A composite action hangs its steps off ``runs.steps``, not off ``jobs``, which is why
+    :func:`_iter_step_uses` finds nothing in one. Reading the parsed steps rather than the file
+    text is deliberate and carries the same guarantee it does for workflows: a ``uses:`` sitting
+    in a comment is not a step, so widening the search cannot reintroduce the false positive that
+    scanner was written to remove.
+    """
+
+    runs = data.get("runs")
+    if not isinstance(runs, dict):
+        return
+    steps = runs.get("steps")
+    if not isinstance(steps, list):
+        return
+    for step in steps:
+        if isinstance(step, dict) and isinstance(step.get("uses"), str):
+            yield str(step["uses"])
+
+
+def _iter_composite_action_files(repo_root: Path) -> Iterator[Path]:
+    """The two conventional homes of a composite action: the repository root, and `.github/actions/`.
+
+    Deliberately not a repository-wide sweep for ``action.yml``. A broader search reaches
+    ``examples/`` and vendored trees, and a deliberately-insecure fixture or somebody else's
+    dependency would then be reported as the adopter's own unpinned action. These two locations
+    are what GitHub documents and what the adopter is answerable for.
+    """
+
+    for name in ("action.yml", "action.yaml"):
+        candidate = repo_root / name
+        if candidate.is_file():
+            yield candidate
+    actions_dir = repo_root / ".github" / "actions"
+    if not actions_dir.is_dir():
+        return
+    yield from sorted(p for p in actions_dir.rglob("action.yml") if p.is_file())
+    yield from sorted(p for p in actions_dir.rglob("action.yaml") if p.is_file())
+
+
+def _analyze_one_composite_action(path: Path, result: WorkflowAnalysis) -> None:
+    """Record one composite action's mutable pins, or the fact that it could not be read."""
+
+    result.composite_action_paths.append(path)
+    try:
+        data: Any = load_yaml_file(path)
+    except Exception as exc:  # noqa: BLE001 - an unreadable action is recorded, never assumed empty
+        result.parse_errors.append((path, str(exc)))
+        return
+    if not isinstance(data, dict):
+        result.parse_errors.append((path, "composite action root must be a mapping"))
+        return
+    _scan_composite_uses_for_mutable(data, path, result.mutable_action_refs)
+
+
+def _scan_composite_uses_for_mutable(data: dict[str, Any], path: Path, out: list[tuple[Path, str]]) -> None:
+    """Flag mutable action pins from the steps a composite action really declares."""
+
+    for ref in _iter_composite_action_uses(data):
+        _record_mutable_ref(ref, path, out)
+
+
 #: ``actions/dependency-review-action`` and the GHES ``advanced-security/`` variant.
 _DEPENDENCY_REVIEW_RE = re.compile(r"(?:^|/)dependency-review-action$")
 
@@ -841,7 +911,25 @@ def _analyze_one_workflow(path: Path, result: WorkflowAnalysis, signal_acc: set[
     # Every consumer of this text asks whether the workflow DOES something. Nothing here
     # asks whether the file CONTAINS something -- if a secret scanner ever moves in, it must
     # read `path` itself, because a credential in a comment is still a leaked credential.
-    raw = strip_yaml_comments(path.read_text(encoding="utf-8", errors="replace"))
+    # The raw scan is the fallback CI-PIN-008 leans on when a workflow will not parse, so it
+    # has to read the same bytes the parser now does. A UTF-16 workflow used to arrive here as
+    # mojibake, which defeated the fallback too -- both roads to the finding were closed at once.
+    try:
+        raw = strip_yaml_comments(decode_source(path.read_bytes()))
+    except OSError as exc:
+        # The read sat outside this guard, so an unreadable workflow raised past the parser and
+        # out to the CLI's bad-input handler, which ended the whole evaluation with exit 2 and no
+        # report. That handler is right about the exception and wrong about the scope: the input
+        # it names is the repository, and one file inside a repository nobody vouched for is the
+        # ordinary condition this product exists to survive. Measured against eight other hostile
+        # shapes -- a `.gitlab-ci.yml` or a `.tf` that is a directory, evidence with the wrong
+        # root, 5000 levels of nesting, a 6000-digit integer, binary bytes, malformed SARIF --
+        # every one degraded and finished. This reader was the only one that refused.
+        #
+        # ``bad_input_detail`` rather than ``str(exc)``: the latter appends the resolved filename,
+        # and this reason is published in the report (M-002).
+        result.parse_errors.append((path, bad_input_detail(exc)))
+        return
     _scan_workflow_raw(raw, path, result, signal_acc)
     try:
         data: Any = load_yaml_file(path)
@@ -860,6 +948,8 @@ def analyze_workflows(repo_root: Path) -> WorkflowAnalysis:
     """Scan `.github/workflows` for static patterns."""
 
     result = WorkflowAnalysis()
+    for action_path in _iter_composite_action_files(repo_root):
+        _analyze_one_composite_action(action_path, result)
     wf_dir = repo_root / ".github" / "workflows"
     if not wf_dir.is_dir():
         return result

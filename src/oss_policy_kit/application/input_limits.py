@@ -54,6 +54,74 @@ MAX_CONFIG_BYTES = 1 * 1024 * 1024  # 1 MiB
 #: expressed by indentation rather than brackets.
 MAX_JSON_DEPTH = 200
 
+#: Nodes a user-controlled document may expand to once YAML aliases are resolved.
+#:
+#: The two limits above measure the document as WRITTEN -- bytes on disk, and bracket nesting.
+#: A YAML alias bomb is invisible to both by construction: it is a few hundred bytes and its
+#: bracket depth is one. What makes it expensive is that PyYAML resolves an alias to the *same
+#: object*, so a document that reads as a tree is really a DAG, and any walker without a notion
+#: of node identity re-descends every shared node once per path that reaches it.
+#:
+#: Measured on this tree at fan-out 8, a 315-byte file expanded to 2.1M nodes and cost the
+#: GitLab parser 1.0s; 357 bytes cost 11.1s; 399 bytes did not finish inside a 20s cap. The
+#: parse stayed flat at ~0.02s throughout, which is what places the cost in the traversal
+#: rather than in PyYAML.
+#:
+#: One million is deliberately far above anything honest. The largest YAML this project ships
+#: is the 226-control catalogue at ~57 KB, which expands to about 3.7k nodes -- roughly 270
+#: times under this limit -- and the median YAML file in the repository is 31 nodes.
+MAX_EXPANDED_NODES = 1_000_000
+
+
+def expanded_node_count(node: Any, *, cap: int = MAX_EXPANDED_NODES) -> int:
+    """Nodes reachable from *node* with aliases expanded, saturating just past *cap*.
+
+    Sizes are memoised per object, so the count itself costs one visit per *distinct* node and
+    stays proportional to the file rather than to what it expands to -- counting a bomb is
+    cheap even though walking it is not. Memoising the size is not the same as skipping a
+    repeat: a shared child is charged to every parent that references it, which is the whole
+    point. Were it charged once, an alias would be free and this would measure nothing.
+
+    A YAML document can legitimately be cyclic (``x: &a [*a]`` loads without complaint), so a
+    node already on the current path is charged as a leaf. That keeps a cycle finite here and
+    leaves it to be refused by the cap, rather than turning into a stack overflow inside a
+    guard whose job is to prevent exactly that class of failure.
+    """
+
+    memo: dict[int, int] = {}
+    on_path: set[int] = set()
+
+    def size(value: Any) -> int:
+        if not isinstance(value, (dict, list)):
+            return 1
+        key = id(value)
+        if key in memo:
+            return memo[key]
+        if key in on_path:
+            return 1
+        on_path.add(key)
+        if isinstance(value, dict):
+            total = 1 + len(value) + sum(size(v) for v in value.values())
+        else:
+            total = 1 + sum(size(v) for v in value)
+        on_path.discard(key)
+        memo[key] = min(total, cap + 1)
+        return memo[key]
+
+    return size(node)
+
+
+def overexpanded_reason(node: Any, *, label: str, cap: int = MAX_EXPANDED_NODES) -> str | None:
+    """Return a refusal message when *node* expands past *cap*, else ``None``."""
+
+    if expanded_node_count(node, cap=cap) <= cap:
+        return None
+    return (
+        f"{label} expands to more than {cap} nodes once its YAML aliases are resolved; "
+        "refusing to walk it to avoid local CI time/memory exhaustion. "
+        "Reduce the anchor/alias nesting in the file."
+    )
+
 
 def _advance_json_string(ch: str, escaped: bool) -> tuple[bool, bool]:
     """Step the in-string scanner; return ``(still_in_string, escaped_next)``."""
@@ -127,7 +195,7 @@ def read_text_capped(
     max_bytes: int,
     *,
     label: str,
-    encoding: str = "utf-8",
+    encoding: str = "utf-8-sig",
     errors: str = "strict",
 ) -> str:
     """Read *path* as text, but refuse files larger than *max_bytes*.
@@ -232,7 +300,7 @@ def load_capped_document(
     *,
     label: str,
     parser: Callable[[str], Any] = yaml.safe_load,
-    encoding: str = "utf-8",
+    encoding: str = "utf-8-sig",
 ) -> Any:
     """Size-cap, read, and parse *path*, mapping every bad-input failure to exit 2.
 
@@ -253,6 +321,12 @@ def load_capped_document(
     if too_deep is not None:
         raise InvalidInputError(too_deep)
     try:
-        return parser(text)
+        document = parser(text)
     except BAD_INPUT_ERRORS as exc:
         raise InvalidInputError(bad_input_reason(exc, label=label, name=path.name)) from exc
+    # Checked after parsing, not before: expansion is a property of the object graph, and the
+    # size and depth guards above both measure the text, where an alias bomb is invisible.
+    overexpanded = overexpanded_reason(document, label=f"{label} '{path.name}'")
+    if overexpanded is not None:
+        raise InvalidInputError(overexpanded)
+    return document

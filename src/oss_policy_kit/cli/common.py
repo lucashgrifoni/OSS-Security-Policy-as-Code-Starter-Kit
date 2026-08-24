@@ -692,6 +692,86 @@ class _EffectiveEvalSettings:
     report_json_contract: str
 
 
+def _announce_gate_policy_from_config(fail_on: str, config_name: str) -> None:
+    """Say on stderr that the gate policy came from the evaluated repository, not from the operator.
+
+    The precedence itself is documented and deliberate (`docs/cli-reference.md`): the config is a
+    fallback and an explicit flag always wins. What was wrong was the silence. The kit already
+    announced the profile it took from this same file, and said nothing about `fail_on` -- the one
+    fallback that can turn a run with failing controls into exit 0. Two repositories identical but
+    for that value exited 1 and 0, and stderr mentioned only the profile.
+
+    `none` is called out separately because it is the value that costs something: an operator
+    skimming a green run needs to read that nothing could have failed it, not that a setting was
+    loaded. Both interpolations go through ``markup_safe`` at the call site -- they are text from a
+    repository nobody vouched for, and `test_v10_0_7_markup_escaping` scans for the literal call
+    rather than trusting a pre-computed variable, which is what caught the first version of this.
+    """
+
+    if fail_on == "none":
+        stderr_console().print(
+            f"[yellow]Using --fail-on none from {markup_safe(config_name)}: "
+            "this run will never fail the gate.[/yellow]",
+        )
+        return
+    stderr_console().print(
+        f"[dim]Using --fail-on {markup_safe(fail_on)} from {markup_safe(config_name)}.[/dim]",
+    )
+
+
+def _config_profile_ref(raw: str, repo_root: Path) -> str:
+    """Anchor a relative profile FILE named by the target's config to the target.
+
+    ``load_profile_by_id`` takes either a bundled id or a path to a YAML profile, and resolves the
+    path form against the process working directory. That is right for ``--profile ./mine.yaml``,
+    which the operator typed. It is wrong for the same value arriving from ``oss-policy-kit.yaml``,
+    which lives in the repository under evaluation while the operator may be standing anywhere:
+    with a ``perfil.yaml`` in each place, the operator's file was loaded and the verdict computed
+    from a profile the target never named. Same defect ``output_dir`` had, same half fixed.
+
+    Two values pass through untouched, each for its own reason:
+
+    - a bundled id (``github-level-1``) has no YAML suffix, and must stay an id rather than
+      becoming a filename looked up inside the repository. This is the only thing keeping bundled
+      ids working, so it is load-bearing rather than merely defensive;
+    - an absolute path is left to PATH-01b, the open question of whether a repository nobody
+      audited may point the kit outside itself -- not something to settle in a path helper.
+
+    A third guard was written here and then removed, recorded because the reasoning was wrong
+    rather than merely unnecessary. It passed the raw value through when the anchored file did not
+    exist, justified as avoiding an M-002 host-path leak in the resulting ``Profile file not
+    found`` message. Measured: :func:`display_path` already anonymises that message, and the
+    guard's real effect was to fall back to the OPERATOR's working directory -- preserving the
+    very defect this helper exists to remove. It also masked the suffix guard above, so while both
+    were present neither could be killed by a mutation.
+    """
+
+    candidate = Path(raw)
+    if candidate.is_absolute() or candidate.suffix.lower() not in {".yaml", ".yml"}:
+        return raw
+    return str(repo_root / candidate)
+
+
+def _config_output_dir(raw: str, repo_root: Path) -> Path:
+    """Resolve an ``output_dir`` that came from the TARGET's config, against the target.
+
+    The file lives in the repository being evaluated, so a RELATIVE value in it means "inside this
+    repository". It was turned into a bare ``Path``, which resolved it against the OPERATOR's
+    working directory instead: a target carrying ``output_dir: ../ELSEWHERE`` wrote its reports
+    beside the operator's other projects -- nowhere near the repository being scanned, and
+    dependent on where the operator happened to stand -- and exited 0.
+
+    An ABSOLUTE value is left alone. `init` writes this file for the adopter's own repository and
+    `test_config_output_dir_used_when_flag_omitted` pins that an absolute path outside the repo is
+    honoured, which is a legitimate "put my reports in the shared folder" flow. Whether a config
+    should be allowed to point outside AT ALL when the repository is untrusted is a product
+    decision, not one to make inside a path helper -- recorded as PATH-01b.
+    """
+
+    candidate = Path(raw)
+    return candidate if candidate.is_absolute() else (repo_root / candidate)
+
+
 def _resolve_eval_settings(req: EvaluateRequest, repo_root: Path) -> _EffectiveEvalSettings:
     """Resolve the effective eval settings, honoring ``oss-policy-kit.yaml``.
 
@@ -710,7 +790,7 @@ def _resolve_eval_settings(req: EvaluateRequest, repo_root: Path) -> _EffectiveE
     if req.profile is not None:
         profile = req.profile
     elif project_config is not None:
-        profile = project_config.profile
+        profile = _config_profile_ref(project_config.profile, repo_root)
         stderr_console().print(
             f"[dim]Using profile from {markup_safe(project_config.path.name)}: "
             f"{markup_safe(project_config.profile)}[/dim]",
@@ -731,8 +811,9 @@ def _resolve_eval_settings(req: EvaluateRequest, repo_root: Path) -> _EffectiveE
     if project_config is not None:
         if not req.fail_on_provided:
             fail_on = project_config.fail_on
+            _announce_gate_policy_from_config(fail_on, project_config.path.name)
         if not req.output_dir_provided:
-            output_dir = Path(project_config.output_dir)
+            output_dir = _config_output_dir(project_config.output_dir, repo_root)
         if not req.report_json_contract_provided:
             report_json_contract = project_config.report_json_contract
 

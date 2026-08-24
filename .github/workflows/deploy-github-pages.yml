@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -44,6 +44,20 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      # `preview.html` is a standalone local preview, not part of the site. It went out with the
+      # directory because the upload takes a whole path, and it loads https://cdn.tailwindcss.com
+      # with no version and no integrity -- whoever controls that response would run arbitrary
+      # JavaScript on this Pages origin. index.html pins React by SHA-384; this file never was.
+      #
+      # Pruned here rather than excluded at the upload: `upload-pages-artifact` has no `exclude`
+      # input (name / path / retention-days / include-hidden-files), so an `exclude:` added in
+      # good faith would be a silent no-op. Not moved either -- it loads styles.css and parts/*.jsx
+      # by relative path, so relocating it breaks the preview it exists to be.
+      # Guarded by tests/docs/test_published_pages_pin_their_scripts.py, which derives the
+      # published set from this job rather than trusting a list.
+      - name: Keep the local-only preview out of the published artifact
+        run: rm -f gitpage/preview.html
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
@@ -67,7 +81,7 @@ jobs:
 
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: block
           allowed-endpoints: >
