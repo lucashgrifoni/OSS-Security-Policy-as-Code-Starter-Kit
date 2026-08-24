@@ -162,12 +162,12 @@ def test_a_document_inside_the_git_directory_is_not_the_projects_ml_bom(tmp_path
     path.parent.mkdir(parents=True)
     path.write_text('{"components": [{"type": "machine-learning-model"}]}', encoding="utf-8")
 
-    assert supply_chain._is_ml_bom_marker_file(path) is False
+    assert supply_chain._is_ml_bom_marker_file(path, tmp_path) is False
 
 
 def test_a_directory_named_like_an_ml_bom_is_not_one(tmp_path: Path) -> None:
     (tmp_path / "bom.json").mkdir()
-    assert supply_chain._is_ml_bom_marker_file(tmp_path / "bom.json") is False
+    assert supply_chain._is_ml_bom_marker_file(tmp_path / "bom.json", tmp_path) is False
 
 
 # --------------------------------------------------------------------------- #

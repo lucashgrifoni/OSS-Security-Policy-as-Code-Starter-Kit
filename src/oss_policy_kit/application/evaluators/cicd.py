@@ -121,7 +121,9 @@ def eval_ci_danger_007(ctx: EvalContext) -> EvalOutcome:
 
 
 def eval_ci_pin_008(ctx: EvalContext) -> EvalOutcome:
-    if not ctx.workflows.workflow_paths:
+    # A repository whose product IS an action has no workflows and still runs third-party
+    # actions, so `not-applicable` -- itself a positive claim -- would be wrong there.
+    if not (ctx.workflows.workflow_paths or ctx.workflows.composite_action_paths):
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason=_NO_WORKFLOWS_REASON,

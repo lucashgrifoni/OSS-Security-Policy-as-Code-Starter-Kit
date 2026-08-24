@@ -156,7 +156,7 @@ That behavior is intentional. It is the tool being honest, not a defect.
 
 - `github-level-1`: pragmatic baseline with clone-visible governance and CI hygiene.
 - `github-level-2`: adds stricter workflow hardening (`GH-WF-018` to `GH-REL-021`).
-- `github-level-3`: adds strict deployment identity and provenance expectations (`GH-DEPLOY-022`, `GH-PROV-023`).
+- `github-level-3`: platform-evidence and attested-provenance track. It **adds** `GH-PLAT-024`/`025`/`026`, `PROV-VERIFY-061`, `ORG-MFA-001`, `GOV-EVIDFRESH-054`, `AUDIT-STREAM-060`, `BUILD-SBOM-QUAL-003`, `CI-WFCALLSHA-055` and `SEC-FUZZ-001`, and it **drops** `GH-DEPLOY-022`, `GH-PROV-023` and `SEC-SECRETS-050` — those three live in `github-level-2`. Level 3 is not a superset of level 2: it trades the level-2 provenance control for the attested `PROV-VERIFY-061`. Run both if you want the union.
 - `github-release-hardening-1`: level-1 + branch-protection evidence/manual-review (`PLAT-BRPROT-015`) + evidence-freshness (`GOV-EVIDFRESH-054`).
 - `github-release-hardening-2`: level-2 + platform evidence controls (`GH-PLAT-024..026`).
 - `github-release-hardening-3`: level-3 + platform evidence controls (`PLAT-BRPROT-015`, `GH-PLAT-024..026`).

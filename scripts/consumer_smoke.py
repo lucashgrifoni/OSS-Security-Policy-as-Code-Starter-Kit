@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import tomllib
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
@@ -125,6 +126,34 @@ def _resolve_venv_dir(repo_root: Path, value: Path | None) -> Path:
     return venv_dir
 
 
+def _resolve_smoke_venv() -> tuple[Path, Path]:
+    """Return ``(venv_dir, containment_root)`` for the smoke virtualenv.
+
+    The venv used to live inside the repository unconditionally, which tied the length of every
+    installed path to wherever the adopter had cloned. On a 143-character checkout the worst
+    installed path reached 274 against a 260 limit, and `pip install` failed with `ENOENT` -- so
+    one of the canonical baseline commands could not run at all.
+
+    Moving it to a temp directory is the obvious repair and, done carelessly, removes a guard that
+    exists on purpose: :func:`_remove_virtualenv` calls ``shutil.rmtree``, and every path reaching
+    it is forced through :func:`_resolve_repo_child`, which refuses anything outside the
+    repository. So the containment is kept and its ROOT is parameterised instead of dropped: the
+    directory this script chooses is one it created itself, and deletion is confined to that.
+
+    A ``--venv-dir`` override shipped with the first version of this fix and was withdrawn. It let
+    the operator choose the directory the venv -- and therefore the interpreter this script
+    executes -- was built in, which Snyk Code reported as a command-injection dataflow from the
+    argument parser into :func:`subprocess.run`. By the letter of that class it is a false
+    positive: every call passes a list with ``shell=False``, and :func:`_safe_python_exe` already
+    refuses an interpreter resolving outside the venv. It was removed anyway, because the flag was
+    convenience rather than repair -- the MAX_PATH defect is fixed by the default alone -- and a
+    suppression would have needed an owner and an expiry to buy nothing.
+    """
+
+    containment_root = Path(tempfile.mkdtemp(prefix="oss-policy-kit-smoke-")).resolve()
+    return _resolve_venv_dir(containment_root, _DEFAULT_VENV_DIR), containment_root
+
+
 def _remove_virtualenv(repo_root: Path, venv_dir: Path, *, ignore_errors: bool = False) -> None:
     safe_venv_dir = _resolve_repo_child(repo_root, venv_dir, label="virtualenv cleanup target", must_exist=True)
     if not safe_venv_dir.is_dir() or not (safe_venv_dir / "pyvenv.cfg").is_file():
@@ -203,7 +232,7 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_root = _resolve_current_repo_root(args.repo_root)
-    venv_dir = _resolve_venv_dir(repo_root, None)
+    venv_dir, venv_containment = _resolve_smoke_venv()
     out_summary = _resolve_repo_child(
         repo_root,
         _DEFAULT_OUTPUT_SUMMARY,
@@ -212,7 +241,7 @@ def main() -> int:
     wheel = resolve_wheel(repo_root)
 
     if venv_dir.is_dir():
-        _remove_virtualenv(repo_root, venv_dir)
+        _remove_virtualenv(venv_containment, venv_dir)
 
     subprocess.run(
         [sys.executable, "-m", "venv", str(venv_dir)],
@@ -403,7 +432,10 @@ def main() -> int:
     md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     if not args.keep_venv:
-        _remove_virtualenv(repo_root, venv_dir, ignore_errors=True)
+        _remove_virtualenv(venv_containment, venv_dir, ignore_errors=True)
+        if venv_containment != repo_root:
+            # Only ever a directory this script created; the repository is never a candidate.
+            shutil.rmtree(venv_containment, ignore_errors=True)
 
     if mismatches:
         print(f"Smoke mismatches: {', '.join(mismatches)}", file=sys.stderr)

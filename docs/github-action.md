@@ -5,7 +5,7 @@ The kit ships as a composite GitHub Action so adopters can evaluate the bundled 
 ## Quick start
 
 ```yaml
-- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.15 # x-release-please-version
+- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.16 # x-release-please-version
   with:
     profile: github-level-1
     fail-on: fail
@@ -78,7 +78,7 @@ permissions:
 ```yaml
 - name: Run oss-policy-kit
   id: oss-policy
-  uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.15 # x-release-please-version
+  uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@v10.0.16 # x-release-please-version
   with:
     profile: github-level-2
     sarif-output: results.sarif
@@ -93,6 +93,6 @@ permissions:
 
 ## Honesty contract
 
-The action runs the same `evaluate` command you would run locally. It does not collect platform evidence via the GitHub API: that requires `GITHUB_TOKEN` and `collect-evidence`, which is intentionally out of scope of the basic Marketplace action. To include platform evidence, run `oss-policy-kit collect-evidence` in a previous step and point the action at the resulting `oss-policy-reports/` artifacts via `--with-evidence` (manual flow) or commit the evidence files under `.oss-policy-kit/evidence/` before the evaluate step (recommended for hardened release workflows).
+The action runs the same `evaluate` command you would run locally. It does not collect platform evidence via the GitHub API: that requires `GITHUB_TOKEN` and `collect-evidence`, which is intentionally out of scope of the basic Marketplace action. To include platform evidence, run `oss-policy-kit collect-evidence` in a previous step: it writes into `<target>/.oss-policy-kit/evidence/`, which is exactly where the evaluate step reads from, so no extra flag is involved. For hardened release workflows you can instead commit those evidence files ahead of time.
 
 A full reusable example lives at [`templates/workflows/oss-policy-kit-marketplace-action.yml`](../templates/workflows/oss-policy-kit-marketplace-action.yml).

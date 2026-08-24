@@ -127,6 +127,9 @@ _DRIVER_IDENTITY: dict[str, str] = dict(_DRIVER_IDENTITY_PAIRS)
 #: A driver name is echoed into every finding of the drop; cap it so a hostile
 #: or corrupt document cannot bloat the artifact through that field.
 _MAX_DRIVER_NAME_CHARS = 64
+#: Bounds on target-controlled location text entering `extensions.partial_scan_warnings`.
+_MAX_EXTRA_LOCATIONS_NAMED = 10
+_MAX_LOCATION_URI_CHARS = 200
 
 #: SARIF result kinds that are NOT failures. ``kind`` defaults to "fail" when
 #: absent (SARIF 2.1.0 §3.27.9), and "review"/"open" mean the tool has not
@@ -232,6 +235,115 @@ def _location(result: dict[str, Any]) -> FindingLocation:
         line_start=start if isinstance(start, int) and start > 0 else None,
         line_end=end if isinstance(end, int) and end > 0 else None,
     )
+
+
+def _extra_location_uris(result: dict[str, Any]) -> list[str]:
+    """The files named by ``locations[1:]`` -- the ones a single FindingLocation cannot hold.
+
+    SARIF 2.1.0 §3.27.12 makes ``result.locations`` the set of places the result was detected,
+    so entries after the first are affected files, not decoration. Bounded the same way
+    ``_foreign_driver`` bounds a driver name: this is target-controlled text on its way into a
+    published artifact.
+    """
+
+    locations = result.get("locations")
+    if not isinstance(locations, list) or len(locations) < 2:
+        return []
+    uris: list[str] = []
+    # Same pairing as the caller, and for the same reason: `cleaned not in uris` rescanned a
+    # growing list per location, so one result naming a monorepo cost O(locations^2) a second
+    # time. This one dominated -- 8.7s of the 19.16s measured, in its own frame.
+    seen: set[str] = set()
+    for entry in locations[1:]:
+        if not isinstance(entry, dict):
+            continue
+        physical = entry.get("physicalLocation")
+        if not isinstance(physical, dict):
+            continue
+        artifact = physical.get("artifactLocation")
+        uri = artifact.get("uri") if isinstance(artifact, dict) else None
+        if not isinstance(uri, str):
+            continue
+        # Strip C0 controls before the string can reach a Markdown cell or a terminal.
+        cleaned = "".join(ch for ch in uri.strip() if ch.isprintable())[:_MAX_LOCATION_URI_CHARS]
+        if cleaned and cleaned not in seen:
+            seen.add(cleaned)
+            uris.append(cleaned)
+    return uris
+
+
+def sarif_partial_location_warnings(repo_root: Path) -> list[str]:
+    """Name the affected files that the findings artifact cannot represent, per SARIF drop.
+
+    ``_location`` keeps ``locations[0]`` and a finding holds exactly one file, so a result
+    naming three files is published as one finding naming one of them. Measured through the
+    CLI: the other two appear in no field of the artifact, and the command exits 0.
+
+    This is the same loss ``finding_normalization.kit_evidence_partial_scan_warnings``
+    already reports for kit evidence, and its docstring carries the full argument -- a closed
+    ``sources_read[].status`` enum cannot hold the fact, ``extensions`` is the contract's
+    sanctioned place for it, and ``--fail-on-severity`` gates pipelines on a count that is
+    quietly incomplete without it.
+
+    Deliberately does NOT change ``findings_total`` or the primary location. Whether a
+    multi-location result should instead become one finding per location is a semantic
+    question about the published contract, recorded as a product decision rather than
+    settled here.
+    """
+
+    warnings: list[str] = []
+    for filename, _tool in SARIF_SOURCES:
+        dropped = _dropped_locations_in_drop(repo_root / _SARIF_DIR / filename, filename)
+        if not dropped:
+            continue
+        shown = dropped[:_MAX_EXTRA_LOCATIONS_NAMED]
+        listed = ", ".join(shown)
+        if len(dropped) > len(shown):
+            listed += f", and {len(dropped) - len(shown)} more"
+        warnings.append(
+            f"{filename}: results in this drop name further affected file(s) that a finding "
+            f"cannot carry, so they are absent from findings[] and from findings_total: {listed}."
+        )
+    return warnings
+
+
+def _dropped_locations_in_drop(path: Path, filename: str) -> list[str]:
+    """Every extra location one SARIF drop names, in document order, deduplicated.
+
+    Silent on anything it cannot read. A drop that is missing, oversize or unparseable is
+    already reported through ``sources_read`` by :func:`normalize_sarif_sources`; saying it
+    twice, in a field about a different problem, would be noise. Returning ``[]`` here never
+    claims the drop was fine.
+    """
+
+    if not path.is_file():
+        return []
+    if oversize_reason(path, MAX_SARIF_BYTES, label=filename) is not None:
+        return []
+    runs, err = _load_runs(path)
+    if err is not None or runs is None:
+        return []
+    dropped: list[str] = []
+    # Membership in a set, order in the list. `uri not in dropped` rescanned a growing list for
+    # every location, so one rule reported across a monorepo cost O(locations^2): 50,000 distinct
+    # files in a 3.84 MiB drop took 19.16s, and the drop is well inside the 20 MiB cap, so nothing
+    # refused it. Order is kept because the warning names the first ten and counts the rest -- a
+    # set alone would make which ten an adopter sees depend on hashing.
+    seen: set[str] = set()
+    for run in runs:
+        if not isinstance(run, dict):
+            continue
+        results = run.get("results")
+        if not isinstance(results, list):
+            continue
+        for result in results:
+            if not isinstance(result, dict) or _is_non_finding(result):
+                continue
+            for uri in _extra_location_uris(result):
+                if uri not in seen:
+                    seen.add(uri)
+                    dropped.append(uri)
+    return dropped
 
 
 def _vulnerability_ids(rule: str, props: dict[str, Any]) -> tuple[str, ...]:
@@ -458,4 +570,5 @@ __all__ = [
     "SARIF_SOURCES",
     "normalize_sarif_level",
     "normalize_sarif_sources",
+    "sarif_partial_location_warnings",
 ]

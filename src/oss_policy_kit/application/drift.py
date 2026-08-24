@@ -331,7 +331,11 @@ def load_report_json(path: Path, *, label: str = "Report") -> dict[str, Any]:
     """
 
     try:
-        text = path.read_text(encoding="utf-8")
+        # ``utf-8-sig`` matches every other reader of an operator-supplied document: it strips a
+        # byte-order mark and is identical when there is none. Plain ``utf-8`` let the mark reach
+        # ``json.loads``, which rejected it -- so a report an editor had saved with a BOM was
+        # reported as unparseable, about a file the kit could read perfectly well.
+        text = path.read_text(encoding="utf-8-sig")
     except BAD_INPUT_ERRORS as exc:
         raise InvalidInputError(bad_input_reason(exc, label=label, name=path.name)) from exc
     # Depth is checked BEFORE json.loads, not left to RecursionError: CPython 3.12

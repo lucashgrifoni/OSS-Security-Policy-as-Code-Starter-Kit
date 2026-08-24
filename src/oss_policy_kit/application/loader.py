@@ -298,8 +298,20 @@ def resolve_profile_file(kit_root: Path, profile_id: str) -> Path:
         # looks like an external YAML path gets a clearer "file not found" message
         # instead of the confusing "<id>.yaml/profile.yaml" double-suffix.
         if profile_id.strip().lower().endswith((".yaml", ".yml")):
+            # An ABSOLUTE value is named by its basename only, which is the same line
+            # `cli.common.display_path` holds: a relative value is echoed as the operator
+            # wrote it, and anything absolute loses its parent directories on purpose.
+            #
+            # Not hypothetical hardening. Anchoring a config-supplied profile to the target
+            # made the CLI hand this message a CONSTRUCTED absolute path, so `--target .`
+            # answered with the operator's full host path -- account name included -- in a
+            # message written to be pasted into an issue. It was defended at the time with
+            # "display_path already anonymises that message". It does not: it is never
+            # applied here. Fixed at the message so every caller benefits, and without the
+            # application layer importing the CLI layer.
+            shown = Path(profile_id).name if Path(profile_id).is_absolute() else profile_id
             raise LoadError(
-                f"Profile file not found: '{profile_id}'. Pass the path to an existing YAML profile, "
+                f"Profile file not found: '{shown}'. Pass the path to an existing YAML profile, "
                 "or a bundled profile id (run 'oss-policy-kit profiles' to list bundled ids)."
             )
         raise LoadError(

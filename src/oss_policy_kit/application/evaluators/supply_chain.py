@@ -21,6 +21,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _branch_protection_evidence,
     _find_dockerfiles,
     _parse_branch_protection_evidence,
+    _parts_within_repo,
     _scan_sarif_epss_kev,
     cast,
     contextlib,
@@ -194,15 +195,15 @@ def _discover_aibom_files(repo_root: Path) -> list[Path]:
     # repo via the machine-learning-model component marker.
     with contextlib.suppress(OSError):
         for p in list(repo_root.rglob("*.cdx.json")) + list(repo_root.rglob("bom.json")):
-            if _is_ml_bom_marker_file(p):
+            if _is_ml_bom_marker_file(p, repo_root):
                 candidates.append(p)
     return candidates
 
 
-def _is_ml_bom_marker_file(p: Path) -> bool:
+def _is_ml_bom_marker_file(p: Path, repo_root: Path) -> bool:
     """True when a non-.git JSON file carries an ML-BOM / model-card marker in its head."""
 
-    if not p.is_file() or ".git" in p.parts:
+    if not p.is_file() or ".git" in _parts_within_repo(p, repo_root):
         return False
     sample = p.read_text(encoding="utf-8", errors="replace")[:8000].lower()
     return "machine-learning-model" in sample or "modelcard" in sample or "ml-bom" in sample
@@ -246,7 +247,7 @@ def eval_worm_postinstall_001(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(pkg.read_text(encoding="utf-8"))
+        data = json.loads(pkg.read_text(encoding="utf-8-sig"))
         if isinstance(data, dict):
             raw_scripts = data.get("scripts")
             scripts = cast(dict[str, Any], raw_scripts) if isinstance(raw_scripts, dict) else {}
@@ -826,7 +827,7 @@ def _discover_dockerfiles(repo_root: Path) -> list[Path]:
             dockerfiles.append(p)
     with contextlib.suppress(OSError):
         for p in repo_root.glob("**/Dockerfile"):
-            if p not in dockerfiles and ".git" not in p.parts:
+            if p not in dockerfiles and ".git" not in _parts_within_repo(p, repo_root):
                 dockerfiles.append(p)
     return dockerfiles
 

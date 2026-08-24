@@ -62,18 +62,23 @@ def test_po_001_pass(tmp_path: Path) -> None:
 
 
 def test_po_002_pass(tmp_path: Path) -> None:
+    """A registry is the prompts in it. The bare `mkdir` this used to assert is the defect."""
+
     (tmp_path / "prompts").mkdir()
+    (tmp_path / "prompts" / "system.md").write_text("You are a careful assistant.\n", encoding="utf-8")
     assert ai.eval_llm_218a_po_002(_ctx(tmp_path)).status == ControlStatus.PASS
 
 
 def test_ps_001_pass_and_incomplete(tmp_path: Path) -> None:
+    """`model_sha: "abc"` was accepted for being truthy; a digest has to have the shape of one."""
+
     _write(
         tmp_path,
         ".oss-policy-kit/evidence/llm-release-integrity.json",
-        json.dumps({"model_sha": "abc", "model_version": "1.2.3"}),
+        json.dumps({"model_sha": "a" * 64, "model_version": "1.2.3"}),
     )
     assert ai.eval_llm_218a_ps_001(_ctx(tmp_path)).status == ControlStatus.PASS
-    _write(tmp_path, ".oss-policy-kit/evidence/llm-release-integrity.json", json.dumps({"model_sha": "abc"}))
+    _write(tmp_path, ".oss-policy-kit/evidence/llm-release-integrity.json", json.dumps({"model_sha": "a" * 64}))
     assert ai.eval_llm_218a_ps_001(_ctx(tmp_path)).status == ControlStatus.MANUAL_REVIEW_REQUIRED
 
 
@@ -93,7 +98,18 @@ def test_pw_002_pass(tmp_path: Path) -> None:
 
 
 def test_rv_001_pass(tmp_path: Path) -> None:
-    _write(tmp_path, ".github/dependabot.yml", "updates:\n  - package-ecosystem: pip  # openai\n")
+    """The SDK has to be SELECTED. This fixture used to name it in a YAML comment.
+
+    A comment is the strongest available statement that a package is not covered by the config,
+    and it satisfied "explicitly references an LLM SDK" -- so the entry now comes from an `allow`
+    rule, which is what selecting a package actually looks like.
+    """
+
+    _write(
+        tmp_path,
+        ".github/dependabot.yml",
+        "updates:\n  - package-ecosystem: pip\n    allow:\n      - dependency-name: openai\n",
+    )
     assert ai.eval_llm_218a_rv_001(_ctx(tmp_path)).status == ControlStatus.PASS
 
 
@@ -109,7 +125,7 @@ def test_ai_act_002_pass(tmp_path: Path) -> None:
 
 def test_output_filter_file_skips_vendored(tmp_path: Path) -> None:
     p = _write(tmp_path, "node_modules/x.py", "output_filter = 1\n")
-    assert ai._file_has_output_filter(p) is False
+    assert ai._file_has_output_filter(p, tmp_path) is False
 
 
 def test_ai_act_003_pass_file_and_section(tmp_path: Path) -> None:

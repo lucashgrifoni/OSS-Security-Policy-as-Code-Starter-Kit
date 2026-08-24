@@ -122,7 +122,7 @@ def test_a_file_that_cannot_be_read_is_not_credited_with_a_filter(
 
     monkeypatch.setattr(Path, "read_text", _read_text)
 
-    assert ai._file_has_output_filter(target) is False
+    assert ai._file_has_output_filter(target, tmp_path) is False
 
 
 @pytest.mark.parametrize("excluded", [".git", ".venv", "node_modules"])
@@ -133,7 +133,7 @@ def test_vendored_directories_are_not_scanned_for_signals(tmp_path: Path, exclud
     vendored.parent.mkdir(parents=True)
     vendored.write_text("output_filter = True\n", encoding="utf-8")
 
-    assert ai._file_has_output_filter(vendored) is False
+    assert ai._file_has_output_filter(vendored, tmp_path) is False
 
 
 def test_the_filter_file_search_stops_at_its_limit(tmp_path: Path) -> None:

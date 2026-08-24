@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime
 from typing import Any, cast
 
@@ -77,9 +78,24 @@ def _github_collection_block(collected_at: str, source_url: str) -> dict[str, st
     }
 
 
+#: GitHub owner and repository names are drawn from this alphabet, which excludes the separators
+#: and dot-segments a path could be steered with. Anchored, so a fragment or query cannot ride
+#: along on the second segment.
+_GITHUB_NAME_RE = re.compile(r"\A[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\Z")
+
+
 def _parse_owner_repo(repo_slug: str) -> tuple[str, str]:
+    """Split ``owner/repo``, refusing anything that could steer the request path.
+
+    When ``--repo`` is not given this value comes from the evaluated repository's own
+    ``.git/config``, so it is controlled by whoever wrote that repository. It is interpolated into
+    the collector's request paths, and ``httpx`` normalises ``..`` in a path -- so a slug of
+    ``../..`` turned ``/repos/../../rulesets`` into a request for ``/rulesets``. Counting two
+    non-empty segments was not enough; the segments have to be names.
+    """
+
     parts = repo_slug.strip().split("/")
-    if len(parts) != 2 or not parts[0] or not parts[1]:
+    if len(parts) != 2 or not all(_GITHUB_NAME_RE.match(part) for part in parts):
         msg = f"Invalid GitHub repo slug {repo_slug!r}; expected 'owner/repo'."
         raise ValueError(msg)
     return parts[0], parts[1]

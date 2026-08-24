@@ -85,9 +85,9 @@ def test_aibom_absent(tmp_path: Path) -> None:
 
 def test_is_ml_bom_marker_file(tmp_path: Path) -> None:
     p = _write(tmp_path, "x.cdx.json", '{"x": "modelCard"}')
-    assert sc._is_ml_bom_marker_file(p)
+    assert sc._is_ml_bom_marker_file(p, tmp_path)
     p2 = _write(tmp_path, "y.json", "{}")
-    assert not sc._is_ml_bom_marker_file(p2)
+    assert not sc._is_ml_bom_marker_file(p2, tmp_path)
 
 
 # --------------------------------------------------------------------------- #

@@ -121,7 +121,7 @@ Each result carries a structured `evidence` object:
 
 ## JSON Schema
 
-Bundled schema file: `src/oss_policy_kit/data/schema/evaluation-report-v1.schema.json` (UTF-8, strict).
+Bundled schema file, while this contract shipped: `src/oss_policy_kit/data/schema/evaluation-report-v1.schema.json` (UTF-8, strict). It was **deleted in v10.0.0** along with the other legacy schema files, so it is not in the current wheel; `git show v9.0.3:src/oss_policy_kit/data/schema/evaluation-report-v1.schema.json` recovers it if an old report still needs validating.
 
 ## Migration from `reports/0.3`
 

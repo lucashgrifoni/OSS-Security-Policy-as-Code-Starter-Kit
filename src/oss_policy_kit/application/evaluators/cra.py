@@ -104,7 +104,7 @@ def eval_cra_art14_coord_002(ctx: EvalContext) -> EvalOutcome:
     disclosure = ctx.repo_root / ".oss-policy-kit" / "evidence" / "disclosure-policy.json"
     if disclosure.is_file():
         with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-            data = json.loads(disclosure.read_text(encoding="utf-8"))
+            data = json.loads(disclosure.read_text(encoding="utf-8-sig"))
             if isinstance(data, dict) and data.get("coordinated_disclosure") is True:
                 return EvalOutcome(
                     status=ControlStatus.PASS,
@@ -358,7 +358,7 @@ def eval_cisa_sbd_secrets_005(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evidence.read_text(encoding="utf-8"))
+        data = json.loads(evidence.read_text(encoding="utf-8-sig"))
         if isinstance(data, dict):
             findings = 0
             for run in data.get("runs") or []:

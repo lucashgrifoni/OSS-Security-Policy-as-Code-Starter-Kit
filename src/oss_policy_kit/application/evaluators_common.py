@@ -120,7 +120,7 @@ def read_scanner_evidence(
 
     regenerate = f"Re-run `{regenerate_cmd}` to regenerate the evidence file."
     try:
-        data = json.loads(evidence.read_text(encoding="utf-8"))
+        data = json.loads(evidence.read_text(encoding="utf-8-sig"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         return _review(
             f"Could not parse {label} evidence file {evidence.name}: {bad_input_detail(exc)}",
@@ -187,7 +187,7 @@ def validate_json_evidence(
     if oversize is not None:
         return None, oversize, []
     try:
-        data = json.loads(evidence.read_text(encoding="utf-8"))
+        data = json.loads(evidence.read_text(encoding="utf-8-sig"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         # M-002: this string is returned verbatim as the ``reason`` of eval_org_mfa_001 and
         # every other control routed through here, and ``str(OSError)`` appends the resolved

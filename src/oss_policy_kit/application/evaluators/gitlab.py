@@ -85,6 +85,21 @@ def eval_gl_pipe_002(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[],
             confidence="high",
         )
+    if analysis.parse_errors:
+        # A workflow that did not parse contributed nothing to the search, so "not
+        # detected" would be true and useless -- nothing was detected because nothing
+        # was read. One invalid character used to buy this control a pass.
+        unread = ", ".join(sorted({p.name for p, _ in analysis.parse_errors}))
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"GitLab CI `image:` declarations could not be read: {unread} failed to parse, so this "
+                "control searched only the files that did."
+            ),
+            remediation="Fix the YAML syntax so the pipeline can be parsed, then re-run.",
+            evidence_sources=[str(p.resolve()) for p, _ in analysis.parse_errors],
+            confidence="low",
+        )
     if not analysis.image_refs_pinned and not analysis.image_refs_unpinned and not analysis.image_refs_mutable_tag:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,

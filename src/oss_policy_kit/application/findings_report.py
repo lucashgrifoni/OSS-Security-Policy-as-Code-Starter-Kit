@@ -25,7 +25,10 @@ from oss_policy_kit.application.finding_normalization import (
     kit_evidence_partial_scan_warnings,
     normalize_kit_evidence,
 )
-from oss_policy_kit.application.finding_sarif import normalize_sarif_sources
+from oss_policy_kit.application.finding_sarif import (
+    normalize_sarif_sources,
+    sarif_partial_location_warnings,
+)
 from oss_policy_kit.application.input_limits import BAD_INPUT_ERRORS, MAX_EVIDENCE_BYTES, oversize_reason
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
 from oss_policy_kit.application.vuln_waivers import VulnWaiver, load_vuln_waivers
@@ -165,7 +168,7 @@ def _load_enrichment(path: Path) -> tuple[dict[str, dict[str, Any]], SourceRecor
         # nesting limit and a bare ValueError past CPython's 4300-digit integer
         # conversion limit. Both must degrade to an honest "unreadable" record —
         # correlate-findings documents that an unreadable source is never raised.
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw = json.loads(path.read_text(encoding="utf-8-sig"))
     except BAD_INPUT_ERRORS:
         return {}, SourceRecord(path=rel, kind="enrichment-snapshot", tool=tool, status="unreadable")
     if not isinstance(raw, dict):
@@ -221,7 +224,12 @@ def build_findings_report(
         "findings_by_severity": by_severity,
         "findings": [_finding_to_dict(f) for f in correlated],
         "correlation": result.to_dict(),
-        "extensions": _extensions(waiver_warnings, kit_evidence_partial_scan_warnings(repo_root)),
+        # Both halves of the same honesty rule: what the scanners could not parse, and
+        # what a single-location finding could not carry.
+        "extensions": _extensions(
+            waiver_warnings,
+            kit_evidence_partial_scan_warnings(repo_root) + sarif_partial_location_warnings(repo_root),
+        ),
     }
 
 

@@ -39,9 +39,25 @@ _ROW = re.compile(r"^\|\s*`(?P<command>[a-z][a-z0-9-]*)`\s*\|(?P<rest>.*)\|\s*$"
 #: A long flag as written in the table, e.g. ``--fail-on-severity``.
 _FLAG = re.compile(r"--[a-z][a-z0-9-]*")
 
+#: A short alias as written in the table, e.g. the ``-k`` in ``--kit-root/-k``. This project uses
+#: two- and three-letter aliases too (``-so``, ``-fo``, ``-sj``), so the length is not one.
+#:
+#: The boundaries are what keep prose out. ``(?<![\w-])`` refuses a match inside a long flag --
+#: the ``-on`` of ``--fail-on`` is preceded by ``-`` -- and inside hyphenated words like
+#: ``opt-in``. Verified by extraction before this was asserted on: 37 aliases come out of the
+#: table and none of them is prose.
+_SHORT = re.compile(r"(?<![\w-])(-[a-z]{1,3})(?![\w-])")
+
 
 def _documented() -> list[tuple[str, str]]:
-    """(command, flag) for every long flag named in the reference table."""
+    """(command, option) for every flag AND short alias named in the reference table.
+
+    Short aliases used to be skipped, and the docstring above still promised "every flag". Four
+    documented aliases did not exist while this file was green: ``export-policy -k``,
+    ``emit-insights -t``, ``emit-insights -o`` and ``ingest-insights -t``, each answering
+    ``No such option`` with exit 2. A guard whose claim is wider than its check is the defect it
+    is meant to catch, wearing the uniform.
+    """
 
     pairs: list[tuple[str, str]] = []
     for line in _REFERENCE.read_text(encoding="utf-8").splitlines():
@@ -53,28 +69,41 @@ def _documented() -> list[tuple[str, str]]:
         # commands' flags, file names and schema ids.
         columns = [c.strip() for c in match.group("rest").split("|")]
         options_text = " ".join(columns[:2])
-        for flag in dict.fromkeys(_FLAG.findall(options_text)):
+        found = [*_FLAG.findall(options_text), *_SHORT.findall(options_text)]
+        for flag in dict.fromkeys(found):
             pairs.append((command, flag))
     return pairs
 
 
 def _declared_flags() -> dict[str, set[str]]:
-    """Every long option each command accepts, straight from the Click command objects."""
+    """Every option each command accepts, long and short, straight from the Click command objects."""
 
     group = typer.main.get_command(app)
     return {
-        name: {opt for param in command.params for opt in (*param.opts, *param.secondary_opts) if opt.startswith("--")}
+        name: {opt for param in command.params for opt in (*param.opts, *param.secondary_opts) if opt.startswith("-")}
         for name, command in group.commands.items()
     }
 
 
 def test_the_reference_table_was_actually_parsed() -> None:
-    """A sweep over an empty table passes for the wrong reason."""
+    """A sweep over an empty table passes for the wrong reason.
+
+    Both shapes are asserted, and separately, because a count alone cannot see half the sweep
+    disappear. Deleting the short-alias pattern took the parametrized cases from 161 to 128 and
+    this test stayed green -- 128 still clears a `> 40` threshold. The loose totals are deliberate
+    (docs change, and a brittle count would just cause churn), so what pins each capability is the
+    presence of its own kind, not the size of the pile.
+    """
 
     pairs = _documented()
     commands = {pair[0] for pair in pairs}
     assert len(commands) > 15, f"only {len(commands)} commands parsed out of the reference table"
-    assert len(pairs) > 40, f"only {len(pairs)} documented flags found"
+    assert len(pairs) > 40, f"only {len(pairs)} documented options found"
+
+    long_flags = [flag for _, flag in pairs if flag.startswith("--")]
+    short_aliases = [flag for _, flag in pairs if not flag.startswith("--")]
+    assert len(long_flags) > 40, f"long flags stopped being parsed ({len(long_flags)} found)"
+    assert len(short_aliases) > 20, f"short aliases stopped being parsed ({len(short_aliases)} found)"
 
 
 @pytest.mark.parametrize(("command", "flag"), _documented(), ids=[f"{c}{f}" for c, f in _documented()])
