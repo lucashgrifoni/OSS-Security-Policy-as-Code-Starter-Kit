@@ -1,7 +1,7 @@
 # OSS Policy Kit - evaluation report
 
 - **Generated (UTC)**: `2026-08-06T00:00:00+00:00`
-- **Kit version**: `10.0.17`
+- **Kit version**: `10.0.18`
 - **Target**: `vulnerable-repo`
 - **Profile**: `github-level-1` - GitHub OSS starter baseline (level 1)
 
@@ -118,7 +118,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 - **Reason**: Found 1 workflow file(s).
 - **Remediation**: Keep CI workflows minimal, pinned, and least-privilege.
 - **Evidence**:
-  - `<redacted-absolute>/unsafe.yml`
+  - `<redacted-absolute>unsafe.yml`
 
 ### `CI-PERM-006` - Workflows declare explicit top-level permissions
 
@@ -130,7 +130,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 - **Reason**: Workflows missing top-level permissions: unsafe.yml
 - **Remediation**: Declare top-level `permissions:` with the narrowest scope required.
 - **Evidence**:
-  - `<redacted-absolute>/unsafe.yml`
+  - `<redacted-absolute>unsafe.yml`
 
 ### `CI-DANGER-007` - No pull_request_target without strong justification
 
@@ -142,7 +142,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 - **Reason**: pull_request_target detected in: unsafe.yml
 - **Remediation**: Remove pull_request_target or restrict to audited, minimal patterns; prefer pull_request.
 - **Evidence**:
-  - `<redacted-absolute>/unsafe.yml`
+  - `<redacted-absolute>unsafe.yml`
 
 ### `CI-PIN-008` - Third-party actions pinned to immutable references
 

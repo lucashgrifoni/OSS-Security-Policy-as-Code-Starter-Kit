@@ -1,7 +1,7 @@
 # OSS Policy Kit - evaluation report
 
 - **Generated (UTC)**: `2026-08-06T00:00:00+00:00`
-- **Kit version**: `10.0.17`
+- **Kit version**: `10.0.18`
 - **Target**: `hardened-repo`
 - **Profile**: `github-level-1` - GitHub OSS starter baseline (level 1)
 
@@ -70,7 +70,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 - **Reason**: SECURITY.md present.
 - **Remediation**: Keep SECURITY.md current and linked from the repository README.
 - **Evidence**:
-  - `<redacted-absolute>/SECURITY.md`
+  - `<redacted-absolute>SECURITY.md`
 
 ### `GOV-CON-002` - CONTRIBUTING guide present
 
@@ -82,7 +82,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 - **Reason**: Contributing guide present.
 - **Remediation**: Keep contribution expectations and security expectations aligned.
 - **Evidence**:
-  - `<redacted-absolute>/CONTRIBUTING.md`
+  - `<redacted-absolute>CONTRIBUTING.md`
 
 ### `GOV-COWN-003` - CODEOWNERS configured
 
@@ -114,9 +114,9 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 - **Reason**: Found 3 workflow file(s).
 - **Remediation**: Keep CI workflows minimal, pinned, and least-privilege.
 - **Evidence**:
-  - `<redacted-absolute>/ci.yml`
-  - `<redacted-absolute>/release-example.yml`
-  - `<redacted-absolute>/security.yml`
+  - `<redacted-absolute>ci.yml`
+  - `<redacted-absolute>release-example.yml`
+  - `<redacted-absolute>security.yml`
 
 ### `CI-PERM-006` - Workflows declare explicit top-level permissions
 
@@ -168,7 +168,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 - **Reason**: github/codeql-action usage detected in security.yml.
 - **Remediation**: Keep the CodeQL action pinned to an immutable SHA.
 - **Evidence**:
-  - `<redacted-absolute>/security.yml`
+  - `<redacted-absolute>security.yml`
 
 ### `SEC-DEPREV-011` - Dependency review in pull requests
 
@@ -210,4 +210,4 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 - **Reason**: Versioned waiver file detected in repository.
 - **Remediation**: Keep waivers justified, owned, time-bounded, and reviewed.
 - **Evidence**:
-  - `<redacted-absolute>/waivers.yaml`
+  - `<redacted-absolute>waivers.yaml`

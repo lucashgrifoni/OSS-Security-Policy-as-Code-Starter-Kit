@@ -3,7 +3,7 @@
   "contract_version": "reports/2.0",
   "evidence_provenance_version": "evidence/2.0",
   "generated_at": "2026-08-06T00:00:00+00:00",
-  "kit_version": "10.0.17",
+  "kit_version": "10.0.18",
   "target_path": "vulnerable-repo",
   "profile": {
     "id": "github-level-1",
@@ -168,7 +168,7 @@
         "references": [
           {
             "kind": "path",
-            "value": "<redacted-absolute>/unsafe.yml",
+            "value": "<redacted-absolute>unsafe.yml",
             "redacted": true
           }
         ],
@@ -205,7 +205,7 @@
         "references": [
           {
             "kind": "path",
-            "value": "<redacted-absolute>/unsafe.yml",
+            "value": "<redacted-absolute>unsafe.yml",
             "redacted": true
           }
         ],
@@ -242,7 +242,7 @@
         "references": [
           {
             "kind": "path",
-            "value": "<redacted-absolute>/unsafe.yml",
+            "value": "<redacted-absolute>unsafe.yml",
             "redacted": true
           }
         ],
