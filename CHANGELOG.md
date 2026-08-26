@@ -6,6 +6,38 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.18](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.17...v10.0.18) (2026-08-26)
+
+
+### Improvements
+
+* **batch:** a failed write is reported as a write, not as unreadable input ([c5dafd9](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c5dafd9fd62801f2b0b3b252d39774c8f9198139))
+* **batch:** a profile reference must not decide where reports land ([a7f58d6](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a7f58d6458f2b2966543210a2d04c7c0cb3f9586))
+* **batch:** the batch report admits which repositories it could not evaluate ([8e781b0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/8e781b0598cdfac24e81263c3084deea7c4c032b))
+* **cli:** closing stdout is not a kit defect ([9bacab7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9bacab7a7b155529e1817ee7e1b4dbcf75e12d54))
+* **cli:** naming two targets is refused instead of one being dropped ([2ad629c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2ad629c811e611d680187581451e2a6b00f22648))
+* **engine:** a third-party evaluator that raises no longer ends the run ([09e77b9](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/09e77b908dde8ef3e3f5ed3661d9709553e3b27e))
+* **findings:** a SARIF run is credited to the scanner it names ([91f8848](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/91f88482a0f30b6e9e5a8afe0140f18b6bde5889))
+* **findings:** one advisory against three packages is three findings ([324f100](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/324f1004b96c7a6084883ce240deb6f893ab47f2))
+* **findings:** one file written five ways is one finding ([a3b5ef1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a3b5ef1ca282c21924205ee55ad4110bfad7b49d))
+* **findings:** the artifact stops repeating the operator's directory chain ([584653f](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/584653f6a5b61cb8e808af6f1056eaf32304cf63))
+* **iac:** the optional hcl2 import type-checks on every version the floor allows ([5de9a49](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/5de9a4988b2443cd16aff988683bad24bdcd8574))
+* **init:** the generator label is the version of the code that ran ([502731b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/502731b9f8b4f41b89371cef638611352131c2e2))
+* **plugins:** a plugin that lost an ID to a plugin is told that, not "built-in" ([a9bcb60](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a9bcb602c761906a0a7c162db50440242e746b8c))
+* **release:** stop dropping the oldest commit from every release's notes ([0aae5cf](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0aae5cf9796572221db6a9497ce6df95400b042b))
+* **reporting:** a repository cannot write control bytes into its own report ([babafaf](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/babafaf59c3f280e4e6b034ebcd4af5b162f5bf8))
+* **reporting:** a space in the path no longer defeats the redaction ([be1a4da](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/be1a4dabb493e85e1577fdf2a5b88c8822ca5e20))
+* **reporting:** every artifact of one run reports the same confidence ([a7c52e5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a7c52e5dff0b964d1cd748828eb88c37f5678396))
+* **reporting:** the path redaction reads both separator styles ([9c8e2c2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9c8e2c262594e9769b3e8eb409dac9d86cc38299))
+* **review:** close what the adversarial pass over this release found ([81c3c53](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/81c3c53062fbd514c102b3bcc827b10ff6676d7e))
+* **scanners:** --timeout bounds the scan instead of being discarded ([b83601f](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b83601f156bf684471a4f30eef0f7bd985529c95))
+
+
+### Notes
+
+* **release:** regenerate the sample reports on the release branch ([878813e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/878813ee5941783915e3aee70b245eb61e077c7a))
+* **samples:** the README describes the redaction the samples actually carry ([5979c13](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/5979c13b4d515bbd50795c08a59b8d022afbcb1b))
+
 ## [10.0.17](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.16...v10.0.17) (2026-08-24)
 
 
