@@ -72,7 +72,7 @@ jobs:
         # Linux only: the agent has no Windows build. The Windows leg runs without
         # an egress policy, which is the trade for having a Windows leg at all.
         if: runner.os == 'Linux'
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -193,7 +193,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -272,7 +272,7 @@ jobs:
     # not push, and needs no registry credentials.
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           # `audit` for the same reason as the base-image scan and publish-container.yml:
           # pulling from Docker Hub crosses dynamic CloudFront hosts that allowed-endpoints
