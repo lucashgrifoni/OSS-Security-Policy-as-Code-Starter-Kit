@@ -6,6 +6,42 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.19](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.18...v10.0.19) (2026-09-02)
+
+
+### Fixes
+
+* **ci:** pin the last three pip installs, and drop a remedy the base-image scan never had ([72ffda1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/72ffda19a960947a7bf1962802643b8975a891de))
+* **ci:** take the build machine's paths out of the locks, and pin the two pip installs the last commit missed ([9a32ede](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9a32ede696923237f227f2cda4d91b8e78a01bc5))
+* **ci:** watch the hashed locks, pin the CI pip, and say which findings stay open ([352adc3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/352adc35fad77d9d8e5e35f05893c51e68f675b2))
+* **container:** ship a runtime image with no package installer and hashed installs ([6964a78](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/6964a787bdf5a971f70adb6f29543bea5538a8b8))
+* **domain:** a whitespace-only confidence is "none", not "low" ([3b11a84](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3b11a84a3018a2d45f39afcd3612ca8203753f0b))
+* **engine:** a plugin that returns a malformed outcome no longer ends the run ([f8de4b8](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f8de4b83f9049f02369f1863b439452d93552d0d))
+* **evaluators:** the heading title cannot trade characters with the whitespace before it ([8aed407](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/8aed40794f2635af9d35b8237b5f0a0e16693100))
+* **evaluators:** two regular expressions over target text were quadratic in the whitespace on a line ([c3169ea](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c3169eaaa11b6ef730393241cc05589838a374c4))
+* **evaluators:** which files a large repository gets scanned was decided by the filesystem ([e18534e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e18534eb003c2042091e626527d49149ca1add43))
+* ignore the parallel coverage data files, which carry the machine name ([040556b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/040556b1fa89bf37a1af05333a21fa8509d1237a))
+* **scanners:** order the remaining filesystem walks, and hold the invariant with a guard ([00ebdf5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/00ebdf5d16d1ee7a86d693185036b19daa93e17e))
+
+
+### Improvements
+
+* name the poetry.lock literal, flatten two nested conditionals, split composite assertions ([45900a4](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/45900a4db72c6144bdeefb1273008f8ba8448a53))
+
+
+### Notes
+
+* declare the Python 3.13 support the suite now proves ([482d2aa](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/482d2aa67cb65925418a9bae185eed858dea9455))
+* **deps:** bump devops-actions/actionlint from 0.1.12 to 0.1.13 ([#205](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/205)) ([5bd929c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/5bd929cb404297971e2b4a5e08aeb7453942cec4))
+* **deps:** bump docker/setup-buildx-action from 4.2.0 to 4.3.0 ([#204](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/204)) ([3e2cf03](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3e2cf039e890dbd77328bbc57969592fb12b7bf8))
+* **deps:** bump step-security/harden-runner from 2.21.0 to 2.21.1 ([#208](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/208)) ([efec278](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/efec2786b64239315c89a1e3ec12c7cf810aee5f))
+* **deps:** bump the codeql-action group across 1 directory with 4 updates ([#207](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/207)) ([918144e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/918144e8b20f161c31684609ae9d84ba5f742262))
+* **deps:** group the codeql-action bumps and let click 8.5 in ([3d01816](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3d018162e9593e42e677f1acb79af1a6d0aa9464))
+* **deps:** take the two lock bumps by regenerating, because Dependabot cannot edit these files ([e8cf163](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e8cf1639a72db354fa595edc07aa14cf25ee0481))
+* describe the real release flow, map the 41 controls the framework tables missed, state the Scorecard posture ([2aff2b2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2aff2b2da1977676350776f6a165cd7bc65e0b5f))
+* **quality:** run the suite on Windows and Python 3.13, and validate Rego against a real OPA ([6ce002a](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/6ce002aead55ddbaeee10171905ea85c93d5bf68))
+* **release:** close the transient major-bump PR, file fixes under Fixes, install the bumped tree by hash ([e7bbd7a](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e7bbd7a03b16f6939a00e29abbd433515bd4afee))
+
 ## [10.0.18](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.17...v10.0.18) (2026-08-26)
 
 
