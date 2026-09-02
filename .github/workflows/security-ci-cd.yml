@@ -666,7 +666,7 @@ jobs:
           persist-credentials: false
 
       - name: Lint GitHub Actions workflows
-        uses: devops-actions/actionlint@9fb9c192862f19e684586ca84b500461bcd8a541 # pinned
+        uses: devops-actions/actionlint@ec02b36684b2f574f1d219ad0a43b082e46bf3e4 # pinned
 
   sca-pip-audit:
     name: SCA - pip-audit (Python deps)
