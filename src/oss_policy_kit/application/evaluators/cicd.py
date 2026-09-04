@@ -380,7 +380,13 @@ def eval_sec_gitignore_051(ctx: EvalContext) -> EvalOutcome:
         raw = gi.read_text(encoding="utf-8", errors="replace")
     except OSError:
         raw = ""
-    low = raw.lower()
+    # Commented lines are dropped before matching. This searched the raw file, so a
+    # `.gitignore` whose patterns had all been commented out -- "we stopped ignoring these
+    # while debugging" -- still reported that it "includes basic secret-protection
+    # patterns". A commented `.env` ignores nothing: the file would be committed. In
+    # `.gitignore` a `#` only opens a comment at the start of a line, so a trailing comment
+    # after a live pattern leaves that pattern in force.
+    low = "\n".join(line for line in raw.splitlines() if not line.lstrip().startswith("#")).lower()
     matched = [frag for frag in _GITIGNORE_SECRET_FRAGMENTS if frag.lower() in low]
     if matched:
         return EvalOutcome(

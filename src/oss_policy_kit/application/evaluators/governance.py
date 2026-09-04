@@ -56,6 +56,7 @@ from oss_policy_kit.application.evaluators._shared import (
     has_placeholder_values,
     insights_self_attested_outcome,
     json,
+    load_yaml_file,
 )
 from oss_policy_kit.application.evaluators_common import strip_yaml_comments
 from oss_policy_kit.application.input_limits import bad_input_detail
@@ -430,18 +431,85 @@ def eval_gov_evidfresh_054(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+def _dependabot_ecosystems(path: Path) -> list[str] | None:
+    """The ``package-ecosystem`` values a Dependabot config declares, or None if unreadable.
+
+    Empty for a file that parses but has no ``updates`` list, or lists entries with no
+    ecosystem -- the shapes in which Dependabot runs nothing. ``None`` when the file cannot
+    be parsed at all, which is a different answer: the kit then knows nothing about this
+    repository's update automation and must not claim either way. Read through the YAML
+    parser rather than as text so a commented-out block cannot count.
+    """
+
+    try:
+        data = load_yaml_file(path)
+    except Exception:  # noqa: BLE001  # any parse failure means the same thing: unreadable
+        return None
+    if not isinstance(data, dict):
+        return []
+    updates = data.get("updates")
+    if not isinstance(updates, list):
+        return []
+    found: list[str] = []
+    for entry in updates:
+        if isinstance(entry, dict):
+            ecosystem = entry.get("package-ecosystem")
+            if isinstance(ecosystem, str) and ecosystem.strip():
+                found.append(ecosystem.strip())
+    return found
+
+
 def eval_dep_update_001(ctx: EvalContext) -> EvalOutcome:
     """DEP-UPDATE-001: Automated dependency update tool (Dependabot or Renovate) configured."""
     repo = ctx.repo_root
     for p in (repo / _GITHUB_DIR / "dependabot.yml", repo / _GITHUB_DIR / "dependabot.yaml"):
-        if p.is_file():
+        if not p.is_file():
+            continue
+        # The file existing is not the control. This returned PASS at high confidence for
+        # any `dependabot.yml`, so one whose `updates:` block had been commented out --
+        # paused while a team worked through a backlog -- reported that automated updates
+        # were configured. `updates` is required by the schema: without it GitHub reports a
+        # configuration error and Dependabot opens nothing, which makes this decidable
+        # rather than a guess.
+        ecosystems = _dependabot_ecosystems(p)
+        if ecosystems is None:
+            return EvalOutcome(
+                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                reason=(
+                    f"`{p.name}` is present but could not be parsed as YAML, so whether "
+                    "Dependabot watches anything could not be established from a clone."
+                ),
+                remediation=(
+                    "Fix the YAML so GitHub can read it; an unparseable Dependabot config is "
+                    "reported as a configuration error and no updates run."
+                ),
+                evidence_sources=[str(p.resolve())],
+                confidence="high",
+            )
+        if ecosystems:
             return EvalOutcome(
                 status=ControlStatus.PASS,
-                reason="Dependabot configuration file detected.",
+                reason=(
+                    f"Dependabot configuration watches {len(ecosystems)} ecosystem(s): "
+                    f"{', '.join(sorted(set(ecosystems)))}."
+                ),
                 remediation="Keep Dependabot schedules aligned with project risk tolerance.",
                 evidence_sources=[str(p.resolve())],
                 confidence="high",
             )
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                f"`{p.name}` is present but declares no `updates:` entry with a "
+                "`package-ecosystem`, so Dependabot watches nothing and opens no pull request."
+            ),
+            remediation=(
+                "Add at least one `updates:` entry naming a `package-ecosystem`, a `directory` "
+                "and a `schedule`, or remove the file if updates are handled elsewhere."
+            ),
+            evidence_sources=[str(p.resolve())],
+            confidence="high",
+        )
     renovate_candidates = [
         repo / "renovate.json",
         repo / "renovate.json5",

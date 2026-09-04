@@ -35,8 +35,29 @@ def _w(tmp_path: Path, rel: str, text: str = "x\n") -> Path:
 
 
 def test_dep_update_dependabot(tmp_path: Path) -> None:
-    _w(tmp_path, ".github/dependabot.yml", "version: 2\n")
+    _w(
+        tmp_path,
+        ".github/dependabot.yml",
+        'version: 2\nupdates:\n  - package-ecosystem: "pip"\n'
+        '    directory: "/"\n    schedule:\n      interval: weekly\n',
+    )
     assert gov.eval_dep_update_001(_ctx(tmp_path)).status == ControlStatus.PASS
+
+
+def test_dep_update_dependabot_without_updates_is_not_configured(tmp_path: Path) -> None:
+    """This case used to assert PASS, and that assertion is what encoded the defect.
+
+    The catalog entry is "Automated dependency update tool configured", and a
+    `dependabot.yml` holding only `version: 2` configures nothing: without an `updates`
+    list GitHub reports the file as a configuration error and no pull request is ever
+    opened. The test changed rather than the control, because the control's own title is
+    what it was failing to deliver.
+    """
+
+    _w(tmp_path, ".github/dependabot.yml", "version: 2\n")
+    out = gov.eval_dep_update_001(_ctx(tmp_path))
+    assert out.status == ControlStatus.FAIL
+    assert "watches nothing" in out.reason
 
 
 def test_dep_update_renovate(tmp_path: Path) -> None:
