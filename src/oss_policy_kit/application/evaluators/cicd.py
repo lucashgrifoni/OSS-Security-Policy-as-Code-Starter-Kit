@@ -30,7 +30,7 @@ from oss_policy_kit.application.evaluators._shared import (
     contextlib,
     load_yaml_file,
 )
-from oss_policy_kit.application.evaluators_common import read_scanner_evidence
+from oss_policy_kit.application.evaluators_common import read_scanner_evidence, strip_yaml_comments
 
 _NO_WORKFLOWS_REASON = "No workflows present."
 
@@ -218,7 +218,13 @@ def _codeql_action_outcome(ctx: EvalContext) -> EvalOutcome | None:
 
     for p in ctx.workflows.workflow_paths:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace")
+            # Comments blanked first. This matched the raw file, so a CodeQL step someone
+            # had commented out -- the ordinary way a team parks a job it means to restore
+            # -- still satisfied the substring and earned a PASS at high confidence for a
+            # scan that does not run. A comment cannot change what a pipeline does, so it
+            # must not change a verdict. `strip_yaml_comments` keeps every line and column,
+            # so the file this reports still points where it did.
+            text = strip_yaml_comments(p.read_text(encoding="utf-8", errors="replace"))
             if any(pat in text for pat in _CODEQL_ACTION_PATTERNS):
                 return EvalOutcome(
                     status=ControlStatus.PASS,
