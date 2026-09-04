@@ -181,6 +181,26 @@ def _contains_pr_event(data: dict[str, Any]) -> bool:
     return False
 
 
+def _declares_merge_group_trigger(data: dict[str, Any]) -> bool:
+    """True when the workflow declares a ``merge_group`` trigger, in any shape GitHub accepts.
+
+    The trigger block is a mapping, a sequence or a bare string, and the merge queue runs the
+    same way in all three. The raw-text detection this backs up matched only
+    ``^\\s*merge_group:\\s*$``, so ``on: [push, merge_group]`` -- an ordinary way to write it --
+    was read as "no merge queue in this repository". That reason is published in the report,
+    and under ``--fail-on fail`` it blocks a release for a repository that is configured.
+    """
+
+    on_block = _on_block(data)
+    if isinstance(on_block, str):
+        return on_block.strip() == "merge_group"
+    if isinstance(on_block, list):
+        return any(isinstance(item, str) and item.strip() == "merge_group" for item in on_block)
+    if isinstance(on_block, dict):
+        return any(isinstance(key, str) and key.strip() == "merge_group" for key in on_block)
+    return False
+
+
 def _is_self_hosted_runs_on(value: Any) -> bool:
     if isinstance(value, str):
         return "self-hosted" in value.lower()
@@ -877,6 +897,10 @@ def _scan_workflow_parsed(data: dict[str, Any], raw: str, path: Path, result: Wo
 
     _classify_top_level_permissions(data, path, result)
     _scan_parsed_uses_for_mutable(data, path, result.mutable_action_refs)
+    # Additive on purpose: the raw pass keeps its match so a workflow that fails to parse is
+    # still read exactly as much as it was before.
+    if _declares_merge_group_trigger(data) and path not in result.merge_queue_signal_paths:
+        result.merge_queue_signal_paths.append(path)
     if _has_dependency_review_step(data):
         result.has_dependency_review = True
     if _has_attestation_step(data):
