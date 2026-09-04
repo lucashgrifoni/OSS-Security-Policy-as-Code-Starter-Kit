@@ -18,7 +18,10 @@ Rules:
   ``hmac.compare_digest``, …). If a webhook route is present but no
   signature primitive surfaces, the control returns
   ``manual-review-required`` with explicit remediation. If no webhook
-  route is detected, the control returns ``not-applicable``.
+  route is detected AND the scan read the whole repository, the control
+  returns ``not-applicable``; if the scan stopped at its file limit first,
+  it returns ``manual-review-required`` instead, because absence was never
+  established.
 
 - **SEC-WEBHOOK-002** — Webhook replay defense. The kit looks for *both*
   (a) a webhook route AND (b) a recognized replay primitive: timestamp
@@ -29,13 +32,16 @@ Rules:
 Both controls run in a single best-effort scan that walks up to 400
 source files of recognized server-side languages (``.py``, ``.js``,
 ``.ts``, ``.go``, ``.rb``, ``.java``, ``.cs``, ``.php``, ``.rs``) and
-reads up to 16 KiB per file.
+reads up to 16 KiB per file. That limit is a budget, not a statement about
+the repository: a scan that hits it reports the truncation rather than
+letting a control claim the receiver is absent.
 """
 
 from __future__ import annotations
 
 import os
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -131,8 +137,23 @@ _REPLAY_HINTS: tuple[str, ...] = (
 )
 
 
-def _iter_candidate_paths(repo_root: Path) -> Iterable[Path]:
-    """Yield up to ``_SCAN_FILE_LIMIT`` source files in the clone, in a fixed order.
+@dataclass(frozen=True)
+class _Walk:
+    """The files the scan looked at, and whether the tree still had more when it stopped.
+
+    ``truncated`` exists because ``has_route=False`` meant two different things and the
+    callers could not tell them apart: "read the whole repository, found no webhook" and
+    "stopped at the limit, none in the part that was read". Every control in this module
+    turned the second into the first and reported ``not-applicable`` at high confidence --
+    a claim about the target repository, made from a scan that had not finished.
+    """
+
+    paths: tuple[Path, ...]
+    truncated: bool
+
+
+def _collect_candidate_paths(repo_root: Path) -> _Walk:
+    """Up to ``_SCAN_FILE_LIMIT`` source files in a fixed order, plus whether more remained.
 
     Deterministic on purpose, for the reason spelled out in
     :func:`oss_policy_kit.application.evaluators_fuzzing._iter_candidate_paths`: the walk
@@ -140,9 +161,11 @@ def _iter_candidate_paths(repo_root: Path) -> Iterable[Path]:
     large repository got scanned at all, and the same clone could answer differently on two
     machines. Pruning ``dirnames`` also stops the walk descending into a skipped directory
     rather than walking it and discarding each path.
+
+    Materialising is safe: the list is bounded by the same limit that made it necessary.
     """
 
-    seen = 0
+    paths: list[Path] = []
     try:
         for dirpath, dirnames, filenames in os.walk(repo_root):
             dirnames[:] = sorted(d for d in dirnames if d not in _SKIP_DIRS)
@@ -154,15 +177,48 @@ def _iter_candidate_paths(repo_root: Path) -> Iterable[Path]:
                     continue
                 if not path.is_file():
                     continue
-                yield path
-                seen += 1
-                if seen >= _SCAN_FILE_LIMIT:
-                    return
+                if len(paths) >= _SCAN_FILE_LIMIT:
+                    return _Walk(tuple(paths), True)
+                paths.append(path)
     except OSError:
-        return
+        return _Walk(tuple(paths), False)
+    return _Walk(tuple(paths), False)
 
 
-def _scan_signals(repo_root: Path) -> tuple[bool, str | None, bool, str | None, bool, str | None]:
+def _iter_candidate_paths(repo_root: Path) -> Iterable[Path]:
+    """The paths of :func:`_collect_candidate_paths`, for callers that ignore truncation."""
+
+    yield from _collect_candidate_paths(repo_root).paths
+
+
+def _truncated_scan_outcome(control_id: str) -> EvalOutcome:
+    """What a control may say when the scan ran out of budget before the repository ran out.
+
+    Not ``not-applicable``: that asserts the repository has no webhook receiver, and a scan
+    that stopped early established no such thing. Not ``pass`` or ``fail`` either -- nothing
+    was proved in the part that went unread.
+    """
+
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            f"The source scan stopped at its {_SCAN_FILE_LIMIT}-file limit while the repository "
+            f"still had files left, and no webhook route surfaced in the part that was read. "
+            f"{control_id} cannot be answered from a truncated scan: absence was not established."
+        ),
+        remediation=(
+            "Point the evaluation at the service that receives webhooks rather than at a "
+            "monorepo root, so the receiver's source falls inside the scanned budget, or "
+            "confirm by review whether this repository receives webhooks at all."
+        ),
+        evidence_sources=[],
+        confidence="low",
+    )
+
+
+def _scan_signals(
+    repo_root: Path, *, walk: _Walk | None = None
+) -> tuple[bool, str | None, bool, str | None, bool, str | None]:
     """Return ``(has_route, route_hint, has_signature, sig_hint, has_replay, replay_hint)``.
 
     Returned hints are repo-relative POSIX paths of one matching file (the
@@ -175,7 +231,7 @@ def _scan_signals(repo_root: Path) -> tuple[bool, str | None, bool, str | None, 
     route_hint: str | None = None
     sig_hint: str | None = None
     replay_hint: str | None = None
-    for path in _iter_candidate_paths(repo_root):
+    for path in (walk or _collect_candidate_paths(repo_root)).paths:
         try:
             head = path.read_bytes()[:_SCAN_BYTES_PER_FILE].decode("utf-8", errors="ignore").lower()
         except OSError:
@@ -199,8 +255,11 @@ def eval_sec_webhook_001(ctx: Any) -> EvalOutcome:
     """SEC-WEBHOOK-001: webhook signature validation present (clone-side signal)."""
 
     repo_root: Path = ctx.repo_root
-    has_route, route_hint, has_signature, sig_hint, _has_replay, _replay_hint = _scan_signals(repo_root)
+    walk = _collect_candidate_paths(repo_root)
+    has_route, route_hint, has_signature, sig_hint, _has_replay, _replay_hint = _scan_signals(repo_root, walk=walk)
     if not has_route:
+        if walk.truncated:
+            return _truncated_scan_outcome("SEC-WEBHOOK-001")
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No webhook route or handler detected in repository; control is not applicable.",
@@ -241,8 +300,11 @@ def eval_sec_webhook_002(ctx: Any) -> EvalOutcome:
     """SEC-WEBHOOK-002: webhook replay defense present (clone-side signal)."""
 
     repo_root: Path = ctx.repo_root
-    has_route, route_hint, _has_signature, _sig_hint, has_replay, replay_hint = _scan_signals(repo_root)
+    walk = _collect_candidate_paths(repo_root)
+    has_route, route_hint, _has_signature, _sig_hint, has_replay, replay_hint = _scan_signals(repo_root, walk=walk)
     if not has_route:
+        if walk.truncated:
+            return _truncated_scan_outcome("SEC-WEBHOOK-002")
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No webhook route or handler detected in repository; control is not applicable.",
@@ -383,9 +445,9 @@ _ROTATE_MULTI_SECRET_HINTS: tuple[str, ...] = (
 )
 
 
-def _scan_for_any(repo_root: Path, hints: tuple[str, ...]) -> str | None:
+def _scan_for_any(repo_root: Path, hints: tuple[str, ...], *, walk: _Walk | None = None) -> str | None:
     """Return the first repo-relative POSIX path containing any of ``hints``, or None."""
-    for path in _iter_candidate_paths(repo_root):
+    for path in (walk or _collect_candidate_paths(repo_root)).paths:
         try:
             head = path.read_bytes()[:_SCAN_BYTES_PER_FILE].decode("utf-8", errors="ignore").lower()
         except OSError:
@@ -395,10 +457,11 @@ def _scan_for_any(repo_root: Path, hints: tuple[str, ...]) -> str | None:
     return None
 
 
-def _webhook_route_check(ctx: Any) -> tuple[Path, str | None]:
-    """Return (repo_root, route_hint_or_None)."""
+def _webhook_route_check(ctx: Any) -> tuple[Path, str | None, _Walk]:
+    """Return (repo_root, route_hint_or_None, walk) so callers can see a truncated scan."""
     repo_root: Path = ctx.repo_root
-    return repo_root, _scan_for_any(repo_root, _WEBHOOK_ROUTE_HINTS)
+    walk = _collect_candidate_paths(repo_root)
+    return repo_root, _scan_for_any(repo_root, _WEBHOOK_ROUTE_HINTS, walk=walk), walk
 
 
 def _focused_check(
@@ -411,8 +474,10 @@ def _focused_check(
     review_remediation: str,
 ) -> EvalOutcome:
     """Shared scaffold for the v6 SEC-WEBHOOK-* family."""
-    repo_root, route_hint = _webhook_route_check(ctx)
+    repo_root, route_hint, walk = _webhook_route_check(ctx)
     if route_hint is None:
+        if walk.truncated:
+            return _truncated_scan_outcome(control_id)
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason=f"No webhook route or handler detected; {control_id} is not applicable.",
@@ -420,7 +485,7 @@ def _focused_check(
             evidence_sources=[],
             confidence="high",
         )
-    primitive_hint = _scan_for_any(repo_root, primitive_hints)
+    primitive_hint = _scan_for_any(repo_root, primitive_hints, walk=walk)
     if primitive_hint is not None:
         return EvalOutcome(
             status=ControlStatus.PASS,
@@ -534,8 +599,10 @@ def eval_sec_webhook_idemp_005(ctx: Any) -> EvalOutcome:
 
 def eval_sec_webhook_rotate_006(ctx: Any) -> EvalOutcome:
     """SEC-WEBHOOK-ROTATE-006: secret sourced from env/vault + multi-secret rotation signal."""
-    repo_root, route_hint = _webhook_route_check(ctx)
+    repo_root, route_hint, walk = _webhook_route_check(ctx)
     if route_hint is None:
+        if walk.truncated:
+            return _truncated_scan_outcome("SEC-WEBHOOK-ROTATE-006")
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No webhook route or handler detected; SEC-WEBHOOK-ROTATE-006 is not applicable.",
@@ -543,8 +610,8 @@ def eval_sec_webhook_rotate_006(ctx: Any) -> EvalOutcome:
             evidence_sources=[],
             confidence="high",
         )
-    env_hint = _scan_for_any(repo_root, _ROTATE_ENV_HINTS)
-    rotation_hint = _scan_for_any(repo_root, _ROTATE_MULTI_SECRET_HINTS)
+    env_hint = _scan_for_any(repo_root, _ROTATE_ENV_HINTS, walk=walk)
+    rotation_hint = _scan_for_any(repo_root, _ROTATE_MULTI_SECRET_HINTS, walk=walk)
     if env_hint is not None and rotation_hint is not None:
         return EvalOutcome(
             status=ControlStatus.PASS,
