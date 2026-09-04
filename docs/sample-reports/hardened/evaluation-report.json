@@ -103,7 +103,7 @@
       "assurance": "deterministic",
       "confidence": "high",
       "weight": 2,
-      "message": "CODEOWNERS file present.",
+      "message": "CODEOWNERS names an owner for 1 path pattern(s).",
       "remediation": "Review CODEOWNERS coverage for critical paths.",
       "evidence": {
         "source_type": "static_clone",

@@ -53,7 +53,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `GOV-SEC-001` | governance | stable | `deterministic` | `fail` | high | SECURITY.md not found at repository root. | Add SECURITY.md describing supported versions and how to report vulnerabilities. |  |
 | `GOV-CON-002` | governance | stable | `deterministic` | `fail` | high | CONTRIBUTING guide not found. | Add CONTRIBUTING.md with workflow, review expectations, and security notes. |  |
-| `GOV-COWN-003` | governance | stable | `deterministic` | `fail` | high | CODEOWNERS not found at .github/CODEOWNERS or repository root. | Add CODEOWNERS to route reviews for sensitive areas. |  |
+| `GOV-COWN-003` | governance | stable | `deterministic` | `fail` | high | CODEOWNERS not found at .github/CODEOWNERS, the repository root, or docs/CODEOWNERS. | Add CODEOWNERS to route reviews for sensitive areas. |  |
 | `GOV-LIC-004` | governance | stable | `deterministic` | `fail` | high | No LICENSE file detected at repository root. | Add a LICENSE file consistent with your SPDX identifier. |  |
 | `CI-WF-005` | ci_cd | stable | `deterministic` | `pass` | high | Found 1 workflow file(s). | Keep CI workflows minimal, pinned, and least-privilege. |  |
 | `CI-PERM-006` | ci_cd | stable | `deterministic` | `fail` | medium | Workflows missing top-level permissions: unsafe.yml | Declare top-level `permissions:` with the narrowest scope required. |  |
@@ -95,7 +95,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 - **Assurance**: `deterministic`
 - **Evidence collection method**: `static`
 - **Confidence**: high
-- **Reason**: CODEOWNERS not found at .github/CODEOWNERS or repository root.
+- **Reason**: CODEOWNERS not found at .github/CODEOWNERS, the repository root, or docs/CODEOWNERS.
 - **Remediation**: Add CODEOWNERS to route reviews for sensitive areas.
 
 ### `GOV-LIC-004` - LICENSE file present

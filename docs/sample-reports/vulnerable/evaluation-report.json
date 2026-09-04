@@ -93,7 +93,7 @@
       "assurance": "deterministic",
       "confidence": "high",
       "weight": 2,
-      "message": "CODEOWNERS not found at .github/CODEOWNERS or repository root.",
+      "message": "CODEOWNERS not found at .github/CODEOWNERS, the repository root, or docs/CODEOWNERS.",
       "remediation": "Add CODEOWNERS to route reviews for sensitive areas.",
       "evidence": {
         "source_type": "static_clone",

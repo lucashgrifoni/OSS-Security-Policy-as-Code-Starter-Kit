@@ -45,7 +45,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `GOV-SEC-001` | governance | stable | `deterministic` | `pass` | high | SECURITY.md present. | Keep SECURITY.md current and linked from the repository README. |  |
 | `GOV-CON-002` | governance | stable | `deterministic` | `pass` | high | Contributing guide present. | Keep contribution expectations and security expectations aligned. |  |
-| `GOV-COWN-003` | governance | stable | `deterministic` | `pass` | high | CODEOWNERS file present. | Review CODEOWNERS coverage for critical paths. |  |
+| `GOV-COWN-003` | governance | stable | `deterministic` | `pass` | high | CODEOWNERS names an owner for 1 path pattern(s). | Review CODEOWNERS coverage for critical paths. |  |
 | `GOV-LIC-004` | governance | stable | `deterministic` | `pass` | high | LICENSE (or COPYING) file detected. | Ensure LICENSE matches declared SPDX and distribution intent. |  |
 | `CI-WF-005` | ci_cd | stable | `deterministic` | `pass` | high | Found 3 workflow file(s). | Keep CI workflows minimal, pinned, and least-privilege. |  |
 | `CI-PERM-006` | ci_cd | stable | `deterministic` | `pass` | medium | All workflows declare top-level permissions. | Re-audit permissions when adding new jobs. |  |
@@ -91,7 +91,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 - **Assurance**: `deterministic`
 - **Evidence collection method**: `static`
 - **Confidence**: high
-- **Reason**: CODEOWNERS file present.
+- **Reason**: CODEOWNERS names an owner for 1 path pattern(s).
 - **Remediation**: Review CODEOWNERS coverage for critical paths.
 
 ### `GOV-LIC-004` - LICENSE file present

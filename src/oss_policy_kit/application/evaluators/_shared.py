@@ -366,8 +366,20 @@ def _has_license(repo: Path) -> bool:
     return False
 
 
-def _has_codeowners(repo: Path) -> bool:
-    return (repo / "CODEOWNERS").is_file() or (repo / _GITHUB_DIR / "CODEOWNERS").is_file()
+def _codeowners_file(repo: Path) -> Path | None:
+    """Return the CODEOWNERS path GitHub would use, or ``None`` when there is none.
+
+    GitHub looks in ``.github/``, the repository root and ``docs/``, in that order, and uses
+    the first file it finds -- the rest are ignored entirely. The order is part of the
+    answer, not a detail: a repository holding a working ``.github/CODEOWNERS`` and an empty
+    one at the root has code owners, because GitHub never reads the second file.
+    """
+
+    for rel in (f"{_GITHUB_DIR}/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"):
+        candidate = repo / rel
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def _read_security(repo: Path) -> str | None:
@@ -2577,12 +2589,17 @@ def _find_prompt_registry(repo: Path) -> Path | None:
 
 
 def _codeowners_text(repo: Path) -> tuple[Path, str] | None:
-    for rel in ("CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS"):
-        p = repo / rel
-        if p.is_file():
-            text = _read_lower(p)
-            return p, text
-    return None
+    """The CODEOWNERS GitHub would use, lowercased, or ``None`` when there is none.
+
+    The search itself lives in ``_codeowners_file`` so that this reader and GOV-COWN-003
+    cannot disagree about which file decides. They used to: this one listed the repository
+    root before ``.github/``, which is not the order GitHub reads them in.
+    """
+
+    p = _codeowners_file(repo)
+    if p is None:
+        return None
+    return p, _read_lower(p)
 
 
 def _codeowners_covers_prompt_path(repo: Path, prompt_dir: Path) -> tuple[Path, bool] | None:
@@ -3109,6 +3126,7 @@ __all__ = [
     "_branch_protection_evidence",
     "_branch_protection_schema",
     "_codeowners_covers_prompt_path",
+    "_codeowners_file",
     "_codeowners_text",
     "_detect_sbom_format",
     "_detect_sbom_format_and_version",
@@ -3131,7 +3149,6 @@ __all__ = [
     "_gl_no_pipeline_response",
     "_gov_disc_013_private_reporting_signals",
     "_has_changelog",
-    "_has_codeowners",
     "_has_license",
     "_has_placeholder_security_contact",
     "_is_valid_sha256_digest",

@@ -12,7 +12,7 @@ const SAMPLE_REPORTS = [
     controls: [
       { id: "GOV-SEC-001", status: "pass", reason: "SECURITY.md present." },
       { id: "GOV-CON-002", status: "pass", reason: "Contributing guide present." },
-      { id: "GOV-COWN-003", status: "pass", reason: "CODEOWNERS file present." },
+      { id: "GOV-COWN-003", status: "pass", reason: "CODEOWNERS names an owner for 1 path pattern." },
       { id: "GOV-LIC-004", status: "pass", reason: "LICENSE (or COPYING) file detected." },
       { id: "CI-WF-005", status: "pass", reason: "Found 3 workflow file(s)." },
       { id: "CI-PERM-006", status: "pass", reason: "All workflows declare top-level permissions." },

@@ -24,6 +24,7 @@ from oss_policy_kit.application.evaluators._shared import (
     Path,
     _audit_log_streaming_schema,
     _audit_stream_signal_match,
+    _codeowners_file,
     _detect_sbom_format_and_version,
     _digest_gate_outcome,
     _disclosure_policy_schema,
@@ -35,7 +36,6 @@ from oss_policy_kit.application.evaluators._shared import (
     _gov_disc_013_private_reporting_signals,
     _has_build_instructions,
     _has_changelog,
-    _has_codeowners,
     _has_license,
     _has_placeholder_security_contact,
     _org_mfa_schema,
@@ -61,6 +61,7 @@ from oss_policy_kit.application.evaluators._shared import (
 from oss_policy_kit.application.evaluators_common import strip_yaml_comments
 from oss_policy_kit.application.input_limits import bad_input_detail
 from oss_policy_kit.domain.models import utc_now
+from oss_policy_kit.infrastructure.source_text import decode_source
 
 _GITHUB_DIR = ".github"
 _KIT_DIR = ".oss-policy-kit"
@@ -108,19 +109,61 @@ def eval_gov_con_002(ctx: EvalContext) -> EvalOutcome:
     )
 
 
+def _codeowners_owner_rules(text: str) -> list[str]:
+    """Return the rules that actually name an owner, in file order.
+
+    `#` opens a comment anywhere on a line. A rule is a path pattern followed by at least one
+    owner -- `@user`, `@org/team`, or an email address. A pattern with no owner after it is
+    valid CODEOWNERS syntax that deliberately assigns *no* owner, so it does not count.
+    """
+
+    rules: list[str] = []
+    for line in text.splitlines():
+        body = line.split("#", 1)[0].strip()
+        if not body:
+            continue
+        tokens = body.split()
+        if len(tokens) >= 2 and any("@" in token for token in tokens[1:]):
+            rules.append(body)
+    return rules
+
+
 def eval_gov_cown_003(ctx: EvalContext) -> EvalOutcome:
-    if _has_codeowners(ctx.repo_root):
+    path = _codeowners_file(ctx.repo_root)
+    if path is None:
         return EvalOutcome(
-            status=ControlStatus.PASS,
-            reason="CODEOWNERS file present.",
-            remediation="Review CODEOWNERS coverage for critical paths.",
+            status=ControlStatus.FAIL,
+            reason="CODEOWNERS not found at .github/CODEOWNERS, the repository root, or docs/CODEOWNERS.",
+            remediation="Add CODEOWNERS to route reviews for sensitive areas.",
+            evidence_sources=[],
+            confidence="high",
+        )
+    try:
+        text = decode_source(path.read_bytes())
+    except OSError:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason="A CODEOWNERS file is present but could not be read, so its ownership rules are unknown.",
+            remediation="Check the permissions on CODEOWNERS, then re-run.",
+            evidence_sources=[],
+            confidence="low",
+        )
+    rules = _codeowners_owner_rules(text)
+    if not rules:
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason=(
+                "CODEOWNERS is present but no rule names an owner, so no reviewer is ever "
+                "requested and a branch rule requiring review from Code Owners has none to require."
+            ),
+            remediation="Add at least one rule pairing a path pattern with an owner, such as `* @your-team`.",
             evidence_sources=[],
             confidence="high",
         )
     return EvalOutcome(
-        status=ControlStatus.FAIL,
-        reason="CODEOWNERS not found at .github/CODEOWNERS or repository root.",
-        remediation="Add CODEOWNERS to route reviews for sensitive areas.",
+        status=ControlStatus.PASS,
+        reason=f"CODEOWNERS names an owner for {len(rules)} path pattern(s).",
+        remediation="Review CODEOWNERS coverage for critical paths.",
         evidence_sources=[],
         confidence="high",
     )
