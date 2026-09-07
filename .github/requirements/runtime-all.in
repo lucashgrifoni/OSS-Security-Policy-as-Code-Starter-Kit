@@ -3,6 +3,6 @@ click>=8.1.8,<9
 pyyaml>=6.0.1
 jsonschema>=4.20
 httpx>=0.27
-boto3>=1.34
+boto3>=1.43.88
 botocore>=1.34
 python-hcl2>=6.1
