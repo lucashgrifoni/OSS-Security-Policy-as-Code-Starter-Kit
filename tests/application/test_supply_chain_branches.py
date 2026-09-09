@@ -218,6 +218,25 @@ def test_distroless_na(tmp_path: Path) -> None:
     assert sc.eval_cont_distroless_001(_ctx(tmp_path)).status == ControlStatus.NOT_APPLICABLE
 
 
+def test_distroless_unparsed_from_names_every_dockerfile(tmp_path: Path) -> None:
+    """Four Dockerfiles with no FROM between them must not be reported as one.
+
+    The branch below this one already listed two (``dockerfiles[:2]``); this one named
+    ``dockerfiles[0]`` and called it "Dockerfile present", so an operator with four
+    unparseable Dockerfiles was pointed at one of them and told nothing about the rest.
+    """
+
+    for rel in ("Dockerfile", "svc/Dockerfile", "web/Dockerfile", "api/Dockerfile"):
+        _write(tmp_path, rel, "# no FROM line here\nRUN echo hi\n")
+
+    outcome = sc.eval_cont_distroless_001(_ctx(tmp_path))
+
+    assert outcome.status == ControlStatus.MANUAL_REVIEW_REQUIRED
+    assert "4 Dockerfile(s) present" in outcome.reason
+    assert len(outcome.evidence_sources) == 4
+    assert len(set(outcome.evidence_sources)) == 4
+
+
 def test_discover_dockerfiles_nested(tmp_path: Path) -> None:
     _write(tmp_path, "svc/Dockerfile", "FROM alpine\n")
     found = sc._discover_dockerfiles(tmp_path)
