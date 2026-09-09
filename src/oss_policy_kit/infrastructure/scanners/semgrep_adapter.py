@@ -91,6 +91,13 @@ class SemgrepRunOutcome:
         findings: Normalized findings (empty when ``status != "ok"``).
         raw_stderr: Truncated stderr captured for diagnostics. Never
             contains secrets because we never inject them into argv.
+        raw_stdout: Truncated stdout captured for diagnostics when the run
+            failed. Semgrep does not always speak on stderr -- a run that
+            exits 2 having printed ``<ERROR: missing output>`` on stdout
+            leaves stderr empty -- and an evidence file whose only
+            diagnostic field is then blank tells the operator nothing.
+        exit_code: Semgrep's own exit status, or ``None`` when it never ran
+            (binary missing) or was killed by the timeout.
         scanned_at: ISO 8601 UTC timestamp; useful for downstream evidence.
     """
 
@@ -99,6 +106,8 @@ class SemgrepRunOutcome:
     rulesets: list[str]
     findings: list[SemgrepFinding] = field(default_factory=list)
     raw_stderr: str = ""
+    raw_stdout: str = ""
+    exit_code: int | None = None
     scanned_at: str = ""
 
 
@@ -270,16 +279,25 @@ def run_semgrep(
         )
 
     stderr_excerpt = (proc.stderr or "")[:2000]
+    stdout_excerpt = (proc.stdout or "")[:2000]
     if proc.returncode not in {0, 1}:
         # Semgrep uses exit 1 to report findings (still a valid run). Any
         # other non-zero code means the scanner itself failed (e.g. bad
-        # ruleset). Capture stderr so users have something to grep.
+        # ruleset). Capture stderr AND stdout: the CLI answers this status by
+        # sending the operator to the evidence file, and Semgrep does not
+        # always fail on stderr. On Windows a broken run exits 2 with an empty
+        # stderr and the literal ``<ERROR: missing output>`` on stdout, which
+        # used to leave `raw_stderr_excerpt` blank -- the command pointed at a
+        # file that said nothing, which is the same dead end this module's
+        # ruleset default was chosen to remove.
         return SemgrepRunOutcome(
             status="error",
             version=_semgrep_version(),
             rulesets=list(rulesets),
             scanned_at=_now_iso_utc(),
             raw_stderr=stderr_excerpt,
+            raw_stdout=stdout_excerpt,
+            exit_code=proc.returncode,
         )
 
     findings = _parse_semgrep_findings(proc.stdout)
@@ -290,6 +308,8 @@ def run_semgrep(
             rulesets=list(rulesets),
             scanned_at=_now_iso_utc(),
             raw_stderr="Semgrep JSON output could not be parsed.",
+            raw_stdout=stdout_excerpt,
+            exit_code=proc.returncode,
         )
 
     return SemgrepRunOutcome(
@@ -299,6 +319,7 @@ def run_semgrep(
         findings=findings,
         scanned_at=_now_iso_utc(),
         raw_stderr=stderr_excerpt,
+        exit_code=proc.returncode,
     )
 
 
@@ -340,6 +361,8 @@ def render_evidence_payload(
         "findings": [asdict(f) for f in outcome.findings],
         "diagnostics": {
             "raw_stderr_excerpt": outcome.raw_stderr,
+            "raw_stdout_excerpt": outcome.raw_stdout,
+            "exit_code": outcome.exit_code,
         },
     }
 

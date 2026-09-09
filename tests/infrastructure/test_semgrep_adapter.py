@@ -311,3 +311,130 @@ def test_write_evidence_creates_dir_and_file(tmp_path: Path) -> None:
     assert out.parent == (tmp_path / ".oss-policy-kit" / "evidence").resolve()
     loaded = json.loads(out.read_text(encoding="utf-8"))
     assert loaded["schema_version"] == sa.EVIDENCE_SCHEMA_VERSION
+
+
+# --------------------------------------------------------------------------- #
+# A failed scan has to leave the operator something to read
+# --------------------------------------------------------------------------- #
+
+
+def test_a_failure_that_speaks_on_stdout_is_still_recorded(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`scan-sast` answers a failed scan by sending the operator to the evidence file.
+
+    On Windows a broken Semgrep exits 2 having written the literal ``<ERROR: missing output>``
+    to **stdout**, with stderr empty. Measured against semgrep 1.163.0 on the documented
+    `scan-sast --target .` quick start: exit 2, `raw_stderr_excerpt: ""`. The command pointed
+    at a file whose only diagnostic field was blank, which is the same dead end the ruleset
+    default in this module was chosen to remove.
+    """
+
+    monkeypatch.setattr(sa.shutil, "which", lambda _name: "/usr/bin/semgrep")
+    monkeypatch.setattr(sa, "_semgrep_version", lambda: "1.163.0")
+    monkeypatch.setattr(
+        sa.subprocess,
+        "run",
+        lambda *_a, **_k: _FakeProc(stdout="<ERROR: missing output>\n", stderr="", returncode=2),
+    )
+
+    outcome = sa.run_semgrep(tmp_path)
+    payload = sa.render_evidence_payload(outcome, target=tmp_path)
+
+    assert outcome.status == "error"
+    diagnostics = payload["diagnostics"]
+    assert diagnostics["exit_code"] == 2
+    assert "<ERROR: missing output>" in diagnostics["raw_stdout_excerpt"]
+    assert any(str(value).strip() for value in diagnostics.values()), (
+        "every diagnostic field is blank, so the evidence file the CLI points at says nothing"
+    )
+
+
+def test_a_failure_that_speaks_on_stderr_keeps_speaking_there(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The ordinary failure path is unchanged: stderr is still where a normal error lands."""
+
+    monkeypatch.setattr(sa.shutil, "which", lambda _name: "/usr/bin/semgrep")
+    monkeypatch.setattr(sa, "_semgrep_version", lambda: "1.163.0")
+    monkeypatch.setattr(
+        sa.subprocess,
+        "run",
+        lambda *_a, **_k: _FakeProc(stdout="", stderr="invalid rule config\n", returncode=7),
+    )
+
+    payload = sa.render_evidence_payload(sa.run_semgrep(tmp_path), target=tmp_path)
+
+    assert payload["diagnostics"]["raw_stderr_excerpt"] == "invalid rule config\n"
+    assert payload["diagnostics"]["exit_code"] == 7
+
+
+def test_unparseable_json_records_what_was_printed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ "Semgrep JSON output could not be parsed" is a claim; the bytes that failed back it up."""
+
+    monkeypatch.setattr(sa.shutil, "which", lambda _name: "/usr/bin/semgrep")
+    monkeypatch.setattr(sa, "_semgrep_version", lambda: "1.163.0")
+    monkeypatch.setattr(
+        sa.subprocess,
+        "run",
+        lambda *_a, **_k: _FakeProc(stdout="not json at all", stderr="", returncode=0),
+    )
+
+    payload = sa.render_evidence_payload(sa.run_semgrep(tmp_path), target=tmp_path)
+
+    assert payload["status"] == "error"
+    assert payload["diagnostics"]["raw_stdout_excerpt"] == "not json at all"
+
+
+def test_the_failure_line_names_the_scanner_exit_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reading the file is a second step; the code the scanner returned fits on the first."""
+
+    from typer.testing import CliRunner
+
+    from oss_policy_kit.cli.main import app
+
+    monkeypatch.setattr(sa.shutil, "which", lambda _name: "/usr/bin/semgrep")
+    monkeypatch.setattr(sa, "_semgrep_version", lambda: "1.163.0")
+    monkeypatch.setattr(
+        sa.subprocess,
+        "run",
+        lambda *_a, **_k: _FakeProc(stdout="<ERROR: missing output>\n", stderr="", returncode=2),
+    )
+
+    result = CliRunner().invoke(app, ["scan-sast", "--target", str(tmp_path)])
+
+    assert result.exit_code == 2
+    assert "semgrep exit 2" in result.output.replace("\n", " ")
+
+
+def test_the_evidence_a_failed_scan_writes_still_matches_the_published_schema(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """New diagnostic keys are only safe if the shipped schema still accepts the file."""
+
+    import json as _json
+
+    import jsonschema
+
+    from oss_policy_kit.application.loader import bundled_kit_root
+
+    monkeypatch.setattr(sa.shutil, "which", lambda _name: "/usr/bin/semgrep")
+    monkeypatch.setattr(sa, "_semgrep_version", lambda: "1.163.0")
+    monkeypatch.setattr(
+        sa.subprocess,
+        "run",
+        lambda *_a, **_k: _FakeProc(stdout="<ERROR: missing output>\n", stderr="", returncode=2),
+    )
+
+    payload = sa.render_evidence_payload(sa.run_semgrep(tmp_path), target=tmp_path)
+    schema = _json.loads(
+        (bundled_kit_root() / "schema" / "evidence-sast-semgrep.schema.json").read_text(encoding="utf-8")
+    )
+
+    jsonschema.validate(payload, schema)
