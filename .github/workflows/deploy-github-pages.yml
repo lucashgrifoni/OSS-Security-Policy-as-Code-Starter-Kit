@@ -1,6 +1,10 @@
-# Uploads the static gitpage/ site directly to GitHub Pages. The site is plain HTML + Babel-in-browser
-# JSX (no Node toolchain), so this workflow has no install/build steps. Third-party actions are pinned
-# to full commit SHAs (CI-PIN-008) to match repository policy.
+# Uploads the static gitpage/ site directly to GitHub Pages. The site is plain HTML plus the
+# PREBUILT `bundle.js` and `site.css` that are committed under gitpage/ -- Babel does not run in
+# the browser, and this workflow runs no Node toolchain. So editing a .jsx file changes nothing a
+# visitor sees until `node build-js.mjs` (or `npm run build`) runs in gitpage/ and the generated
+# assets are committed: this comment used to say Babel-in-browser, and a page whose numbers were a
+# third of the truth sat behind that sentence. Third-party actions are pinned to full commit SHAs
+# (CI-PIN-008) to match repository policy.
 
 name: Deploy GitHub Pages
 

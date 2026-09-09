@@ -58,7 +58,7 @@ docker run --rm \
 - **Pinned Python 3.12.** The kit declares `requires-python >=3.12` in `pyproject.toml`; the image matches.
 - **Non-root user `appuser` (uid 10001).** Required by `container-baseline-1`'s `CONT-IMAGE-001..003` controls.
 - **No build tools in the runtime image.** Source install happens in the builder stage, then only the venv is copied.
-- **`[all]` extras installed by default.** A single image supports every subcommand including `collect-evidence` (GitHub / Azure / AWS) and the IaC scanners.
+- **`[all]` extras installed by default.** A single image supports every subcommand including `collect-evidence` (GitHub / GitLab / Azure / AWS) and the IaC scanners.
 - **OCI labels** for `image.title`, `image.description`, `image.source`, `image.licenses`, `image.vendor` — feeds Sigstore Cosign provenance, image SBOM tooling, and registry discovery.
 - **No PyPI race.** The release workflow builds the container from the checked-out tag instead of waiting for the package to appear on PyPI. See [ADR-017](decisions/adr-017-source-built-container-release.md).
 

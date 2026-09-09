@@ -439,7 +439,7 @@ After mapping the catalog to all nine frameworks above, the explicit decisions a
 ### Decision 1 — No new profiles in v5.0.0 (historical, superseded post-v5.0.0)
 
 > **Historical context**: this decision was taken at the v5.0.0 mapping iteration when the
-> kit shipped 20 profiles. The profile count has since grown to 36 (v5.8.1), incorporating
+> kit shipped 20 profiles. The profile count has since grown to 56, incorporating
 > IaC posture (`iac-{terraform,cfn,pulumi,bicep}-baseline-1`), Kubernetes / container
 > baselines, webhook receiver hardening, AppSec native (`appsec-sast-sca-1`), and additional
 > framework-aligned advisories. The argument structure below was the original v5.0.0
@@ -587,7 +587,7 @@ area an ASVS / 800-53 audit needs to cover), but it does not claim to **prove** 
 
 ## v5.4.0 framework alignment profiles
 
-Seven multi-platform profiles introduced in v5.4.0 bundle existing controls into framework-specific mappings, plus one **AppSec native bundle** (`appsec-sast-sca-1`) that combines SAST + SCA + secret scanning + dependency hygiene. None of them adds new controls; they reuse the existing 70-control catalog. Below is a one-paragraph mapping per profile. Detailed per-control rationale lives inside the corresponding `profile.yaml` `description:` and `audience:` fields.
+Seven multi-platform profiles introduced in v5.4.0 bundle existing controls into framework-specific mappings, plus one **AppSec native bundle** (`appsec-sast-sca-1`) that combines SAST + SCA + secret scanning + dependency hygiene. None of them adds new controls; they reuse the existing catalog (70 controls when this section was written; 222 today — see [controls-catalog.md](controls-catalog.md)). Below is a one-paragraph mapping per profile. Detailed per-control rationale lives inside the corresponding `profile.yaml` `description:` and `audience:` fields.
 
 ### `osps-baseline-1` — OpenSSF OSPS Baseline
 
@@ -621,7 +621,7 @@ Stricter version of `cra-eu-ready-1`, aimed at the EU CRA full-obligations deadl
 
 ### `appsec-sast-sca-1` — AppSec native bundle (SAST + SCA + secret scanning + dependency hygiene)
 
-Multi-platform profile aimed at AppSec teams using the kit as part of pipeline AppSec, not just as OSS governance. 11 controls grouped in four areas: **SAST** (`SEC-CODEQL-010`, `SAST-SEMGREP-064`), **SCA** (`SEC-DEPREV-011`, `DEP-UPDATE-001`, `SEC-PINLOCK-052`), **secret scanning** (`SEC-SECRETS-050`, `SEC-GITIGNORE-051`, `GH-PLAT-026`), and **dependency integrity** (`CI-PIN-008`, `CI-WFCALLSHA-055`), plus governance sustaining (`GOV-WAIV-014`). Hard-gate-capable when paired with `oss-policy-kit scan-sast`: that command produces the Semgrep evidence file consumed by `SAST-SEMGREP-064`. Without that evidence, the SAST control returns `manual-review-required` (does not trip `--fail-on fail`); with it, the profile reaches deterministic + evidence-backed posture suitable for `--fail-on fail`. Recommended workflow: `oss-policy-kit scan-sast --target . && oss-policy-kit evaluate --target . --profile appsec-sast-sca-1 --fail-on fail`. This is the first bundled profile to consume `SAST-SEMGREP-064` (promoted from `experimental` to `stable` alongside this profile).
+Multi-platform profile aimed at AppSec teams using the kit as part of pipeline AppSec, not just as OSS governance. 17 controls grouped in four areas: **SAST** (`SEC-CODEQL-010`, `SAST-SEMGREP-064`, `SAST-ZIZMOR-066`, `SAST-POUTINE-067`), **SCA** (`SEC-DEPREV-011`, `DEP-UPDATE-001`, `SEC-PINLOCK-052`, `SAST-OSV-068`, `SCA-KEV-001`, `SCA-EPSS-001`), **secret scanning** (`SEC-SECRETS-050`, `SEC-GITIGNORE-051`, `GH-PLAT-026`, `SAST-GITLEAKS-069`), and **dependency integrity** (`CI-PIN-008`, `CI-WFCALLSHA-055`), plus governance sustaining (`GOV-WAIV-014`). Hard-gate-capable when paired with `oss-policy-kit scan-sast`: that command produces the Semgrep evidence file consumed by `SAST-SEMGREP-064`. Without that evidence, the SAST control returns `manual-review-required` (does not trip `--fail-on fail`); with it, the profile reaches deterministic + evidence-backed posture suitable for `--fail-on fail`. Recommended workflow: `oss-policy-kit scan-sast --target . && oss-policy-kit evaluate --target . --profile appsec-sast-sca-1 --fail-on fail`. This is the first bundled profile to consume `SAST-SEMGREP-064` (promoted from `experimental` to `stable` alongside this profile).
 
 ---
 
