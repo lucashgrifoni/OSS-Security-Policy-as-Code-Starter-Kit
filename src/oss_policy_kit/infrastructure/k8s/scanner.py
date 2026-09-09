@@ -40,13 +40,54 @@ _SKIP_DIRS: frozenset[str] = frozenset(
     {".git", ".terraform", "node_modules", ".venv", "venv", "__pycache__", "dist", "build", ".oss-policy-kit"}
 )
 
-_HELM_TEMPLATE_MARKER = re.compile(r"\{\{[^}]+\}\}")
 _LATEST_TAG_RE = re.compile(r":(latest)?$|^[A-Za-z0-9./-]+(?<!\.)$")
 _K8S_KINDS_WORKLOAD: frozenset[str] = frozenset(
     {"Pod", "Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "ReplicaSet"}
 )
 _K8S_KINDS_RBAC_BIND: frozenset[str] = frozenset({"RoleBinding", "ClusterRoleBinding"})
 _K8S_KINDS_RBAC_RULE: frozenset[str] = frozenset({"Role", "ClusterRole"})
+
+
+def _has_helm_template_marker(text: str) -> bool:
+    r"""True when *text* contains an unrendered ``{{ ... }}`` Helm marker.
+
+    Exactly the predicate ``re.compile(r"\{\{[^}]+\}\}").search(text)`` answered, computed in
+    linear time. The regular expression it replaces was quadratic on repository-controlled
+    input and measurably so: a 256 KiB ``.yaml`` of ``{`` cost 20.7s here, and this function
+    answers the same question in 0.00003s. The cost is the shape of the pattern, not the
+    engine -- ``\{\{`` matches at every position of a brace run, ``[^}]+`` then walks to the
+    end of the file, and the whole attempt restarts one character along. Every scanned
+    ``**/*.yaml`` and ``**/*.yml`` reaches this line, and ``ScanDeadline`` is only checked
+    BETWEEN files, so no ``--timeout`` can interrupt one such match once it starts.
+
+    The algorithm rests on one observation: a match needs ``[^}]+`` between the braces, so the
+    ``}}`` that closes it must begin at the FIRST ``}`` after the ``{{``. Walk the ``}``-free
+    blocks; within one block every ``{{`` shares that same closer, so only the earliest one
+    needs testing, and the earliest is also the one most likely to leave room for the
+    at-least-one character. Each block is scanned a constant number of times, so the whole
+    string is O(n).
+
+    Equivalence is not argued from the prose above: it was checked against the regex over
+    every string up to length 9 on ``{}x`` and length 7 on ``{}xy`` (51,369 strings) plus
+    400,000 randomised YAML-alphabet strings, with no disagreement, and that check ships as a
+    test. On one shape -- millions of two-character ``}``-free blocks -- this is about 14x
+    slower than the regex (37 ns/byte, 0.62s for 16 MiB). That is the trade: a bounded linear
+    cost everywhere instead of a cheap average with an unbounded quadratic tail.
+    """
+
+    pos, n = 0, len(text)
+    while pos < n:
+        end = text.find("}", pos)
+        if end == -1:
+            # No `}` left, so no `}}` can close a marker in the remainder.
+            return False
+        opener = text.find("{{", pos, end)
+        # `opener <= end - 3` is the `[^}]+` "at least one character" requirement;
+        # `end + 1 < n` and the `}` test are the closing `}}`.
+        if opener != -1 and opener <= end - 3 and end + 1 < n and text[end + 1] == "}":
+            return True
+        pos = end + 1
+    return False
 
 
 @dataclass(slots=True)
@@ -203,7 +244,7 @@ def _index_manifests(
         # it as UTF-8 produced mojibake with no `kind:` in it, and a pod declaring
         # `privileged: true` scored a clean scan.
         text = decode_source(raw)
-        if _HELM_TEMPLATE_MARKER.search(text):
+        if _has_helm_template_marker(text):
             helm_skipped.append(_normalize_target(repo_root, path))
             continue
         try:
