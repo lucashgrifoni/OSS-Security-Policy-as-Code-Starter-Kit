@@ -27,6 +27,17 @@ _EVIDENCE_SCHEMA_PREFIX = "evidence-"
 _EVIDENCE_SCHEMA_SUFFIX = ".schema.json"
 
 
+#: The note `recommend-profile` emits when nothing in the clone points at a platform and the
+#: GitHub baseline is therefore the fallback. Named rather than inlined because `init` has to
+#: recognise it: with `--platform gitlab` the chosen profile is `gitlab-level-1`, and printing
+#: "defaulting to a conservative GitHub baseline profile" underneath told the reader their gate
+#: was running a profile it was not. Matching a re-typed copy of the sentence would have gone
+#: stale the first time the wording changed.
+FEW_SIGNALS_FALLBACK_NOTE = (
+    "Few strong platform signals were detected; defaulting to a conservative GitHub baseline profile."
+)
+
+
 def schema_backed_evidence_filenames() -> frozenset[str]:
     """Return ``{"<name>.json", ...}`` for every bundled ``evidence-<name>.schema.json``."""
 
@@ -1149,7 +1160,7 @@ def _no_platform_fallback(
             }
         )
     else:
-        notes.append("Few strong platform signals were detected; defaulting to a conservative GitHub baseline profile.")
+        notes.append(FEW_SIGNALS_FALLBACK_NOTE)
         suggestions.append(
             {
                 "profile_id": "github-level-1",
