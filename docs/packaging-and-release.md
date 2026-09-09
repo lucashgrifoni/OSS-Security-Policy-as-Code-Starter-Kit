@@ -206,6 +206,39 @@ everything else is a workflow.
    tree: `pip install oss-policy-kit==X.Y.Z` in a fresh virtualenv, pull the GHCR image
    by digest, and run the consumer smoke above against both.
 
+### Rolling back a published release
+
+A published version cannot be replaced. PyPI refuses a re-upload of a filename it already
+holds, and the GHCR digest of a pushed image never changes. Rollback here means pointing
+consumers at the previous version, not editing this one.
+
+What an adopter does, and what it was measured to give:
+
+```bash
+pip install "oss-policy-kit==<previous version>"
+docker pull ghcr.io/lucashgrifoni/oss-policy-kit@sha256:<previous digest>
+```
+
+Verified against 10.0.19 while 10.0.20 was current: the older wheel installs and reports
+its own version, evaluates the same target to the same verdicts and the same weighted
+score, and `diff-reports` reads across the boundary in both directions -- an older build
+reading a newer report and the reverse -- with no regressions and no schema mismatch. Patch
+releases share the `reports/2.0` contract, so a rollback within a major does not strand a
+report an adopter already stored. A rollback across a major does; the migration guide for
+that major is the document that says how.
+
+The maintainer's side of a bad release:
+
+1. Do not delete the tag or the release. Both are referenced by the provenance already
+   published for the artifacts, and removing them turns every verification into a failure
+   that looks like tampering.
+2. Yank the version on PyPI. A yanked version stays installable for anyone who pins it
+   exactly and disappears from resolution for everyone else. This step has not been
+   exercised on this project -- it is the documented PyPI behaviour, not a measured result.
+3. Ship the fix as the next patch. `latest` on GHCR moves to it on the next tag push; until
+   then `latest` still points at the bad digest, which is the argument for pinning by digest
+   in the line above.
+
 ### The transient major-bump pull request
 
 Minutes after step 1, a second release PR titled with the NEXT MAJOR (`release 11.0.0`

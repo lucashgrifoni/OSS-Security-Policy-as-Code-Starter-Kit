@@ -65,6 +65,47 @@ gh attestation verify oci://ghcr.io/lucashgrifoni/oss-policy-kit:<version> \
 
 The container workflow builds from the checked-out release tag instead of installing from PyPI. That removes the release race where the GHCR build starts before the PyPI package is visible.
 
+## Rebuilding the wheel yourself
+
+Signature and provenance say the artifact came from this repository's workflow. Rebuilding
+says the artifact came from the source you can read. They answer different questions, and
+the second one needs no trust in GitHub at all.
+
+```bash
+# `-c core.autocrlf=false` at clone time. On Windows the default rewrites LICENSE and
+# NOTICE to CRLF, and both are hashed into the wheel's RECORD.
+git -c core.autocrlf=false clone https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit.git
+cd OSS-Security-Policy-as-Code-Starter-Kit
+git checkout v<version>
+
+# Read the epoch on the host: the build image has no git.
+export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
+
+docker run --rm -v "$PWD:/src" -w /build -e SOURCE_DATE_EPOCH python:3.12-slim bash -c '
+  cp -r /src/. /build && rm -rf dist build src/*.egg-info
+  find . -type f -exec chmod 644 {} + && find . -type d -exec chmod 755 {} +
+  pip install -q build && python -m build --wheel && sha256sum dist/*.whl'
+```
+
+Compare that hash against the wheel on PyPI or the GitHub Release.
+
+What to expect:
+
+| Release | Wheel | Source distribution |
+|---|---|---|
+| Anything published after v10.0.20 | Identical hash | Identical file contents; the gzip header and the mtimes of the generated `egg-info` members still carry build time |
+| v10.0.20 and earlier | Identical contents, all 231 entries; different hash | Identical file contents, different hash |
+
+The split is deliberate rather than a caveat about tooling. Through v10.0.20 the build did
+not set `SOURCE_DATE_EPOCH`, so every timestamp inside the wheel was the runner's clock at
+checkout -- v10.0.20 carries 16:08:18 on the source entries and 16:08:30 on the generated
+ones. Nobody outside that run can replay it. From the next release the epoch is the
+committer date of the commit being built, which anyone holding the tag also holds.
+
+If a hash differs on a release that should match, compare entry by entry before concluding
+anything. Two of the differences are usually yours rather than the release's: line endings,
+which the clone flag above settles, and file modes, which is what the `chmod` line settles.
+
 ## Trust model
 
 | Artifact | Current evidence | What it proves | What it does not prove |
