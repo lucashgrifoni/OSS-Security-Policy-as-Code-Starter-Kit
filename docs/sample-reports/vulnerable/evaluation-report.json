@@ -266,7 +266,7 @@
       "assurance": "deterministic",
       "confidence": "medium",
       "weight": 3,
-      "message": "Mutable action references (tags/branches) detected.",
+      "message": "1 mutable action reference(s) (tags/branches) detected across 1 workflow file(s).",
       "remediation": "Pin actions to immutable SHAs (40-char commit) from trusted repos.",
       "evidence": {
         "source_type": "static_clone",

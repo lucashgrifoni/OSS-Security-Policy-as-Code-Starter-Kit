@@ -5,6 +5,7 @@ from __future__ import annotations
 from oss_policy_kit.application.evaluators._shared import (
     _HARDEN_RUNNER_PATTERNS,
     _KEYWORD_CI_SIGNAL_WARN,
+    EVIDENCE_PREVIEW_LIMIT,
     ControlStatus,
     EvalContext,
     EvalOutcome,
@@ -26,6 +27,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _workflow_text_has_long_lived_cloud_secret,
     contextlib,
     json,
+    preview_evidence_paths,
 )
 
 _GITHUB_DIR = ".github"
@@ -166,12 +168,16 @@ def eval_gh_wf_020(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     if ctx.workflows.broad_job_permissions:
-        sample = ctx.workflows.broad_job_permissions[0]
+        items = ctx.workflows.broad_job_permissions
+        detail = "; ".join(f"{path.name}: {scope}" for path, scope in items[:EVIDENCE_PREVIEW_LIMIT])
+        remainder = (
+            f" (listing {EVIDENCE_PREVIEW_LIMIT} of {len(items)})" if len(items) > EVIDENCE_PREVIEW_LIMIT else ""
+        )
         return EvalOutcome(
             status=ControlStatus.FAIL,
-            reason=f"Broad job-level write permission detected ({sample[1]}) in {sample[0].name}.",
+            reason=f"Broad job-level write permission detected in {len(items)} job(s){remainder}: {detail}.",
             remediation="Reduce job-level scopes to read-only unless write is strictly required for that job.",
-            evidence_sources=[str(sample[0].resolve())],
+            evidence_sources=preview_evidence_paths(path for path, _ in items),
             confidence="medium",
         )
     if ctx.workflows.parse_errors:

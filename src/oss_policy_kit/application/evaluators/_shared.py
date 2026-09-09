@@ -110,6 +110,33 @@ _REQUIRED_BRANCH_PROTECTION_FLAGS = (
     "restrict_force_push",
 )
 
+#: How many findings a failing control names before its reason states the remainder.
+#:
+#: Four controls used to report ``findings[0]`` and nothing else, so a repository with
+#: nine unpinned action references was told about one. The verdict was right and the
+#: evidence understated the remediation work by eight, which for a tool whose product is
+#: audit evidence is the wrong kind of incomplete: the operator fixes the named one,
+#: re-runs, and is handed the next. The cap exists so a repository with hundreds of
+#: violations does not turn one control into a wall of text; the count in the reason is
+#: what keeps the capped list honest about what it left out.
+EVIDENCE_PREVIEW_LIMIT = 5
+
+
+def preview_evidence_paths(paths: Iterable[Path], limit: int = EVIDENCE_PREVIEW_LIMIT) -> list[str]:
+    """Resolved evidence paths, de-duplicated in first-seen order and capped at ``limit``.
+
+    Several findings can share one file -- ``broad_job_permissions`` records one entry per
+    job -- and repeating that file in the reference list is noise rather than evidence.
+    First-seen order is stable because the workflow walk is sorted.
+    """
+
+    seen: dict[str, None] = {}
+    for path in paths:
+        seen.setdefault(str(path.resolve()), None)
+        if len(seen) >= limit:
+            break
+    return list(seen)
+
 
 def _branch_protection_schema() -> dict[str, Any]:
     return load_evidence_schema("evidence-branch-protection.schema.json")
@@ -3062,6 +3089,7 @@ _SHA_PIN_PATTERN = re.compile(r"@[0-9a-f]{40}\b")
 
 __all__ = [
     "Any",
+    "EVIDENCE_PREVIEW_LIMIT",
     "AwsCiAnalysis",
     "AzurePipelineAnalysis",
     "Callable",
@@ -3074,6 +3102,7 @@ __all__ = [
     "NO_AWS_BUILDSPEC_REASON",
     "NO_AZURE_PIPELINES_REASON",
     "Path",
+    "preview_evidence_paths",
     "ScorecardBundle",
     "UTC",
     "ValidationError",
