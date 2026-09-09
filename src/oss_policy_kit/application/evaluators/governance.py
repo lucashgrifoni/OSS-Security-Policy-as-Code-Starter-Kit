@@ -32,6 +32,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _evidence_is_api_backed,
     _evidence_placeholder_outcome,
     _exists_ci_readme,
+    _file_named_any_case,
     _find_sbom_files,
     _gov_disc_013_private_reporting_signals,
     _has_build_instructions,
@@ -90,9 +91,17 @@ def eval_gov_sec_001(ctx: EvalContext) -> EvalOutcome:
 
 
 def eval_gov_con_002(ctx: EvalContext) -> EvalOutcome:
-    for name in ("CONTRIBUTING.md", "CONTRIBUTING", "docs/CONTRIBUTING.md"):
-        p = ctx.repo_root / name
-        if p.is_file():
+    # Case-insensitive because GitHub says so: "Contributing guidelines filenames are not
+    # case sensitive." Matching exactly made this control disagree with the platform it
+    # audits AND with itself across filesystems -- `contributing.md` passed on Windows and
+    # failed on the Linux runner, for a repository GitHub is perfectly happy with.
+    for directory, name in (
+        (ctx.repo_root, "CONTRIBUTING.md"),
+        (ctx.repo_root, "CONTRIBUTING"),
+        (ctx.repo_root / "docs", "CONTRIBUTING.md"),
+    ):
+        p = _file_named_any_case(directory, name)
+        if p is not None:
             return EvalOutcome(
                 status=ControlStatus.PASS,
                 reason="Contributing guide present.",

@@ -59,7 +59,7 @@ def test_a_bare_repository_path_is_rewritten_into_an_evaluate_call(
     """Click would otherwise swallow the path as a group positional and never run evaluate."""
 
     seen: list[list[str]] = []
-    monkeypatch.setattr(cli_main, "app", lambda: seen.append(sys.argv[1:]))
+    monkeypatch.setattr(cli_main, "app", lambda **_: seen.append(sys.argv[1:]))
     monkeypatch.setattr(sys, "argv", ["oss-policy-kit", str(tmp_path), "--profile", "github-level-1"])
 
     cli_main.main()
@@ -71,7 +71,7 @@ def test_an_empty_command_line_is_left_alone(monkeypatch: pytest.MonkeyPatch) ->
     """The counterpart: with no arguments there is nothing to rewrite, and no path to guess."""
 
     seen: list[list[str]] = []
-    monkeypatch.setattr(cli_main, "app", lambda: seen.append(sys.argv[1:]))
+    monkeypatch.setattr(cli_main, "app", lambda **_: seen.append(sys.argv[1:]))
     monkeypatch.setattr(sys, "argv", ["oss-policy-kit"])
 
     cli_main.main()
@@ -82,7 +82,7 @@ def test_an_empty_command_line_is_left_alone(monkeypatch: pytest.MonkeyPatch) ->
 def test_a_reader_closing_the_pipe_is_not_an_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """`oss-policy-kit profiles | head` must exit 0, not "Unexpected error" at exit 3."""
 
-    def _closed_pipe() -> None:
+    def _closed_pipe(**_: object) -> None:
         raise BrokenPipeError(32, "Broken pipe")
 
     monkeypatch.setattr(cli_main, "app", _closed_pipe)
@@ -97,7 +97,7 @@ def test_a_reader_closing_the_pipe_is_not_an_error(monkeypatch: pytest.MonkeyPat
 def test_an_os_error_that_is_not_a_broken_pipe_is_still_raised(monkeypatch: pytest.MonkeyPatch) -> None:
     """The counterpart: swallowing every OSError here would hide real failures as exit 0."""
 
-    def _disk_full() -> None:
+    def _disk_full(**_: object) -> None:
         raise OSError(28, "No space left on device")
 
     monkeypatch.setattr(cli_main, "app", _disk_full)

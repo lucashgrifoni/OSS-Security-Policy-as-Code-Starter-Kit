@@ -45,10 +45,19 @@ EVIDENCE_SCHEMA_VERSION = "oss-policy-kit/evidence/sast-semgrep/v1"
 #: Stable evidence filename under ``.oss-policy-kit/evidence/``.
 EVIDENCE_FILENAME = "sast-semgrep.json"
 
-#: Default ruleset. ``auto`` resolves to Semgrep's curated registry pack
-#: for the languages it detects in the target. Users who need stricter
-#: control can pass ``rulesets=("p/owasp-top-ten",)`` or similar.
-DEFAULT_RULESETS: tuple[str, ...] = ("auto",)
+#: Default rulesets. NOT ``auto``: Semgrep refuses that config whenever telemetry is
+#: disabled -- "Cannot create auto config when metrics are off. Please allow metrics or
+#: run with a specific config." -- and this adapter always passes ``--metrics=off``,
+#: because a security tool that phones home by default is not one an adopter can drop
+#: into a pipeline unexamined. The two settings could never hold at once, so the
+#: documented `scan-sast` quick start exited 2 on every run with the real cause buried in
+#: the evidence file's diagnostics.
+#:
+#: ``p/security-audit`` is the pack this repository's own Security CI already runs against
+#: itself with ``--metrics=off``, so it is a default the project vets rather than one
+#: chosen here. Override with ``--ruleset`` for a different pack, a local rules file, or
+#: ``auto`` -- and note that ``auto`` needs metrics enabled on Semgrep's side to resolve.
+DEFAULT_RULESETS: tuple[str, ...] = ("p/security-audit",)
 
 #: Hard upper bound on the wall-clock time we let Semgrep run before we
 #: kill it. Defensive default: avoids an unresponsive scan stalling CI.

@@ -1,10 +1,10 @@
 // Stats strip + marquee bands
 
 const STATS = [
-  { num: 18, suffix: "", label: "Bundled profiles", hint: "GitHub · Azure · AWS" },
-  { num: 7, suffix: "", label: "Explicit states", hint: "pass · fail · review · waived · …" },
-  { num: 3, suffix: "", label: "Platforms supported", hint: "static parsers across forges" },
-  { num: 5, suffix: "", label: "CLI commands", hint: "evaluate · profiles · …" },
+  { num: 56, suffix: "", label: "Bundled profiles", hint: "GitHub · GitLab · Azure · AWS" },
+  { num: 9, suffix: "", label: "Explicit states", hint: "pass · fail · review · waived · …" },
+  { num: 4, suffix: "", label: "Platforms supported", hint: "static parsers across forges" },
+  { num: 23, suffix: "", label: "CLI commands", hint: "evaluate · profiles · …" },
 ];
 
 function StatsStrip() {

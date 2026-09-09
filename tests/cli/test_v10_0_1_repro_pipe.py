@@ -205,7 +205,7 @@ def _run_main_raising(exc: BaseException, monkeypatch: pytest.MonkeyPatch) -> No
 
     from oss_policy_kit.cli import main as main_mod
 
-    def _boom() -> None:
+    def _boom(**_: object) -> None:
         raise exc
 
     monkeypatch.setattr(main_mod, "app", _boom)

@@ -178,7 +178,15 @@ def main() -> None:
     if sys.stdout is not None:
         sys.stdout = _BrokenPipeGuardedStdout(sys.stdout)
     try:
-        app()
+        # `windows_expand_args=False`: on Windows, Click expands globs in argv itself to
+        # emulate a POSIX shell, and it does so against the CURRENT WORKING DIRECTORY --
+        # not the target. That silently rewrote every pattern-valued option. Measured with
+        # identical argv both times (`['--exclude', 'doc*']`), only the cwd differing:
+        # from an empty directory `evaluate-many --exclude 'doc*'` audited 1 of 2 repos as
+        # asked, and from a directory that merely happened to contain `docsomething` it
+        # audited both and exited 0 with no warning. A batch gate that reports green while
+        # it evaluated a set the operator excluded is worse than one that fails.
+        app(windows_expand_args=False)
     except _BrokenPipeExit:
         _exit_quietly_on_broken_pipe()
     except OSError as exc:

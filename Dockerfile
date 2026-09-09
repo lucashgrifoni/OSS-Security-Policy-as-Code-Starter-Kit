@@ -122,6 +122,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH"
 
+# Debian security updates published after the pinned base image was built. The digest is
+# still the pin -- this only applies what `Debian-Security` has for it, and measured on
+# 2026-09-09 that is exactly one package: `libpcre2-8-0` 10.42-1 -> 10.42-1+deb12u1, the
+# five `libpcre2` advisories open on this repository. They are the ones the pip advisories
+# are not: `pip` is uninstalled below and never reaches the published image, while
+# `libpcre2` is a system library that ships in it.
+#
+# `upgrade` rather than `--only-upgrade libpcre2-8-0`, and the simulation is why: a full
+# upgrade of this base moves that one package and nothing else, so naming the package buys
+# no smaller change and needs an edit the next time Debian publishes. `upgrade` never
+# installs or removes a package, so the image contents stay the set the Dockerfile chose.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create the non-root user. Fixed uid/gid keeps adopter mounts predictable.
 RUN groupadd --system --gid 10001 appuser \
     && useradd --system --uid 10001 --gid appuser --home /home/appuser --shell /usr/sbin/nologin appuser \
@@ -145,7 +160,16 @@ RUN /usr/local/bin/python3 -m pip uninstall --yes pip \
 
 # Drop privileges before declaring the entrypoint. WORKDIR /work is the
 # canonical mount point for the adopter's repository.
+#
+# The chown is what makes the documented commands work as a non-root user. `WORKDIR`
+# creates the directory as root, and every command in docs/container-image.md writes its
+# report under it, so without this the image cannot write to its own working directory:
+# `docker run --rm <image> evaluate --target /work --output-dir out` ends in
+# "Cannot write to --output-dir 'out': Permission denied" and exit 2. It went unnoticed
+# because a Docker Desktop bind mount is world-writable, so the failure only appears where
+# the docs say to use this image -- Linux, CI, a Kubernetes Job.
 WORKDIR /work
+RUN chown appuser:appuser /work
 USER appuser
 
 # OCI labels for image discoverability and SBOM / provenance tooling.

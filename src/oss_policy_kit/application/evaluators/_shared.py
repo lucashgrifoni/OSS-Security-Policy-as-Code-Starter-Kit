@@ -290,13 +290,20 @@ def _exists_ci_readme(repo: Path) -> bool:
 
 
 def _has_changelog(repo: Path) -> bool:
-    names = [
-        repo / "CHANGELOG.md",
-        repo / "CHANGES.md",
-        repo / "docs" / "CHANGELOG.md",
-        repo / _GITHUB_DIR / "RELEASE.md",
-    ]
-    return any(p.is_file() for p in names)
+    """Case-insensitive on purpose: a changelog is a convention, not a platform contract.
+
+    No forge assigns meaning to this filename, every changelog tool accepts either casing,
+    and matching case-sensitively made the answer depend on the filesystem -- `changelog.md`
+    counted on Windows and did not on the Linux runner.
+    """
+
+    candidates = (
+        (repo, "CHANGELOG.md"),
+        (repo, "CHANGES.md"),
+        (repo / "docs", "CHANGELOG.md"),
+        (repo / _GITHUB_DIR, "RELEASE.md"),
+    )
+    return any(_file_named_any_case(directory, name) is not None for directory, name in candidates)
 
 
 # Build-instructions signal (OSPS-DO-07): a build-tool entrypoint, a dedicated
@@ -366,6 +373,51 @@ def _has_license(repo: Path) -> bool:
     return False
 
 
+def _dir_entries(directory: Path) -> dict[str, Path]:
+    """Files directly inside *directory*, keyed by their exact name on disk.
+
+    Empty when the directory cannot be listed, which is the same answer a missing file
+    gives -- callers decide what that means for their control.
+    """
+
+    try:
+        return {p.name: p for p in sorted(directory.iterdir()) if p.is_file()}
+    except OSError:
+        return {}
+
+
+def _file_named_exactly(directory: Path, name: str) -> Path | None:
+    """The file called *name*, matched case-sensitively on every filesystem.
+
+    ``(directory / name).is_file()`` cannot promise this. NTFS and APFS answer without
+    regard to case, so a repository holding `codeowners` was told it had one on the
+    maintainer's laptop and told it had none on the Linux runner gating the same pull
+    request -- a verdict that depended on where the kit ran, which is the one thing a
+    verdict may not depend on. Listing the directory gives the same answer everywhere.
+    """
+
+    return _dir_entries(directory).get(name)
+
+
+def _file_named_any_case(directory: Path, name: str) -> Path | None:
+    """The file called *name* ignoring case, on every filesystem -- Linux included.
+
+    The counterpart of ``_file_named_exactly``, for names the platform itself matches
+    without regard to case. Same reason, opposite direction: on a case-sensitive
+    filesystem a bare ``.is_file()`` under-reports, and the answer again depends on the
+    host rather than on the repository.
+
+    Deterministic when several casings exist at once (possible on Linux): entries are
+    sorted, so the first is always the same one.
+    """
+
+    lowered = name.lower()
+    for entry_name, path in _dir_entries(directory).items():
+        if entry_name.lower() == lowered:
+            return path
+    return None
+
+
 def _codeowners_file(repo: Path) -> Path | None:
     """Return the CODEOWNERS path GitHub would use, or ``None`` when there is none.
 
@@ -375,10 +427,10 @@ def _codeowners_file(repo: Path) -> Path | None:
     one at the root has code owners, because GitHub never reads the second file.
     """
 
-    for rel in (f"{_GITHUB_DIR}/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"):
-        candidate = repo / rel
-        if candidate.is_file():
-            return candidate
+    for directory in (repo / _GITHUB_DIR, repo, repo / "docs"):
+        found = _file_named_exactly(directory, "CODEOWNERS")
+        if found is not None:
+            return found
     return None
 
 
@@ -3140,6 +3192,8 @@ __all__ = [
     "_evidence_is_api_backed",
     "_evidence_placeholder_outcome",
     "_exists_ci_readme",
+    "_file_named_any_case",
+    "_file_named_exactly",
     "_find_any_text_hint",
     "_find_dockerfiles",
     "_find_prompt_registry",

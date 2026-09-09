@@ -189,7 +189,7 @@ def test_a_stream_that_cannot_be_reconfigured_is_left_alone(monkeypatch: pytest.
     monkeypatch.setattr(sys, "stdout", _PlainStream())
     monkeypatch.setattr(sys, "stderr", _PlainStream())
     monkeypatch.setattr(sys, "argv", ["oss-policy-kit"])
-    monkeypatch.setattr(cli_main, "app", lambda: seen.append(True))
+    monkeypatch.setattr(cli_main, "app", lambda **_: seen.append(True))
 
     cli_main.main()
 
@@ -199,7 +199,7 @@ def test_a_stream_that_cannot_be_reconfigured_is_left_alone(monkeypatch: pytest.
 def test_a_pipe_closed_mid_write_exits_quietly(monkeypatch: pytest.MonkeyPatch) -> None:
     """`oss-policy-kit profiles | head` closes the pipe while the table is still printing."""
 
-    def _write_into_a_closed_pipe() -> None:
+    def _write_into_a_closed_pipe(**_: object) -> None:
         sys.stdout.write("a row that never arrives\n")
         sys.stdout.flush()
 
