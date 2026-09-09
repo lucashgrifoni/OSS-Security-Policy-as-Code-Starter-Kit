@@ -151,3 +151,90 @@ def test_no_third_party_action_is_referenced_by_mutable_tag() -> None:
         "These third-party actions are referenced by a mutable tag in shipped docs or templates. "
         "Pin them to a commit SHA with the tag in a trailing comment:\n  " + "\n  ".join(offenders)
     )
+
+
+# --------------------------------------------------------------------------- #
+# pre-commit `rev:` pins are the same promise in a different shape
+# --------------------------------------------------------------------------- #
+
+#: A pre-commit `rev: vX.Y.Z` line. `_TAG_REF` above cannot see these: a pre-commit config names
+#: the repository on the `repo:` line and its version two lines below on `rev:`, so nothing that
+#: matches `owner/repo@vX.Y.Z` matches here.
+_REV_PIN = re.compile(r"^\s*#?\s*rev:\s*v(\d+\.\d+\.\d+)")
+
+
+def _rev_pin_lines() -> list[tuple[Path, int, str]]:
+    """Every `rev: vX.Y.Z` in a tracked file that also names this repository."""
+
+    hits: list[tuple[Path, int, str]] = []
+    for path in _searchable_files():
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        # `.pre-commit-hooks.yaml` documents the snippet without repeating the full slug on the
+        # same line, so the file is included when either the slug or a hook id is present.
+        if _ACTION not in text and "oss-policy-kit-evaluate" not in text:
+            continue
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if _REV_PIN.match(line):
+                hits.append((path, lineno, line.strip()))
+    return hits
+
+
+def test_documented_pre_commit_rev_matches_packaged_version() -> None:
+    """`docs/pre-commit-integration.md` pinned `rev: v6.4.0` while the kit shipped v10.0.20.
+
+    Four majors: an adopter following that page installed a kit that still had the pre-2.0
+    report contracts and the old CRA profile id, both removed in v9.0.0 -- so the hook they were
+    told to install disagreed with every other page they had just read. The page's own
+    troubleshooting table says the fix for a broken hook is to bump `rev:`.
+
+    `test_documented_action_tag_matches_packaged_version` did not catch it. That guard matches
+    `owner/repo@vX.Y.Z`, and a pre-commit pin puts the version on its own `rev:` line.
+    """
+
+    stale = [
+        f"{path.relative_to(REPO_ROOT).as_posix()}:{lineno}: {line}"
+        for path, lineno, line in _rev_pin_lines()
+        if _REV_PIN.match(line).group(1) != __version__  # type: ignore[union-attr]
+    ]
+    assert not stale, (
+        f"These pre-commit `rev:` pins do not match the packaged version {__version__}. An adopter "
+        "copying them installs an older kit than the docs around the snippet describe:\n  " + "\n  ".join(stale)
+    )
+
+
+def test_every_pre_commit_rev_pin_is_release_please_annotated() -> None:
+    unannotated = [
+        f"{path.relative_to(REPO_ROOT).as_posix()}:{lineno}: {line}"
+        for path, lineno, line in _rev_pin_lines()
+        if _ANNOTATION not in line
+    ]
+    assert not unannotated, (
+        f"These pre-commit `rev:` pins lack the `{_ANNOTATION}` annotation, so release-please will "
+        "not bump them and they will go stale exactly as v6.4.0 did:\n  " + "\n  ".join(unannotated)
+    )
+
+
+def test_files_with_annotated_rev_pins_are_release_please_extra_files() -> None:
+    config = json.loads(RELEASE_PLEASE_CONFIG.read_text(encoding="utf-8"))
+    extra_files = set(config["packages"]["."]["extra-files"])
+    missing = sorted(
+        {path.relative_to(REPO_ROOT).as_posix() for path, _, line in _rev_pin_lines() if _ANNOTATION in line}
+        - extra_files
+    )
+    assert not missing, (
+        "These files carry an annotated pre-commit `rev:` pin and are not in the release-please "
+        "`extra-files` list, so the annotation is inert:\n  " + "\n  ".join(missing)
+    )
+
+
+def test_the_rev_pin_guard_finds_the_known_pins() -> None:
+    """An empty sweep passes the three assertions above for the wrong reason."""
+
+    pins = _rev_pin_lines()
+    assert len(pins) >= 3, f"only {len(pins)} pre-commit rev pins found: {pins}"
+    assert {path.name for path, _, _ in pins} >= {"pre-commit-integration.md", ".pre-commit-hooks.yaml"}, (
+        f"the two files that carry the adopter-facing snippet are not both being scanned: {pins}"
+    )
