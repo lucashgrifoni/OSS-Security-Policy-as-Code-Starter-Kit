@@ -96,3 +96,45 @@ def test_a_path_resolving_outside_the_root_is_not_ours_to_scan(tmp_path: Path, m
 def test_an_include_pattern_that_matches_nothing_yields_nothing(tmp_path: Path) -> None:
     _file(tmp_path, "main.tf")
     assert walk_matching_files(tmp_path, ["**/*.bicep"], None, _SKIP) == []
+
+
+def test_each_candidate_is_resolved_once_and_the_root_is_not_re_resolved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The walk must not pay for the same ``resolve()`` twice.
+
+    A wall-clock assertion would be flaky on a shared runner, so the guard counts calls
+    instead: the cost this pins is a syscall count, and a syscall count is deterministic.
+
+    It used to resolve three paths per candidate -- the candidate for the ``relative_to``
+    comparison, the root again although it cannot change inside the loop, and the candidate
+    a second time to build the return value. On Windows each ``Path.resolve()`` is two
+    ``nt._getfinalpathname`` calls, so a 20,002-file Python tree cost 120,012 of them and
+    ``scan-pulumi`` spent 8.56s of a 14.76s run inside this walk against 0.61s of actual
+    parsing. The budget is now one resolve per candidate plus exactly one for the root.
+
+    Written as ``<=`` on the per-candidate figure rather than ``==`` so a future change that
+    resolves *less* is not reported as a regression; the root is pinned at exactly one,
+    because that is the loop-invariant that regressed before.
+    """
+
+    for i in range(7):
+        _file(tmp_path, f"mod{i}/main.tf")
+    root_resolved = tmp_path.resolve()
+
+    calls: list[Path] = []
+    real_resolve = Path.resolve
+
+    def _counting_resolve(self: Path, *args: object, **kwargs: object) -> Path:
+        calls.append(self)
+        return real_resolve(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Path, "resolve", _counting_resolve)
+    found = walk_matching_files(tmp_path, ["**/*.tf"], None, _SKIP)
+
+    assert len(found) == 7, found
+    root_resolves = sum(1 for c in calls if real_resolve(c) == root_resolved)
+    assert root_resolves == 1, f"root resolved {root_resolves} times, expected exactly 1"
+    assert len(calls) <= len(found) + 1, (
+        f"{len(calls)} resolve() calls for {len(found)} candidates; budget is one each plus one root"
+    )
