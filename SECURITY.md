@@ -8,12 +8,15 @@ Security fixes are generally applied to the latest supported default branch. Rel
 
 ### Preferred channel
 
-Use GitHub private vulnerability reporting for this repository when it is enabled:
+GitHub private vulnerability reporting is enabled on this repository. Use it:
 
 - Repository: `https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit`
 - Entry point: **Security** tab -> **Report a vulnerability**
+- Direct link: <https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/security/advisories/new>
 
-If private vulnerability reporting is not enabled yet, contact the maintainer through a private channel you trust before disclosing technical details publicly.
+That form opens a private advisory visible only to you and the maintainer. It is the only
+channel this project asks you to use; nothing here requires you to find a private address
+on your own.
 
 Do not open a public issue for an undisclosed vulnerability.
 
