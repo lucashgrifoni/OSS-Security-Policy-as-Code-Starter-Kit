@@ -55,6 +55,19 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Without this, every timestamp inside the wheel is the runner's wall clock: the
+      # v10.0.20 wheel carries 16:08:18 on the source entries (the checkout's mtime) and
+      # 16:08:30 on the generated ones. Rebuilding it elsewhere reproduced all 231 entries
+      # byte for byte and still could not reproduce the file, because nobody can replay a
+      # runner's clock. Pinning the epoch to the commit being built makes the wheel
+      # bit-for-bit reproducible from the tag alone. The sdist gets its source entries
+      # pinned too; setuptools stamps the egg-info it generates and gzip stamps its own
+      # header with the real time, so the sdist stays content-reproducible, not byte-equal.
+      - name: Pin build timestamps to the commit being built
+        run: |
+          set -euo pipefail
+          echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
+
       - name: Install build tools
         # Hash-pinned (Scorecard Pinned-Dependencies). This job builds and signs the
         # artifact adopters install, so anything that enters it is in the trusted path.

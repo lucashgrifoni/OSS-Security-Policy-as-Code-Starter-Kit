@@ -230,3 +230,38 @@ def test_publish_workflows_start_each_job_with_harden_runner_audit() -> None:
             assert first_step.get("with", {}).get("egress-policy") == "audit", (
                 f"{workflow_name}:{job_name} should remain in audit until publish egress is reviewed"
             )
+
+
+def test_build_pins_source_date_epoch_to_the_commit_before_building() -> None:
+    """Wheel timestamps must come from the commit, not the runner's clock.
+
+    Rebuilding the published v10.0.20 wheel reproduced all 231 entries byte for byte and
+    still produced a different file, because every ZIP timestamp in it was the runner's
+    wall clock at checkout. An adopter cannot replay that clock, so the artifact was not
+    independently verifiable by hash. Reading the epoch from `git log -1` makes it a
+    property of the commit being built.
+    """
+
+    steps = _build_steps(_load_workflow())
+
+    def _sets_source_date_epoch(step: dict) -> bool:
+        run = str(step.get("run", ""))
+        return "SOURCE_DATE_EPOCH=" in run and "GITHUB_ENV" in run
+
+    epoch_index = next((i for i, s in enumerate(steps) if _sets_source_date_epoch(s)), None)
+    assert epoch_index is not None, "no build step writes SOURCE_DATE_EPOCH to GITHUB_ENV"
+
+    epoch_run = str(steps[epoch_index]["run"])
+    assert "git log" in epoch_run, (
+        "SOURCE_DATE_EPOCH must be derived from the commit; a literal or `date` call would "
+        "drift between the tag and the artifact"
+    )
+
+    build_index = next(
+        (i for i, s in enumerate(steps) if "python -m build" in str(s.get("run", ""))),
+        None,
+    )
+    assert build_index is not None, "no `python -m build` step found"
+    assert epoch_index < build_index, (
+        f"SOURCE_DATE_EPOCH is set at step {epoch_index}, after the build at step {build_index}"
+    )
