@@ -6,6 +6,18 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.20](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.19...v10.0.20) (2026-09-09)
+
+
+### Fixes
+
+* **evaluators:** a CODEOWNERS that assigns ownership to nobody earned a PASS ([632bc1e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/632bc1ea35912902d4b40269fde083e7d48c1b6d))
+* **evaluators:** a commented-out CodeQL step earned a security PASS at high confidence ([c3f2db4](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c3f2db422f4f1a4b96d31a5091975c1b8383c869))
+* **evaluators:** a config file that exists but configures nothing earned a PASS ([db69738](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/db69738e6e19abf144b778eb0cbd05cad1c75b4c))
+* **evaluators:** a truncated scan claimed the repository had no webhook receiver ([e9169b1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e9169b1d98833e60342fc0357da7c7da2d75858e))
+* five defects a new user hits on the documented path ([4f25472](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4f254721cbdb70418796f6dfcdcf9d11e583f85a))
+* **parser:** a merge queue declared in the ordinary way was reported as absent ([37d5cde](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/37d5cdeea0b94a3ff47665be61819d5e4d59726e))
+
 ## [10.0.19](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.18...v10.0.19) (2026-09-02)
 
 
