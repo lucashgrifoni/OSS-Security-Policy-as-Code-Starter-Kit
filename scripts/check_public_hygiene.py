@@ -149,6 +149,8 @@ def _git_public_files(root: Path) -> list[Path]:
     out = subprocess.run(
         ["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard"],
         capture_output=True,
+        encoding="utf-8",
+        errors="replace",
         text=True,
         check=True,
     )

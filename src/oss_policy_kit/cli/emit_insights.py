@@ -70,6 +70,8 @@ def _git_remote_url(root: Path) -> str | None:
         out = subprocess.run(
             ["git", "-C", str(root), "remote", "get-url", "origin"],
             capture_output=True,
+            encoding="utf-8",
+            errors="replace",
             text=True,
             check=False,
             timeout=5,

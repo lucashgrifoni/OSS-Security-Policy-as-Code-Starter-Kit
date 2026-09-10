@@ -107,6 +107,8 @@ def test_a_wide_manifest_does_not_abort_the_whole_evaluation(tmp_path: Path) -> 
             str(out),
         ],
         capture_output=True,
+        encoding="utf-8",
+        errors="replace",
         text=True,
         timeout=300,
     )

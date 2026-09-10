@@ -38,6 +38,8 @@ def test_profiles_format_json_includes_cra_eu_ready_with_family_multi() -> None:
     proc = subprocess.run(
         [sys.executable, "-m", "oss_policy_kit", "profiles", "--format", "json"],
         capture_output=True,
+        encoding="utf-8",
+        errors="replace",
         text=True,
         check=True,
     )
@@ -64,6 +66,8 @@ def test_recommend_profile_does_not_suggest_cra_eu_ready(tmp_path) -> None:
     proc = subprocess.run(
         [sys.executable, "-m", "oss_policy_kit", "recommend-profile", "--target", str(tmp_path), "--format", "json"],
         capture_output=True,
+        encoding="utf-8",
+        errors="replace",
         text=True,
         check=True,
     )

@@ -244,7 +244,9 @@ def test_generated_rego_checks_and_gates(tmp_path: Path) -> None:
     res = runner.invoke(app, ["export-policy", "--profile", _PROFILE, "--format", "rego", "--output", str(policy)])
     assert res.exit_code == 0, res.output
 
-    check = subprocess.run([opa, "check", str(policy)], capture_output=True, text=True)  # noqa: S603
+    check = subprocess.run(
+        [opa, "check", str(policy)], capture_output=True, encoding="utf-8", errors="replace", text=True
+    )  # noqa: S603
     assert check.returncode == 0, check.stderr
 
     good = tmp_path / "good.json"
@@ -254,7 +256,7 @@ def test_generated_rego_checks_and_gates(tmp_path: Path) -> None:
 
     def _allow(inp: Path) -> str:
         cmd = [opa, "eval", "-d", str(policy), "-i", str(inp), "data.osspolicykit.allow", "--format", "raw"]
-        proc = subprocess.run(cmd, capture_output=True, text=True)  # noqa: S603
+        proc = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace", text=True)  # noqa: S603
         assert proc.returncode == 0, proc.stderr
         return proc.stdout.strip()
 

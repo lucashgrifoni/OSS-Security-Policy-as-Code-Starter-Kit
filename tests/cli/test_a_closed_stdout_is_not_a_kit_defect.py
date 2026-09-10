@@ -68,6 +68,8 @@ def test_the_whole_process_stays_quiet_with_the_descriptor_closed() -> None:
     completed = subprocess.run(  # noqa: S603 - fixed argv, no shell interpolation of user input
         ["sh", "-c", f'"{sys.executable}" -m oss_policy_kit --version >&-'],
         capture_output=True,
+        encoding="utf-8",
+        errors="replace",
         text=True,
         timeout=120,
         check=False,

@@ -81,6 +81,8 @@ def test_an_unrelated_directory_beside_the_caller_cannot_widen_the_batch(tmp_pat
             "--quiet",
         ],
         capture_output=True,
+        encoding="utf-8",
+        errors="replace",
         text=True,
         cwd=caller,
         env={**os.environ, "COLUMNS": "200"},

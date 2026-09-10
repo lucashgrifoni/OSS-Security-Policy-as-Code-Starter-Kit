@@ -11,7 +11,7 @@ import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from io import StringIO
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from rich.console import Console
@@ -381,6 +381,23 @@ def _basename_any_platform(value: str) -> str:
     return parts[-1]
 
 
+def _is_unc_like(value: str) -> bool:
+    """True when *value* is shaped like a UNC path (``\\\\server\\share``).
+
+    ``PureWindowsPath`` and not ``Path``: the pure flavours never touch the filesystem, which
+    is the whole point here -- the caller is deciding whether it is safe to touch it. The
+    Windows flavour is used on every platform on purpose, so a report says the same thing
+    about the same token wherever it was produced. That costs nothing on POSIX: a token
+    rooted at ``//`` reduces to its basename on both paths through the caller, so this
+    only decides which path gets there.
+
+    All four separator spellings a document can carry are UNC to Windows: ``//a/b``,
+    ``\\\\a\\b``, ``/\\a/b`` and ``\\/a/b`` all parse to the drive ``\\\\a\\b``.
+    """
+
+    return PureWindowsPath(value).drive.startswith("\\\\")
+
+
 def _sanitize_target_path_for_payload(absolute: str, *, include_absolute: bool) -> str:
     """Sanitize the target path for inclusion in shareable report files (M-002).
 
@@ -395,6 +412,23 @@ def _sanitize_target_path_for_payload(absolute: str, *, include_absolute: bool) 
 
     if include_absolute:
         return absolute
+    if _is_unc_like(absolute):
+        # Never resolve a UNC-shaped token. `Path.resolve()` on `\\server\share` is a network
+        # operation on Windows: it asks the network for that share. The strings reaching this
+        # function are not all the operator's own -- a finding `message` and a finding
+        # `location.file` come out of an ingested SARIF, so the destination is chosen by the
+        # scanned repository's evidence rather than by the operator.
+        #
+        # Measured on this tree through `correlate-findings` on a SARIF holding one crafted
+        # message: 1.0s clean, 22.0s with one such token, 190.4s with five -- linear, ~38s per
+        # distinct destination, and the command still exits 0. With a literal IP (no DNS in
+        # play) one token blocks for 21s, which is what proves the cost is an outbound
+        # connection attempt and not slow name lookup.
+        #
+        # The answer is the basename either way: this branch changes what the function COSTS,
+        # not what it returns. A UNC path also carries a server name, which is exactly the
+        # class of internal detail M-002 exists to keep out of a shareable report.
+        return _basename_any_platform(absolute) or "."
     try:
         p = Path(absolute)
         cwd = Path.cwd().resolve()
