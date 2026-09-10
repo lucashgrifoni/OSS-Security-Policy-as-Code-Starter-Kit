@@ -102,7 +102,11 @@ def test_the_pattern_reads_the_ids_the_catalog_actually_writes() -> None:
 
 @pytest.mark.parametrize("profile_id, prose", _profile_prose())
 def test_a_bundled_profile_describes_itself_with_real_control_ids(profile_id: str, prose: str) -> None:
-    """The description ships in the wheel; `profiles --format json` hands it to a consumer."""
+    """The description ships in the wheel and `profiles --format detailed` prints it whole.
+
+    `--format json` is not the surface: it carries a `summary` that `_profile_summary`
+    derives, capped at 48 characters, so an id far enough into the text never reaches it.
+    """
 
     invented = _unknown_in(prose, _catalog_ids())
     assert not invented, (
