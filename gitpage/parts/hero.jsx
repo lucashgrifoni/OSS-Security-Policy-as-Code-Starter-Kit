@@ -105,24 +105,24 @@ function PolicyCube() {
           </div>
           <div className="mt-3 space-y-1.5 font-mono text-[10px] leading-relaxed text-mist/85">
             <div className={`flex justify-between ${stateColors.success}`}>
-              <span>GH-GOV-001</span><span>pass</span>
+              <span>GOV-SEC-001</span><span>pass</span>
             </div>
             <div className={`flex justify-between ${stateColors.success}`}>
-              <span>GH-GOV-002</span><span>pass</span>
+              <span>GOV-CON-002</span><span>pass</span>
             </div>
             <div className={`flex justify-between ${stateColors.fail}`}>
-              <span>GH-CI-009</span><span>fail</span>
+              <span>CI-PERM-006</span><span>fail</span>
             </div>
             <div className={`flex justify-between ${stateColors.review}`}>
-              <span>GH-REL-004</span><span>review</span>
+              <span>GOV-WAIV-014</span><span>review</span>
             </div>
             <div className={`flex justify-between ${stateColors.waived}`}>
-              <span>GH-CI-014</span><span>waived</span>
+              <span>CI-PIN-008</span><span>waived</span>
             </div>
           </div>
           <div className="mt-auto flex items-center justify-between font-mono text-[9px] text-steel border-t border-white/10 pt-2">
             <span>summary</span>
-            <span className="text-signal">12 / 16</span>
+            <span className="text-signal">10 / 14</span>
           </div>
         </CubeFace>
 
@@ -132,13 +132,13 @@ function PolicyCube() {
             <span className="font-mono text-[11px] tracking-wide">profile.yaml</span>
           </div>
           <div className="mt-3 space-y-1 font-mono text-[10px] leading-relaxed text-mist/85">
-            <p><span className="text-steel">profile_id:</span> <span className="text-signal">github-level-1</span></p>
-            <p><span className="text-steel">version:</span> 1.0.0</p>
+            <p><span className="text-steel">id:</span> <span className="text-signal">github-level-1</span></p>
+            <p><span className="text-steel">title:</span> GitHub OSS starter baseline (level 1)</p>
             <p><span className="text-steel">controls:</span></p>
-            <p className="pl-3">- GH-GOV-001</p>
-            <p className="pl-3">- GH-GOV-002</p>
-            <p className="pl-3">- GH-CI-009</p>
-            <p className="pl-3">- GH-REL-004</p>
+            <p className="pl-3">- GOV-SEC-001</p>
+            <p className="pl-3">- GOV-CON-002</p>
+            <p className="pl-3">- GOV-COWN-003</p>
+            <p className="pl-3">- GOV-LIC-004</p>
           </div>
         </CubeFace>
 
@@ -206,16 +206,16 @@ function PolicyCube() {
 function TerminalReport() {
   const lines = [
     { d: "$ ", v: "python -m oss_policy_kit evaluate --target . --profile github-level-1", c: "text-mist" },
-    { d: "→ ", v: "loading profile bundle... github-level-1@1.0.0", c: "text-slate" },
-    { d: "→ ", v: "scanning .github/workflows ... 14 jobs", c: "text-slate" },
-    { d: "→ ", v: "evaluating 16 controls", c: "text-slate" },
-    { d: "✓ ", v: "GH-GOV-001 SECURITY.md present", c: "text-signal" },
-    { d: "✓ ", v: "GH-GOV-002 CONTRIBUTING.md present", c: "text-signal" },
-    { d: "✗ ", v: "GH-CI-009 implicit token permissions", c: "text-red-300" },
-    { d: "? ", v: "GH-REL-004 manual-review-required", c: "text-amber-200" },
+    { d: "→ ", v: "loading profile bundle... github-level-1", c: "text-slate" },
+    { d: "→ ", v: "scanning .github/workflows ... 3 workflow files", c: "text-slate" },
+    { d: "→ ", v: "evaluating 14 controls", c: "text-slate" },
+    { d: "✓ ", v: "GOV-SEC-001 SECURITY.md present", c: "text-signal" },
+    { d: "✓ ", v: "GOV-CON-002 Contributing guide present", c: "text-signal" },
+    { d: "✗ ", v: "CI-PERM-006 workflows missing top-level permissions", c: "text-red-300" },
+    { d: "? ", v: "GOV-WAIV-014 manual-review-required", c: "text-amber-200" },
     { d: "→ ", v: "writing evaluation-report.json", c: "text-slate" },
     { d: "→ ", v: "writing evaluation-report.md", c: "text-slate" },
-    { d: "▌ ", v: "summary  pass: 12  fail: 2  review: 2", c: "text-mist font-semibold" },
+    { d: "▌ ", v: "summary  pass: 10  fail: 2  review: 2", c: "text-mist font-semibold" },
   ];
 
   const [shown, setShown] = useState(0);

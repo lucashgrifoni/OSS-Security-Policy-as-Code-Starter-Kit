@@ -26,6 +26,7 @@ from oss_policy_kit.application.evaluators._shared import (
     cast,
     contextlib,
     json,
+    preview_evidence_paths,
 )
 
 # SLSA-SRC-005 / SLSA-SRC-008 delegate to the AUDIT-STREAM-060 evaluator, which lives
@@ -860,9 +861,9 @@ def eval_cont_distroless_001(ctx: EvalContext) -> EvalOutcome:
     if not from_lines:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason="Dockerfile present but no FROM line parsed.",
+            reason=(f"{len(dockerfiles)} Dockerfile(s) present but no FROM line parsed in any of them."),
             remediation="Ensure the Dockerfile declares a base image.",
-            evidence_sources=[str(dockerfiles[0].resolve())],
+            evidence_sources=preview_evidence_paths(dockerfiles),
             confidence="low",
         )
     final_from = from_lines[-1]

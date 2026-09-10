@@ -50,7 +50,7 @@ function ProblemSection() {
 
 const IS_LIST = [
   "Python CLI that evaluates a local repository clone and writes Markdown + JSON reports",
-  "Bundled profile families for GitHub, Azure, and AWS with staged level and release-hardening tracks",
+  "Bundled profile families for GitHub, GitLab, Azure, and AWS with staged level and release-hardening tracks",
   "Governance, workflow, and pipeline checks that stay inside clone-visible boundaries unless optional evidence is supplied",
   "Commands for profile discovery, profile recommendation, batch evaluation, and evidence scaffolding",
   "Optional waivers YAML and optional OpenSSF Scorecard JSON as additive local context",

@@ -87,3 +87,26 @@ def test_public_docs_do_not_expose_maintainer_local_paths() -> None:
     for path in _PUBLIC_DOCS:
         text = path.read_text(encoding="utf-8")
         assert forbidden_windows_home not in text, f"{path.relative_to(_REPO_ROOT)} must not expose Windows user paths"
+
+
+def test_the_disclosure_policy_names_a_reporting_address_the_reader_can_use() -> None:
+    """A security policy whose preferred channel is "when it is enabled" is not a channel.
+
+    `SECURITY.md` named GitHub private vulnerability reporting as the preferred channel while
+    the feature was switched off on the repository, and sent the reader who noticed to "a
+    private channel you trust" -- naming none. For a project that ships a control asserting
+    other repositories have a disclosure path, that is the one page that cannot be aspirational.
+    The reporting form is now enabled and linked; this holds the link.
+    """
+
+    policy = (_REPO_ROOT / "SECURITY.md").read_text(encoding="utf-8")
+
+    assert "/security/advisories/new" in policy, (
+        "SECURITY.md must link the advisory form a reporter actually opens, not only describe "
+        "where to click. Verify the feature is still enabled: "
+        "`gh api repos/<owner>/<repo>/private-vulnerability-reporting`"
+    )
+    assert "when it is enabled" not in policy, (
+        "SECURITY.md hedges its preferred reporting channel. Either the channel is open and the "
+        "policy says so, or the policy names the one that is."
+    )

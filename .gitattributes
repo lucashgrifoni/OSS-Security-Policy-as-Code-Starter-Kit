@@ -1,5 +1,19 @@
 # Normalize text artifacts to LF in repository and working tree.
 # Overrides system-level core.autocrlf for matched patterns.
+#
+# The catch-all is first because the list below is an allowlist, and two files that
+# ship inside the published wheel matched nothing on it: LICENSE and NOTICE land in
+# `dist-info/licenses/`. On a Windows checkout they became CRLF (LICENSE 11560 bytes
+# against the 11358 stored in git), so a wheel built from a correct checkout of the
+# release tag differed from the published one in LICENSE, NOTICE and the RECORD that
+# hashes them -- three entries out of 231. Every other entry matched byte for byte,
+# which is exactly the shape that makes a reproduction attempt look like tampering.
+# Dockerfile, CODEOWNERS and the hash-pinned requirement files were uncovered for the
+# same reason.
+#
+# `text=auto` leaves git's binary detection alone, and no tracked blob currently holds
+# a CRLF, so this normalises the working tree without rewriting a single blob.
+*           text=auto eol=lf
 
 *.md        text eol=lf
 *.py        text eol=lf

@@ -147,13 +147,19 @@ RUN groupadd --system --gid 10001 appuser \
 COPY --from=builder /opt/venv /opt/venv
 
 # No package installer ships in the runtime image. Two pips were in every published
-# image: the base image's 25.0.1 at /usr/local (five advisories, the five open alerts on
-# this repository) and the venv's own. The venv's pip is not clean either: pip vendors
-# msgpack and setuptools under pip/_vendor and, since 26.x, ships a CycloneDX BOM that
-# lets Trivy see them -- so an image with ANY pip carries whatever those vendored copies
-# are missing. The kit never invokes pip at runtime; every mention of it in src/ is
+# image: the base image's 25.0.1 at /usr/local (six advisories as of 2026-09-09, the six
+# `pip` alerts open on this repository -- not the five `libpcre2` ones, which the apt
+# upgrade above answers) and the venv's own. The venv's pip is not clean either: pip
+# vendors msgpack and setuptools under pip/_vendor and, since 26.x, ships a CycloneDX BOM
+# that lets Trivy see them -- so an image with ANY pip carries whatever those vendored
+# copies are missing. The kit never invokes pip at runtime; every mention of it in src/ is
 # remediation text shown to the operator. The system python is addressed by absolute
 # path because PATH already prefers the venv.
+#
+# Both this and the apt upgrade are held in place by
+# tests/infrastructure/test_the_runtime_stage_keeps_the_base_image_cves_out.py. Neither is
+# covered by the alert list: these CVEs are reported against the base image, so deleting
+# either command reintroduces them into the published image without moving one alert.
 RUN /usr/local/bin/python3 -m pip uninstall --yes pip \
     && /opt/venv/bin/python -m pip uninstall --yes pip \
     && rm -rf /root/.cache/pip

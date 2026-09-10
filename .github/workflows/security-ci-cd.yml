@@ -403,12 +403,20 @@ jobs:
       # and dated.
       #
       # `ignore-unfixed` does NOT make everything reported here actionable by bumping the
-      # digest, and the previous version of this comment claimed it did. Measured 2026-09-02:
-      # what this job reports is six CVEs in the `pip 25.0.1` the Debian Python image ships,
-      # the current upstream `python:3.12-slim-bookworm` ships that same pip and the same six,
-      # and with `ignore-unfixed` the OS-package layer of both digests is empty. Bumping the
-      # digest today changes nothing. The runtime stage uninstalls pip from both interpreters,
-      # so none of it reaches the published image; SECURITY.md records why they stay open.
+      # digest, and a previous version of this comment claimed it did. Re-measured 2026-09-09,
+      # because the earlier note said the OS-package layer of both digests was empty and that
+      # has not been true since the `libpcre2` advisories were published. What this job reports
+      # is eleven findings: six CVEs in the `pip 25.0.1` the Debian Python image ships, and five
+      # against `libpcre2-8-0 10.42-1`. The current upstream `python:3.12-slim-bookworm` digest
+      # carries the identical eleven, so bumping the digest today still changes nothing.
+      #
+      # Neither set reaches the published image, by two different routes: the runtime stage
+      # uninstalls pip from both interpreters, and `apt-get upgrade` takes `libpcre2-8-0` to
+      # `10.42-1+deb12u1`. A scan of the built image reports zero fixable vulnerabilities at
+      # any severity. Because these alerts are raised against the base image, that fix does not
+      # close them and never will -- so the guard is a test, not this alert list:
+      # tests/infrastructure/test_the_runtime_stage_keeps_the_base_image_cves_out.py.
+      # SECURITY.md records why all of them stay open.
       - name: Scan the base image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:

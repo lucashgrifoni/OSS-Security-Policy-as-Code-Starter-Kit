@@ -15,6 +15,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _SECRET_SCAN_EXTRA_PATTERNS,
     _SECRET_SCAN_TOKENS,
     _SUPPLEMENTAL_SIGNAL_WARN,
+    EVIDENCE_PREVIEW_LIMIT,
     ControlStatus,
     EvalContext,
     EvalOutcome,
@@ -29,6 +30,7 @@ from oss_policy_kit.application.evaluators._shared import (
     checks_as_map,
     contextlib,
     load_yaml_file,
+    preview_evidence_paths,
 )
 from oss_policy_kit.application.evaluators_common import read_scanner_evidence, strip_yaml_comments
 
@@ -132,12 +134,18 @@ def eval_ci_pin_008(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     if ctx.workflows.mutable_action_refs:
-        sample = ctx.workflows.mutable_action_refs[0]
+        refs = ctx.workflows.mutable_action_refs
+        files = {path.name for path, _ in refs}
+        shown = [f"{path.name}: {ref}" for path, ref in refs[:EVIDENCE_PREVIEW_LIMIT]]
+        remainder = f" Listing {len(shown)} of {len(refs)}." if len(refs) > len(shown) else ""
         return EvalOutcome(
             status=ControlStatus.FAIL,
-            reason="Mutable action references (tags/branches) detected.",
+            reason=(
+                f"{len(refs)} mutable action reference(s) (tags/branches) detected "
+                f"across {len(files)} workflow file(s).{remainder}"
+            ),
             remediation="Pin actions to immutable SHAs (40-char commit) from trusted repos.",
-            evidence_sources=[f"{sample[0].name}: {sample[1]}"],
+            evidence_sources=shown,
             confidence="medium",
         )
     if ctx.workflows.parse_errors:
@@ -172,24 +180,37 @@ def eval_ci_least_009(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     if ctx.workflows.suspicious_permissions:
-        item = ctx.workflows.suspicious_permissions[0]
+        items = ctx.workflows.suspicious_permissions
+        detail = "; ".join(f"{path.name}: {value}" for path, value in items[:EVIDENCE_PREVIEW_LIMIT])
+        remainder = (
+            f" (listing {EVIDENCE_PREVIEW_LIMIT} of {len(items)})" if len(items) > EVIDENCE_PREVIEW_LIMIT else ""
+        )
         return EvalOutcome(
             status=ControlStatus.FAIL,
-            reason=f"Broad workflow permissions in {item[0].name}: {item[1]}",
+            reason=f"Broad workflow permissions in {len(items)} workflow file(s){remainder}: {detail}",
             remediation="Narrow permissions; prefer job-level permissions scoped to the minimum.",
-            evidence_sources=[str(item[0].resolve())],
+            evidence_sources=preview_evidence_paths(path for path, _ in items),
             confidence="medium",
         )
     if ctx.workflows.implicit_permission_risks:
-        wf, job, detail = ctx.workflows.implicit_permission_risks[0]
+        risks = ctx.workflows.implicit_permission_risks
+        # Each detail is a full sentence, so enumerating five of them buries the count that
+        # matters. Locations are short: list those, and carry one detail as the worked example.
+        places = list(dict.fromkeys(f"{wf.name} ({job})" for wf, job, _ in risks))
+        shown = ", ".join(places[:EVIDENCE_PREVIEW_LIMIT])
+        remainder = f", +{len(places) - EVIDENCE_PREVIEW_LIMIT} more" if len(places) > EVIDENCE_PREVIEW_LIMIT else ""
+        first_detail = risks[0][2]
         return EvalOutcome(
             status=ControlStatus.FAIL,
-            reason=f"Implicit broad-permissions risk in {wf.name} ({job}): {detail}",
+            reason=(
+                f"Implicit broad-permissions risk in {len(risks)} finding(s) across "
+                f"{len(places)} workflow job(s) [{shown}{remainder}]. First: {first_detail}"
+            ),
             remediation=(
                 "Add explicit `permissions:` on the affected job (or narrow workflow-level defaults) "
                 "when using checkout tokens, image pushes, releases, or cloud deploy steps."
             ),
-            evidence_sources=[str(wf.resolve())],
+            evidence_sources=preview_evidence_paths(wf for wf, _, _ in risks),
             confidence="medium",
         )
     if ctx.workflows.parse_errors:

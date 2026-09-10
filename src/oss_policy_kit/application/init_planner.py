@@ -28,6 +28,7 @@ from oss_policy_kit.application.loader import (
     resolve_profile_file,
 )
 from oss_policy_kit.application.profile_hints import (
+    FEW_SIGNALS_FALLBACK_NOTE,
     STACK_LABEL_BY_SIGNAL_ID,
     ProfileRecommendation,
     build_profile_recommendation,
@@ -268,6 +269,48 @@ def _detect_primary_stack_from_signals(signals: list[dict[str, str]]) -> str | N
     return None
 
 
+def _carry_recommendation_notes(
+    notes: list[str],
+    *,
+    profile: str,
+    profile_source: str,
+    platform: str,
+) -> list[str]:
+    """Forward the recommender's notes, minus any that `init`'s own choice made untrue.
+
+    `build_profile_recommendation` runs for its signals even when the profile is settled by
+    `--platform` or `--profile`, and it emits its fallback note whenever the clone shows no
+    platform. `init` used to print that note verbatim: `init --platform gitlab` wrote
+    `profile: gitlab-level-1` into the config and then told the reader, three lines below the
+    correct `Profile: gitlab-level-1`, that it was "defaulting to a conservative GitHub
+    baseline profile". Same for azure and aws -- three of the four supported platforms, on the
+    first command a new adopter runs.
+
+    The note stays whenever it is still true, which is exactly when the profile did come from
+    the recommendation (`recommended`) or from the GitHub fallback (`fallback`). Otherwise it
+    is replaced by what actually happened.
+    """
+
+    if profile_source in {"recommended", "fallback"}:
+        return list(notes)
+
+    carried = [note for note in notes if note != FEW_SIGNALS_FALLBACK_NOTE]
+    if len(carried) == len(notes):
+        return carried
+
+    if profile_source == "platform_default":
+        carried.append(
+            f"Few strong platform signals were detected in the clone; the profile is {profile}, "
+            f"the default for --platform {platform}, not a detected one.",
+        )
+    else:
+        carried.append(
+            f"Few strong platform signals were detected in the clone; the profile is {profile} "
+            "because --profile named it.",
+        )
+    return carried
+
+
 def build_init_plan(
     *,
     target: Path,
@@ -335,7 +378,12 @@ def build_init_plan(
     # silently downgrade ``with_workflow`` for non-GitHub targets and
     # surface a note so the user understands why nothing was written.
     will_write_workflow = with_workflow and detected_platform == "github"
-    extra_notes: list[str] = list(recommendation.notes)
+    extra_notes: list[str] = _carry_recommendation_notes(
+        recommendation.notes,
+        profile=profile,
+        profile_source=profile_source,
+        platform=detected_platform,
+    )
     if with_workflow and detected_platform != "github":
         extra_notes.append(
             "Workflow templates are only generated for GitHub targets in this version; "

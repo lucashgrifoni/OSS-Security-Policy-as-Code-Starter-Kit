@@ -41,6 +41,7 @@ Repository entry points:
 - [release-readiness.md](release-readiness.md) - release gate, public launch checks, patch release routine, and repository operations
 - [secret-leak-response.md](secret-leak-response.md) - runbook for handling credentials or other sensitive values committed to a repository
 - [dev-environment.md](dev-environment.md) - local development setup, test loop, lint/type-check, and cache cleanup
+- [performance-and-capacity.md](performance-and-capacity.md) - measured cost per command and repository size, the single-large-file limit, and proposed headroom
 - [testing-strategy.md](testing-strategy.md) - test layers (unit, application, integration, infrastructure, cli, property, contract), how to run each, and the coverage/complexity gates
 
 ## Reference

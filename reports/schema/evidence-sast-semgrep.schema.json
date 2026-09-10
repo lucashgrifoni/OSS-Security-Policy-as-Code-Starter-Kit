@@ -59,7 +59,9 @@
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "raw_stderr_excerpt": { "type": ["string", "null"] }
+        "raw_stderr_excerpt": { "type": ["string", "null"] },
+        "raw_stdout_excerpt": { "type": ["string", "null"] },
+        "exit_code": { "type": ["integer", "null"] }
       }
     }
   }

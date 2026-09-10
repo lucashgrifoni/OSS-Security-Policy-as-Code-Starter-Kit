@@ -105,8 +105,13 @@ def scan_sast_cmd(
             # Name the containing directory, not just the file: `write_evidence` always
             # writes under `.oss-policy-kit/evidence/`, a dot-directory the operator has
             # no reason to guess. Kept repo-relative so no host path reaches stderr.
+            #
+            # The exit code goes on the line itself. Sending someone to a file is only
+            # useful when the file has something in it, and Semgrep can fail with an
+            # empty stderr; the code at least says *which* failure to look up.
+            code = "" if outcome.exit_code is None else f" (semgrep exit {outcome.exit_code})"
             stderr_console().print(
-                f"[red]Semgrep failed:[/red] see diagnostics in "
+                f"[red]Semgrep failed{code}:[/red] see diagnostics in "
                 f".oss-policy-kit/evidence/{evidence_path.name} (relative to --target).",
             )
             raise typer.Exit(code=2)

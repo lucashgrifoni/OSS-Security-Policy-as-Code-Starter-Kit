@@ -58,7 +58,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 | `CI-WF-005` | ci_cd | stable | `deterministic` | `pass` | high | Found 1 workflow file(s). | Keep CI workflows minimal, pinned, and least-privilege. |  |
 | `CI-PERM-006` | ci_cd | stable | `deterministic` | `fail` | medium | Workflows missing top-level permissions: unsafe.yml | Declare top-level `permissions:` with the narrowest scope required. |  |
 | `CI-DANGER-007` | ci_cd | stable | `deterministic` | `fail` | medium | pull_request_target detected in: unsafe.yml | Remove pull_request_target or restrict to audited, minimal patterns; prefer pull_request. |  |
-| `CI-PIN-008` | supply_chain | stable | `deterministic` | `fail` | medium | Mutable action references (tags/branches) detected. | Pin actions to immutable SHAs (40-char commit) from trusted repos. |  |
+| `CI-PIN-008` | supply_chain | stable | `deterministic` | `fail` | medium | 1 mutable action reference(s) (tags/branches) detected across 1 workflow file(s). | Pin actions to immutable SHAs (40-char commit) from trusted repos. |  |
 | `CI-LEAST-009` | ci_cd | stable | `signal` | `pass` | medium | No obviously over-broad workflow permissions detected. | Review permissions when adding publishing or release jobs. |  |
 | `SEC-CODEQL-010` | vulnerability_management | stable | `signal` | `fail` | medium | No CodeQL (or equivalent) signal in local workflows. | Add GitHub CodeQL workflow or equivalent SAST in CI. |  |
 | `SEC-DEPREV-011` | supply_chain | stable | `deterministic` | `fail` | medium | No dependency-review-action detected in workflows. | Add GitHub Dependency Review to pull request workflows. |  |
@@ -151,7 +151,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 - **Assurance**: `deterministic`
 - **Evidence collection method**: `static`
 - **Confidence**: medium
-- **Reason**: Mutable action references (tags/branches) detected.
+- **Reason**: 1 mutable action reference(s) (tags/branches) detected across 1 workflow file(s).
 - **Remediation**: Pin actions to immutable SHAs (40-char commit) from trusted repos.
 - **Evidence**:
   - `unsafe.yml: actions/checkout@v4`

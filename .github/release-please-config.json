@@ -6,15 +6,51 @@
   "draft": true,
   "prerelease": false,
   "changelog-sections": [
-    { "type": "feat",     "section": "Highlights",   "hidden": false },
-    { "type": "fix",      "section": "Fixes",        "hidden": false },
-    { "type": "perf",     "section": "Improvements", "hidden": false },
-    { "type": "refactor", "section": "Improvements", "hidden": false },
-    { "type": "docs",     "section": "Notes",        "hidden": false },
-    { "type": "build",    "section": "Notes",        "hidden": false },
-    { "type": "ci",       "section": "Notes",        "hidden": false },
-    { "type": "chore",    "section": "Notes",        "hidden": true },
-    { "type": "test",     "section": "Notes",        "hidden": true }
+    {
+      "type": "feat",
+      "section": "Highlights",
+      "hidden": false
+    },
+    {
+      "type": "fix",
+      "section": "Fixes",
+      "hidden": false
+    },
+    {
+      "type": "perf",
+      "section": "Improvements",
+      "hidden": false
+    },
+    {
+      "type": "refactor",
+      "section": "Improvements",
+      "hidden": false
+    },
+    {
+      "type": "docs",
+      "section": "Notes",
+      "hidden": false
+    },
+    {
+      "type": "build",
+      "section": "Notes",
+      "hidden": false
+    },
+    {
+      "type": "ci",
+      "section": "Notes",
+      "hidden": false
+    },
+    {
+      "type": "chore",
+      "section": "Notes",
+      "hidden": true
+    },
+    {
+      "type": "test",
+      "section": "Notes",
+      "hidden": true
+    }
   ],
   "packages": {
     ".": {
@@ -24,7 +60,9 @@
         "README.md",
         "docs/at-a-glance.md",
         "docs/github-action.md",
-        "docs/quickstart-15-min.md"
+        "docs/quickstart-15-min.md",
+        "docs/pre-commit-integration.md",
+        ".pre-commit-hooks.yaml"
       ]
     }
   }

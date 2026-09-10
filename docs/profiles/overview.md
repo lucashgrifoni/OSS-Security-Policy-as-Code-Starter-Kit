@@ -21,11 +21,11 @@ The **catalog `assurance` field** classifies how a control proves its conclusion
 
 The **`reports/2.0` Evidence Model v2** (visible per result in `evaluation-report.json` under `project_evidence`) projects a richer trust picture using these keys (full reference in [docs/reports-contract-v2.0.md](../reports-contract-v2.0.md)):
 
-- **`source_type`**: where the conclusion came from — `clone_file`, `workflow_yaml`, `pipeline_yaml`, `evidence_json`, `api_collected`, `heuristic_signal`, etc.
-- **`collection_method`**: how it was gathered — `clone_inspection`, `workflow_yaml_parse`, `evidence_attestation`, `api_collected`, `keyword_match`, etc.
-- **`trust_level`**: derived semantic level — `verified` (high), `attested`, `observed`, `heuristic` (lowest). Keyword-only matches cap trust at `heuristic` even when the status is `pass`.
-- **`attestation_status`**: `signed`, `self_attested`, `none`. Promoted from `self_attested` to `signed` only when the control source is `api_collected` and an `attested_by` value is present.
-- **`freshness_status`**: `fresh`, `stale`, `unknown`. Driven by `extra.collected_at` (ISO8601) on live evidence; without it, the projection emits `unknown`.
+- **`source_type`**: where the conclusion came from — one of `static_clone`, `heuristic_signal`, `user_supplied`, `api_collected`, `manual_review`, `not_observable`. That is the complete set the projection emits.
+- **`collection_method`**: how it was gathered — one of `static`, `live`, `manual`, carried straight from the evaluator's `evidence_collection_method`.
+- **`trust_level`**: derived semantic level — one of `verified` (highest), `declared`, `inferred`, `unobserved` (lowest). A keyword-only signal caps at `inferred` even when the status is `pass`; only a *fresh and attested* `api_collected` source reaches `verified`.
+- **`attestation_status`**: `signed`, `self_attested`, `none`, or `not_applicable` (on `manual_review` / `not_observable`). Promoted from `self_attested` to `signed` only when the control source is `api_collected` and an `attested_by` value is present.
+- **`freshness_status`**: `fresh`, `stale`, `unknown`, or `not_applicable`. Clone-visible facts have no freshness window and project to `not_applicable` — which is what every row of a stock static run carries. `fresh` / `stale` are driven by `extra.collected_at` (ISO8601) on live evidence; live evidence without it projects to `unknown`.
 - **`evidence_required`**: boolean — true on `evidence-backed` catalog controls; surfaces explicitly in `reports/2.0`.
 - **`limitations`**: free-form strings explaining why a result cannot project to a higher trust level (for example, `keyword-only signal cannot project to verified`).
 

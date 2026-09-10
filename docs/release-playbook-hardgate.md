@@ -57,7 +57,7 @@ Evidence is written under `<target>/.oss-policy-kit/evidence/` unless you pass `
 ## Choose a profile interactively
 
 ```bash
-python -m oss_policy_kit recommend-profile --target . --format text
+python -m oss_policy_kit recommend-profile --target . --format human
 ```
 
 ```bash
