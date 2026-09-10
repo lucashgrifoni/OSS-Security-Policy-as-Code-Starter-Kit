@@ -204,7 +204,21 @@ def test_cel_has_one_expression_per_control_plus_aggregate() -> None:
     assert "FIDELITY BOUNDARY" in cel
 
 
-# --- Real engine verification (local only; CI has neither tool) -------------
+# --- Real engine verification ----------------------------------------------
+#
+# The two halves below do not run in the same places, and the comment that stood here
+# said neither of them ran in CI. That stopped being true once the quality job started
+# installing opa by pinned digest: the Rego half runs on every Linux gate run, and
+# tests/infrastructure/test_the_rego_fidelity_check_still_runs_in_ci.py holds it there,
+# so removing that install step fails a test instead of silently turning this into a skip.
+#
+# The CEL half still runs nowhere automatically. `celpy` appears in no extra, no workflow
+# and no image, so `importorskip` skips it on every leg. The generated CEL was checked by
+# hand against cel-python 0.5.0 on 2026-09-10 -- it compiles, the passing report evaluates
+# true and the failing one false, and a renderer mutated to emit `===` was caught by the
+# parser -- but that is one dated run, not a gate. Installing cel-python costs five
+# transitive dependencies, one of them a compiled extension (google-re2), on three matrix
+# legs; that is the decision to take before this line may claim CI verifies CEL.
 
 
 def test_generated_cel_compiles_and_evaluates() -> None:
