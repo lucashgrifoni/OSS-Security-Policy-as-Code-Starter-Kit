@@ -151,7 +151,9 @@ def _load_scorecard_yaml(path: Path) -> Any:
     if reason is not None:
         raise LoadError(reason)
     try:
-        return load_yaml_file(path)
+        # The evidence ceiling, not the CI-config default: this file is an attestation the
+        # operator supplied, and the check above already admitted it at that size.
+        return load_yaml_file(path, max_bytes=MAX_EVIDENCE_BYTES)
     except BAD_INPUT_ERRORS as exc:
         raise LoadError(bad_input_reason(exc, label="Scorecard YAML", name=path.name)) from exc
 

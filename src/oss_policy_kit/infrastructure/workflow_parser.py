@@ -9,7 +9,11 @@ from pathlib import Path
 from typing import Any, cast
 
 from oss_policy_kit.application.evaluators_common import strip_yaml_comments
-from oss_policy_kit.application.input_limits import bad_input_detail
+from oss_policy_kit.application.input_limits import (
+    MAX_CI_CONFIG_BYTES,
+    bad_input_detail,
+    oversize_reason,
+)
 from oss_policy_kit.infrastructure.source_text import decode_source
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
@@ -924,6 +928,14 @@ def _scan_workflow_parsed(data: dict[str, Any], raw: str, path: Path, result: Wo
 
 def _analyze_one_workflow(path: Path, result: WorkflowAnalysis, signal_acc: set[str]) -> None:
     result.workflow_paths.append(path)
+    # Ahead of everything below, because everything below reads the file: a cap inside
+    # ``load_yaml_file`` would arrive after the raw scan had already read it whole. Refusing
+    # here refuses both halves at once, which is the honest outcome -- a workflow nobody read
+    # establishes neither of them.
+    oversize = oversize_reason(path, MAX_CI_CONFIG_BYTES, label="Workflow")
+    if oversize is not None:
+        result.parse_errors.append((path, oversize))
+        return
     # Comments are blanked once, here, rather than at each scan below. Six controls were
     # moved to the parsed structure in earlier releases; a derived sweep -- add ONE comment
     # to a file and diff every verdict -- then found four more still reading this text:

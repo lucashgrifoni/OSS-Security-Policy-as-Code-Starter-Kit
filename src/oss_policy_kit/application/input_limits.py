@@ -38,6 +38,21 @@ MAX_EVIDENCE_BYTES = 5 * 1024 * 1024  # 5 MiB
 MAX_SARIF_BYTES = 20 * 1024 * 1024  # 20 MiB
 #: ``oss-policy-kit.yaml`` — a handful of scalar fields; nothing legitimate is large.
 MAX_CONFIG_BYTES = 1 * 1024 * 1024  # 1 MiB
+#: A CI configuration file read out of the repository being audited: a workflow, a
+#: ``.gitlab-ci.yml``, an Azure pipeline, a buildspec, a CodePipeline export.
+#:
+#: Same ceiling as :data:`MAX_CONFIG_BYTES` and a different reason for it. That one bounds
+#: a file the operator wrote; this one bounds a file the audited repository wrote, which is
+#: the input this product exists to read and the one an attacker controls when the kit runs
+#: in CI against a fork. Nothing bounded it: the expansion guard in ``load_yaml_file`` runs
+#: after the parse it is meant to survive, and the raw text scan ahead of it read the file
+#: whole. Cost is linear in the file -- measured on this tree at 2.12 s / 6.66 s / 24.05 s
+#: for 0.52 / 2.08 / 8.32 MiB of workflow YAML, about three seconds per MiB -- so a
+#: workflow committed to a fork decided how long the audit of that fork ran.
+#:
+#: The largest CI file in this repository is 34 KiB. The ceiling is thirty times that, so
+#: it refuses a weapon and not a repository.
+MAX_CI_CONFIG_BYTES = 1 * 1024 * 1024  # 1 MiB
 
 #: Bracket-nesting depth allowed in any user-controlled document. Real evidence, config
 #: and scanner output sit under ten levels; 200 is generous enough that no honest file
