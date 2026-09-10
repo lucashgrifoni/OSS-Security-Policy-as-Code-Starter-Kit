@@ -127,6 +127,8 @@ def _semgrep_version() -> str | None:
         proc = subprocess.run(  # noqa: S603 - argv is a fixed list of strings
             [binary, "--version"],
             capture_output=True,
+            encoding="utf-8",
+            errors="replace",
             text=True,
             timeout=15,
             check=False,
@@ -263,6 +265,8 @@ def run_semgrep(
         proc = subprocess.run(  # noqa: S603 - argv is a fixed list of strings
             argv,
             capture_output=True,
+            encoding="utf-8",
+            errors="replace",
             text=True,
             timeout=timeout_seconds,
             check=False,

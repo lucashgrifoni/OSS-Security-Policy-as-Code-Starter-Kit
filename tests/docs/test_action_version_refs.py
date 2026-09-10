@@ -46,6 +46,8 @@ def _searchable_files() -> list[Path]:
         ["git", "ls-files", "-z", "*.md", "*.yml", "*.yaml"],
         cwd=REPO_ROOT,
         capture_output=True,
+        encoding="utf-8",
+        errors="replace",
         text=True,
         check=True,
     ).stdout

@@ -103,6 +103,8 @@ def test_evaluate_script_is_invokable_as_module() -> None:
     proc = subprocess.run(
         [sys.executable, "-m", "oss_policy_kit", "--version"],
         capture_output=True,
+        encoding="utf-8",
+        errors="replace",
         text=True,
         timeout=30,
     )

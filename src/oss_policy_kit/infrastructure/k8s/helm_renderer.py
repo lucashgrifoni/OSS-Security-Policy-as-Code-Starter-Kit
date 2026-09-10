@@ -69,6 +69,8 @@ def helm_available() -> tuple[bool, str | None]:
         proc = subprocess.run(  # noqa: S603
             [binary, "version", "--short"],
             capture_output=True,
+            encoding="utf-8",
+            errors="replace",
             text=True,
             timeout=10,
             check=False,
@@ -134,6 +136,8 @@ def _render_one_chart(
         proc = subprocess.run(  # noqa: S603
             [helm_bin, "template", chart_dir.name or "chart", str(chart_dir), "--output-dir", str(out_dir)],
             capture_output=True,
+            encoding="utf-8",
+            errors="replace",
             text=True,
             timeout=timeout_per_chart,
             check=False,

@@ -58,6 +58,8 @@ def _run_cli(args: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, "-m", "oss_policy_kit", *args],
         capture_output=True,
+        encoding="utf-8",
+        errors="replace",
         text=True,
     )
 

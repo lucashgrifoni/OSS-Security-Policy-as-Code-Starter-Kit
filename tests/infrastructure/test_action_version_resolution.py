@@ -53,7 +53,14 @@ def _working_bash() -> str | None:
         if not candidate or not Path(candidate).exists():
             continue
         try:
-            probe = subprocess.run([candidate, "-c", "printf ok"], capture_output=True, text=True, timeout=30)
+            probe = subprocess.run(
+                [candidate, "-c", "printf ok"],
+                capture_output=True,
+                encoding="utf-8",
+                errors="replace",
+                text=True,
+                timeout=30,
+            )
         except (OSError, subprocess.SubprocessError):
             continue
         if probe.returncode == 0 and probe.stdout.strip() == "ok":
