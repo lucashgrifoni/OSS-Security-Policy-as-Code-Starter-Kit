@@ -1,8 +1,9 @@
 """Shared evaluator helpers.
 
 Holds the small set of building blocks reused across evaluator modules
-(``evaluators.py``, ``evaluators_iac.py``, ``evaluators_fuzzing.py``,
-and the upcoming ``evaluators_containers.py`` / ``evaluators_k8s.py``).
+(the ``evaluators`` package, ``evaluators_iac.py``,
+``evaluators_fuzzing.py``, ``evaluators_containers.py`` and
+``evaluators_k8s.py``).
 
 The helpers here are intentionally narrow:
 
@@ -18,10 +19,11 @@ The helpers here are intentionally narrow:
 - :func:`load_packaged_schema` reads a JSON schema bundled under
   ``oss_policy_kit.data.schema``.
 
-This module is part of the v5.6 refactor that is gradually splitting
-``application/evaluators.py`` along category boundaries. The legacy
-underscore-prefixed aliases inside ``evaluators.py`` continue to work so
-existing call sites keep their byte-equivalent semantics.
+This module came out of the v5.6 refactor that split
+``application/evaluators.py`` along category boundaries. That split
+finished in ADR-026, which replaced the module with the ``evaluators``
+package; the helpers keep the names they were given here, so call sites
+that followed the split keep their byte-equivalent semantics.
 """
 
 from __future__ import annotations

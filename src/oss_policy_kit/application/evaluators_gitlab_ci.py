@@ -2,8 +2,9 @@
 
 Public package boundary for GitLab CI controls. v5.9.0 ships an initial
 6-control subset of the ADR-003 design (12 controls planned). The bodies
-live in ``evaluators.py`` for cross-evaluator helpers; this module
-re-exports them under their canonical names for the registry loader.
+live in the :mod:`oss_policy_kit.application.evaluators` package,
+alongside the cross-evaluator helpers; this module re-exports them under
+their canonical names for the registry loader.
 
 Scope (closed set, alphabetized):
 

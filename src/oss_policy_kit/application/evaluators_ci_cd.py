@@ -5,9 +5,11 @@ workflow analysis, Azure DevOps pipeline analysis, and AWS CodeBuild /
 CodePipeline detection. Like
 :mod:`oss_policy_kit.application.evaluators_governance` and
 :mod:`oss_policy_kit.application.evaluators_supply_chain`, this module
-re-exports the existing callables from ``evaluators.py`` so that
-``EVALUATOR_REGISTRY`` remains **byte-equivalent**. Future v5.8.x work
-will move the bodies into this module incrementally.
+re-exports the existing callables so that ``EVALUATOR_REGISTRY``
+remains **byte-equivalent**. The bodies live in the
+:mod:`oss_policy_kit.application.evaluators` package, which replaced the
+former monolithic ``evaluators.py`` in ADR-026; this module stays the
+import surface for the pack as a unit.
 
 Scope (closed set, alphabetized):
 
