@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from oss_policy_kit.application.evaluators_common import strip_yaml_comments
+from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
 _AKIA_PATTERN = re.compile(r"\bAKIA[0-9A-Z]{16}\b")
@@ -222,6 +223,10 @@ def analyze_aws_ci(repo_root: Path) -> AwsCiAnalysis:
     result.codepipeline_paths = _candidate_codepipeline_paths(repo_root)
 
     for path in result.buildspec_paths:
+        oversize = oversize_reason(path, MAX_CI_CONFIG_BYTES, label="Buildspec")
+        if oversize is not None:
+            result.parse_errors.append((path, oversize))
+            continue
         raw = path.read_text(encoding="utf-8", errors="replace")
         raw_lower = raw.lower()
         _scan_buildspec_raw_non_env(path, raw, raw_lower, result)
@@ -242,6 +247,13 @@ def analyze_aws_ci(repo_root: Path) -> AwsCiAnalysis:
 def _scan_codepipeline_export(path: Path, result: AwsCiAnalysis) -> None:
     """Validate one committed CodePipeline export and record valid-export / IAM-role signals."""
 
+    # The JSON branch below reads the file without going through ``load_yaml_file``, so it
+    # would be the one shape of CI config left uncapped. Every later read of this export --
+    # the minimal-stub check and the document load -- runs only past this point.
+    oversize = oversize_reason(path, MAX_CI_CONFIG_BYTES, label="CodePipeline export")
+    if oversize is not None:
+        result.parse_errors.append((path, oversize))
+        return
     try:
         if path.suffix.lower() == ".json":
             json.loads(path.read_text(encoding="utf-8", errors="replace"))
