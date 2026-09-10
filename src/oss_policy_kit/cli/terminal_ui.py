@@ -569,7 +569,11 @@ CLI_BANNER_MIN_COLUMNS = 52
 # Windows codepages. Text column is aligned ``_BANNER_ART_WIDTH + 3`` in.
 _BANNER_WORDMARK = "OSS Policy Kit"
 _BANNER_TAGLINE = "clone-visible security posture"
-_BANNER_PLATFORMS = "GitHub | Azure | AWS"
+# Kept in step with ``init_planner.SUPPORTED_PLATFORMS``: this line is the product's own
+# answer to "which forges does it read?", printed above every interactive ``--help``. It
+# said three platforms for the whole of the GitLab first-class work (v6.4.0 onward), while
+# the kit shipped six GitLab profiles and the landing page advertised four platforms.
+_BANNER_PLATFORMS = "GitHub | GitLab | Azure | AWS"
 _BANNER_PURPOSE = "Evaluate governance, CI hygiene, and release evidence"
 _BANNER_ART_WIDTH = 10
 _BANNER_ART_UNICODE = ("    ▲", "   ╱ ╲", "  ╱ ✓ ╲", " ╱─────╲", "▔▔▔▔▔▔▔▔▔")

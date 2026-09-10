@@ -20,7 +20,7 @@ description: >
   - ``LLM-218A-PS-001`` — LLM release integrity (evidence-backed).
   - ``GOV-DISC-065`` — disclosure SLA documented (Annex IV §8
     post-market monitoring proxy).
-  - ``REL-CHANGE-001`` — release change tracking.
+  - ``REL-CHANGE-012`` — release change tracking.
   - ``SAST-OSV-068`` — dependency CVE surface.
   **Hard caveat (also in `docs/eu-ai-act-readiness.md`):** the kit does
   NOT substitute for an EU AI Act conformity assessment (Article 43).

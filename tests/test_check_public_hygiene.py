@@ -173,3 +173,30 @@ def test_the_repository_s_own_locks_are_clean() -> None:
 def test_a_repository_with_no_lock_directory_is_not_an_error() -> None:
     module = _load_hygiene_module()
     assert module._generated_lock_violations(Path(__file__).resolve().parent) == []
+
+
+def test_every_allowlisted_path_still_exists() -> None:
+    """An allowlist entry for a file that is gone is a standing exemption for its name.
+
+    ``ALLOWLISTED_PATHS`` is a whole-file skip keyed by exact relative path: ``_scan_file``
+    returns ``[]`` before it reads a byte. ``tests/application/test_reports_v1_schema.py`` was
+    deleted in v9.0.0 with the pre-2.0 report contracts (ADR-043) and its entry stayed behind
+    through every release since. Nothing failed, because a path that matches no file skips no
+    file -- until something is created at that path again, at which point the scanner would
+    walk past it in silence. The entry is removed; this keeps the next one from lingering.
+    """
+
+    module = _load_hygiene_module()
+    missing = sorted(p for p in module.ALLOWLISTED_PATHS if not (_REPO_ROOT / p).exists())
+    assert not missing, (
+        f"scripts/check_public_hygiene.py allowlists paths that do not exist: {missing}. "
+        "Each is a pre-approved skip waiting for a file of that name. Delete the entry, or "
+        "point it at the file that replaced it."
+    )
+
+
+def test_the_allowlist_is_not_empty() -> None:
+    """A sweep over an empty allowlist would pass for the wrong reason."""
+
+    module = _load_hygiene_module()
+    assert len(module.ALLOWLISTED_PATHS) >= 5

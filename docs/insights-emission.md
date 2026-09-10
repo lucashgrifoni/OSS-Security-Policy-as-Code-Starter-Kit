@@ -56,7 +56,7 @@ $ oss-policy-kit emit-insights --target . --merge --output insights-fragment.yml
 | `header.last-updated` | `date -u` at emit time. | n/a |
 | `project.name` | Inferred from `git remote -v` plus `README.md`. | n/a |
 | `project.homepage` | Inferred from `git remote -v` (web URL of the origin). | n/a |
-| `project.administrators` | `CODEOWNERS` parse. | `GOV-COWN-001` |
+| `project.administrators` | `CODEOWNERS` parse. | `GOV-COWN-003` |
 | `contributing-policy` | `CONTRIBUTING.md` presence. | `GOV-CON-002` |
 | `code-of-conduct` | `CODE_OF_CONDUCT.md` presence. | n/a (no current control; emit only) |
 | `security-policy` | `SECURITY.md` presence. | `GOV-SEC-001` |
@@ -72,7 +72,7 @@ $ oss-policy-kit emit-insights --target . --merge --output insights-fragment.yml
 | `dependencies.sbom` | URL to bundled SBOM if `BUILD-SBOM-QUAL-003` finds one. | `BUILD-SBOM-QUAL-003` |
 | `distribution-points` | List of CI publish targets inferred from publish workflows. | n/a |
 | `release.attestation.predicate-uri` | "https://slsa.dev/provenance/v1" if `PROV-VERIFY-061` evidence file present. | `PROV-VERIFY-061` |
-| `release.changelog` | URL to `CHANGELOG.md` if present. | `REL-CHANGE-001` |
+| `release.changelog` | URL to `CHANGELOG.md` if present. | `REL-CHANGE-012` |
 
 Fields not in the table are either Insights-spec optional (skipped if no signal) or out of scope for the kit's clone-visible posture.
 

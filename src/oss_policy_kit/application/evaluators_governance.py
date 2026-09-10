@@ -2,17 +2,15 @@
 
 This module is the **public package boundary** for governance controls
 (``GOV-*``, ``REL-CHANGE-012``, ``GOV-DISC-013``, ``GOV-WAIV-014``,
-``GOV-EVIDFRESH-054``). The evaluator function bodies still live in
-``evaluators.py`` so that ``EVALUATOR_REGISTRY`` remains
-**byte-equivalent** across the v5.6 -> v5.7 transition; this module
-re-exports the existing callables under their canonical names and exposes
+``GOV-EVIDFRESH-054``). The evaluator function bodies live in the
+:mod:`oss_policy_kit.application.evaluators` package, which replaced the
+former monolithic ``evaluators.py`` in ADR-026, so that
+``EVALUATOR_REGISTRY`` stays **byte-equivalent**; this module re-exports
+the existing callables under their canonical names and exposes
 :func:`build_governance_evaluators` for the registry loader.
 
-Future steps (tracked for v5.8.x) will move the function bodies into this
-module incrementally so each move can be validated against the
-byte-equivalence guarantee in isolation. Until then, this module is the
-import surface that external code should target when it cares about the
-governance pack as a unit.
+This module remains the import surface that external code should target
+when it cares about the governance pack as a unit.
 
 The list of governance control IDs is **closed** here so that adding new
 governance controls in the future requires touching this module — a small

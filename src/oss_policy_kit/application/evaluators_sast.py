@@ -24,8 +24,9 @@ Scope (closed set, alphabetized):
 - ``SAST-ZIZMOR-066`` -- zizmor SARIF evidence (GHA static analysis).
 
 The 06x family (zizmor / poutine / OSV / gitleaks) was added in Fase 4
-(v5.9.0). They share a generic SARIF reader in ``evaluators.py``; the
-boundary keeps the shared helper visible to a single import point.
+(v5.9.0). They share a generic SARIF reader in
+``evaluators/_shared.py``; the boundary keeps the shared helper visible
+to a single import point.
 """
 
 from __future__ import annotations

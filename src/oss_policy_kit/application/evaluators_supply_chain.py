@@ -3,9 +3,10 @@
 Public package boundary for the supply-chain pack: SAST / SCA / SBOM /
 provenance / Scorecard controls. Like
 :mod:`oss_policy_kit.application.evaluators_governance`, this module
-re-exports the existing callables from ``evaluators.py`` so that
-``EVALUATOR_REGISTRY`` remains **byte-equivalent**. Future v5.8 work will
-move the bodies into this module incrementally.
+re-exports the existing callables so that ``EVALUATOR_REGISTRY``
+remains **byte-equivalent**. The bodies live in the
+:mod:`oss_policy_kit.application.evaluators` package, which replaced the
+former monolithic ``evaluators.py`` in ADR-026.
 
 Scope (closed set, alphabetized):
 

@@ -1,5 +1,22 @@
+# Without this block gitleaks loads no rules at all. A config that declares only an
+# allowlist does not inherit the default ruleset -- it replaces it with an empty one, and
+# every scan then reports "no leaks found" whatever the input. That is how this file stood
+# from 2026-05-01 (fd95f6f) until it was measured: with this config, a directory holding a
+# plain AWS key pair and a `ghp_` token scanned clean; without it, the same directory
+# reported both. The `Secrets History - Gitleaks` job passed that whole time on an empty
+# ruleset, and the gitleaks CLI picks this file up automatically from the repository root,
+# so every local `gitleaks detect` in a clone was equally blind.
+[extend]
+useDefault = true
+
 [allowlist]
-description = "Allow deterministic fake credentials used only by parser regression tests."
+description = "Deterministic non-secrets that the default ruleset reports in this repository."
 regexes = [
+  # A synthetic AWS access key id used only by the cloud-config parser regression tests.
   '''AKIA1234567890ABCDEF''',
+  # The public Azure built-in role definition id for "User Access Administrator", quoted in
+  # tests/infrastructure/test_bicep_rules_fire_and_stay_quiet.py so the Bicep rule for broad
+  # role bindings has a real id to fire on. `generic-api-key` matches it on entropy and on
+  # the label that precedes it; it is documented Azure platform data, not a credential.
+  '''18d7d88d-d35e-4fb5-a5c3-7773c20a72d9''',
 ]

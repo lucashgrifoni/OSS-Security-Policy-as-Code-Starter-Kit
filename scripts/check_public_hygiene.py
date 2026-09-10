@@ -105,10 +105,6 @@ ALLOWLISTED_PATHS: frozenset[str] = frozenset(
         # has to embed synthetic POSIX home-path fixtures to exercise the
         # matcher. The strings are not real paths.
         "tests/test_check_public_hygiene.py",
-        # M-002 regression test contains synthetic POSIX/Windows home-path
-        # fixtures to prove _sanitize_target_path_for_payload strips them.
-        # Not real auditor paths.
-        "tests/application/test_reports_v1_schema.py",
         # Evidence-projection helper test embeds synthetic POSIX/Windows home-path
         # fixtures to prove _redact_path strips them. Not real auditor paths.
         "tests/application/test_evidence_projection_helpers.py",
