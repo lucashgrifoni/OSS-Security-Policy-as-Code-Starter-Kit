@@ -6,6 +6,18 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.21](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.20...v10.0.21) (2026-09-11)
+
+
+### Fixes
+
+* eighteen defects from a six-phase engineering campaign against v10.0.20 ([#221](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/221)) ([b95e777](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b95e77735139e961d779e26fc2101b1cd901c0ef))
+* **parsers:** a CI file in the scanned repository decided how long the scan ran ([#222](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/222)) ([ca45489](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/ca4548938e2aca9091bc147602d7faac3de714f6))
+* **scanners:** three ways the kit answered about a file it had not read ([#225](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/225)) ([2db0ff4](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2db0ff4808f6e6aff0796bae65e236e348151d56))
+* **security:** a token in an evidence file decided where the kit connected ([#224](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/224)) ([346718a](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/346718aa82adfe95e39ce020337d7c3b3007e5de))
+* turn the secret scanner back on, and correct the claims a six-phase campaign found stale ([#223](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/223)) ([191fe03](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/191fe0314b05f0350efbbdb8958866bc4c15afa7))
+* two guards that checked a shape instead of the thing they guarded ([#226](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/226)) ([a4cae1c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a4cae1c1d5c3f7ec8e0e6185f357edba81bb2e17))
+
 ## [10.0.20](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.19...v10.0.20) (2026-09-09)
 
 
