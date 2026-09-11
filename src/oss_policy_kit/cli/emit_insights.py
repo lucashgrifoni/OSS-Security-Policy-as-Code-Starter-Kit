@@ -84,7 +84,14 @@ def _git_remote_url(root: Path) -> str | None:
     if not url:
         return None
     # Normalise SSH ``git@github.com:org/repo.git`` to HTTPS.
-    m = re.match(r"git@([^:]+):(.+?)(?:\.git)?$", url)
+    #
+    # The repetitions are bounded. Unbounded, the greedy host class and the lazy path class
+    # backtrack against each other and the cost is quadratic in the length of the remote URL,
+    # which comes out of the checkout's own git configuration. Measured, CPU time for one
+    # match: 125 ms at 32 KB, 2.56 s at 128 KB, 42.9 s at 512 KB, x4.0 per doubling. Bounded
+    # it is 4.6 ms / 17.6 ms / 78 ms, x2.0. The bounds are above the formats: a DNS name
+    # cannot exceed 255 octets, and 1024 is far past any repository path.
+    m = re.match(r"git@([^:\n]{1,255}):([^\n]{1,1024}?)(?:\.git)?$", url)
     if m:
         return f"https://{m.group(1)}/{m.group(2)}"
     if url.endswith(".git"):

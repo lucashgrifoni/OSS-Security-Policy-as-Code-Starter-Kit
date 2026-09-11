@@ -412,9 +412,28 @@ def _workflow_body_for_sast_heuristics(raw: str) -> str:
 # SAST/code-scanning detectors. Each entry is (signal_name, ((pattern, use_full_text), ...)).
 # ``use_full_text`` searches the whole raw workflow (``uses:`` refs); otherwise the
 # SAST-heuristic body (CLI invocations). All texts are pre-lowercased, so patterns are
-# lowercase and need no IGNORECASE. ``uses:[^\n#]*`` (not ``uses:\s*[^\n#]*``) avoids the
-# ambiguous adjacent quantifiers that trip ReDoS detection — ``[^\n#]*`` already covers
+# lowercase and need no IGNORECASE. ``uses:[^\n#]`` (not ``uses:\s*[^\n#]``) avoids the
+# ambiguous adjacent quantifiers that trip ReDoS detection — the class already covers
 # leading whitespace.
+#
+# The repetition is BOUNDED, and that is the part that matters. Unbounded, the engine
+# anchors on every ``uses:`` in the text and walks the rest of the line from each one,
+# which is quadratic in the length of a line the audited repository wrote. Measured on one
+# long line of repeated ``uses:`` with the needle absent, CPU time per search:
+#
+#      4000 chars    0.98 ms       8000 chars    4.03 ms   x4.12
+#     16000 chars   28.32 ms      32000 chars  148.44 ms   x5.24
+#     64000 chars  593.75 ms                               x4.00
+#
+# Bounded at 1000 the same input costs 19.53 ms at 64000 chars -- 30x cheaper -- and the
+# curve returns to x2.11, which is linear.
+#
+# The bound is safe in the direction that matters. These patterns detect the PRESENCE of a
+# scanner, so a lost match makes the control report "no SAST tool detected", which is
+# restrictive rather than permissive. And 1000 is far above the format: the longest
+# ``uses:`` tail across the workflows in this repository is 85 characters, and a
+# fully-qualified reusable-workflow reference -- owner, repository, path, 40-character SHA
+# -- reaches roughly 600.
 _SAST_SIGNAL_RULES: tuple[tuple[str, tuple[tuple[re.Pattern[str], bool], ...]], ...] = (
     (
         "codeql",
@@ -427,7 +446,7 @@ _SAST_SIGNAL_RULES: tuple[tuple[str, tuple[tuple[re.Pattern[str], bool], ...]], 
     (
         "semgrep",
         (
-            (re.compile(r"uses:[^\n#]*(returntocorp/semgrep|semgrep/semgrep|semgrep-action)"), True),
+            (re.compile(r"uses:[^\n#]{0,1000}(returntocorp/semgrep|semgrep/semgrep|semgrep-action)"), True),
             (re.compile(r"\bsemgrep\s+(scan|ci)\b"), False),
             (re.compile(r"\bsemgrep\s[^\n]*--config\b"), False),
         ),
@@ -437,28 +456,28 @@ _SAST_SIGNAL_RULES: tuple[tuple[str, tuple[tuple[re.Pattern[str], bool], ...]], 
         (
             (re.compile(r"\bpython\s+-m\s+bandit\b"), False),
             (re.compile(r"\bbandit\s+-r\b"), False),
-            (re.compile(r"uses:[^\n#]*bandit"), True),
+            (re.compile(r"uses:[^\n#]{0,1000}bandit"), True),
         ),
     ),
     ("snyk-code", ((re.compile(r"\bsnyk\s+code\s+test\b"), False), (re.compile(r"snyk-code"), False))),
     (
         "sonar",
         (
-            (re.compile(r"uses:[^\n#]*sonarsource/sonarcloud-github-action"), True),
-            (re.compile(r"uses:[^\n#]*sonarqube"), True),
+            (re.compile(r"uses:[^\n#]{0,1000}sonarsource/sonarcloud-github-action"), True),
+            (re.compile(r"uses:[^\n#]{0,1000}sonarqube"), True),
             (re.compile(r"\bsonar-scanner\b"), False),
         ),
     ),
-    ("brakeman", ((re.compile(r"uses:[^\n#]*brakeman"), True), (re.compile(r"\bbrakeman\s+(\.|--)"), False))),
-    ("horusec", ((re.compile(r"uses:[^\n#]*horusec"), True), (re.compile(r"\bhorusec\s+cli\b"), False))),
+    ("brakeman", ((re.compile(r"uses:[^\n#]{0,1000}brakeman"), True), (re.compile(r"\bbrakeman\s+(\.|--)"), False))),
+    ("horusec", ((re.compile(r"uses:[^\n#]{0,1000}horusec"), True), (re.compile(r"\bhorusec\s+cli\b"), False))),
     ("checkmarx", ((re.compile(r"checkmarx/ast-github-action"), True), (re.compile(r"\bcx\s+scan\b"), False))),
-    ("shiftleft-scan", ((re.compile(r"uses:[^\n#]*shiftleft/scan"), True),)),
-    ("flake8-bugbear", ((re.compile(r"\bflake8-bugbear\b"), False), (re.compile(r"flake8.*bugbear"), False))),
+    ("shiftleft-scan", ((re.compile(r"uses:[^\n#]{0,1000}shiftleft/scan"), True),)),
+    ("flake8-bugbear", ((re.compile(r"\bflake8-bugbear\b"), False), (re.compile(r"flake8.{0,200}bugbear"), False))),
     ("gosec", ((re.compile(r"\bgosec\b"), False),)),
     ("spotbugs", ((re.compile(r"\bspotbugs\b"), False),)),
     ("veracode", ((re.compile(r"\bveracode\b"), False),)),
     ("sonarqube", ((re.compile(r"\bsonarqube\b"), False), (re.compile(r"\bsonarcloud\b"), False))),
-    ("bearer", ((re.compile(r"\bbearer\s+(scan|cli)\b"), False), (re.compile(r"uses:[^\n#]*\bbearer\b"), True))),
+    ("bearer", ((re.compile(r"\bbearer\s+(scan|cli)\b"), False), (re.compile(r"uses:[^\n#]{0,1000}\bbearer\b"), True))),
 )
 
 
