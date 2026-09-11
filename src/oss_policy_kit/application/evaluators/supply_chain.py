@@ -33,6 +33,7 @@ from oss_policy_kit.application.evaluators._shared import (
 # in the governance family. Explicit cross-family import (governance does not import
 # back, so no cycle).
 from oss_policy_kit.application.evaluators.governance import eval_audit_stream_060
+from oss_policy_kit.infrastructure.source_text import decode_source
 
 _NO_ACTION_REQUIRED = "No action required."
 _PACKAGE_JSON = "package.json"
@@ -44,7 +45,17 @@ def _unpinned_from_refs(dockerfiles: list[Path]) -> list[str]:
     unpinned: list[str] = []
     for df in dockerfiles:
         with contextlib.suppress(OSError):
-            content = df.read_text(encoding="utf-8", errors="replace")
+            # ``decode_source`` and not ``read_text(errors="replace")``. A UTF-16 Dockerfile read
+            # as UTF-8 arrives as mojibake, `_DOCKER_FROM_RE` matches nothing, and the caller
+            # then reports what it reports when there is genuinely nothing to report. Measured on
+            # identical content written twice:
+            #
+            #     UTF-8   CONT-IMAGE-001 = FAIL  "FROM instruction(s) without digest pin"
+            #     UTF-16  CONT-IMAGE-001 = PASS  "All FROM instructions use digest-pinned"
+            #
+            # A positive claim about a security control, from any Windows editor that saves as
+            # UTF-16.
+            content = decode_source(df.read_bytes())
             for ref in _DOCKER_FROM_RE.findall(content):
                 if ref.lower() != "scratch" and "@sha256:" not in ref:
                     unpinned.append(f"{df.name}: {ref}")
@@ -105,7 +116,7 @@ def eval_cont_image_002(ctx: EvalContext) -> EvalOutcome:
     missing_user: list[Path] = []
     for df in dockerfiles:
         with contextlib.suppress(OSError):
-            content = df.read_text(encoding="utf-8", errors="replace")
+            content = decode_source(df.read_bytes())
             if _ROOT_USER_RE.search(content):
                 root_user.append(df)
             elif not _USER_RE.search(content):
@@ -156,7 +167,7 @@ def eval_cont_image_003(ctx: EvalContext) -> EvalOutcome:
     )
     for p in all_ci_paths:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = decode_source(p.read_bytes()).lower()
             if any(tok in text for tok in _IMAGE_SCAN_TOKENS):
                 return EvalOutcome(
                     status=ControlStatus.PASS,
