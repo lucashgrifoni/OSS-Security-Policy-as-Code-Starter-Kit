@@ -429,10 +429,26 @@ def _sanitize_target_path_for_payload(absolute: str, *, include_absolute: bool) 
         # not what it returns. A UNC path also carries a server name, which is exactly the
         # class of internal detail M-002 exists to keep out of a shareable report.
         return _basename_any_platform(absolute) or "."
+    # Lexical, deliberately. The branch above refuses to resolve a token that LOOKS like UNC,
+    # and that guard was scoped to the wrong thing: what makes resolving dangerous here is
+    # where the string CAME FROM, not what it looks like. A drive letter mapped to a share
+    # (``Z:`` -> ``\\host\share``) and a path that crosses a junction are both network
+    # destinations without being UNC-shaped, and both used to arrive here.
+    #
+    # ``os.path.abspath`` is normpath composed with a join against the working directory. It
+    # follows no symlink and opens no connection, so no string reaching this function can make
+    # it talk to anything. ``normcase`` keeps the comparison right on Windows, where paths are
+    # case-insensitive.
+    #
+    # What changes: a path that is the working directory only THROUGH a symlink now renders as
+    # its basename instead of ".". That is a display field in a shareable report, and the
+    # basename is the more conservative of the two answers.
+    #
+    # Checked against the resolving version over the working directory in its plain, trailing
+    # separator, dot-suffixed, dot-dot, relative, upper-cased, absolute-elsewhere, UNC,
+    # unmapped-drive and empty forms: identical answers, no divergence.
     try:
-        p = Path(absolute)
-        cwd = Path.cwd().resolve()
-        if p.resolve() == cwd:
+        if os.path.normcase(os.path.abspath(absolute)) == os.path.normcase(os.path.abspath(os.getcwd())):
             return "."
         return _basename_any_platform(absolute) or "."
     except (OSError, ValueError):

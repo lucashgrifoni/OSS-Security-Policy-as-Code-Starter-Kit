@@ -56,10 +56,31 @@ MAX_CONFIG_BYTES = 1 * 1024 * 1024  # 1 MiB
 #: whitespace of every line before it. Measured at 256 KiB of blank lines: 599 seconds,
 #: where the linear model predicted 0.75. A file well under this ceiling cost minutes.
 #:
-#: Those patterns now use ``[^\S\n]``. Measured after: x2.00 per doubling of lines, and a
-#: 900 KiB workflow evaluates in 1.6-3.2 s whatever its shape. This ceiling is a backstop
-#: against a genuinely enormous file, not the thing holding a quadratic scan in check --
-#: which is the job it could not do, because quadratic cost arrives long before the cap.
+#: Those five patterns now use ``[^\S\n]`` and measure x2.00 per doubling of lines.
+#:
+#: This comment then said a 900 KiB workflow evaluates in 1.6-3.2 s WHATEVER ITS SHAPE, and
+#: that was the same mistake again, one paragraph after diagnosing it: a measurement of the
+#: five patterns that had been fixed, generalised to a claim about the whole scan. Two more
+#: quadratic sites were live while that sentence was on disk. End-user validation measured
+#: 245 s of CPU on a 512 KiB file, against a sentence promising seconds -- wrong by roughly
+#: seventy-fold, in the direction that reassures.
+#:
+#: The two survivors were the ``release:`` key test in ``evaluators/_shared.py`` (7.16 s for
+#: a single search over 64000 blank lines, x3.98 per doubling) and the eight ``uses:``
+#: detectors in ``infrastructure/workflow_parser.py`` (0.59 s per search at 64000 chars,
+#: x7.03 at worst). Both are bounded now, and both carry their measurement beside them.
+#:
+#: What can honestly be said, and no more: the patterns that have been MEASURED are linear,
+#: and each records its numbers at its own site. The package has not been proved linear as a
+#: whole, and two sweeps that concluded it was had blind spots -- one filtered on the
+#: MULTILINE flag, one looked only at module-level literals. The guard in
+#: ``tests/infrastructure/test_a_line_anchored_pattern_does_not_cross_lines.py`` now covers
+#: both shapes, and is the thing to extend rather than this sentence.
+#:
+#: This ceiling is a backstop against a genuinely enormous file, not the thing holding a
+#: quadratic scan in check -- which is the job it could not do, because quadratic cost
+#: arrives long before the cap. It also does not bound every reader: several read a repo
+#: file without consulting it at all, which is tracked separately and is not fixed here.
 #:
 #: The largest CI file in this repository is 34 KiB. The ceiling is thirty times that, so
 #: it refuses a weapon and not a repository.

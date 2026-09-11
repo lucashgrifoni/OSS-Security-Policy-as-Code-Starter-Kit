@@ -1,46 +1,83 @@
-"""A pattern anchored at a line start must not be able to scan past that line.
+"""A pattern run over text the audited repository wrote must cost linear time.
 
-`^\\s*` under `re.MULTILINE` is quadratic. `\\s` matches a newline, so on a document of N lines
-the engine tries the anchor at each of N line starts and each attempt can walk the whitespace of
-every line before it. Measured on this tree, on blank-line-heavy workflow YAML:
+Three sweeps have now looked for this class. The first two reported zero while defects were
+live, and they failed in different ways, which is the reason this file no longer decides by
+recognising a shape:
 
-    4000 lines   0.0338s      8000 lines   0.1342s
-   16000 lines   0.5402s     32000 lines   2.2052s        x3.97 per doubling
+* the first searched for ``\\s`` in a non-raw string, so the needle was a literal space and it
+  flagged the CORRECT patterns instead of the broken ones;
+* the second looked only at ``re.compile`` calls carrying a ``MULTILINE`` argument, and the
+  worst site used the inline flag ``(?m)`` with a bare ``re.search``;
+* the third -- the previous version of this file -- filtered on MULTILINE too, and then only
+  examined branches beginning with ``^``. It missed ``(^|\\n)\\s*release\\s*:``, which carries
+  no flag at all and puts the quantifier AFTER an explicit newline alternation, and it missed
+  ``uses:[^\\n#]*bandit``, which is not line-anchored in any way: it anchors on a repeatable
+  literal and walks the rest of the line from every occurrence.
 
-End to end that was 599 seconds for 256 KiB of blank lines, inside a file under the 1 MiB cap --
-so the cap did not help, because quadratic cost arrives long before a size limit does. The same
-shapes now cost 1.6-3.2 seconds at 900 KiB.
+Measured before the fix, CPU time for one search:
 
-`[^\\S\\n]` is whitespace-minus-newline. Since `^` under MULTILINE already anchors at every line
-start, refusing to cross a newline cannot lose a match: any `uses:` at a line start is still
-reached by the anchor on its own line. That is an exact argument, not a probable one, and the
-differential test below holds it over generated documents including exotic whitespace.
+    (^|\\n)\\s*release\\s*:      64000 blank lines     7156.25 ms    x3.98 per doubling
+    uses:[^\\n#]*bandit         64000 chars one line   593.75 ms    x7.03 per doubling
 
-The guard is static and derives the rule from the source. Two earlier versions of this sweep
-reported zero while the worst site was still there: the first because it searched for `\\s` in a
-non-raw string, which matched a literal space and flagged the CORRECT patterns instead; the
-second because the site used the inline flag `(?m)` and a bare `re.search`, and the sweep only
-looked at `re.compile` calls with a `MULTILINE` argument. Both of those shapes are canaries here.
+End to end the first was roughly 648 seconds for a 900 KiB workflow -- inside the 1 MiB cap,
+because quadratic cost arrives long before a size limit does. Both are bounded now.
+
+So the rule this file enforces is no longer "the pattern does not have a bad shape". It is
+**the pattern does not grow faster than its input**, measured on documents built to stress it,
+including one built from the pattern's own literal prefix. A guard that names shapes can only
+ever catch the shapes somebody thought of; three sweeps proved that the hard way.
+
+The static rule is kept alongside, because when it does fire it names the offending site and
+the reason, which a timing failure cannot.
+
+Sizing note, from the memory of a guard that hung rather than failed: an earlier ReDoS guard
+used a 200k-char input and made a mutation run take 400 seconds instead of failing. The sizes
+here are picked from measurement so that a quadratic pattern is unmistakable within about a
+tenth of a second, and a linear one costs nothing.
 """
 
 from __future__ import annotations
 
 import ast
 import re
+import time
 from pathlib import Path
 
 import pytest
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "oss_policy_kit"
 
-#: Every `re` entry point that takes a pattern, not just `compile` -- the site that cost 599
-#: seconds was a bare `re.search`.
+#: Every ``re`` entry point that takes a pattern, not just ``compile`` -- the site that cost
+#: 599 seconds was a bare ``re.search``.
 REGEX_ENTRY_POINTS = frozenset(
     {"compile", "search", "match", "fullmatch", "findall", "finditer", "sub", "subn", "split"}
 )
 
-#: `(?m)`, `(?im)`, `(?mi)`... MULTILINE can arrive inline as well as by argument.
+#: ``(?m)``, ``(?im)``, ``(?mi)``... MULTILINE can arrive inline as well as by argument.
 _INLINE_MULTILINE = re.compile(r"^\(\?[aiLmsux]*m[aiLmsux]*\)")
+
+#: The doubling ratio above which growth is not linear. A linear pattern measures near 2.0;
+#: the two real defects measured 3.98 and 7.03. 3.0 sits clear of both sides.
+MAX_DOUBLING_RATIO = 3.0
+
+#: Sizes for the ratio measurement, picked from the two known defects: at 16000 and 32000 they
+#: cost 430 ms / 1797 ms and 28 ms / 148 ms, so the doubling is unambiguous.
+SMALL, LARGE = 16_000, 32_000
+
+#: The screen. One search per pattern per shape at :data:`LARGE`, and only the ones above this
+#: get measured properly.
+#:
+#: The first version of this guard had no screen: it measured the ratio for all 135 regex
+#: literals in the package, and the accumulation loop that makes a measurement stable needs
+#: MORE repetitions the FASTER the pattern is -- about 300k searches for a microsecond pattern.
+#: The suite ran past two minutes and was killed. That is the failure this project has already
+#: recorded once: a guard that hangs is not a guard, because nobody leaves it switched on.
+#:
+#: A linear pattern costs 0.3-2 ms on these documents and a broken one costs 148-1797 ms, so
+#: the screen separates them by two orders of magnitude and does not need to be precise -- the
+#: ratio measurement below decides. On a green tree nothing reaches it and the sweep is a few
+#: hundred single searches.
+SCREEN_CEILING_SECONDS = 0.010
 
 
 def _has_multiline(pattern: str, flags_source: str) -> bool:
@@ -74,7 +111,7 @@ def _crosses_a_line(pattern: str) -> str | None:
 
 
 def _regex_literals(path: Path):
-    """(line, pattern, flags-source) for every `re.<fn>(<literal>, ...)` in a file."""
+    """(line, pattern, flags-source) for every ``re.<fn>(<literal>, ...)`` in a file."""
 
     try:
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -100,18 +137,217 @@ def _regex_literals(path: Path):
         yield node.lineno, pattern, flags
 
 
-def test_no_line_anchored_pattern_can_scan_past_its_line() -> None:
-    """The rule, across the package."""
+def _literal_prefix(pattern: str) -> str:
+    """The leading run of ordinary characters, which is what the engine anchors on.
+
+    This is what turns a harmless-looking pattern into a quadratic one: ``uses:[^\\n#]*bandit``
+    is cheap on a document with one ``uses:`` and ruinous on a line carrying a thousand, because
+    the engine restarts the walk at each. A document built from the pattern's own prefix is
+    therefore the adversarial document for that pattern, and no generic input finds it.
+    """
+
+    out: list[str] = []
+    i = 0
+    while i < len(pattern):
+        ch = pattern[i]
+        if ch in "\\^$.|?*+()[]{}":
+            break
+        # A literal followed by a quantifier belongs to the quantifier, not to the prefix.
+        if i + 1 < len(pattern) and pattern[i + 1] in "?*+{":
+            break
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _adversarial_documents(pattern: str, size: int) -> dict[str, str]:
+    """Documents built to make *pattern* work hard, keyed by the shape they exercise."""
+
+    docs = {
+        "linhas em branco": "\n" * size,
+        "espacos": " " * size,
+        "linhas so com espacos": (" " * 9 + "\n") * (size // 10),
+    }
+    prefix = _literal_prefix(pattern)
+    if len(prefix) >= 2:
+        # No newline and no `#`: both would let a line-bounded class stop early, and the point
+        # is to measure the walk, not to prove the class terminates.
+        filler = "x" * 20
+        unit = prefix + filler
+        docs["prefixo do proprio padrao"] = unit * max(1, size // len(unit))
+    return docs
+
+
+def _one_search_seconds(compiled: re.Pattern[str], document: str) -> float:
+    """CPU seconds for a single search. Cheap, coarse, and only used to screen.
+
+    ``process_time`` and not ``perf_counter``: the suite may run beside other work and wall
+    clock would measure the neighbours instead of the pattern. A fast search lands below the
+    clock's granularity and reads as zero, which is the right answer for a screen whose only
+    question is "is this one worth measuring properly".
+    """
+
+    start = time.process_time()
+    compiled.search(document)
+    return time.process_time() - start
+
+
+def _steady_seconds(compiled: re.Pattern[str], document: str) -> float:
+    """CPU seconds per search, accumulated past the clock's granularity.
+
+    On Windows the CPU clock ticks at about 15.6 ms, so a single fast search measures zero or
+    one tick and a ratio between two of those is quantisation, not growth -- that mistake
+    already produced a "linear" verdict in this session on a pattern later measured at x7.03.
+    Accumulating fixes it, but costs more the FASTER the pattern is, which is why only patterns
+    the screen has already flagged reach this function.
+    """
+
+    reps = 1
+    while reps <= 100_000:
+        start = time.process_time()
+        for _ in range(reps):
+            compiled.search(document)
+        elapsed = time.process_time() - start
+        if elapsed > 0.05:
+            return elapsed / reps
+        reps *= 8
+    return 0.0  # pragma: no cover - a pattern this fast never reaches here
+
+
+def _compile(pattern: str, flags_source: str) -> re.Pattern[str] | None:
+    flags = re.MULTILINE if "MULTILINE" in flags_source else 0
+    if "IGNORECASE" in flags_source:
+        flags |= re.IGNORECASE
+    try:
+        return re.compile(pattern, flags)
+    except re.error:  # pragma: no cover - a pattern that will not compile fails elsewhere
+        return None
+
+
+def _slow_shapes(pattern: str, flags_source: str) -> list[str]:
+    """Shapes on which one search already costs more than the screen allows."""
+
+    compiled = _compile(pattern, flags_source)
+    if compiled is None:
+        return []
+    docs = _adversarial_documents(pattern, LARGE)
+    return [shape for shape, doc in docs.items() if _one_search_seconds(compiled, doc) > SCREEN_CEILING_SECONDS]
+
+
+def _worst_growth(pattern: str, flags_source: str) -> tuple[float, str]:
+    """(worst doubling ratio, the shape that produced it), measured only where the screen fired.
+
+    Returns ``(0.0, "")`` when no shape is slow enough to be worth measuring, which is the
+    ordinary answer for a linear pattern and costs four single searches.
+    """
+
+    compiled = _compile(pattern, flags_source)
+    if compiled is None:
+        return 0.0, ""
+
+    worst, worst_shape = 0.0, ""
+    for shape in _slow_shapes(pattern, flags_source):
+        small_cost = _steady_seconds(compiled, _adversarial_documents(pattern, SMALL)[shape])
+        if small_cost <= 0:
+            continue
+        ratio = _steady_seconds(compiled, _adversarial_documents(pattern, LARGE)[shape]) / small_cost
+        if ratio > worst:
+            worst, worst_shape = ratio, shape
+    return worst, worst_shape
+
+
+def _package_patterns() -> list[tuple[str, int, str, str]]:
+    return [
+        (path.relative_to(SRC).as_posix(), lineno, pattern, flags)
+        for path in sorted(SRC.rglob("*.py"))
+        for lineno, pattern, flags in _regex_literals(path)
+    ]
+
+
+# --------------------------------------------------------------------------------------
+# The measured rule. This is the one that would have caught both real defects.
+# --------------------------------------------------------------------------------------
+
+
+def test_no_pattern_in_the_package_grows_faster_than_its_input() -> None:
+    """Double the document, and the cost may not more than double.
+
+    Shape-based rules catch the shapes somebody thought of. This one catches the behaviour,
+    which is what actually costs an operator a scan.
+    """
 
     offenders: list[str] = []
-    for path in sorted(SRC.rglob("*.py")):
-        for lineno, pattern, flags in _regex_literals(path):
-            if not _has_multiline(pattern, flags):
-                continue
-            reason = _crosses_a_line(pattern)
-            if reason:
-                rel = path.relative_to(SRC).as_posix()
-                offenders.append(f"{rel}:{lineno}: {reason} -- {pattern[:60]!r}")
+    for rel, lineno, pattern, flags in _package_patterns():
+        ratio, shape = _worst_growth(pattern, flags)
+        if ratio > MAX_DOUBLING_RATIO:
+            offenders.append(f"{rel}:{lineno}: x{ratio:.2f} per doubling on {shape} -- {pattern[:70]!r}")
+
+    assert not offenders, (
+        "these patterns cost more than linear time in the size of a document the audited "
+        f"repository wrote, measured from {SMALL} to {LARGE} characters. Bound the repetition "
+        "rather than widening the class, and record the numbers beside the pattern:\n  " + "\n  ".join(offenders)
+    )
+
+
+@pytest.mark.parametrize(
+    ("label", "pattern", "flags"),
+    [
+        # Exactly as they were on disk when end-user validation found them.
+        ("release key, no flag, quantifier after a newline alternation", r"(^|\n)\s*release\s*:", ""),
+        ("uses: detector, anchored on a repeatable literal", r"uses:[^\n#]*bandit", ""),
+        # The shape the first version of this file was written for.
+        ("line-anchored under MULTILINE", r"^\s*uses:\s*([^\s#]+)", "re.MULTILINE"),
+    ],
+)
+def test_the_measured_rule_sees_a_pattern_that_breaks_it(label: str, pattern: str, flags: str) -> None:
+    """Canaries. A green sweep means nothing unless the sweep can produce a red one.
+
+    Each of these is a real pattern that shipped, and each was reported clean by some earlier
+    version of this guard.
+    """
+
+    ratio, shape = _worst_growth(pattern, flags)
+
+    assert ratio > MAX_DOUBLING_RATIO, f"{label}: measured only x{ratio:.2f} on {shape or 'nothing'}"
+
+
+@pytest.mark.parametrize(
+    ("label", "pattern", "flags"),
+    [
+        ("release key, bounded", r"(?m)^[^\S\n]{0,40}release[^\S\n]{0,20}:", ""),
+        ("uses: detector, bounded", r"uses:[^\n#]{0,1000}bandit", ""),
+        ("whitespace-minus-newline under MULTILINE", r"^[^\S\n]*uses:\s*([^\s#]+)", "re.MULTILINE"),
+        ("possessive leading run", r"^[ \t]*+FROM[ \t]+([^\n]+)$", "re.MULTILINE"),
+        ("not anchored, no unbounded class", r"\bsemgrep\s+(scan|ci)\b", ""),
+    ],
+)
+def test_the_measured_rule_leaves_a_linear_pattern_alone(label: str, pattern: str, flags: str) -> None:
+    """The other direction: a rule that failed everything would also pass the canaries.
+
+    The last two are deliberately patterns nobody changed -- if the rule flags those, the
+    threshold is wrong rather than the code.
+    """
+
+    ratio, _ = _worst_growth(pattern, flags)
+
+    assert ratio <= MAX_DOUBLING_RATIO, f"{label}: measured x{ratio:.2f}"
+
+
+# --------------------------------------------------------------------------------------
+# The static rule, kept because a timing failure cannot say WHY.
+# --------------------------------------------------------------------------------------
+
+
+def test_no_line_anchored_pattern_can_scan_past_its_line() -> None:
+    """The shape rule, across the package. Narrower than the measured one, and more legible."""
+
+    offenders: list[str] = []
+    for rel, lineno, pattern, flags in _package_patterns():
+        if not _has_multiline(pattern, flags):
+            continue
+        reason = _crosses_a_line(pattern)
+        if reason:
+            offenders.append(f"{rel}:{lineno}: {reason} -- {pattern[:60]!r}")
 
     assert not offenders, (
         "these patterns are anchored at a line start and can scan past it, which is "
@@ -130,11 +366,8 @@ def test_no_line_anchored_pattern_can_scan_past_its_line() -> None:
         (r"(?m)^[^a-z]*FROM", ""),
     ],
 )
-def test_the_sweep_sees_a_pattern_that_breaks_the_rule(pattern: str, flags: str) -> None:
-    """Canaries. A zero above means nothing unless the sweep can produce a non-zero.
-
-    Each of these is a shape that a previous version of this sweep reported as clean.
-    """
+def test_the_static_sweep_sees_a_pattern_that_breaks_the_rule(pattern: str, flags: str) -> None:
+    """Canaries for the shape rule. Each was reported clean by an earlier version of it."""
 
     assert _has_multiline(pattern, flags)
     assert _crosses_a_line(pattern) is not None
@@ -149,18 +382,38 @@ def test_the_sweep_sees_a_pattern_that_breaks_the_rule(pattern: str, flags: str)
         r"uses:\s*([^\s#]+)",  # not anchored at all
     ],
 )
-def test_the_sweep_leaves_a_compliant_pattern_alone(pattern: str) -> None:
-    """The other direction: a sweep that flagged everything would also pass the canaries."""
+def test_the_static_sweep_leaves_a_compliant_pattern_alone(pattern: str) -> None:
+    """A sweep that flagged everything would also pass the canaries."""
 
     assert _crosses_a_line(pattern) is None
 
 
 def test_the_sweep_actually_reads_the_package() -> None:
-    """An empty file list would make the rule vacuous rather than satisfied."""
+    """An empty file list would make both rules vacuous rather than satisfied."""
 
-    seen = sum(1 for path in SRC.rglob("*.py") for _ in _regex_literals(path))
+    seen = len(_package_patterns())
 
     assert seen > 50, f"only {seen} regex literals found; the sweep is not reaching the package"
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expected"),
+    [
+        (r"uses:[^\n#]{0,1000}bandit", "uses:"),
+        (r"(^|\n)\s*release\s*:", ""),
+        (r"\bsemgrep\s+(scan|ci)\b", ""),
+        (r"github/codeql-action/\w+", "github/codeql-action/"),
+        (r"abc*def", "ab"),  # the `c` belongs to the quantifier, not to the prefix
+    ],
+)
+def test_the_prefix_extractor_finds_what_the_engine_anchors_on(pattern: str, expected: str) -> None:
+    """The adversarial document for a pattern is built from this, so it has to be right.
+
+    Without the prefix shape, ``uses:[^\\n#]*bandit`` measures linear on every generic document
+    and the guard reports clean -- which is precisely what happened.
+    """
+
+    assert _literal_prefix(pattern) == expected
 
 
 @pytest.mark.parametrize(
@@ -169,14 +422,20 @@ def test_the_sweep_actually_reads_the_package() -> None:
         (r"^\s*uses:\s*([^\s#]+)", r"^[^\S\n]*uses:\s*([^\s#]+)"),
         (r"^\s*USER\s+(root|0)\s*$", r"^[^\S\n]*USER\s+(root|0)[^\S\n]*$"),
         (r"^\s*HEALTHCHECK\b", r"^[^\S\n]*HEALTHCHECK\b"),
+        (r"(^|\n)\s*release\s*:", r"(?m)^[^\S\n]{0,40}release[^\S\n]{0,20}:"),
     ],
 )
 def test_refusing_to_cross_a_line_does_not_lose_a_match(old: str, new: str) -> None:
     """The safety half: the cheaper pattern finds exactly what the expensive one found.
 
     The alphabet deliberately includes form feed, vertical tab and a non-breaking space. A
-    narrower fix -- `[ \\t]*`, which is what the neighbouring `_DOCKER_FROM_RE` uses -- would
-    diverge on those, and for `USER root` a lost match is a lost finding.
+    narrower fix -- ``[ \\t]*``, which is what the neighbouring ``_DOCKER_FROM_RE`` uses --
+    would diverge on those, and for ``USER root`` a lost match is a lost finding.
+
+    The comparison is on END positions rather than on the matched text. The ``release`` pair
+    differs in where each match STARTS -- the old form consumes the newline it anchors on, the
+    new one anchors after it -- while both end on the same colon. Ends are what identify the
+    finding; starts are an artefact of how the anchor is written.
     """
 
     import random
@@ -188,6 +447,6 @@ def test_refusing_to_cross_a_line_does_not_lose_a_match(old: str, new: str) -> N
 
     for _ in range(2000):
         document = "".join(rnd.choice(alphabet) for _ in range(rnd.randint(10, 200)))
-        assert [m.group(0) for m in old_re.finditer(document)] == [m.group(0) for m in new_re.finditer(document)], (
+        assert [m.end() for m in old_re.finditer(document)] == [m.end() for m in new_re.finditer(document)], (
             f"divergence on {document!r}"
         )

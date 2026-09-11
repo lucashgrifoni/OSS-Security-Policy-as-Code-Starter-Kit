@@ -581,6 +581,32 @@ def _gov_disc_013_private_reporting_signals(lower: str) -> bool:
     return div_pt and any(x in lower for x in ("privad", "privat", "canal", "email", _MAILTO, _SECURITY_AT))
 
 
+#: The ``release:`` key at the start of a line, with the repetitions BOUNDED.
+#:
+#: This was ``(^|\n)\s*release\s*:`` and it was quadratic, because ``\s`` matches a newline:
+#: on a document of N blank lines the engine tries the anchor at each line start and walks
+#: the whitespace of every line before it. Measured on this tree, CPU time for one search
+#: over a document of blank lines:
+#:
+#:      8000 lines    58.59 ms     16000 lines   429.69 ms   x7.33
+#:     32000 lines  1796.88 ms     64000 lines  7156.25 ms   x3.98
+#:
+#: End to end that is roughly 648 seconds for a 900 KiB workflow, INSIDE the 1 MiB cap --
+#: so the cap did not help, because quadratic cost arrives long before a size limit does.
+#: The bounded form costs 1.22 ms at 64000 lines, 5860x less, and the curve is x1.95.
+#:
+#: Two earlier sweeps reported this file clean. The first filtered on the MULTILINE flag,
+#: and this pattern carried neither the flag nor the inline ``(?m)`` -- it anchored with an
+#: explicit newline alternation instead. The second only looked at module-level literals,
+#: and this one was built inline inside the function below. It is a module constant now so
+#: that both shapes of sweep can see it.
+#:
+#: Equivalence is not an argument here, it is measured: over 60000 generated documents whose
+#: alphabet includes form feed, vertical tab, no-break space, em space and CRLF, the two
+#: patterns agree on every one. A narrower ``[ \t]*`` would have diverged on those.
+_RELEASE_KEY_RE = re.compile(r"(?m)^[^\S\n]{0,40}release[^\S\n]{0,20}:")
+
+
 def _github_workflow_raw_suggests_release_or_deploy(raw: str) -> bool:
     """Whether a workflow looks like it releases or deploys, from its text.
 
@@ -590,7 +616,7 @@ def _github_workflow_raw_suggests_release_or_deploy(raw: str) -> bool:
 
     stripped = strip_yaml_comments(raw)
     lower = stripped.lower()
-    if re.search(r"(^|\n)\s*release\s*:", stripped) or re.search(r"\bon\s*:\s*release\b", lower):
+    if _RELEASE_KEY_RE.search(stripped) or re.search(r"\bon\s*:\s*release\b", lower):
         return True
     push_main = "push" in lower and ("branches:" in lower or "branches :" in lower)
     push_main = push_main and ("main" in lower or "master" in lower)
