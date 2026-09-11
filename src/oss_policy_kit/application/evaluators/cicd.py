@@ -31,6 +31,7 @@ from oss_policy_kit.application.evaluators._shared import (
     contextlib,
     load_yaml_file,
     preview_evidence_paths,
+    unread_workflow_degradation,
 )
 from oss_policy_kit.application.evaluators_common import read_scanner_evidence, strip_yaml_comments
 
@@ -113,6 +114,13 @@ def eval_ci_danger_007(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[str(p.resolve()) for p in ctx.workflows.uses_pull_request_target],
             confidence="medium",
         )
+    degraded = unread_workflow_degradation(
+        ctx.workflows,
+        claim="Absence of pull_request_target",
+        remediation="Reduce the oversized workflow, or split it, then re-run evaluation.",
+    )
+    if degraded is not None:
+        return degraded
     return EvalOutcome(
         status=ControlStatus.PASS,
         reason="No pull_request_target detected in workflows.",
@@ -148,6 +156,13 @@ def eval_ci_pin_008(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=shown,
             confidence="medium",
         )
+    degraded = unread_workflow_degradation(
+        ctx.workflows,
+        claim="Absence of mutable action pins",
+        remediation="Reduce the oversized workflow, or split it, then re-run evaluation.",
+    )
+    if degraded is not None:
+        return degraded
     if ctx.workflows.parse_errors:
         pe_names = ", ".join(sorted({p.name for p, _ in ctx.workflows.parse_errors}))
         return EvalOutcome(

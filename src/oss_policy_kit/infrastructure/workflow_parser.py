@@ -53,6 +53,15 @@ class WorkflowAnalysis:
     #: (workflow path, job id, human-readable detail) — least-privilege gaps (CI-LEAST-009 signal).
     implicit_permission_risks: list[tuple[Path, str, str]] = field(default_factory=list)
     parse_errors: list[tuple[Path, str]] = field(default_factory=list)
+    #: Workflows whose bytes were never read -- refused by the size cap, or unreadable.
+    #:
+    #: Separate from ``parse_errors`` because the two mean different things to a control.
+    #: A parse error means the text WAS read and the YAML did not parse, so a raw-text scan
+    #: still saw the content. This means nothing was seen at all, and a control that says
+    #: "no X detected" after this is stating something it did not check. Kept alongside
+    #: ``parse_errors`` rather than replacing an entry in it, so the operational warning an
+    #: operator already gets is unchanged.
+    unread_paths: list[Path] = field(default_factory=list)
 
 
 _MUTABLE_REF = re.compile(
@@ -62,7 +71,7 @@ _MUTABLE_REF = re.compile(
 
 
 _REUSABLE_WORKFLOW_USES = re.compile(
-    r"^\s*uses:\s*([^\s#]+)",
+    r"^[^\S\n]*uses:\s*([^\s#]+)",
     re.MULTILINE | re.IGNORECASE,
 )
 
@@ -844,7 +853,7 @@ def _scan_workflow_raw(raw: str, path: Path, result: WorkflowAnalysis, signal_ac
     # SEC-DEPREV-011 for a step that existed only in a comment, and GH-PROV-023 for the bare
     # word `slsa`, `provenance` or `attestation` anywhere in the file.
     if (
-        re.search(r"(?m)(^\s*merge_group:\s*$|merge-queue|github\s+merge\s+queue)", raw, re.IGNORECASE)
+        re.search(r"(?m)(^[^\S\n]*merge_group:[^\S\n]*$|merge-queue|github\s+merge\s+queue)", raw, re.IGNORECASE)
         and path not in result.merge_queue_signal_paths
     ):
         result.merge_queue_signal_paths.append(path)
@@ -935,6 +944,7 @@ def _analyze_one_workflow(path: Path, result: WorkflowAnalysis, signal_acc: set[
     oversize = oversize_reason(path, MAX_CI_CONFIG_BYTES, label="Workflow")
     if oversize is not None:
         result.parse_errors.append((path, oversize))
+        result.unread_paths.append(path)
         return
     # Comments are blanked once, here, rather than at each scan below. Six controls were
     # moved to the parsed structure in earlier releases; a derived sweep -- add ONE comment
@@ -965,6 +975,7 @@ def _analyze_one_workflow(path: Path, result: WorkflowAnalysis, signal_acc: set[
         # ``bad_input_detail`` rather than ``str(exc)``: the latter appends the resolved filename,
         # and this reason is published in the report (M-002).
         result.parse_errors.append((path, bad_input_detail(exc)))
+        result.unread_paths.append(path)
         return
     _scan_workflow_raw(raw, path, result, signal_acc)
     try:

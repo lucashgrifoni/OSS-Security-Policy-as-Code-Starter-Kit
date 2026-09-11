@@ -307,14 +307,26 @@ def test_a_dockerfile_the_scanner_cannot_open_reads_as_empty_rather_than_crashin
     """Best-effort, and it resolves downwards: an unreadable file contributes no apt evidence."""
 
     _write(tmp_path, "Dockerfile", "FROM debian:12\nRUN apt-get install -y curl\n")
-    original = Path.read_text
+    original_text = Path.read_text
+    original_bytes = Path.read_bytes
 
-    def _refuse(self: Path, *args: object, **kwargs: object) -> str:
+    # Both readers are refused, not just the one the evaluator happens to call today. These
+    # readers moved from `read_text` to `read_bytes` when the UTF-16 false PASS was fixed, and
+    # a test that intercepts only one of them stops testing anything the moment that choice
+    # changes -- silently, because refusing nothing lets the file read fine and the assertion
+    # then measures the ordinary path.
+    def _refuse_text(self: Path, *args: object, **kwargs: object) -> str:
         if self.name == "Dockerfile":
             raise PermissionError("Access is denied")
-        return original(self, *args, **kwargs)  # type: ignore[arg-type]
+        return original_text(self, *args, **kwargs)  # type: ignore[arg-type]
 
-    monkeypatch.setattr(Path, "read_text", _refuse)
+    def _refuse_bytes(self: Path, *args: object, **kwargs: object) -> bytes:
+        if self.name == "Dockerfile":
+            raise PermissionError("Access is denied")
+        return original_bytes(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Path, "read_text", _refuse_text)
+    monkeypatch.setattr(Path, "read_bytes", _refuse_bytes)
 
     assert containers.eval_cont_runtime_005(_ctx(tmp_path)).status is ControlStatus.NOT_APPLICABLE
 

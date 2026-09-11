@@ -122,6 +122,46 @@ _REQUIRED_BRANCH_PROTECTION_FLAGS = (
 EVIDENCE_PREVIEW_LIMIT = 5
 
 
+def unread_workflow_degradation(
+    workflows: Any,
+    *,
+    claim: str,
+    remediation: str,
+) -> EvalOutcome | None:
+    """Refuse to claim absence when some workflow was never read.
+
+    ADR-045: a control that cannot read its evidence answers ``manual-review-required``, and
+    it answers that everywhere rather than in the places somebody remembered. A file refused
+    by the size cap is not a file that parsed badly -- nothing in it was seen, so a sentence
+    like "no X detected in workflows" is a statement about something the control did not
+    check.
+
+    This exists because the size cap introduced a second meaning for "this file did not make
+    it through", and the controls that predate it read the older, narrower one. Measured
+    before the fix: the same repository with the same dangerous workflow reported
+    ``pull_request_target detected`` at 131 bytes and ``No pull_request_target detected`` with
+    ``--fail-on fail`` exiting 0 at 1.4 MiB, with only the file's padding changed.
+
+    Returns ``None`` when every workflow was read, which is every ordinary target -- so a
+    caller that adds this check keeps its existing behaviour untouched.
+    """
+
+    unread = getattr(workflows, "unread_paths", None)
+    if not unread:
+        return None
+    names = ", ".join(sorted({p.name for p in unread}))
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            f"{claim} could not be established: {names} was not read "
+            "(refused by the input size cap, or unreadable), so its contents were never scanned."
+        ),
+        remediation=remediation,
+        evidence_sources=[str(p.resolve()) for p in unread],
+        confidence="low",
+    )
+
+
 def preview_evidence_paths(paths: Iterable[Path], limit: int = EVIDENCE_PREVIEW_LIMIT) -> list[str]:
     """Resolved evidence paths, de-duplicated in first-seen order and capped at ``limit``.
 
@@ -361,7 +401,7 @@ _BUILD_DOC_CANDIDATES = (
     "docs/development.md",
 )
 _BUILD_HEADING_PATTERN = re.compile(
-    r"(?im)^\s{0,3}#{1,6}\s*"
+    r"(?im)^[^\S\n]{0,3}#{1,6}[^\S\n]*"
     r"(building|build from source|installation|install(?:ing| from source)?|"
     r"from source|compiling|compile|development setup|getting started|setup|how to build)\b"
 )
@@ -596,7 +636,7 @@ def _workflow_text_has_long_lived_cloud_secret(text: str) -> bool:
 
 
 _REUSABLE_WORKFLOW_USES_LINE = re.compile(
-    r"^\s*uses:\s*([^\s#]+)",
+    r"^[^\S\n]*uses:\s*([^\s#]+)",
     re.MULTILINE | re.IGNORECASE,
 )
 
@@ -910,8 +950,8 @@ def _find_dockerfiles(repo: Path) -> list[Path]:
     return find_dockerfiles(repo)
 
 
-_USER_RE = re.compile(r"^\s*USER\s+(?!0\b)(?!root\b)(\S+)", re.MULTILINE | re.IGNORECASE)
-_ROOT_USER_RE = re.compile(r"^\s*USER\s+(root|0)\s*$", re.MULTILINE | re.IGNORECASE)
+_USER_RE = re.compile(r"^[^\S\n]*USER\s+(?!0\b)(?!root\b)(\S+)", re.MULTILINE | re.IGNORECASE)
+_ROOT_USER_RE = re.compile(r"^[^\S\n]*USER\s+(root|0)[^\S\n]*$", re.MULTILINE | re.IGNORECASE)
 _IMAGE_SCAN_TOKENS = (
     "trivy",
     "grype",
@@ -3309,5 +3349,6 @@ __all__ = [
     "json",
     "load_evidence_schema",
     "load_yaml_file",
+    "unread_workflow_degradation",
     "re",
 ]

@@ -46,9 +46,20 @@ MAX_CONFIG_BYTES = 1 * 1024 * 1024  # 1 MiB
 #: the input this product exists to read and the one an attacker controls when the kit runs
 #: in CI against a fork. Nothing bounded it: the expansion guard in ``load_yaml_file`` runs
 #: after the parse it is meant to survive, and the raw text scan ahead of it read the file
-#: whole. Cost is linear in the file -- measured on this tree at 2.12 s / 6.66 s / 24.05 s
-#: for 0.52 / 2.08 / 8.32 MiB of workflow YAML, about three seconds per MiB -- so a
-#: workflow committed to a fork decided how long the audit of that fork ran.
+#: whole, so a workflow committed to a fork decided how long the audit of that fork ran.
+#:
+#: This comment used to say the cost was linear, and the ceiling below was sized from that.
+#: It was wrong: three measurements on ONE shape of input -- workflow steps with text on
+#: every line -- generalised to a cost model that does not hold. On blank-line-heavy input
+#: the cost was QUADRATIC. Five line-anchored patterns began with ``^\s*``, and ``\s``
+#: matches a newline, so under ``re.MULTILINE`` each of N line starts re-scanned the
+#: whitespace of every line before it. Measured at 256 KiB of blank lines: 599 seconds,
+#: where the linear model predicted 0.75. A file well under this ceiling cost minutes.
+#:
+#: Those patterns now use ``[^\S\n]``. Measured after: x2.00 per doubling of lines, and a
+#: 900 KiB workflow evaluates in 1.6-3.2 s whatever its shape. This ceiling is a backstop
+#: against a genuinely enormous file, not the thing holding a quadratic scan in check --
+#: which is the job it could not do, because quadratic cost arrives long before the cap.
 #:
 #: The largest CI file in this repository is 34 KiB. The ceiling is thirty times that, so
 #: it refuses a weapon and not a repository.
