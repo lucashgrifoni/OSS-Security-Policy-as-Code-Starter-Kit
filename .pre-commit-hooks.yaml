@@ -4,7 +4,7 @@
 #
 #   repos:
 #     - repo: https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit
-#       rev: v10.0.21  # x-release-please-version -- pin to a tag for stable behavior
+#       rev: v11.0.0  # x-release-please-version -- pin to a tag for stable behavior
 #       hooks:
 #         - id: oss-policy-kit-evaluate
 #         - id: oss-policy-kit-validate-profiles  # maintainers of the kit itself
