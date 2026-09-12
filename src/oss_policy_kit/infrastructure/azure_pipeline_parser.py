@@ -7,7 +7,11 @@ from pathlib import Path
 from typing import Any
 
 from oss_policy_kit.application.evaluators_common import strip_yaml_comments
-from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
+from oss_policy_kit.application.input_limits import (
+    MAX_CI_CONFIG_BYTES,
+    bad_input_detail,
+    oversize_reason,
+)
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
 
@@ -149,7 +153,13 @@ def analyze_azure_pipelines(repo_root: Path) -> AzurePipelineAnalysis:
         # Comments blanked before the token scan: every signal below asks whether the
         # pipeline DOES something, and a comment does not run. Derived sweeping caught
         # AZ-IDENT-036 changing verdict on a commented-out line alone.
-        raw_lower = strip_yaml_comments(path.read_text(encoding="utf-8", errors="replace")).lower()
+        try:
+            raw_lower = strip_yaml_comments(path.read_text(encoding="utf-8", errors="replace")).lower()
+        except OSError as exc:
+            # Same shape as the AWS parser: this read sat outside the try that guards the
+            # parse, so one unreadable pipeline file ended the run with exit 2 and no report.
+            result.parse_errors.append((path, bad_input_detail(exc)))
+            continue
         _scan_azure_raw_signals(path, raw_lower, result)
         try:
             data: Any = load_yaml_file(path)
