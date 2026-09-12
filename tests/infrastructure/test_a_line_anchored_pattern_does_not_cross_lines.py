@@ -19,6 +19,9 @@ Measured before the fix, CPU time for one search:
     (^|\\n)\\s*release\\s*:      64000 blank lines     7156.25 ms    x3.98 per doubling
     uses:[^\\n#]*bandit         64000 chars one line   593.75 ms    x7.03 per doubling
 
+The rule below quadruples the input rather than doubling it, because the doubling version
+failed once on its own canary under full-suite load. See :data:`MAX_GROWTH`.
+
 End to end the first was roughly 648 seconds for a 900 KiB workflow -- inside the 1 MiB cap,
 because quadratic cost arrives long before a size limit does. Both are bounded now.
 
@@ -56,15 +59,24 @@ REGEX_ENTRY_POINTS = frozenset(
 #: ``(?m)``, ``(?im)``, ``(?mi)``... MULTILINE can arrive inline as well as by argument.
 _INLINE_MULTILINE = re.compile(r"^\(\?[aiLmsux]*m[aiLmsux]*\)")
 
-#: The doubling ratio above which growth is not linear. A linear pattern measures near 2.0;
-#: the two real defects measured 3.98 and 7.03. 3.0 sits clear of both sides.
-MAX_DOUBLING_RATIO = 3.0
+#: The input grows by four, not by two, and the threshold sits halfway between the two answers
+#: that matter: a linear pattern costs 4x more, a quadratic one 16x.
+#:
+#: Doubling was tried first and the margin was too thin to leave switched on. Ten runs of the
+#: same canary spread from x3.32 to x5.17 against a threshold of 3.0, which is ten per cent of
+#: headroom at the bottom, and a full-suite run duly went under and failed the guard on its own
+#: canary. The residual spread is scheduling and processor boost; repeating the measurement
+#: narrows it and never removes it. Quadrupling the input moves the signal away from the noise
+#: instead, and buys a factor of two of headroom on each side.
+MAX_GROWTH = 8.0
 
-#: Sizes for the ratio measurement, picked from the two known defects: at 16000 and 32000 they
-#: cost 430 ms / 1797 ms and 28 ms / 148 ms, so the doubling is unambiguous.
-SMALL, LARGE = 16_000, 32_000
+#: Sizes for the growth measurement, kept as small as the separation allows. The factor of four
+#: between them is what matters; the absolute sizes only decide how long a broken pattern takes
+#: to prove itself. At 8000 and 32000 the two known defects cost 110 ms / 1797 ms and 4 ms /
+#: 148 ms, which is unmistakable at a tenth of the cost of running them at 64000.
+SMALL, LARGE = 8_000, 32_000
 
-#: The screen. One search per pattern per shape at :data:`LARGE`, and only the ones above this
+#: The screen, as total CPU seconds for :data:`SCREEN_REPS` searches. Only patterns above it
 #: get measured properly.
 #:
 #: The first version of this guard had no screen: it measured the ratio for all 135 regex
@@ -75,9 +87,15 @@ SMALL, LARGE = 16_000, 32_000
 #:
 #: A linear pattern costs 0.3-2 ms on these documents and a broken one costs 148-1797 ms, so
 #: the screen separates them by two orders of magnitude and does not need to be precise -- the
-#: ratio measurement below decides. On a green tree nothing reaches it and the sweep is a few
-#: hundred single searches.
-SCREEN_CEILING_SECONDS = 0.010
+#: ratio measurement below decides. On a green tree nothing reaches it.
+#:
+#: Repeated rather than single, and that is not a detail. `process_time` ticks at about 15.6 ms
+#: on Windows, so one search of a pattern costing 10 ms reads as either 0 or 15.6 ms -- and a
+#: pattern costing 10 ms over 32000 characters costs roughly 16 seconds over a 1 MiB file. A
+#: single-search screen could therefore skip a real defect, which is the failure this guard
+#: exists to prevent.
+SCREEN_REPS = 8
+SCREEN_CEILING_SECONDS = 0.060
 
 
 def _has_multiline(pattern: str, flags_source: str) -> bool:
@@ -179,16 +197,27 @@ def _adversarial_documents(pattern: str, size: int) -> dict[str, str]:
 
 
 def _one_search_seconds(compiled: re.Pattern[str], document: str) -> float:
-    """CPU seconds for a single search. Cheap, coarse, and only used to screen.
+    """Total CPU seconds for :data:`SCREEN_REPS` searches. Cheap, coarse, used only to screen.
 
     ``process_time`` and not ``perf_counter``: the suite may run beside other work and wall
-    clock would measure the neighbours instead of the pattern. A fast search lands below the
-    clock's granularity and reads as zero, which is the right answer for a screen whose only
-    question is "is this one worth measuring properly".
+    clock would measure the neighbours instead of the pattern.
+
+    Repeated because one search of a fast pattern lands below the clock's granularity and is
+    indistinguishable from one of a moderately slow one. Eight searches put anything worth
+    measuring above the tick while leaving a linear pattern at a few milliseconds.
+
+    It stops as soon as it is over the ceiling, and that is not an optimisation. Without the
+    break, a pattern whose single search costs 7 s paid 56 s to answer a question the first
+    search had already settled, and the screen exists precisely so that the expensive
+    measurement is reached rarely. Measured: 173 s for this file, against 35 s with the break.
     """
 
     start = time.process_time()
-    compiled.search(document)
+    for _ in range(SCREEN_REPS):
+        compiled.search(document)
+        elapsed = time.process_time() - start
+        if elapsed > SCREEN_CEILING_SECONDS:
+            return elapsed
     return time.process_time() - start
 
 
@@ -200,6 +229,13 @@ def _steady_seconds(compiled: re.Pattern[str], document: str) -> float:
     already produced a "linear" verdict in this session on a pattern later measured at x7.03.
     Accumulating fixes it, but costs more the FASTER the pattern is, which is why only patterns
     the screen has already flagged reach this function.
+
+    The target is twenty ticks, not three. At three the measurement carries about a third of
+    error and the ratio between two of them up to two thirds: eight consecutive runs of the
+    same canary spread from x3.57 to x5.33 against a threshold of 3.0, and under the load of a
+    full-suite run one of them went under and failed the guard on its own canary. A guard that
+    reports a quadratic pattern as linear once in a while is worse than no guard, because the
+    next person switches it off.
     """
 
     reps = 1
@@ -208,7 +244,7 @@ def _steady_seconds(compiled: re.Pattern[str], document: str) -> float:
         for _ in range(reps):
             compiled.search(document)
         elapsed = time.process_time() - start
-        if elapsed > 0.05:
+        if elapsed > 0.30:
             return elapsed / reps
         reps *= 8
     return 0.0  # pragma: no cover - a pattern this fast never reaches here
@@ -235,10 +271,17 @@ def _slow_shapes(pattern: str, flags_source: str) -> list[str]:
 
 
 def _worst_growth(pattern: str, flags_source: str) -> tuple[float, str]:
-    """(worst doubling ratio, the shape that produced it), measured only where the screen fired.
+    """(worst growth factor, the shape that produced it), measured only where the screen fired.
 
     Returns ``(0.0, "")`` when no shape is slow enough to be worth measuring, which is the
-    ordinary answer for a linear pattern and costs four single searches.
+    ordinary answer for a linear pattern and costs one screening pass.
+
+    Stops at the first shape that exceeds :data:`MAX_GROWTH` rather than finding the true worst.
+    Every caller only asks whether the threshold was crossed, and measuring the remaining shapes
+    of an already-condemned pattern is the expensive half: the two blank-line canaries took 67 s
+    and 65 s finding a worse number for a verdict that was already settled, against 8 s once they
+    stop at the first one. What the caller loses is that the reported shape is the first that
+    crossed, not necessarily the worst, which the message says.
     """
 
     compiled = _compile(pattern, flags_source)
@@ -250,9 +293,11 @@ def _worst_growth(pattern: str, flags_source: str) -> tuple[float, str]:
         small_cost = _steady_seconds(compiled, _adversarial_documents(pattern, SMALL)[shape])
         if small_cost <= 0:
             continue
-        ratio = _steady_seconds(compiled, _adversarial_documents(pattern, LARGE)[shape]) / small_cost
-        if ratio > worst:
-            worst, worst_shape = ratio, shape
+        growth = _steady_seconds(compiled, _adversarial_documents(pattern, LARGE)[shape]) / small_cost
+        if growth > worst:
+            worst, worst_shape = growth, shape
+        if worst > MAX_GROWTH:
+            return worst, worst_shape
     return worst, worst_shape
 
 
@@ -278,13 +323,14 @@ def test_no_pattern_in_the_package_grows_faster_than_its_input() -> None:
 
     offenders: list[str] = []
     for rel, lineno, pattern, flags in _package_patterns():
-        ratio, shape = _worst_growth(pattern, flags)
-        if ratio > MAX_DOUBLING_RATIO:
-            offenders.append(f"{rel}:{lineno}: x{ratio:.2f} per doubling on {shape} -- {pattern[:70]!r}")
+        growth, shape = _worst_growth(pattern, flags)
+        if growth > MAX_GROWTH:
+            offenders.append(f"{rel}:{lineno}: x{growth:.2f} for 4x input on {shape} -- {pattern[:70]!r}")
 
     assert not offenders, (
         "these patterns cost more than linear time in the size of a document the audited "
-        f"repository wrote, measured from {SMALL} to {LARGE} characters. Bound the repetition "
+        f"repository wrote: the input grew 4x, from {SMALL} to {LARGE} characters, and the cost "
+        "grew more than 8x. Bound the repetition "
         "rather than widening the class, and record the numbers beside the pattern:\n  " + "\n  ".join(offenders)
     )
 
@@ -306,9 +352,9 @@ def test_the_measured_rule_sees_a_pattern_that_breaks_it(label: str, pattern: st
     version of this guard.
     """
 
-    ratio, shape = _worst_growth(pattern, flags)
+    growth, shape = _worst_growth(pattern, flags)
 
-    assert ratio > MAX_DOUBLING_RATIO, f"{label}: measured only x{ratio:.2f} on {shape or 'nothing'}"
+    assert growth > MAX_GROWTH, f"{label}: measured only x{growth:.2f} on {shape or 'nothing'}"
 
 
 @pytest.mark.parametrize(
@@ -328,9 +374,9 @@ def test_the_measured_rule_leaves_a_linear_pattern_alone(label: str, pattern: st
     threshold is wrong rather than the code.
     """
 
-    ratio, _ = _worst_growth(pattern, flags)
+    growth, _ = _worst_growth(pattern, flags)
 
-    assert ratio <= MAX_DOUBLING_RATIO, f"{label}: measured x{ratio:.2f}"
+    assert growth <= MAX_GROWTH, f"{label}: measured x{growth:.2f}"
 
 
 # --------------------------------------------------------------------------------------

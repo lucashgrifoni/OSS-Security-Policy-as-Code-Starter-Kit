@@ -9,7 +9,11 @@ from pathlib import Path
 from typing import Any
 
 from oss_policy_kit.application.evaluators_common import strip_yaml_comments
-from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
+from oss_policy_kit.application.input_limits import (
+    MAX_CI_CONFIG_BYTES,
+    bad_input_detail,
+    oversize_reason,
+)
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
 _AKIA_PATTERN = re.compile(r"\bAKIA[0-9A-Z]{16}\b")
@@ -227,7 +231,15 @@ def analyze_aws_ci(repo_root: Path) -> AwsCiAnalysis:
         if oversize is not None:
             result.parse_errors.append((path, oversize))
             continue
-        raw = path.read_text(encoding="utf-8", errors="replace")
+        try:
+            raw = path.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            # Outside the try below, this line ended the whole run: exit 2, no report, every
+            # control in the profile lost to one file the audited repository made unreadable.
+            # The oversize branch above already answers that question by recording it and
+            # moving on, and an unreadable file is the same kind of answer.
+            result.parse_errors.append((path, bad_input_detail(exc)))
+            continue
         raw_lower = raw.lower()
         _scan_buildspec_raw_non_env(path, raw, raw_lower, result)
         try:
