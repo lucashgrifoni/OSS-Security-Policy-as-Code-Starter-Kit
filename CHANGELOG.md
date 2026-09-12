@@ -6,6 +6,20 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.22](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.21...v10.0.22) (2026-09-12)
+
+
+### Fixes
+
+* **export-policy:** a control id reached the generated policy as syntax, not as a string ([#230](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/230)) ([20593f3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/20593f3c3e6009924963829bbaa9da3633b86697))
+* **parsers:** one unreadable file ended the whole audit, and the guard that watches for that class was flaky ([#229](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/229)) ([339a50e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/339a50e059b19b0aa8e57a6abdc9ac71b4aaa3f0))
+
+
+### Notes
+
+* **deps:** bump actions/deploy-pages from 5.0.0 to 5.0.1 ([#218](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/218)) ([4c72b8b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4c72b8beda160ba572c4f510ea4d162b970e1af3))
+* **deps:** bump docker/setup-qemu-action from 4.2.0 to 4.3.0 ([#217](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/217)) ([0cbd166](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0cbd166ba37e240790195cf8e2664016769b02f2))
+
 ## [10.0.21](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.20...v10.0.21) (2026-09-11)
 
 
