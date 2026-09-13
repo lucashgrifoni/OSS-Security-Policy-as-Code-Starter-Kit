@@ -20,6 +20,7 @@ from oss_policy_kit.application.evaluators._shared import (
     Path,
     _branch_protection_evidence,
     _find_dockerfiles,
+    _find_dockerfiles_capped,
     _parse_branch_protection_evidence,
     _parts_within_repo,
     _scan_sarif_epss_kev,
@@ -33,18 +34,47 @@ from oss_policy_kit.application.evaluators._shared import (
 # in the governance family. Explicit cross-family import (governance does not import
 # back, so no cycle).
 from oss_policy_kit.application.evaluators.governance import eval_audit_stream_060
+from oss_policy_kit.application.evaluators_common import DOCKERFILE_SCAN_LIMIT
+from oss_policy_kit.application.input_limits import bad_input_detail
 from oss_policy_kit.infrastructure.source_text import decode_source
 
 _NO_ACTION_REQUIRED = "No action required."
 _PACKAGE_JSON = "package.json"
 
 
-def _unpinned_from_refs(dockerfiles: list[Path]) -> list[str]:
-    """Return ``<file>: <ref>`` entries for FROM base images not pinned by digest (excluding scratch)."""
+def _dockerfile_gap_clause(unread: list[str], *, truncated: bool) -> str:
+    """Why a control cannot speak for *every* Dockerfile, or ``""`` when it can.
+
+    Shared by the two controls that read Dockerfile contents, so that the limitation is
+    described the same way in both and cannot drift.
+    """
+
+    gaps = list(unread)
+    if truncated:
+        gaps.append(
+            f"the repository holds more than {DOCKERFILE_SCAN_LIMIT} Dockerfiles and only "
+            f"the first {DOCKERFILE_SCAN_LIMIT} were read"
+        )
+    if not gaps:
+        return ""
+    return "; ".join(gaps[:3]) + (" (and more)" if len(gaps) > 3 else "")
+
+
+def _from_refs_by_file(dockerfiles: list[Path]) -> tuple[list[str], list[str]]:
+    """Unpinned ``<file>: <ref>`` entries, and the files that back no claim either way.
+
+    A file lands in the second list when it could not be read, or when it was read and no
+    ``FROM`` came out of it. Both used to be skipped silently -- the read error by
+    ``contextlib.suppress(OSError)``, the empty result by there being nothing to append --
+    and skipping them is exactly what let the caller answer "all base images are
+    digest-pinned" about a file it had never seen a base image in. An unreadable Dockerfile,
+    an empty one and a binary one each produced that PASS.
+    """
 
     unpinned: list[str] = []
+    unread: list[str] = []
     for df in dockerfiles:
-        with contextlib.suppress(OSError):
+        try:
             # ``decode_source`` and not ``read_text(errors="replace")``. A UTF-16 Dockerfile read
             # as UTF-8 arrives as mojibake, `_DOCKER_FROM_RE` matches nothing, and the caller
             # then reports what it reports when there is genuinely nothing to report. Measured on
@@ -56,15 +86,24 @@ def _unpinned_from_refs(dockerfiles: list[Path]) -> list[str]:
             # A positive claim about a security control, from any Windows editor that saves as
             # UTF-16.
             content = decode_source(df.read_bytes())
-            for ref in _DOCKER_FROM_RE.findall(content):
-                if ref.lower() != "scratch" and "@sha256:" not in ref:
-                    unpinned.append(f"{df.name}: {ref}")
-    return unpinned
+        except OSError as exc:
+            # `bad_input_detail` and not `str(exc)`: the latter carries the absolute filename
+            # and would leak the cwd into the report (M-002).
+            unread.append(f"{df.name}: {bad_input_detail(exc)}")
+            continue
+        refs = _DOCKER_FROM_RE.findall(content)
+        if not refs:
+            unread.append(f"{df.name}: no FROM instruction was found in it")
+            continue
+        for ref in refs:
+            if ref.lower() != "scratch" and "@sha256:" not in ref:
+                unpinned.append(f"{df.name}: {ref}")
+    return unpinned, unread
 
 
 def eval_cont_image_001(ctx: EvalContext) -> EvalOutcome:
     """CONT-IMAGE-001: Dockerfile base images pinned to immutable digest (@sha256:...)."""
-    dockerfiles = _find_dockerfiles(ctx.repo_root)
+    dockerfiles, truncated = _find_dockerfiles_capped(ctx.repo_root)
     if not dockerfiles:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
@@ -73,8 +112,28 @@ def eval_cont_image_001(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[],
             confidence="high",
         )
-    unpinned = _unpinned_from_refs(dockerfiles)
+    unpinned, unread = _from_refs_by_file(dockerfiles)
     if not unpinned:
+        # An unpinned image found anywhere is reported below whatever else went wrong: this
+        # withdrawal replaces a PASS, never a FAIL. `manual-review-required` trips no
+        # `--fail-on fail`, so ordering it ahead of a real finding would turn a red pipeline
+        # green, which is the larger mistake of the two.
+        clause = _dockerfile_gap_clause(unread, truncated=truncated)
+        if clause:
+            return EvalOutcome(
+                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                reason=(
+                    "Cannot confirm every base image is digest-pinned. Nothing unpinned was found "
+                    f"in what was read, but {clause}."
+                ),
+                remediation=(
+                    "Make the listed file(s) readable, or give each one a FROM instruction, then "
+                    "re-run. Until then this control claims nothing either way; run with "
+                    "'--fail-on degraded' to treat it as a failure."
+                ),
+                evidence_sources=[str(p.resolve()) for p in dockerfiles],
+                confidence="low",
+            )
         return EvalOutcome(
             status=ControlStatus.PASS,
             reason="All Dockerfile FROM instructions use digest-pinned base images.",
@@ -103,7 +162,7 @@ def eval_cont_image_001(ctx: EvalContext) -> EvalOutcome:
 
 def eval_cont_image_002(ctx: EvalContext) -> EvalOutcome:
     """CONT-IMAGE-002: Dockerfile declares a non-root USER instruction."""
-    dockerfiles = _find_dockerfiles(ctx.repo_root)
+    dockerfiles, truncated = _find_dockerfiles_capped(ctx.repo_root)
     if not dockerfiles:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
@@ -114,13 +173,21 @@ def eval_cont_image_002(ctx: EvalContext) -> EvalOutcome:
         )
     root_user: list[Path] = []
     missing_user: list[Path] = []
+    unread: list[str] = []
     for df in dockerfiles:
-        with contextlib.suppress(OSError):
+        try:
             content = decode_source(df.read_bytes())
-            if _ROOT_USER_RE.search(content):
-                root_user.append(df)
-            elif not _USER_RE.search(content):
-                missing_user.append(df)
+        except OSError as exc:
+            # Was `contextlib.suppress(OSError)`, which made an unreadable Dockerfile
+            # indistinguishable from one declaring a non-root USER. A file saying `USER root`
+            # with its read denied produced PASS, and the sentence below counted it among the
+            # "file(s) checked". Same defect as CONT-IMAGE-001, found by sweeping its siblings.
+            unread.append(f"{df.name}: {bad_input_detail(exc)}")
+            continue
+        if _ROOT_USER_RE.search(content):
+            root_user.append(df)
+        elif not _USER_RE.search(content):
+            missing_user.append(df)
     if root_user:
         names = ", ".join(p.name for p in root_user[:3])
         return EvalOutcome(
@@ -141,6 +208,23 @@ def eval_cont_image_002(ctx: EvalContext) -> EvalOutcome:
             ),
             evidence_sources=[str(p.resolve()) for p in missing_user],
             confidence="medium",
+        )
+    # After both failures, never before them: a withdrawal satisfies `--fail-on fail`, so
+    # putting it first would clear a real `USER root` out of a pipeline that was correctly red.
+    clause = _dockerfile_gap_clause(unread, truncated=truncated)
+    if clause:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "Cannot confirm every Dockerfile declares a non-root USER. No root user was found "
+                f"in what was read, but {clause}."
+            ),
+            remediation=(
+                "Make the listed file(s) readable, then re-run. Until then this control claims "
+                "nothing either way; run with '--fail-on degraded' to treat it as a failure."
+            ),
+            evidence_sources=[str(path.resolve()) for path in dockerfiles],
+            confidence="low",
         )
     return EvalOutcome(
         status=ControlStatus.PASS,

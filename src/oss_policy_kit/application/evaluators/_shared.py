@@ -967,13 +967,39 @@ def _azure_governance_evidence_dict(ctx: EvalContext) -> dict[str, Any] | None:
 
 
 _SCORECARD_MIN_SCORE = 5.0
-_DOCKER_FROM_RE = re.compile(r"^FROM\s+(\S+)", re.MULTILINE)
+# `FROM [--flag[=value] ...] <image> [AS <stage>]`, as Docker actually parses it.
+#
+# Dockerfile instruction keywords are case-insensitive and may be indented, and the previous
+# pattern (`^FROM\s+(\S+)`, MULTILINE) accepted neither: `from alpine:3.19` and an indented
+# `FROM alpine:3.19` are ordinary Dockerfiles that produced a PASS claiming every base image
+# was digest-pinned. Its sibling in `evaluators_containers.py` already had both flags.
+#
+# The flag group is the other half. `FROM --platform=$BUILDPLATFORM alpine@sha256:...` is a
+# pinned multi-arch build, and capturing the first token after FROM captured the flag, which
+# has no `@sha256:` in it, so a correctly pinned Dockerfile was failed.
+#
+# Quantifiers are bounded because this pattern runs over target text (see
+# `workflow_parser.py`). `\S` and `[ \t]` are disjoint, so the flag group cannot backtrack
+# into itself. The capture stays `(\S+)` rather than the sibling's `([^\n]+)$`: this caller
+# compares the ref against `scratch`, and `FROM scratch AS base` must match it.
+_DOCKER_FROM_RE = re.compile(
+    r"^[ \t]{0,200}FROM[ \t]{1,200}(?:--\S{1,200}[ \t]{1,200}){0,8}(\S{1,1000})",
+    re.MULTILINE | re.IGNORECASE,
+)
 
 
 def _find_dockerfiles(repo: Path) -> list[Path]:
     from oss_policy_kit.application.evaluators_common import find_dockerfiles
 
     return find_dockerfiles(repo)
+
+
+def _find_dockerfiles_capped(repo: Path) -> tuple[list[Path], bool]:
+    """As :func:`_find_dockerfiles`, plus whether the cap hid any file from the caller."""
+
+    from oss_policy_kit.application.evaluators_common import find_dockerfiles_capped
+
+    return find_dockerfiles_capped(repo)
 
 
 _USER_RE = re.compile(r"^[^\S\n]*USER\s+(?!0\b)(?!root\b)(\S+)", re.MULTILINE | re.IGNORECASE)
@@ -3291,6 +3317,7 @@ __all__ = [
     "_file_named_exactly",
     "_find_any_text_hint",
     "_find_dockerfiles",
+    "_find_dockerfiles_capped",
     "_find_prompt_registry",
     "_find_sbom_files",
     "_github_provenance_artifact_schema",

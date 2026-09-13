@@ -335,7 +335,12 @@ def strip_dockerfile_comments(text: str) -> str:
     return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
 
 
-def find_dockerfiles(repo: Path, *, limit: int = 20) -> list[Path]:
+#: How many Dockerfiles a single evaluation reads. The walk that finds them is already
+#: exhaustive, so this bounds reads, not discovery.
+DOCKERFILE_SCAN_LIMIT = 20
+
+
+def find_dockerfiles(repo: Path, *, limit: int = DOCKERFILE_SCAN_LIMIT) -> list[Path]:
     """Return up to *limit* Dockerfile candidates under *repo*.
 
     Covers canonical and variant naming patterns (``Dockerfile``,
@@ -344,12 +349,25 @@ def find_dockerfiles(repo: Path, *, limit: int = 20) -> list[Path]:
     (Windows, macOS) do not count the same file twice.
     """
 
+    return find_dockerfiles_capped(repo, limit=limit)[0]
+
+
+def find_dockerfiles_capped(repo: Path, *, limit: int = DOCKERFILE_SCAN_LIMIT) -> tuple[list[Path], bool]:
+    """As :func:`find_dockerfiles`, plus whether *limit* stopped the search early.
+
+    A caller that makes a claim about every Dockerfile in the repository needs to know when
+    the list it was handed is not every Dockerfile. CONT-IMAGE-001 answered "all base images
+    are digest-pinned" over the first 20 of 26, and the 26th was the unpinned one.
+
+    Costs one extra step of the generator, which is one ``is_file()`` at most.
+    """
+
     results: list[Path] = []
     for candidate in _iter_accepted_dockerfiles(repo):
-        results.append(candidate)
         if len(results) >= limit:
-            break
-    return results
+            return results, True
+        results.append(candidate)
+    return results, False
 
 
 def _iter_accepted_dockerfiles(repo: Path) -> Iterator[Path]:

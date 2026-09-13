@@ -86,10 +86,22 @@ def _read_text(path: Path) -> str:
     somebody remembered.
     """
 
+    return _read_text_or_none(path) or ""
+
+
+def _read_text_or_none(path: Path) -> str | None:
+    """As :func:`_read_text`, but ``None`` when the file could not be read at all.
+
+    Six of the seven controls here fail when they find no signal, so a failed read leaves them
+    restrictive and "" is the right answer for them. CONT-RUNTIME-003 passes when it finds no
+    signal, so for that one "" and "unreadable" are the same value with opposite meanings: it
+    answered "No curl|bash / wget|sh pattern detected" about a Dockerfile it never opened.
+    """
+
     try:
         return decode_source(path.read_bytes())
     except OSError:
-        return ""
+        return None
 
 
 def _na_no_dockerfile() -> EvalOutcome:
@@ -186,13 +198,36 @@ def eval_cont_runtime_003(ctx: Any) -> EvalOutcome:
     if not dockerfiles:
         return _na_no_dockerfile()
     offenders: list[Path] = []
+    unread: list[str] = []
     for df in dockerfiles:
         # `strip_dockerfile_comments` already existed for exactly this and was not applied
         # here, so a `# curl … | sh` line explaining what NOT to do failed the control. A
         # commented-out instruction does not run, and this control is about what runs.
-        if _CURL_BASH_RE.search(strip_dockerfile_comments(_read_text(df))):
+        text = _read_text_or_none(df)
+        if text is None:
+            unread.append(f"{df.name}: it could not be read")
+            continue
+        if _CURL_BASH_RE.search(strip_dockerfile_comments(text)):
             offenders.append(df)
     if not offenders:
+        # Only ever in place of the PASS. An offender found anywhere still fails, because
+        # `manual-review-required` satisfies `--fail-on fail` and would clear a real
+        # curl-into-shell out of a pipeline that was correctly red.
+        if unread:
+            return EvalOutcome(
+                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                reason=(
+                    "Cannot confirm no Dockerfile pipes a download into a shell. None was found "
+                    "in what was read, but " + "; ".join(unread[:3]) + (" (and more)" if len(unread) > 3 else "") + "."
+                ),
+                remediation=(
+                    "Make the listed file(s) readable, then re-run. Until then this control "
+                    "claims nothing either way; run with '--fail-on degraded' to treat it as a "
+                    "failure."
+                ),
+                evidence_sources=[str(p.resolve()) for p in dockerfiles],
+                confidence="low",
+            )
         return EvalOutcome(
             status=ControlStatus.PASS,
             reason=f"No curl|bash / wget|sh pattern detected across {len(dockerfiles)} Dockerfile(s).",
