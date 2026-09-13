@@ -403,18 +403,24 @@ jobs:
       # and dated.
       #
       # `ignore-unfixed` does NOT make everything reported here actionable by bumping the
-      # digest, and a previous version of this comment claimed it did. Re-measured 2026-09-09,
+      # digest, and a previous version of this comment claimed it did. Re-measured 2026-09-13,
       # because the earlier note said the OS-package layer of both digests was empty and that
       # has not been true since the `libpcre2` advisories were published. What this job reports
-      # is eleven findings: six CVEs in the `pip 25.0.1` the Debian Python image ships, and five
-      # against `libpcre2-8-0 10.42-1`. The current upstream `python:3.12-slim-bookworm` digest
-      # carries the identical eleven, so bumping the digest today still changes nothing.
+      # is twelve findings: six CVEs in the `pip 25.0.1` the Debian Python image ships, and six
+      # against `libpcre2-8-0 10.42-1`. It was five libpcre2 until 2026-09-12, when the five
+      # CVE-2026-891xx advisories arrived at once; every count here was one short for a day.
+      # `trivy image --image-src remote python:3.12-slim-bookworm` against the live upstream
+      # tag reports the identical twelve, so bumping the digest today still changes nothing.
       #
       # Neither set reaches the published image, by two different routes: the runtime stage
       # uninstalls pip from both interpreters, and `apt-get upgrade` takes `libpcre2-8-0` to
-      # `10.42-1+deb12u1`. A scan of the built image reports zero fixable vulnerabilities at
-      # any severity. Because these alerts are raised against the base image, that fix does not
-      # close them and never will -- so the guard is a test, not this alert list:
+      # `10.42-1+deb12u1` -- the fixed version named by all six advisories, the five new ones
+      # included. A scan of the built image reported zero fixable vulnerabilities at any
+      # severity on 2026-09-09; since then the narrower live evidence is that the built-image
+      # Trivy step in `github-ci-cd.yml` gates on fixable HIGH and CRITICAL and passed on
+      # 2026-09-13, with two of the six libpcre2 advisories in that band. Because these alerts
+      # are raised against the base image, that fix does not close them and never will -- so
+      # the guard is a test, not this alert list:
       # tests/infrastructure/test_the_runtime_stage_keeps_the_base_image_cves_out.py.
       # SECURITY.md records why all of them stay open.
       - name: Scan the base image
