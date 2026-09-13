@@ -27,7 +27,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from oss_policy_kit.application.evaluators_common import strip_dockerfile_comments
+from oss_policy_kit.application.evaluators_common import DOCKERFILE_SCAN_LIMIT, strip_dockerfile_comments
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 from oss_policy_kit.infrastructure.source_text import decode_source
 
@@ -68,6 +68,21 @@ def _find_dockerfiles(repo: Path) -> list[Path]:
     from oss_policy_kit.application.evaluators_common import find_dockerfiles
 
     return find_dockerfiles(repo)
+
+
+def _find_dockerfiles_capped(repo: Path) -> tuple[list[Path], bool]:
+    """As :func:`_find_dockerfiles`, plus whether the cap hid any file from the caller.
+
+    Needed only by CONT-RUNTIME-003. The other controls here pass on finding one good file,
+    so a truncated list can only make them report a failure they would not otherwise report,
+    which is the restrictive direction. CONT-RUNTIME-003 passes on finding no bad file, so a
+    truncated list let it say "no curl|bash across 20 Dockerfile(s)" about a repository with
+    21, where the 21st was the one piping a download into a shell.
+    """
+
+    from oss_policy_kit.application.evaluators_common import find_dockerfiles_capped
+
+    return find_dockerfiles_capped(repo)
 
 
 def _read_text(path: Path) -> str:
@@ -194,7 +209,7 @@ def eval_cont_runtime_002(ctx: Any) -> EvalOutcome:
 def eval_cont_runtime_003(ctx: Any) -> EvalOutcome:
     """CONT-RUNTIME-003: Dockerfile RUN instructions do not pipe network downloads to a shell."""
 
-    dockerfiles = _find_dockerfiles(ctx.repo_root)
+    dockerfiles, truncated = _find_dockerfiles_capped(ctx.repo_root)
     if not dockerfiles:
         return _na_no_dockerfile()
     offenders: list[Path] = []
@@ -213,17 +228,23 @@ def eval_cont_runtime_003(ctx: Any) -> EvalOutcome:
         # Only ever in place of the PASS. An offender found anywhere still fails, because
         # `manual-review-required` satisfies `--fail-on fail` and would clear a real
         # curl-into-shell out of a pipeline that was correctly red.
-        if unread:
+        gaps = list(unread)
+        if truncated:
+            gaps.append(
+                f"the repository holds more than {DOCKERFILE_SCAN_LIMIT} Dockerfiles and only "
+                f"the first {DOCKERFILE_SCAN_LIMIT} were read"
+            )
+        if gaps:
             return EvalOutcome(
                 status=ControlStatus.MANUAL_REVIEW_REQUIRED,
                 reason=(
                     "Cannot confirm no Dockerfile pipes a download into a shell. None was found "
-                    "in what was read, but " + "; ".join(unread[:3]) + (" (and more)" if len(unread) > 3 else "") + "."
+                    "in what was read, but " + "; ".join(gaps[:3]) + (" (and more)" if len(gaps) > 3 else "") + "."
                 ),
                 remediation=(
-                    "Make the listed file(s) readable, then re-run. Until then this control "
-                    "claims nothing either way; run with '--fail-on degraded' to treat it as a "
-                    "failure."
+                    "Make the listed file(s) readable, or reduce the number of Dockerfiles, then "
+                    "re-run. Until then this control claims nothing either way; run with "
+                    "'--fail-on degraded' to treat it as a failure."
                 ),
                 evidence_sources=[str(p.resolve()) for p in dockerfiles],
                 confidence="low",

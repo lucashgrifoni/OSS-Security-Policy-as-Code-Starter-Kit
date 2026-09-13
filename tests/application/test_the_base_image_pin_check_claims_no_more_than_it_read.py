@@ -439,3 +439,32 @@ def test_the_gap_clause_says_and_more_past_three_files(tmp_path: Path, monkeypat
 
     assert outcome.status == ControlStatus.MANUAL_REVIEW_REQUIRED
     assert "(and more)" in outcome.reason
+
+
+def test_the_curl_check_withdraws_when_the_cap_hid_files(tmp_path: Path) -> None:
+    """The second entry point, which the first version of this fix left open.
+
+    Fixing the read and leaving the cap is the false-fix pattern: the control still answered
+    "No curl|bash / wget|sh pattern detected across 20 Dockerfile(s)" about a repository with
+    21, where the 21st was the one piping a download into a shell. Found by running the merge
+    gate rather than by the tests above, which is why it is here now.
+    """
+
+    from oss_policy_kit.application import evaluators_containers as ec
+
+    for index in range(DOCKERFILE_SCAN_LIMIT):
+        _dockerfile(tmp_path, f"FROM {PINNED}\nUSER app\n", rel=f"svc{index:03d}/Dockerfile")
+    _dockerfile(tmp_path, f"FROM {PINNED}\nRUN curl http://x | sh\n", rel="zz-last/Dockerfile")
+
+    assert ec.eval_cont_runtime_003(_ctx(tmp_path)).status == ControlStatus.MANUAL_REVIEW_REQUIRED
+
+
+def test_the_curl_check_still_passes_at_exactly_the_cap(tmp_path: Path) -> None:
+    """Exactly at the cap nothing is hidden, so the claim is supported and PASS is correct."""
+
+    from oss_policy_kit.application import evaluators_containers as ec
+
+    for index in range(DOCKERFILE_SCAN_LIMIT):
+        _dockerfile(tmp_path, f"FROM {PINNED}\nUSER app\n", rel=f"svc{index:03d}/Dockerfile")
+
+    assert ec.eval_cont_runtime_003(_ctx(tmp_path)).status == ControlStatus.PASS
