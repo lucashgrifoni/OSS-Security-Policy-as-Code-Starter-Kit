@@ -338,20 +338,38 @@ def _mixed_report_pair_error(exc: OSError) -> OSError:
     )
 
 
-def _md_cell(value: str) -> str:
-    """Escape a user-controlled value so it stays inside its Markdown table cell.
+def _md_line(value: str) -> str:
+    """Flatten a target-controlled value to one line, so it cannot become new structure.
 
-    An unescaped ``|`` (or an embedded newline) splits the row, silently shifting
-    every later value under the wrong header for whoever reads or parses the report.
+    Every piece of Markdown structure begins at the start of a line: ``#`` a heading, ``|``
+    a table row, ``-`` a list item. A value carrying a newline therefore stops being a value
+    and becomes document, and the Detail section interpolated waiver text raw. Measured with
+    a waiver whose ``owner`` held newlines and Markdown, the report grew a second
+    ``## Overall result`` section reading **All controls passed. No action required.** above
+    a fake results table -- in the artifact a human reads, while the JSON and SARIF stayed
+    correct.
 
-    Invisible characters go too. ``ControlResult`` already cleans the prose fields, but
-    this writer is also handed the waiver owner and the catalog's category and lifecycle
-    strings, and an external profile supplies those. Doing it here as well costs a scan of
-    a short string and means the row is safe whatever is put in it.
+    Invisible characters go too. ``ControlResult`` cleans its own prose fields, but this
+    writer is also handed the waiver owner and justification and the catalogue's category
+    and lifecycle strings, and an external profile supplies those.
+
+    Inline emphasis inside the line is left alone on purpose. A reason containing ``*`` is
+    ordinary, escaping every Markdown character would make legitimate text unreadable, and
+    bold inside ``- **Owner**: ...`` cannot pretend to be a section.
     """
 
-    escaped = without_control_characters(value).replace("|", "\\|")
-    return escaped.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    flattened = without_control_characters(value)
+    return flattened.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+
+
+def _md_cell(value: str) -> str:
+    """As :func:`_md_line`, plus the ``|`` escape a table cell additionally needs.
+
+    An unescaped ``|`` splits the row, silently shifting every later value under the wrong
+    header for whoever reads or parses the report.
+    """
+
+    return _md_line(value).replace("|", "\\|")
 
 
 #: Both separators, always, and never the local ``os.sep``. ``pathlib`` on POSIX does not
@@ -1119,29 +1137,32 @@ def _md_evidence_display(source: str, *, include_absolute_path: bool) -> str:
 def _md_control_detail_lines(report: ExecutionReport, *, include_absolute_path: bool = False) -> list[str]:
     """Markdown lines for the per-control detail section."""
 
+    # Every interpolated value goes through `_md_line`. The controls table above already did
+    # this and this section did not, which is how a waiver owner forged a `## Overall result`
+    # section announcing that everything passed.
     out: list[str] = ["## Detail", ""]
     for r in report.results:
-        out.append(f"### `{r.control_id}` - {r.title}")
+        out.append(f"### `{_md_line(r.control_id)}` - {_md_line(r.title)}")
         out.append("")
-        out.append(f"- **Status**: `{r.status.value}`")
-        out.append(f"- **Lifecycle**: {r.lifecycle}")
-        out.append(f"- **Assurance**: `{r.assurance}`")
-        out.append(f"- **Evidence collection method**: `{r.evidence_collection_method}`")
-        out.append(f"- **Confidence**: {r.confidence}")
-        out.append(f"- **Reason**: {r.reason}")
-        out.append(f"- **Remediation**: {r.remediation}")
+        out.append(f"- **Status**: `{_md_line(r.status.value)}`")
+        out.append(f"- **Lifecycle**: {_md_line(r.lifecycle)}")
+        out.append(f"- **Assurance**: `{_md_line(r.assurance)}`")
+        out.append(f"- **Evidence collection method**: `{_md_line(str(r.evidence_collection_method))}`")
+        out.append(f"- **Confidence**: {_md_line(r.confidence)}")
+        out.append(f"- **Reason**: {_md_line(r.reason)}")
+        out.append(f"- **Remediation**: {_md_line(r.remediation)}")
         if r.evidence_sources:
             out.append("- **Evidence**:")
             out.extend(
-                f"  - `{_md_evidence_display(e, include_absolute_path=include_absolute_path)}`"
+                f"  - `{_md_line(_md_evidence_display(e, include_absolute_path=include_absolute_path))}`"
                 for e in r.evidence_sources
             )
         if r.waiver:
             out.append("- **Waiver**:")
-            out.append(f"  - **Owner**: {r.waiver.owner}")
-            out.append(f"  - **Justification**: {r.waiver.justification}")
+            out.append(f"  - **Owner**: {_md_line(r.waiver.owner)}")
+            out.append(f"  - **Justification**: {_md_line(r.waiver.justification)}")
             if r.waiver.expires_at:
-                out.append(f"  - **Expires**: {r.waiver.expires_at.isoformat()}")
+                out.append(f"  - **Expires**: {_md_line(r.waiver.expires_at.isoformat())}")
         out.append("")
     return out
 
