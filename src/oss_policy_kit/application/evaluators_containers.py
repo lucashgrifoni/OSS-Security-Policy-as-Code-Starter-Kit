@@ -73,11 +73,29 @@ def _find_dockerfiles(repo: Path) -> list[Path]:
 def _find_dockerfiles_capped(repo: Path) -> tuple[list[Path], bool]:
     """As :func:`_find_dockerfiles`, plus whether the cap hid any file from the caller.
 
-    Needed only by CONT-RUNTIME-003. The other controls here pass on finding one good file,
-    so a truncated list can only make them report a failure they would not otherwise report,
-    which is the restrictive direction. CONT-RUNTIME-003 passes on finding no bad file, so a
-    truncated list let it say "no curl|bash across 20 Dockerfile(s)" about a repository with
-    21, where the 21st was the one piping a download into a shell.
+    What decides whether a control needs this is the DIRECTION of its answer, not which
+    control it is. A control that concludes something from finding a signal is safe under a
+    truncated list: the worst it does is miss a file and report a gap that is already there.
+    A control that concludes something from finding NO signal is not, because the file it did
+    not read is exactly the one that would have changed the answer.
+
+    By that rule, three of the seven here need it:
+
+    * CONT-RUNTIME-003 passes on absence -- it said "no curl|bash across 20 Dockerfile(s)"
+      about a repository with 21, where the 21st piped a download into a shell;
+    * CONT-RUNTIME-005 and CONT-RUNTIME-006 answer ``not-applicable`` on absence -- "No
+      apt-get install lines detected in any Dockerfile", over a 25th Dockerfile running
+      ``apt-get install``. ``not-applicable`` reads like a shrug and is a positive claim about
+      the repository, and it is the one state no summary counts.
+
+    This docstring previously said only CONT-RUNTIME-003 needed it, because "the other
+    controls pass on finding one good file". That is true of CONT-RUNTIME-001 and
+    CONT-RUNTIME-002 and it silently swept in the two that answer on absence.
+
+    CONT-RUNTIME-001 and CONT-RUNTIME-002 still keep their verdicts under truncation: their
+    absence answer is a FAIL, and ``manual-review-required`` trips no ``--fail-on fail``, so
+    withdrawing there would clear a real gap out of a pipeline that was correctly red. They
+    state their scope instead, through :func:`_truncation_clause`.
     """
 
     from oss_policy_kit.application.evaluators_common import find_dockerfiles_capped
@@ -119,6 +137,48 @@ def _read_text_or_none(path: Path) -> str | None:
         return None
 
 
+def _truncation_clause(truncated: bool) -> str:
+    """A sentence to append to an absence claim when the cap hid files from it.
+
+    For the two controls whose absence answer is a FAIL. The verdict is right either way and
+    the remediation applies either way; the sentence was the part that overstated its reach,
+    saying "No HEALTHCHECK declared in any Dockerfile" about a repository whose 25th Dockerfile
+    was never opened.
+    """
+
+    if not truncated:
+        return ""
+    return (
+        f" The repository holds more than {DOCKERFILE_SCAN_LIMIT} Dockerfiles and only the "
+        f"first {DOCKERFILE_SCAN_LIMIT} were read, so this result does not cover the rest."
+    )
+
+
+def _cannot_tell_past_the_cap(what: str, dockerfiles: list[Path]) -> EvalOutcome:
+    """Refuse to call a control ``not-applicable`` over files the cap hid.
+
+    ``not-applicable`` is a claim that this repository does not do the thing, and a scan that
+    stopped at twenty files cannot make it. Withdraws only that state, never a FAIL: the
+    offender branches of both callers run first.
+    """
+
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            f"Cannot confirm this repository has no {what}. None was found in what was read, but "
+            f"it holds more than {DOCKERFILE_SCAN_LIMIT} Dockerfiles and only the first "
+            f"{DOCKERFILE_SCAN_LIMIT} were read."
+        ),
+        remediation=(
+            "Reduce the number of Dockerfiles, or scan the remaining paths separately, then "
+            "re-run. Until then this control claims nothing either way; run with "
+            "'--fail-on degraded' to treat it as a failure."
+        ),
+        evidence_sources=[str(p.resolve()) for p in dockerfiles],
+        confidence="low",
+    )
+
+
 def _na_no_dockerfile() -> EvalOutcome:
     return EvalOutcome(
         status=ControlStatus.NOT_APPLICABLE,
@@ -137,7 +197,7 @@ def _na_no_dockerfile() -> EvalOutcome:
 def eval_cont_runtime_001(ctx: Any) -> EvalOutcome:
     """CONT-RUNTIME-001: at least one Dockerfile uses a multi-stage build."""
 
-    dockerfiles = _find_dockerfiles(ctx.repo_root)
+    dockerfiles, truncated = _find_dockerfiles_capped(ctx.repo_root)
     if not dockerfiles:
         return _na_no_dockerfile()
     single_stage: list[Path] = []
@@ -168,7 +228,7 @@ def eval_cont_runtime_001(ctx: Any) -> EvalOutcome:
     sample = ", ".join(p.name for p in single_stage[:3])
     return EvalOutcome(
         status=ControlStatus.FAIL,
-        reason=f"No multi-stage Dockerfile found (single-stage: {sample}).",
+        reason=f"No multi-stage Dockerfile found (single-stage: {sample}).{_truncation_clause(truncated)}",
         remediation=(
             "Convert the build to a multi-stage Dockerfile: a 'builder' stage that compiles, then a "
             "minimal final stage that only COPYs the release artefact. Reduces image size and CVE surface."
@@ -186,7 +246,7 @@ def eval_cont_runtime_001(ctx: Any) -> EvalOutcome:
 def eval_cont_runtime_002(ctx: Any) -> EvalOutcome:
     """CONT-RUNTIME-002: at least one Dockerfile declares a HEALTHCHECK instruction."""
 
-    dockerfiles = _find_dockerfiles(ctx.repo_root)
+    dockerfiles, truncated = _find_dockerfiles_capped(ctx.repo_root)
     if not dockerfiles:
         return _na_no_dockerfile()
     missing: list[Path] = []
@@ -203,7 +263,7 @@ def eval_cont_runtime_002(ctx: Any) -> EvalOutcome:
     sample = ", ".join(p.name for p in missing[:3])
     return EvalOutcome(
         status=ControlStatus.FAIL,
-        reason=f"No HEALTHCHECK declared in any Dockerfile ({sample}).",
+        reason=f"No HEALTHCHECK declared in any Dockerfile ({sample}).{_truncation_clause(truncated)}",
         remediation=(
             "Add a HEALTHCHECK instruction so orchestrators (Kubernetes, ECS, Compose) "
             "can detect a stuck process and restart the container."
@@ -323,7 +383,7 @@ def eval_cont_runtime_005(ctx: Any) -> EvalOutcome:
 
     from oss_policy_kit.application.evaluators_common import strip_dockerfile_comments
 
-    dockerfiles = _find_dockerfiles(ctx.repo_root)
+    dockerfiles, truncated = _find_dockerfiles_capped(ctx.repo_root)
     if not dockerfiles:
         return _na_no_dockerfile()
     offenders: list[Path] = []
@@ -339,6 +399,10 @@ def eval_cont_runtime_005(ctx: Any) -> EvalOutcome:
             continue
         offenders.append(df)
     if not apt_used:
+        # Ordered behind the offender scan below? No -- `apt_used` is False here, so there are
+        # no offenders to lose. This only ever replaces `not-applicable`.
+        if truncated:
+            return _cannot_tell_past_the_cap("apt-get install line", dockerfiles)
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No apt-get install lines detected in any Dockerfile.",
@@ -402,11 +466,15 @@ def _scan_pkg_pinning(dockerfiles: list[Path]) -> tuple[list[Path], bool]:
 def eval_cont_runtime_006(ctx: Any) -> EvalOutcome:
     """CONT-RUNTIME-006: apt/apk install lines pin package versions (pkg=ver) when present."""
 
-    dockerfiles = _find_dockerfiles(ctx.repo_root)
+    dockerfiles, truncated = _find_dockerfiles_capped(ctx.repo_root)
     if not dockerfiles:
         return _na_no_dockerfile()
     offenders, relevant = _scan_pkg_pinning(dockerfiles)
     if not relevant:
+        # Same shape as CONT-RUNTIME-005 and found by sweeping its sibling: "nothing to pin"
+        # is a claim about the whole repository, made from the first twenty Dockerfiles.
+        if truncated:
+            return _cannot_tell_past_the_cap("apt or apk install line", dockerfiles)
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No apt/apk install lines detected; nothing to pin.",
