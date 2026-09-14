@@ -14,7 +14,12 @@ from oss_policy_kit.application.evidence_projection import _redact_path
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 
 
-def unread_sources(data: dict[str, Any], limit: int = 3) -> tuple[list[str], int]:
+def unread_sources(
+    data: dict[str, Any],
+    limit: int = 3,
+    *,
+    only_resembling: str | None = None,
+) -> tuple[list[str], int]:
     """Return ``(names to show, total)`` for the files a scanner could not parse.
 
     The names are redacted through the report's own path rule, because
@@ -28,6 +33,13 @@ def unread_sources(data: dict[str, Any], limit: int = 3) -> tuple[list[str], int
     The total is returned separately so a caller cannot phrase a truncated list as a complete
     one -- which the first version did, saying "every candidate file failed to parse (a, b, c)"
     when there were nine.
+
+    ``only_resembling`` keeps just the entries whose ``resembles`` matches, which is how a
+    scanner says "this one still read as my technology after the parse failed". ``scan-k8s``
+    reaches every ``**/*.yaml`` in a tree, so without the filter a broken workflow and an
+    unparseable Pod are the same entry; with it they are not. ``None`` keeps every entry, which
+    is what a scanner whose glob already names its technology wants, and what evidence written
+    before the key existed produces anyway.
     """
 
     diagnostics = data.get("diagnostics")
@@ -44,6 +56,8 @@ def unread_sources(data: dict[str, Any], limit: int = 3) -> tuple[list[str], int
     originals: list[str] = []
     for entry in errors:
         if not isinstance(entry, dict):
+            continue
+        if only_resembling is not None and entry.get("resembles") != only_resembling:
             continue
         name = entry.get("file")
         if isinstance(name, str) and name and name not in originals:
@@ -95,13 +109,14 @@ def unread_sources_note(data: dict[str, Any]) -> str:
     return f" The scanner could not parse {_phrase(shown, total)}, which this result does not cover."
 
 
-def unread_named_sources_outcome(
+def unread_sources_withdrawal(
     data: dict[str, Any],
     *,
     technology: str,
-    extension: str,
+    why: str,
     regenerate_cmd: str,
     sources: list[str],
+    only_resembling: str | None = None,
 ) -> EvalOutcome | None:
     """Withdraw a CLEAN verdict when a file that *is* this technology was never read.
 
@@ -116,28 +131,36 @@ def unread_named_sources_outcome(
     asked is whether this repository exposes object storage publicly, and it answered that
     over the file it could read.
 
-    **Only for scanners whose glob names their technology.** A guard shaped like this one was
-    written before and was worse than the bug -- it withdrew every Kubernetes control on the
+    **Which unread files count is the whole question.** A guard shaped like this one was
+    written before and was worse than the bug: it withdrew every Kubernetes control on the
     kit's own repository, because ``scan-k8s`` reaches every ``**/*.yaml`` in the tree and
     hits scratch files plus a fixture that is malformed on purpose. It fired on correct
-    content, and a guard that fires on correct content is one somebody switches off. The
-    difference is the candidate set:
+    content, and a guard that fires on correct content is one somebody switches off.
 
-    ==============  ==========================================  ==========================
-    scanner         glob                                        an unread candidate is
-    ==============  ==========================================  ==========================
-    ``scan-iac``    ``**/*.tf``                                 unchecked Terraform
-    ``scan-bicep``  ``**/*.bicep``                              unchecked Bicep
-    ``scan-cfn``    ``**/*.yaml`` ``.yml`` ``.json`` ``.template``  any file at all
-    ``scan-k8s``    ``**/*.yaml`` ``**/*.yml``                  any file at all
-    ``scan-pulumi`` ``**/*.py``                                 any file at all
-    ==============  ==========================================  ==========================
+    So two families answer from the candidate set and three from a mark the scanner leaves:
 
-    The bottom three keep :func:`unread_sources_note`, which states the scope without
-    touching the verdict.
+    ==============  ===============================  ====================================
+    scanner         glob                             an unread candidate counts when
+    ==============  ===============================  ====================================
+    ``scan-iac``    ``**/*.tf``                      always; every candidate is Terraform
+    ``scan-bicep``  ``**/*.bicep``                   always; every candidate is Bicep
+    ``scan-k8s``    ``**/*.yaml`` ``**/*.yml``       it still carries apiVersion and kind
+    ``scan-cfn``    ``.yaml .yml .json .template``   it still reads as a template
+    ``scan-pulumi`` ``**/*.py``                      it still imports pulumi
+    ==============  ===============================  ====================================
 
-    Returns ``None`` when every candidate was read, which is every ordinary repository -- so
-    a family that adopts this keeps the verdict it reaches today.
+    ``only_resembling`` selects the second form. An unmarked entry stays the diagnostic it
+    already was, and :func:`unread_sources_note` still states the scope of a PASS earned over
+    part of the sources.
+
+    The mark comes from raw text, because the parse is what failed and there is nothing else
+    to read. That primitive once let ``workflow_parser`` grant a PASS from a commented-out
+    step; here it runs in the opposite direction and can only make a verdict more cautious. A
+    commented-out ``apiVersion:`` costs an operator a second look. The inverse error is a
+    privileged pod reported as a clean cluster.
+
+    Returns ``None`` when nothing counts, which is every ordinary repository -- so a family
+    that adopts this keeps the verdict it reaches today.
 
     Callers put this in the ZERO-FINDINGS branch only. A rule with a finding is unaffected on
     purpose: unread sources can only ADD violations, so they never make an existing ``FAIL``
@@ -145,16 +168,15 @@ def unread_named_sources_outcome(
     green -- that state does not trip ``--fail-on fail``.
     """
 
-    shown, total = unread_sources(data)
+    shown, total = unread_sources(data, only_resembling=only_resembling)
     if not shown:
         return None
 
     return EvalOutcome(
         status=ControlStatus.MANUAL_REVIEW_REQUIRED,
         reason=(
-            f"Nothing was found in the {technology} files that parsed, but {total} did not parse "
-            f"({_phrase(shown, total)}). Every {extension} file is {technology}, so this result "
-            "covers less of the repository than it appears to."
+            f"Nothing was found in the {technology} sources that parsed, but {total} did not parse "
+            f"({_phrase(shown, total)}). {why}"
         ),
         remediation=(
             f"Fix the listed file(s) so they parse -- a committed merge-conflict marker, a syntax "

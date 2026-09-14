@@ -41,6 +41,11 @@ EVIDENCE_FILENAME = "iac-cfn.json"
 DEFAULT_TIMEOUT_SECONDS = 120
 DEFAULT_INCLUDE_GLOBS: tuple[str, ...] = ("**/*.yaml", "**/*.yml", "**/*.json", "**/*.template")
 
+#: Value of ``diagnostics.parse_errors[].resembles`` on a file that would not parse and
+#: still reads as a CloudFormation template. This scanner has always made that distinction
+#: -- it is what ``CfnParseError`` means -- and this only writes it down.
+RESEMBLES_TEMPLATE = "cloudformation-template"
+
 _SKIP_DIRS: frozenset[str] = frozenset(
     {".git", ".terraform", "node_modules", ".venv", "venv", "__pycache__", "dist", "build", ".oss-policy-kit"}
 )
@@ -629,7 +634,13 @@ def run_scan(
         try:
             tpl = _load_cfn(f)
         except (OSError, CfnParseError) as exc:
-            parse_errors.append({"file": _normalize_target(repo_root, f), "error": str(exc)})
+            entry = {"file": _normalize_target(repo_root, f), "error": str(exc)}
+            if isinstance(exc, CfnParseError):
+                # `_load_cfn` raises this only when `_looks_like_cfn_text` held, so the file
+                # was read and read as a template. An OSError is the other case: nothing was
+                # obtained, so nothing can be said about what it was.
+                entry["resembles"] = RESEMBLES_TEMPLATE
+            parse_errors.append(entry)
             continue
         files_read += 1
         if tpl is None:

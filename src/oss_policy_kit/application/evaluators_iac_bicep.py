@@ -16,7 +16,7 @@ from oss_policy_kit.application._evidence_rules import (
     files_scanned_list,
     rule_finding_count,
     sample_finding_files,
-    unread_named_sources_outcome,
+    unread_sources_withdrawal,
 )
 from oss_policy_kit.application.evaluators_common import read_scanner_evidence
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
@@ -82,10 +82,10 @@ def _make_bicep_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOut
             # by a second validation round. This scanner parses by regex and never fails on
             # syntax, so its parse errors are reads the OS refused -- a permission, a broken
             # symlink, a path past the length limit. Unread all the same.
-            withheld = unread_named_sources_outcome(
+            withheld = unread_sources_withdrawal(
                 data,
                 technology="Bicep",
-                extension=".bicep",
+                why=("Every .bicep file is Bicep, so this result covers less of the repository than it appears to."),
                 regenerate_cmd="oss-policy-kit scan-bicep",
                 sources=sources,
             )

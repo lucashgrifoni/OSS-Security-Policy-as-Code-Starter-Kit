@@ -17,9 +17,11 @@ from oss_policy_kit.application._evidence_rules import (
     rule_finding_count,
     sample_finding_files,
     unread_sources_note,
+    unread_sources_withdrawal,
 )
 from oss_policy_kit.application.evaluators_common import read_scanner_evidence
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
+from oss_policy_kit.infrastructure.iac.pulumi.scanner import RESEMBLES_PROGRAM
 
 _EVIDENCE_FILENAME = "iac-pulumi.json"
 _SCHEMA_PREFIX = "oss-policy-kit/evidence/iac-pulumi/"
@@ -78,6 +80,18 @@ def _make_pulumi_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOu
             )
         count = rule_finding_count(data, rule_id)
         if count == 0:
+            # A `.py` that does not compile is usually just a broken Python file, and this
+            # scan walks every one of them. One that imports pulumi is a different claim.
+            withheld = unread_sources_withdrawal(
+                data,
+                technology="Pulumi",
+                why=("Each of those still imports pulumi, so it is infrastructure nobody checked."),
+                regenerate_cmd="oss-policy-kit scan-pulumi",
+                sources=sources,
+                only_resembling=RESEMBLES_PROGRAM,
+            )
+            if withheld is not None:
+                return withheld
             return EvalOutcome(
                 status=ControlStatus.PASS,
                 reason=(

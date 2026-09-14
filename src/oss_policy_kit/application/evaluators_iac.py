@@ -31,7 +31,7 @@ from oss_policy_kit.application._evidence_rules import (
     files_scanned_list,
     rule_finding_count,
     sample_finding_files,
-    unread_named_sources_outcome,
+    unread_sources_withdrawal,
 )
 from oss_policy_kit.application.evaluators_common import read_scanner_evidence
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
@@ -120,10 +120,13 @@ def _make_iac_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOutco
             # scanner could not open is Terraform nobody checked, and this control used to
             # report clean over it -- 100%, exit 0, on a repository whose unread file
             # declared a public-read bucket.
-            withheld = unread_named_sources_outcome(
+            withheld = unread_sources_withdrawal(
                 data,
                 technology="Terraform / OpenTofu",
-                extension=".tf",
+                why=(
+                    "Every .tf file is Terraform / OpenTofu, so this result covers less of the "
+                    "repository than it appears to."
+                ),
                 regenerate_cmd="oss-policy-kit scan-iac",
                 sources=sources,
             )

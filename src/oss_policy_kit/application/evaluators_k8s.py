@@ -23,9 +23,11 @@ from oss_policy_kit.application._evidence_rules import (
     rule_finding_count,
     sample_finding_files,
     unread_sources_note,
+    unread_sources_withdrawal,
 )
 from oss_policy_kit.application.evaluators_common import read_scanner_evidence
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
+from oss_policy_kit.infrastructure.k8s.scanner import RESEMBLES_MANIFEST
 
 _EVIDENCE_FILENAME = "k8s-baseline.json"
 _SCHEMA_PREFIX = "oss-policy-kit/evidence/k8s-baseline/"
@@ -86,6 +88,23 @@ def _make_k8s_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOutco
             )
         count = rule_finding_count(data, rule_id)
         if count == 0:
+            # A `**/*.yaml` that would not parse is usually not a manifest at all -- this
+            # scan reaches every YAML file in the tree. One that still carries `apiVersion:`
+            # and `kind:` is, and reporting clean over it left fifteen controls at PASS and
+            # the score at 95% on a pod declaring `privileged: true`.
+            withheld = unread_sources_withdrawal(
+                data,
+                technology="Kubernetes",
+                why=(
+                    "Each of those still carries `apiVersion:` and `kind:` at the start of a "
+                    "line, so it is a manifest nobody checked."
+                ),
+                regenerate_cmd="oss-policy-kit scan-k8s",
+                sources=sources,
+                only_resembling=RESEMBLES_MANIFEST,
+            )
+            if withheld is not None:
+                return withheld
             return EvalOutcome(
                 status=ControlStatus.PASS,
                 reason=(
