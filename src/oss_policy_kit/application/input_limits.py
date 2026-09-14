@@ -24,6 +24,7 @@ adopter use case appears (per the backlog acceptance criteria).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -96,9 +97,23 @@ MAX_CI_CONFIG_BYTES = 1 * 1024 * 1024  # 1 MiB
 #: parses the same document happily on Linux' 8 MB one. A guard that only fires on one
 #: platform is not a guard -- an adopter on Linux got no refusal at all. PyYAML's composer
 #: is pure Python and does hit the limit identically everywhere, which is why only the
-#: JSON path diverged. This check makes the answer the same on every platform, and the
-#: ``RecursionError`` handling stays as the backstop for block-style YAML, whose depth is
-#: expressed by indentation rather than brackets.
+#: JSON path diverged.
+#:
+#: Block-style YAML used to be left to that ``RecursionError``, on the grounds that its depth
+#: is expressed by indentation rather than brackets and so cannot be counted here. That was
+#: wrong twice over. A bracket scan reports depth 1 for a 500-level block document, so the
+#: budget below never applied to it; and ``RecursionError`` is not a backstop, because
+#: whether it fires depends on ``sys.getrecursionlimit()`` -- global state any library may
+#: raise. Measured on a 500-level block document:
+#:
+#:     limit 1000, the default      RecursionError, refused
+#:     limit 1500 and above         accepted, no refusal at all
+#:
+#: ``hypothesis`` raises the limit on import, which made the regression test for this pass
+#: alone and fail in a full suite run. The flaky test was the symptom; the defect was that an
+#: adopter raising the limit lost the guard. :func:`max_block_nesting_depth` measures the
+#: document rather than the interpreter, and :func:`too_deep_reason` takes the larger of the
+#: two measurements.
 MAX_JSON_DEPTH = 200
 
 #: Nodes a user-controlled document may expand to once YAML aliases are resolved.
@@ -203,10 +218,61 @@ def max_json_nesting_depth(raw: str) -> int:
     return max_depth
 
 
-def too_deep_reason(raw: str, *, label: str, max_depth: int = MAX_JSON_DEPTH) -> str | None:
-    """Return a refusal message when *raw* nests past *max_depth*, else ``None``."""
+#: A line opening a block scalar: everything indented under it is text, not structure.
+#: Bounded rather than open-ended because this runs over target-controlled documents.
+_BLOCK_SCALAR_HEADER = re.compile(r"[|>][0-9]{0,3}[+-]?$")
 
-    if max_json_nesting_depth(raw) <= max_depth:
+
+def max_block_nesting_depth(raw: str) -> int:
+    """Max indentation-nesting depth of *raw*, for structure written without brackets.
+
+    YAML expresses nesting by indentation, so :func:`max_json_nesting_depth` reports 1 for a
+    document 500 levels deep and the budget never reached it. This walks a stack of
+    indentation columns instead: a line indented further than the line above opens a level,
+    and a line indented the same or less closes every level at or beyond its own column.
+
+    Two kinds of line are not structure and are skipped, because counting them would refuse
+    honest documents:
+
+    * blank lines and full-line comments;
+    * everything indented under a block scalar header such as ``script: |``, which is text
+      that may legitimately carry any indentation at all.
+
+    The deepest YAML or JSON file in this repository measures 9 against a budget of 200, so
+    the headroom is three orders of magnitude wider than anything real. Tabs are not
+    considered: YAML forbids them as indentation, and a document using them fails to parse
+    for that reason before depth matters.
+    """
+
+    columns: list[int] = []
+    deepest = 0
+    scalar_column: int | None = None
+    for line in raw.splitlines():
+        stripped = line.strip()
+        indent = len(line) - len(line.lstrip(" "))
+        if scalar_column is not None:
+            if not stripped or indent > scalar_column:
+                continue
+            scalar_column = None
+        if not stripped or stripped.startswith("#"):
+            continue
+        while columns and columns[-1] >= indent:
+            columns.pop()
+        columns.append(indent)
+        deepest = max(deepest, len(columns))
+        if _BLOCK_SCALAR_HEADER.search(stripped):
+            scalar_column = indent
+    return deepest
+
+
+def too_deep_reason(raw: str, *, label: str, max_depth: int = MAX_JSON_DEPTH) -> str | None:
+    """Return a refusal message when *raw* nests past *max_depth*, else ``None``.
+
+    The larger of the two measurements decides, because a document may be nested either way
+    and the budget is about how deep it is, not about which syntax expressed it.
+    """
+
+    if max(max_json_nesting_depth(raw), max_block_nesting_depth(raw)) <= max_depth:
         return None
     # Deliberately the same "nested too deeply" wording ``bad_input_detail`` produces for
     # RecursionError: which layer catches the document is an implementation detail, and an
