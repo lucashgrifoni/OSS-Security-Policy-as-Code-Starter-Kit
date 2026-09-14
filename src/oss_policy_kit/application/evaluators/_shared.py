@@ -122,6 +122,43 @@ _REQUIRED_BRANCH_PROTECTION_FLAGS = (
 EVIDENCE_PREVIEW_LIMIT = 5
 
 
+def unchecked_workflows_note(workflows: Any) -> str:
+    """A clause naming the workflows a run could not read, to append to an absence claim.
+
+    ``unread_workflow_degradation`` is the right answer when the claim being withdrawn is a
+    PASS: the control cannot tell, and `manual-review-required` says so. It is the wrong answer
+    when the claim is a FAIL. Withdrawing there takes a failure out of ``--fail-on fail``, and
+    for the adopter who genuinely lacks the control AND has one unreadable workflow, that turns
+    a red pipeline green. ``decode_source`` wrote the rule down while fixing a related bug:
+    turning a red pipeline green is not a smaller mistake than a wrong verdict, it is a larger
+    one.
+
+    So a FAIL keeps its verdict and stops overstating its reach. ``SEC-DEPREV-011`` said "No
+    dependency-review-action detected in workflows" about a repository whose `deps.yml` runs
+    exactly that action and would not parse. The FAIL was the safe answer; the sentence was
+    not true.
+
+    Covers both ways a workflow goes unchecked, which are separate lists for a reason.
+    ``parse_errors`` means the bytes were read and the YAML did not parse, so a structural
+    check saw nothing in it. ``unread_paths`` means nothing was read at all. A control stating
+    an absence is equally wrong about either.
+
+    Returns ``""`` when every workflow was read, which is every ordinary target.
+    """
+
+    names = sorted(
+        {p.name for p, _ in getattr(workflows, "parse_errors", ()) or ()}
+        | {p.name for p in getattr(workflows, "unread_paths", ()) or ()}
+    )
+    if not names:
+        return ""
+    listed = ", ".join(names[:EVIDENCE_PREVIEW_LIMIT])
+    remainder = len(names) - EVIDENCE_PREVIEW_LIMIT
+    if remainder > 0:
+        listed = f"{listed} and {remainder} more"
+    return f" This run could not read {listed}, so the result does not cover {'them' if len(names) > 1 else 'it'}."
+
+
 def unread_workflow_degradation(
     workflows: Any,
     *,
@@ -3182,6 +3219,7 @@ _SHA_PIN_PATTERN = re.compile(r"@[0-9a-f]{40}\b")
 __all__ = [
     "Any",
     "EVIDENCE_PREVIEW_LIMIT",
+    "unchecked_workflows_note",
     "AwsCiAnalysis",
     "AzurePipelineAnalysis",
     "Callable",
