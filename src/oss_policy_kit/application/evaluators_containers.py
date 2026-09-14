@@ -27,7 +27,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from oss_policy_kit.application.evaluators_common import strip_dockerfile_comments
+from oss_policy_kit.application.evaluators_common import DOCKERFILE_SCAN_LIMIT, strip_dockerfile_comments
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 from oss_policy_kit.infrastructure.source_text import decode_source
 
@@ -70,6 +70,21 @@ def _find_dockerfiles(repo: Path) -> list[Path]:
     return find_dockerfiles(repo)
 
 
+def _find_dockerfiles_capped(repo: Path) -> tuple[list[Path], bool]:
+    """As :func:`_find_dockerfiles`, plus whether the cap hid any file from the caller.
+
+    Needed only by CONT-RUNTIME-003. The other controls here pass on finding one good file,
+    so a truncated list can only make them report a failure they would not otherwise report,
+    which is the restrictive direction. CONT-RUNTIME-003 passes on finding no bad file, so a
+    truncated list let it say "no curl|bash across 20 Dockerfile(s)" about a repository with
+    21, where the 21st was the one piping a download into a shell.
+    """
+
+    from oss_policy_kit.application.evaluators_common import find_dockerfiles_capped
+
+    return find_dockerfiles_capped(repo)
+
+
 def _read_text(path: Path) -> str:
     """Read a Dockerfile out of the audited repository.
 
@@ -86,10 +101,22 @@ def _read_text(path: Path) -> str:
     somebody remembered.
     """
 
+    return _read_text_or_none(path) or ""
+
+
+def _read_text_or_none(path: Path) -> str | None:
+    """As :func:`_read_text`, but ``None`` when the file could not be read at all.
+
+    Six of the seven controls here fail when they find no signal, so a failed read leaves them
+    restrictive and "" is the right answer for them. CONT-RUNTIME-003 passes when it finds no
+    signal, so for that one "" and "unreadable" are the same value with opposite meanings: it
+    answered "No curl|bash / wget|sh pattern detected" about a Dockerfile it never opened.
+    """
+
     try:
         return decode_source(path.read_bytes())
     except OSError:
-        return ""
+        return None
 
 
 def _na_no_dockerfile() -> EvalOutcome:
@@ -182,17 +209,46 @@ def eval_cont_runtime_002(ctx: Any) -> EvalOutcome:
 def eval_cont_runtime_003(ctx: Any) -> EvalOutcome:
     """CONT-RUNTIME-003: Dockerfile RUN instructions do not pipe network downloads to a shell."""
 
-    dockerfiles = _find_dockerfiles(ctx.repo_root)
+    dockerfiles, truncated = _find_dockerfiles_capped(ctx.repo_root)
     if not dockerfiles:
         return _na_no_dockerfile()
     offenders: list[Path] = []
+    unread: list[str] = []
     for df in dockerfiles:
         # `strip_dockerfile_comments` already existed for exactly this and was not applied
         # here, so a `# curl … | sh` line explaining what NOT to do failed the control. A
         # commented-out instruction does not run, and this control is about what runs.
-        if _CURL_BASH_RE.search(strip_dockerfile_comments(_read_text(df))):
+        text = _read_text_or_none(df)
+        if text is None:
+            unread.append(f"{df.name}: it could not be read")
+            continue
+        if _CURL_BASH_RE.search(strip_dockerfile_comments(text)):
             offenders.append(df)
     if not offenders:
+        # Only ever in place of the PASS. An offender found anywhere still fails, because
+        # `manual-review-required` satisfies `--fail-on fail` and would clear a real
+        # curl-into-shell out of a pipeline that was correctly red.
+        gaps = list(unread)
+        if truncated:
+            gaps.append(
+                f"the repository holds more than {DOCKERFILE_SCAN_LIMIT} Dockerfiles and only "
+                f"the first {DOCKERFILE_SCAN_LIMIT} were read"
+            )
+        if gaps:
+            return EvalOutcome(
+                status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+                reason=(
+                    "Cannot confirm no Dockerfile pipes a download into a shell. None was found "
+                    "in what was read, but " + "; ".join(gaps[:3]) + (" (and more)" if len(gaps) > 3 else "") + "."
+                ),
+                remediation=(
+                    "Make the listed file(s) readable, or reduce the number of Dockerfiles, then "
+                    "re-run. Until then this control claims nothing either way; run with "
+                    "'--fail-on degraded' to treat it as a failure."
+                ),
+                evidence_sources=[str(p.resolve()) for p in dockerfiles],
+                confidence="low",
+            )
         return EvalOutcome(
             status=ControlStatus.PASS,
             reason=f"No curl|bash / wget|sh pattern detected across {len(dockerfiles)} Dockerfile(s).",
