@@ -16,7 +16,7 @@ from oss_policy_kit.application._evidence_rules import (
     files_scanned_list,
     rule_finding_count,
     sample_finding_files,
-    unread_sources_note,
+    unread_named_sources_outcome,
 )
 from oss_policy_kit.application.evaluators_common import read_scanner_evidence
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
@@ -78,12 +78,22 @@ def _make_bicep_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOut
             )
         count = rule_finding_count(data, rule_id)
         if count == 0:
+            # Same shape as the Terraform family, found by sweeping the siblings rather than
+            # by a second validation round. This scanner parses by regex and never fails on
+            # syntax, so its parse errors are reads the OS refused -- a permission, a broken
+            # symlink, a path past the length limit. Unread all the same.
+            withheld = unread_named_sources_outcome(
+                data,
+                technology="Bicep",
+                extension=".bicep",
+                regenerate_cmd="oss-policy-kit scan-bicep",
+                sources=sources,
+            )
+            if withheld is not None:
+                return withheld
             return EvalOutcome(
                 status=ControlStatus.PASS,
-                reason=(
-                    f"No {rule_id} findings detected across {len(files_scanned)} scanned Bicep file(s)."
-                    f"{unread_sources_note(data)}"
-                ),
+                reason=(f"No {rule_id} findings detected across {len(files_scanned)} scanned Bicep file(s)."),
                 remediation="Re-scan after Bicep changes to keep evidence fresh.",
                 evidence_sources=sources,
                 confidence="high",

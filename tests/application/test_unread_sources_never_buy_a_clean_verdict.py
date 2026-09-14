@@ -32,9 +32,13 @@ What the kit does now, and what every case below pins down:
 - a mis-encoded source is DECODED and scanned; its violations are found and reported as FAIL,
   which is a better answer than any amount of honest uncertainty
 - "could not read this" is reserved for bytes no legal encoding explains
-- and only when the scan read NOTHING at all does a control withdraw its verdict, because a
-  scanner whose candidate glob is `**/*.py` or `**/*.yaml` meets far more files that are not
-  sources of its technology than ones that are
+- a scanner whose candidate glob is `**/*.py` or `**/*.yaml` meets far more files that are not
+  sources of its technology than ones that are, so there a control withdraws its verdict only
+  when the scan read NOTHING at all
+- but `scan-iac` globs `**/*.tf` and `scan-bicep` globs `**/*.bicep`, where every candidate IS
+  the technology and one unread file is unchecked infrastructure. Twelve Terraform controls
+  scored 100% with `exit 0` over a `.tf` holding `acl = "public-read"` that the parser could not
+  read; those two families now withdraw the clean verdict instead
 
 Everything below writes a real file, runs the real `scan-*` command in a subprocess, and reads
 the evidence that command actually wrote. A test that builds its own input tests the
@@ -111,6 +115,14 @@ class Family:
         return self.name
 
 
+#: Families whose candidate glob IS their technology's file extension. For these, "a candidate
+#: did not parse" and "some of this technology went unchecked" are the same sentence, so a clean
+#: verdict over the rest is withdrawn. For the other three -- `**/*.py`, `**/*.yaml`, `**/*.json`,
+#: `**/*.template` -- most candidates are not sources of the technology at all, and withdrawing
+#: there is the false positive that made an earlier attempt worse than the bug.
+_EXTENSION_NAMES_THE_TECHNOLOGY = frozenset({"terraform", "bicep"})
+
+
 FAMILIES = (
     Family(
         "terraform",
@@ -163,6 +175,9 @@ FAMILIES = (
         "k8s.scanner",
     ),
 )
+
+BROAD_GLOB_FAMILIES = tuple(f for f in FAMILIES if f.name not in _EXTENSION_NAMES_THE_TECHNOLOGY)
+NAMED_EXTENSION_FAMILIES = tuple(f for f in FAMILIES if f.name in _EXTENSION_NAMES_THE_TECHNOLOGY)
 
 
 #: A valid file of the right EXTENSION that is not a source of the technology -- exactly what a
@@ -288,11 +303,21 @@ def test_a_file_the_os_will_not_open_is_not_a_repository_without_the_technology(
 ) -> None:
     """The one case that genuinely cannot be read: every control must say it could not tell.
 
-    Note what is NOT here: a file of arbitrary bytes with a source extension. That decodes
-    lossily, parses to nothing, and is reported `not-applicable` -- which is right, and is what
-    the kit has always said. A binary file named `main.tf` is not Terraform the kit failed to
-    read; it is not Terraform. The guard is for a file that exists, is a candidate, and cannot
-    be obtained at all.
+    Note what is NOT here: a file of arbitrary bytes with a source extension. That is a
+    different input, and it does not behave the same way in every family. Measured on
+    `bytes(range(256)) * 4`:
+
+        terraform  files_scanned=['ordinary.tf']                        files_failed=['unreadable.tf']
+        bicep      files_scanned=['ordinary.bicep','unreadable.bicep']  files_failed=[]
+
+    So for Bicep -- a regex pass over a lossy decode -- it parses to nothing and is reported
+    `not-applicable`, which is right: a binary file named `main.bicep` is not Bicep the kit
+    failed to read. For Terraform, python-hcl2 raises and the file becomes a parse error, which
+    is also right, and is what
+    `test_an_unread_file_of_the_technology_takes_the_clean_verdict_with_it` now covers.
+
+    This guard is the narrower case both scanners agree on: a file that exists, is a candidate,
+    and cannot be obtained at all.
     """
 
     real_read_bytes = Path.read_bytes
@@ -320,7 +345,7 @@ def test_a_file_the_os_will_not_open_is_not_a_repository_without_the_technology(
         )
 
 
-@pytest.mark.parametrize("family", FAMILIES, ids=str)
+@pytest.mark.parametrize("family", BROAD_GLOB_FAMILIES, ids=str)
 def test_one_unreadable_file_does_not_withdraw_verdicts_from_a_repo_that_read_others(
     tmp_path: Path, family: Family
 ) -> None:
@@ -330,6 +355,11 @@ def test_one_unreadable_file_does_not_withdraw_verdicts_from_a_repo_that_read_ot
     keep answering `not-applicable` -- not degrade a whole control family. Scanners whose
     candidate glob is `**/*.py` or `**/*.yaml` meet far more files that are not sources of
     their technology than ones that are.
+
+    Parametrized over those three only. This ran over all five and asserted, in its own failure
+    message, "a repository with no terraform at all" about a fixture holding two `.tf` files --
+    a claim the docstring above never made, since it names `**/*.py` and `**/*.yaml` and nothing
+    else. The two families whose extension IS their technology are the test below.
     """
 
     suffix = Path(family.filename).suffix
@@ -342,6 +372,61 @@ def test_one_unreadable_file_does_not_withdraw_verdicts_from_a_repo_that_read_ot
         f"{family.name}: a repository with no {family.name} at all had {states[ControlStatus.MANUAL_REVIEW_REQUIRED]} "
         f"control(s) withdrawn because ONE unrelated file could not be read ({dict(states)})."
     )
+
+
+@pytest.mark.parametrize("family", NAMED_EXTENSION_FAMILIES, ids=str)
+def test_an_unread_file_of_the_technology_takes_the_clean_verdict_with_it(
+    tmp_path: Path, family: Family, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other half, and the defect a clean-room round found: 100% over a bucket nobody read.
+
+    Two Terraform files, one of them a committed merge conflict declaring `acl = "public-read"`:
+
+        Summary: pass=13 | Controls: 13
+        weighted_score        {"earned": 25, "possible": 25, "percent": 100.0}
+        operational_warnings  []
+        exit 0
+
+    The only trace was a clause inside each control's free-text message, which the table view
+    truncates and no machine consumer reads.
+
+    Every `.tf` is Terraform and every `.bicep` is Bicep, so here there is no innocuous candidate
+    to protect: an unread one is unchecked infrastructure, and a clean result over the rest
+    covers less of the repository than it appears to. The verdict goes to
+    `manual-review-required` (ADR-045), never to FAIL -- the kit does not know what was in the
+    file it could not open.
+
+    Refusal at the OS rather than binary bytes, because that is the one input BOTH scanners
+    record. `bytes(range(256)) * 4` reaches `parse_errors` through python-hcl2 but not through
+    the Bicep scanner, which is a regex pass over a lossy decode and finds no resources in it.
+    """
+
+    suffix = Path(family.filename).suffix
+    (tmp_path / f"ordinary{suffix}").write_text(_INNOCUOUS[family.name], encoding="utf-8")
+    (tmp_path / f"unreadable{suffix}").write_text(_INNOCUOUS[family.name], encoding="utf-8")
+
+    real_read_bytes = Path.read_bytes
+
+    def _refuse(self: Path) -> bytes:
+        if self.name.startswith("unreadable"):
+            raise PermissionError(13, "Access is denied")
+        return real_read_bytes(self)
+
+    monkeypatch.setattr(Path, "read_bytes", _refuse)
+    data = _scan(tmp_path, family)
+    monkeypatch.undo()
+
+    assert data["files_scanned"], f"{family.name}: the readable file was not scanned, so this proves nothing"
+    assert data["files_failed"], f"{family.name}: the refused file left no trace to act on"
+
+    for control_id, outcome in _verdicts(tmp_path, family).items():
+        assert outcome.status is ControlStatus.MANUAL_REVIEW_REQUIRED, (
+            f"{family.name}/{control_id} answered {outcome.status.value} over a {suffix} file it "
+            f"could not open: {outcome.reason}"
+        )
+        assert f"unreadable{suffix}" in outcome.reason, (
+            f"{family.name}/{control_id} does not name the unchecked file: {outcome.reason}"
+        )
 
 
 @pytest.mark.parametrize("family", FAMILIES, ids=str)

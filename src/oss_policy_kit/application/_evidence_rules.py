@@ -95,6 +95,77 @@ def unread_sources_note(data: dict[str, Any]) -> str:
     return f" The scanner could not parse {_phrase(shown, total)}, which this result does not cover."
 
 
+def unread_named_sources_outcome(
+    data: dict[str, Any],
+    *,
+    technology: str,
+    extension: str,
+    regenerate_cmd: str,
+    sources: list[str],
+) -> EvalOutcome | None:
+    """Withdraw a CLEAN verdict when a file that *is* this technology was never read.
+
+    ADR-045 in the one place it had not reached: a control that cannot read its evidence
+    answers ``manual-review-required``. Here the evidence is partial rather than absent, and
+    partial was being reported as complete -- twelve Terraform controls at 100% over a
+    ``.tf`` the scanner could not open, which declared ``acl = "public-read"``.
+
+    The message those controls printed was true. "No IAC-TF-001 findings detected across 1
+    scanned Terraform source" is exactly what happened, and it never claimed there was only
+    one source. Truth is not the bar for a security verdict: the question ``IAC-TF-001`` is
+    asked is whether this repository exposes object storage publicly, and it answered that
+    over the file it could read.
+
+    **Only for scanners whose glob names their technology.** A guard shaped like this one was
+    written before and was worse than the bug -- it withdrew every Kubernetes control on the
+    kit's own repository, because ``scan-k8s`` reaches every ``**/*.yaml`` in the tree and
+    hits scratch files plus a fixture that is malformed on purpose. It fired on correct
+    content, and a guard that fires on correct content is one somebody switches off. The
+    difference is the candidate set:
+
+    ==============  ==========================================  ==========================
+    scanner         glob                                        an unread candidate is
+    ==============  ==========================================  ==========================
+    ``scan-iac``    ``**/*.tf``                                 unchecked Terraform
+    ``scan-bicep``  ``**/*.bicep``                              unchecked Bicep
+    ``scan-cfn``    ``**/*.yaml`` ``.yml`` ``.json`` ``.template``  any file at all
+    ``scan-k8s``    ``**/*.yaml`` ``**/*.yml``                  any file at all
+    ``scan-pulumi`` ``**/*.py``                                 any file at all
+    ==============  ==========================================  ==========================
+
+    The bottom three keep :func:`unread_sources_note`, which states the scope without
+    touching the verdict.
+
+    Returns ``None`` when every candidate was read, which is every ordinary repository -- so
+    a family that adopts this keeps the verdict it reaches today.
+
+    Callers put this in the ZERO-FINDINGS branch only. A rule with a finding is unaffected on
+    purpose: unread sources can only ADD violations, so they never make an existing ``FAIL``
+    less true, and replacing one with ``manual-review-required`` would turn a red pipeline
+    green -- that state does not trip ``--fail-on fail``.
+    """
+
+    shown, total = unread_sources(data)
+    if not shown:
+        return None
+
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            f"Nothing was found in the {technology} files that parsed, but {total} did not parse "
+            f"({_phrase(shown, total)}). Every {extension} file is {technology}, so this result "
+            "covers less of the repository than it appears to."
+        ),
+        remediation=(
+            f"Fix the listed file(s) so they parse -- a committed merge-conflict marker, a syntax "
+            f"error, or a non-UTF-8 encoding are the usual causes -- and re-run `{regenerate_cmd}`. "
+            "Use `--fail-on degraded` to make this stop a pipeline."
+        ),
+        evidence_sources=sources,
+        confidence="low",
+    )
+
+
 def absent_technology_outcome(
     data: dict[str, Any],
     *,

@@ -31,7 +31,7 @@ from oss_policy_kit.application._evidence_rules import (
     files_scanned_list,
     rule_finding_count,
     sample_finding_files,
-    unread_sources_note,
+    unread_named_sources_outcome,
 )
 from oss_policy_kit.application.evaluators_common import read_scanner_evidence
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
@@ -116,12 +116,22 @@ def _make_iac_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOutco
             )
         count = rule_finding_count(data, rule_id)
         if count == 0:
+            # Zero findings over PART of the sources is not zero findings. Every `.tf` the
+            # scanner could not open is Terraform nobody checked, and this control used to
+            # report clean over it -- 100%, exit 0, on a repository whose unread file
+            # declared a public-read bucket.
+            withheld = unread_named_sources_outcome(
+                data,
+                technology="Terraform / OpenTofu",
+                extension=".tf",
+                regenerate_cmd="oss-policy-kit scan-iac",
+                sources=sources,
+            )
+            if withheld is not None:
+                return withheld
             return EvalOutcome(
                 status=ControlStatus.PASS,
-                reason=(
-                    f"No {rule_id} findings detected across {len(files_scanned)} scanned Terraform source(s)."
-                    f"{unread_sources_note(data)}"
-                ),
+                reason=(f"No {rule_id} findings detected across {len(files_scanned)} scanned Terraform source(s)."),
                 remediation="Re-scan after Terraform changes to keep evidence fresh.",
                 evidence_sources=sources,
                 confidence="high",
