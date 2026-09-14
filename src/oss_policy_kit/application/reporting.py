@@ -1280,6 +1280,10 @@ def _drift_report_dict(report: DriftReport) -> dict[str, Any]:
         "after_kit_version": report.after_kit_version,
         "regressions": [_control_delta_dict(x) for x in report.regressions],
         "improvements": [_control_delta_dict(x) for x in report.improvements],
+        # Additive field. Every status change that is neither a regression nor an improvement
+        # used to be absent from this payload, so a consumer reading `has_regressions` had no
+        # way to learn a control had moved at all.
+        "other_changes": [_control_delta_dict(x) for x in report.other_changes],
         "new_controls": list(report.new_controls),
         "removed_controls": list(report.removed_controls),
         "expired_waivers": list(report.expired_waivers),
@@ -1336,6 +1340,7 @@ def _drift_markdown(report: DriftReport) -> str:
             f"- **Kit versions**: {report.before_kit_version} → {report.after_kit_version}",
             f"- **Regressions**: {len(report.regressions)}",
             f"- **Improvements**: {len(report.improvements)}",
+            f"- **Other status changes**: {len(report.other_changes)}",
             "",
             "## Regressions",
             "",
@@ -1348,6 +1353,19 @@ def _drift_markdown(report: DriftReport) -> str:
     lines.extend(_drift_row(d) for d in report.regressions)
     lines.extend(["", "## Improvements", "", "| Control | Before | After |", "| --- | --- | --- |"])
     lines.extend(_drift_row(d) for d in report.improvements)
+    if report.other_changes:
+        lines.extend(
+            [
+                "",
+                "## Other status changes",
+                "",
+                "These moved without crossing the pass/fail line, so they do not affect the gate.",
+                "",
+                "| Control | Before | After |",
+                "| --- | --- | --- |",
+            ]
+        )
+        lines.extend(_drift_row(d) for d in report.other_changes)
     if report.new_controls:
         lines.extend(["", "## New controls in after", ""])
         lines.extend(f"- `{c}`" for c in report.new_controls)
@@ -1380,7 +1398,7 @@ def _drift_table(report: DriftReport, color: bool) -> str:
 
     buf = StringIO()
     console = Console(file=buf, width=120, force_terminal=color, color_system=("standard" if color else None))
-    table = Table(title="Posture drift — regressions (red) and improvements (green)")
+    table = Table(title="Posture drift — regressions (red), improvements (green), other changes (yellow)")
     table.add_column("Kind", style="bold")
     table.add_column("Control")
     table.add_column("Before")
@@ -1399,7 +1417,16 @@ def _drift_table(report: DriftReport, color: bool) -> str:
             markup_safe(d.before_status),
             markup_safe(d.after_status),
         )
-    if not report.regressions and not report.improvements:
+    for d in report.other_changes:
+        table.add_row(
+            "[yellow]changed[/yellow]",
+            markup_safe(d.control_id),
+            markup_safe(d.before_status),
+            markup_safe(d.after_status),
+        )
+    # Only now can this sentence be true. It used to print whenever nothing had crossed the
+    # pass/fail line, over a report where controls had changed state.
+    if not report.regressions and not report.improvements and not report.other_changes:
         table.add_row("—", "(no status changes on shared controls)", "", "")
     console.print(table)
     if report.new_controls:
