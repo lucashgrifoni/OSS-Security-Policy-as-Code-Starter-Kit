@@ -13,6 +13,7 @@ from oss_policy_kit.cli.terminal_ui import (
     max_gap_line_chars,
     print_interactive_stdout_summary,
     terminal_width,
+    write_to_stdout,
 )
 from oss_policy_kit.domain.models import ControlResult, ControlStatus, ExecutionReport
 
@@ -156,7 +157,7 @@ def _print_stdout_summary_plain(report: ExecutionReport) -> None:
             path_w = max(12, tw - 4)
             lines.extend(f"    {pl}" for pl in textwrap.wrap(path_rest, width=path_w, break_long_words=True))
 
-    sys.stdout.write("\n".join(lines) + "\n")
+    write_to_stdout("\n".join(lines) + "\n")
 
 
 def print_stdout_summary(
@@ -191,7 +192,7 @@ def print_stdout_summary(
             payload["weighted_score"] = {"earned": ws.earned, "possible": ws.possible, "percent": ws.percent}
         if report.scorecard_supplemental is not None:
             payload["scorecard_supplemental"] = report.scorecard_supplemental
-        sys.stdout.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        write_to_stdout(json.dumps(payload, ensure_ascii=False) + "\n")
         return
 
     if human_tty_stdout():
@@ -220,7 +221,7 @@ def print_stdout_summary(
                 wlines.append(path_prefix.rstrip())
                 path_w = max(12, tw - 4)
                 wlines.extend(f"    {pl}" for pl in textwrap.wrap(path_rest, width=path_w, break_long_words=True))
-            sys.stdout.write("\n" + "\n".join(wlines) + "\n")
+            write_to_stdout("\n" + "\n".join(wlines) + "\n")
         return
 
     _print_stdout_summary_plain(report)

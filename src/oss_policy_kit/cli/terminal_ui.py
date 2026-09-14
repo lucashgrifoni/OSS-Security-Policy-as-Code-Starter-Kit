@@ -634,6 +634,39 @@ def sanitize_cli_display_text(text: str) -> str:
     )
 
 
+def write_to_stdout(text: str) -> bool:
+    """Write *text* to stdout. Return False when stdout is gone, rather than raising.
+
+    A closed or absent stdout is the operator's choice -- `>&-`, a closed pipe, a service
+    manager that gave the process no stdout at all -- and on Windows it arrives as
+    ``sys.stdout is None``. `evaluate` wrote both reports, said so on stderr, and then exited
+    3 with ``'NoneType' object has no attribute 'write'``: a successful run reported under the
+    code documented as "always a bug in the kit".
+
+    The summary on stdout is a convenience. The reports on disk are the product, and they were
+    already written when this fails, so the exit code must stay whatever the evaluation decided.
+
+    ``UnicodeEncodeError`` keeps its existing behaviour of retrying through the byte buffer,
+    because that one is a console codepage that cannot render a symbol, not a missing stream.
+    """
+
+    stream = sys.stdout
+    if stream is None:
+        return False
+    try:
+        stream.write(text)
+    except UnicodeEncodeError:
+        buf = getattr(stream, "buffer", None)
+        if buf is None:
+            raise
+        buf.write(text.encode("utf-8", errors="replace"))
+        buf.flush()
+    except (BrokenPipeError, ValueError, OSError):
+        # ValueError is "I/O operation on closed file"; OSError covers EPIPE and EBADF.
+        return False
+    return True
+
+
 def human_tty_stdout() -> bool:
     """True when stdout is an interactive TTY (human Rich layers may render)."""
 
