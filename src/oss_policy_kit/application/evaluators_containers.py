@@ -122,8 +122,8 @@ def _read_text_or_none(path: Path) -> str | None:
 def _na_no_dockerfile() -> EvalOutcome:
     return EvalOutcome(
         status=ControlStatus.NOT_APPLICABLE,
-        reason="No Dockerfile detected in the repository.",
-        remediation="Not applicable until a Dockerfile is added.",
+        reason="No Dockerfile or Containerfile detected in the repository.",
+        remediation="Not applicable until a Dockerfile or Containerfile is added.",
         evidence_sources=[],
         confidence="high",
     )

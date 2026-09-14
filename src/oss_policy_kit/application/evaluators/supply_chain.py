@@ -107,8 +107,8 @@ def eval_cont_image_001(ctx: EvalContext) -> EvalOutcome:
     if not dockerfiles:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No Dockerfile detected at repository root or common paths.",
-            remediation="Not applicable until a Dockerfile is added to the repository.",
+            reason="No Dockerfile or Containerfile detected at repository root or common paths.",
+            remediation="Not applicable until a Dockerfile or Containerfile is added to the repository.",
             evidence_sources=[],
             confidence="high",
         )
@@ -166,8 +166,8 @@ def eval_cont_image_002(ctx: EvalContext) -> EvalOutcome:
     if not dockerfiles:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
-            reason="No Dockerfile detected at repository root or common paths.",
-            remediation="Not applicable until a Dockerfile is added to the repository.",
+            reason="No Dockerfile or Containerfile detected at repository root or common paths.",
+            remediation="Not applicable until a Dockerfile or Containerfile is added to the repository.",
             evidence_sources=[],
             confidence="high",
         )
@@ -913,37 +913,38 @@ def eval_slsa_src_008(ctx: EvalContext) -> EvalOutcome:
     return eval_audit_stream_060(ctx)
 
 
-def _discover_dockerfiles(repo_root: Path) -> list[Path]:
-    """Return root Dockerfile/Containerfile plus any nested Dockerfiles (excluding .git)."""
+def _final_stage_bases(dockerfiles: list[Path]) -> tuple[list[tuple[str, str]], list[str]]:
+    """``([(file, final FROM ref)], [files that yielded no FROM])`` -- one entry per build file.
 
-    dockerfiles: list[Path] = []
-    for name in ("Dockerfile", "Containerfile"):
-        p = repo_root / name
-        if p.is_file():
-            dockerfiles.append(p)
-    with contextlib.suppress(OSError):
-        for p in sorted(repo_root.glob("**/Dockerfile")):
-            if p not in dockerfiles and ".git" not in _parts_within_repo(p, repo_root):
-                dockerfiles.append(p)
-    return dockerfiles
+    The final ``FROM`` is the image that ships. The previous version collected every ``FROM``
+    line across every file into one list and asked whether ANY of them looked distroless, so a
+    throwaway ``FROM scratch`` build stage passed a build whose runtime image is `alpine:3.19`.
+    It even computed the final line into a local and then did not use it for the decision.
 
+    Reads through `_DOCKER_FROM_RE`, which tolerates lowercase, indentation and the flags a
+    multi-arch build puts between `FROM` and the image -- the same spellings that made
+    CONT-IMAGE-001 answer PASS about unpinned images.
+    """
 
-def _collect_dockerfile_from_lines(dockerfiles: list[Path]) -> list[str]:
-    """Return all lowercased ``FROM ...`` lines across the given Dockerfiles."""
-
-    from_lines: list[str] = []
-    for p in dockerfiles:
-        with contextlib.suppress(OSError):
-            for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
-                stripped = line.strip().lower()
-                if stripped.startswith("from "):
-                    from_lines.append(stripped)
-    return from_lines
+    finals: list[tuple[str, str]] = []
+    unread: list[str] = []
+    for path in dockerfiles:
+        try:
+            content = decode_source(path.read_bytes())
+        except OSError as exc:
+            unread.append(f"{path.name}: {bad_input_detail(exc)}")
+            continue
+        refs = _DOCKER_FROM_RE.findall(content)
+        if not refs:
+            unread.append(f"{path.name}: no FROM instruction was found in it")
+            continue
+        finals.append((path.name, refs[-1].lower()))
+    return finals, unread
 
 
 def eval_cont_distroless_001(ctx: EvalContext) -> EvalOutcome:
     """CONT-DISTROLESS-001: container base image is distroless / minimal."""
-    dockerfiles = _discover_dockerfiles(ctx.repo_root)
+    dockerfiles, truncated = _find_dockerfiles_capped(ctx.repo_root)
     if not dockerfiles:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
@@ -952,28 +953,49 @@ def eval_cont_distroless_001(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[],
             confidence="high",
         )
-    from_lines = _collect_dockerfile_from_lines(dockerfiles)
-    if not from_lines:
+    finals, unread = _final_stage_bases(dockerfiles)
+    if not finals:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-            reason=(f"{len(dockerfiles)} Dockerfile(s) present but no FROM line parsed in any of them."),
-            remediation="Ensure the Dockerfile declares a base image.",
+            reason=(f"{len(dockerfiles)} build file(s) present but no FROM instruction was read in any of them."),
+            remediation="Ensure the Dockerfile or Containerfile declares a base image.",
             evidence_sources=preview_evidence_paths(dockerfiles),
             confidence="low",
         )
-    final_from = from_lines[-1]
-    if any(m in line for line in from_lines for m in _DISTROLESS_MARKERS):
+    # The final stage is the image that ships. Asking whether ANY stage looked minimal passed a
+    # build whose runtime image is alpine because an earlier throwaway stage said `FROM scratch`.
+    not_minimal = [(name, ref) for name, ref in finals if not any(m in ref for m in _DISTROLESS_MARKERS)]
+    if not_minimal:
+        sample = "; ".join(f"{name}: {ref[:48]}" for name, ref in not_minimal[:3])
         return EvalOutcome(
-            status=ControlStatus.PASS,
-            reason="Container build uses a distroless / minimal base image (Chainguard, Wolfi, distroless, scratch).",
-            remediation="Keep using minimal bases; rebuild regularly to inherit upstream CVE fixes.",
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=f"Final base image does not appear distroless/minimal ({sample}).",
+            remediation="Consider a distroless / Chainguard / Wolfi / scratch base to reduce attack surface.",
             evidence_sources=[str(p.resolve()) for p in dockerfiles[:2]],
-            confidence="medium",
+            confidence="low",
+        )
+    clause = _dockerfile_gap_clause(unread, truncated=truncated)
+    if clause:
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                "Cannot confirm every build file ends on a distroless base. Every final stage that "
+                f"was read is minimal, but {clause}."
+            ),
+            remediation=(
+                "Make the listed file(s) readable, then re-run. Until then this control claims "
+                "nothing either way; run with '--fail-on degraded' to treat it as a failure."
+            ),
+            evidence_sources=[str(p.resolve()) for p in dockerfiles],
+            confidence="low",
         )
     return EvalOutcome(
-        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
-        reason=f"Final base image does not appear distroless/minimal ({final_from[:80]}).",
-        remediation="Consider a distroless / Chainguard / Wolfi / scratch base to reduce attack surface.",
+        status=ControlStatus.PASS,
+        reason=(
+            f"Every build file ends on a distroless / minimal base image "
+            f"({len(finals)} checked: Chainguard, Wolfi, distroless or scratch)."
+        ),
+        remediation="Keep using minimal bases; rebuild regularly to inherit upstream CVE fixes.",
         evidence_sources=[str(p.resolve()) for p in dockerfiles[:2]],
-        confidence="low",
+        confidence="medium",
     )

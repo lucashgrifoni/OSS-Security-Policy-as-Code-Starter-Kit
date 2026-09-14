@@ -232,12 +232,27 @@ def test_distroless_unparsed_from_names_every_dockerfile(tmp_path: Path) -> None
     outcome = sc.eval_cont_distroless_001(_ctx(tmp_path))
 
     assert outcome.status == ControlStatus.MANUAL_REVIEW_REQUIRED
-    assert "4 Dockerfile(s) present" in outcome.reason
+    # "build file(s)", not "Dockerfile(s)": a Containerfile is one too, and discovery finds it.
+    assert "4 build file(s) present" in outcome.reason
     assert len(outcome.evidence_sources) == 4
     assert len(set(outcome.evidence_sources)) == 4
 
 
 def test_discover_dockerfiles_nested(tmp_path: Path) -> None:
+    """CONT-DISTROLESS-001 had a private discovery function; now every control shares one.
+
+    Two functions for one job is how they drifted apart. The private one knew about
+    `Containerfile` and the shared one did not, so ten controls answered "No Dockerfile
+    detected" at confidence high about a repository whose only build file was one. It was also
+    narrower the other way -- root names plus nested `**/Dockerfile` only -- so it missed
+    `Dockerfile.svc01` and `api.Dockerfile`. The shared function is a superset of both.
+    """
+
     _write(tmp_path, "svc/Dockerfile", "FROM alpine\n")
-    found = sc._discover_dockerfiles(tmp_path)
-    assert any(p.name == "Dockerfile" for p in found)
+    _write(tmp_path, "edge/Containerfile", "FROM alpine\n")
+    _write(tmp_path, "Dockerfile.svc01", "FROM alpine\n")
+    _write(tmp_path, "api.Dockerfile", "FROM alpine\n")
+
+    found = {p.name for p in sc._find_dockerfiles(tmp_path)}
+
+    assert found == {"Dockerfile", "Containerfile", "Dockerfile.svc01", "api.Dockerfile"}

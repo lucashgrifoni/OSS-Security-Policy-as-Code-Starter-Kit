@@ -232,7 +232,14 @@ def load_packaged_schema(filename: str) -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(raw))
 
 
-_DOCKERFILE_NAME_RE = re.compile(r"^[Dd]ockerfile(?:[.\-][\w.\-]+)?$|^[\w.\-]+\.[Dd]ockerfile$")
+#: `Containerfile` is the OCI-neutral spelling Podman and Buildah write by default, and the
+#: control catalogue already declares `**/Containerfile` as an applicability trigger. Discovery
+#: did not look for it, so ten controls answered "No Dockerfile detected" at confidence high
+#: about a repository whose only build file was one, and the gate went green over an unpinned
+#: base image.
+_DOCKERFILE_NAME_RE = re.compile(
+    r"^(?:[Dd]ocker|[Cc]ontainer)file(?:[.\-][\w.\-]+)?$|^[\w.\-]+\.(?:[Dd]ocker|[Cc]ontainer)file$"
+)
 _DOCKERFILE_NON_DOCKER_EXTS = frozenset(
     {
         "bak",
@@ -255,10 +262,11 @@ _DOCKERFILE_NON_DOCKER_EXTS = frozenset(
 
 
 def _looks_like_dockerfile(name: str) -> bool:
-    """Return True when *name* matches a Dockerfile variant we should evaluate.
+    """Return True when *name* matches a container build file we should evaluate.
 
     Accepts ``Dockerfile``, ``dockerfile``, ``Dockerfile.<suffix>``,
-    ``Dockerfile-<suffix>``, ``<name>.Dockerfile`` and ``<name>.dockerfile``
+    ``Dockerfile-<suffix>``, ``<name>.Dockerfile``, ``<name>.dockerfile``, and every one of
+    those spelled ``Containerfile`` instead
     while excluding obvious docs/lockfile siblings such as ``Dockerfile.md``
     or ``Dockerfile.example`` to avoid false negatives caused by parsing
     non-Docker content.
@@ -375,7 +383,16 @@ def _iter_accepted_dockerfiles(repo: Path) -> Iterator[Path]:
 
     seen: set[Path] = set()
     try:
-        for pattern in ("Dockerfile*", "dockerfile*", "*.Dockerfile", "*.dockerfile"):
+        for pattern in (
+            "Dockerfile*",
+            "dockerfile*",
+            "*.Dockerfile",
+            "*.dockerfile",
+            "Containerfile*",
+            "containerfile*",
+            "*.Containerfile",
+            "*.containerfile",
+        ):
             for candidate in sorted(repo.rglob(pattern)):
                 if _accept_dockerfile_candidate(candidate, seen):
                     yield candidate
