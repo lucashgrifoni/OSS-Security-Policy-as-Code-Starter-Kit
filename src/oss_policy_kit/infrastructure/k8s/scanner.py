@@ -122,6 +122,10 @@ class K8sScanOutcome:
     status: str
     tool_version: str | None
     files_scanned: list[str] = field(default_factory=list)
+    #: Candidate files parsed successfully, whether or not they held a manifest. `files_scanned`
+    #: answers "is there Kubernetes here"; this answers "did I manage to look", and conflating
+    #: the two is what let a repository with no Kubernetes report sixteen clean controls.
+    files_read: int = 0
     helm_templates_skipped: list[str] = field(default_factory=list)
     parse_errors: list[dict[str, str]] = field(default_factory=list)
     findings: list[K8sFinding] = field(default_factory=list)
@@ -197,23 +201,66 @@ def _manifest_from_doc(doc: Any, path: Path) -> K8sManifest | None:
 def _files_actually_scanned(
     repo_root: Path,
     files: list[Path],
+    manifests: list[K8sManifest],
+    helm_templates_skipped: list[str],
     parse_errors: list[dict[str, str]],
 ) -> list[str]:
-    """The files this scan actually read -- discovery minus the ones that failed to parse.
+    """The files this scan found a Kubernetes manifest in.
 
-    ``files_scanned`` used to be the DISCOVERED list, which made it a count of candidates
-    rather than a record of work done. Downstream that difference decides verdicts: a control
-    reads a non-empty ``files_scanned`` as "there was something here and I looked at it", so a
-    repository whose only manifest was saved as UTF-16 reported 16 clean Kubernetes controls
-    over a pod declaring `privileged: true`. Every other scanner in the kit builds this list
-    from what it parsed; this one now agrees with them.
+    ``files_scanned`` is not a count of files opened. Downstream a non-empty entry here with
+    no findings is read as "there was Kubernetes here and it was clean", so anything in this
+    list is a claim that the scanner examined a manifest.
 
-    Helm templates skipped as unrendered stay IN the list: they were read successfully and
-    deliberately not evaluated, which is a different thing from unreadable.
+    This has now been wrong twice, in two different ways, and the second was much larger than
+    the first. It started as the DISCOVERED list, so a manifest saved as UTF-16 that failed to
+    parse still counted, and sixteen controls came back clean over a pod declaring
+    ``privileged: true``. That round removed parse failures and stopped there -- which left
+    every file that parses perfectly and simply is not a manifest. Measured against the built
+    wheel on a repository whose only YAML is the workflow ``init --with-workflow`` writes:
+
+        scan-k8s   files_scanned = [".github/workflows/ci.yml"], findings = []
+        evaluate   kubernetes-baseline-1 -> 17 of 17 PASS, --fail-on fail exit 0
+
+    Seventeen controls stating a Kubernetes posture for a repository with no Kubernetes.
+    Workflows, compose files and CI configs are the common case, not the corner one.
+
+    The rule was never missing: :func:`_looks_like_kubernetes` requires ``apiVersion`` and
+    ``kind``, the same shape ``scan-cfn`` requires of a template before it claims to have read
+    one. The scanner applied it and its record of work did not.
+
+    Helm templates skipped as unrendered stay IN the list. They were read successfully and
+    deliberately not evaluated, which is a different thing from "not a manifest" and a
+    different thing again from unreadable.
     """
 
     failed = {entry["file"] for entry in parse_errors if "file" in entry}
-    return [t for t in (_normalize_target(repo_root, p) for p in files) if t not in failed]
+    carried_a_manifest = {_normalize_target(repo_root, m.file) for m in manifests}
+    skipped_on_purpose = set(helm_templates_skipped)
+    return [
+        target
+        for target in (_normalize_target(repo_root, path) for path in files)
+        if target not in failed and (target in carried_a_manifest or target in skipped_on_purpose)
+    ]
+
+
+def _candidate_files_read(
+    repo_root: Path,
+    files: list[Path],
+    parse_errors: list[dict[str, str]],
+) -> int:
+    """How many candidate files parsed, regardless of whether they held a manifest.
+
+    This is the fact `absent_technology_outcome` needs, and it is deliberately NOT
+    `len(files_scanned)`: that list is narrowed to files carrying a manifest, so on a repository
+    with no Kubernetes it is empty whether every YAML was read or none was. Reading the
+    emptiness as "nothing here was legible" withdrew sixteen controls from a repository that
+    simply has no Kubernetes in it -- the over-withdrawal the guard was written to avoid.
+
+    `scan-cfn` and `scan-pulumi` already emit this for the same reason.
+    """
+
+    failed = {entry["file"] for entry in parse_errors if "file" in entry}
+    return sum(1 for path in files if _normalize_target(repo_root, path) not in failed)
 
 
 def _index_manifests(
@@ -775,7 +822,8 @@ def run_scan(
                 return K8sScanOutcome(
                     status="error",
                     tool_version=_kit_version(),
-                    files_scanned=_files_actually_scanned(repo_root, files, parse_errors),
+                    files_scanned=_files_actually_scanned(repo_root, files, manifests, helm_skipped, parse_errors),
+                    files_read=_candidate_files_read(repo_root, files, parse_errors),
                     helm_templates_skipped=helm_skipped,
                     parse_errors=parse_errors,
                     findings=[],
@@ -800,6 +848,7 @@ def run_scan(
                 status="timeout",
                 tool_version=_kit_version(),
                 files_scanned=[],
+                files_read=0,
                 helm_templates_skipped=helm_skipped,
                 parse_errors=parse_errors,
                 findings=[],
@@ -816,7 +865,8 @@ def run_scan(
         return K8sScanOutcome(
             status="ok",
             tool_version=_kit_version(),
-            files_scanned=_files_actually_scanned(repo_root, files, parse_errors),
+            files_scanned=_files_actually_scanned(repo_root, files, manifests, helm_skipped, parse_errors),
+            files_read=_candidate_files_read(repo_root, files, parse_errors),
             helm_templates_skipped=helm_skipped,
             parse_errors=parse_errors,
             findings=findings,
@@ -867,6 +917,9 @@ def render_evidence_payload(outcome: K8sScanOutcome, *, target: Path) -> dict[st
         "findings": [asdict(f) for f in outcome.findings],
         "diagnostics": {
             "parse_errors": outcome.parse_errors,
+            # Read by `_files_read`, which uses it to tell "no Kubernetes here" from "nothing
+            # here was legible". `scan-cfn` and `scan-pulumi` write the same key.
+            "files_read": outcome.files_read,
             "raw_message": outcome.diagnostics,
         },
     }
