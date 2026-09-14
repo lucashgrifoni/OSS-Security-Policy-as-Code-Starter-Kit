@@ -19,7 +19,12 @@ REPORT_CONTRACT = "reports/2.0"
 
 #: Control states that mean the target has earned the control. Losing one to ``FAIL`` is
 #: a regression. ``UNKNOWN`` and ``NOT_APPLICABLE`` are deliberately absent: "could not
-#: determine" is not "failed", and gating on it would break builds on flaky evidence.
+#: determine" is not "earned", and treating ``PASS -> UNKNOWN`` as a failure would break
+#: builds on flaky evidence.
+#:
+#: That reasoning is about one direction only, and it was applied to both. ``UNKNOWN -> FAIL``
+#: is not flaky evidence: it is a control that now definitely fails, and it was reported as no
+#: change at all. See :func:`_classify_status_changes`.
 _POSITIVE_STATES = frozenset({"PASS", "ATTESTED", "SELF_ATTESTED"})
 
 
@@ -44,6 +49,11 @@ class DriftReport:
     after_kit_version: str
     regressions: list[ControlDelta] = field(default_factory=list)
     improvements: list[ControlDelta] = field(default_factory=list)
+    #: Status changes that are neither: ``pass -> waived``, ``not-applicable -> unknown`` and
+    #: so on. They do not move the gate and they are not nothing, and without somewhere to go
+    #: they fell out of every surface while the table printed "no status changes on shared
+    #: controls" -- a sentence that was false.
+    other_changes: list[ControlDelta] = field(default_factory=list)
     new_controls: list[str] = field(default_factory=list)
     removed_controls: list[str] = field(default_factory=list)
     expired_waivers: list[str] = field(default_factory=list)
@@ -200,16 +210,25 @@ def _classify_status_changes(
     bm: dict[str, Any],
     am: dict[str, Any],
     shared: set[str],
-) -> tuple[list[ControlDelta], list[ControlDelta]]:
-    """Split the controls present on both sides into regressions and improvements.
+) -> tuple[list[ControlDelta], list[ControlDelta], list[ControlDelta]]:
+    """Split the controls present on both sides into regressions, improvements and the rest.
 
-    A control whose status changed in neither direction (``pass`` -> ``waived``, say)
-    is deliberately in neither list: it moved, but not across the pass/fail line the
-    drift verdict is about.
+    A regression is any move INTO a failing state. The rule used to be "positive to failing",
+    which left ``UNKNOWN -> FAIL`` classified as neither -- a control that has gone from
+    "could not determine" to "definitely fails", reported as no change. The flakiness argument
+    that keeps UNKNOWN out of the positive states is about ``PASS -> UNKNOWN`` and does not
+    reach its inverse.
+
+    An improvement is a move out of a failing state into an earned one.
+
+    Everything else that moved goes in the third list rather than nowhere. ``pass -> waived``
+    does not belong in the gate, and it does belong in the report: dropping it printed
+    "(no status changes on shared controls)" over a report where controls had changed.
     """
 
     regressions: list[ControlDelta] = []
     improvements: list[ControlDelta] = []
+    other: list[ControlDelta] = []
     for cid in sorted(shared):
         b = bm[cid]
         a = am[cid]
@@ -217,9 +236,8 @@ def _classify_status_changes(
         as_ = _status(a)
         if bs == as_:
             continue
-        is_regression = _is_positive(bs) and _is_negative(as_)
-        if not is_regression and not (_is_negative(bs) and _is_positive(as_)):
-            continue
+        is_regression = _is_negative(as_) and not _is_negative(bs)
+        is_improvement = _is_negative(bs) and _is_positive(as_)
         delta = ControlDelta(
             control_id=cid,
             title=_title(a) or _title(b),
@@ -227,8 +245,13 @@ def _classify_status_changes(
             after_status=as_,
             is_regression=is_regression,
         )
-        (regressions if is_regression else improvements).append(delta)
-    return regressions, improvements
+        if is_regression:
+            regressions.append(delta)
+        elif is_improvement:
+            improvements.append(delta)
+        else:
+            other.append(delta)
+    return regressions, improvements, other
 
 
 def _dropped_waivers(bm: dict[str, Any], am: dict[str, Any], shared: set[str]) -> list[str]:
@@ -292,7 +315,7 @@ def compute_drift(
     removed_controls = sorted(before_ids - after_ids)
 
     shared = before_ids & after_ids
-    regressions, improvements = _classify_status_changes(bm, am, shared)
+    regressions, improvements, other_changes = _classify_status_changes(bm, am, shared)
     expired = _dropped_waivers(bm, am, shared)
 
     return DriftReport(
@@ -302,6 +325,7 @@ def compute_drift(
         after_kit_version=after_kv,
         regressions=regressions,
         improvements=improvements,
+        other_changes=other_changes,
         new_controls=new_controls,
         removed_controls=removed_controls,
         expired_waivers=expired,
