@@ -9,7 +9,9 @@ import typer
 from oss_policy_kit.adapters.local_paths import resolve_existing_dir
 from oss_policy_kit.application.batch_evaluate import run_batch_evaluation
 from oss_policy_kit.cli.common import (
+    _output_child_display,
     app,
+    display_path,
     exit_for_unexpected,
     markup_safe,
     stderr_console,
@@ -127,8 +129,19 @@ def evaluate_many_cmd(
             progress_callback=progress_cb,
             include_absolute_path=include_absolute_path,
         )
-        stderr_console().print(f"[green]Wrote[/green] {markup_safe(batch.batch_json.resolve())}")
-        stderr_console().print(f"[green]Wrote[/green] {markup_safe(batch.batch_md.resolve())}")
+        # The operator reads back the ``--output-dir`` they typed, never the resolved host
+        # path. These two lines answered a relative ``--output-dir ./batch`` with
+        # ``C:\...\batch\evaluation-batch.json``, which on a real machine carries the account
+        # name into every CI log the batch runs in -- and there is no flag to suppress it
+        # without losing the confirmation. `evaluate` has echoed it relative since M-002; this
+        # is the same two lines in the batch command, built the same way.
+        out_display = display_path(output_dir)
+        stderr_console().print(
+            f"[green]Wrote[/green] {markup_safe(_output_child_display(out_display, batch.batch_json))}"
+        )
+        stderr_console().print(
+            f"[green]Wrote[/green] {markup_safe(_output_child_display(out_display, batch.batch_md))}"
+        )
         if not quiet:
             warn_if_batch_skipped_directories(batch.batch_json)
         if batch.failed_count:
