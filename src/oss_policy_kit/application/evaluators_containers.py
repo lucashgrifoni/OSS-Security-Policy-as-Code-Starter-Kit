@@ -144,10 +144,22 @@ def eval_cont_runtime_001(ctx: Any) -> EvalOutcome:
     for df in dockerfiles:
         text = _read_text(df)
         froms = _DOCKER_FROM_RE.findall(text)
-        if len(froms) >= 2 or any(re.search(r"\sAS\s+\S+", f, re.IGNORECASE) for f in froms):
+        # A multi-stage build is two or more `FROM` instructions. Nothing else.
+        #
+        # This also accepted any single `FROM ... AS <name>`, and naming a stage is not
+        # building in stages: `FROM ubuntu:22.04 AS build` alone is one stage that happens to
+        # have a label, and it earned "Multi-stage build detected in Dockerfile" and a PASS.
+        # The control exists to check that the shipped image is not the build image, and a
+        # one-stage build ships exactly the build image however it is labelled.
+        #
+        # A commented-out `# FROM ...` does not count either, and that needs no extra work
+        # here: `_DOCKER_FROM_RE` anchors at the start of the line and `#` is not whitespace.
+        # Verified rather than assumed, because this repository has shipped a control that
+        # read a commented-out step as a live one.
+        if len(froms) >= 2:
             return EvalOutcome(
                 status=ControlStatus.PASS,
-                reason=f"Multi-stage build detected in {df.name}.",
+                reason=f"Multi-stage build detected in {df.name} ({len(froms)} stages).",
                 remediation="Keep the final stage minimal and copy only release artefacts from build stages.",
                 evidence_sources=[str(df.resolve())],
                 confidence="medium",
