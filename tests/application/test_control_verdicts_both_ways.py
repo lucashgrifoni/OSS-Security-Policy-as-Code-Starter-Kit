@@ -270,7 +270,7 @@ def test_a_dockerfile_the_reader_found_no_base_image_in_asks_for_review(tmp_path
     outcome = supply_chain.eval_cont_distroless_001(_ctx(tmp_path))
 
     assert outcome.status is ControlStatus.MANUAL_REVIEW_REQUIRED
-    assert "no FROM line parsed" in outcome.reason
+    assert "no FROM instruction was read" in outcome.reason
 
 
 @pytest.mark.parametrize("base", ["gcr.io/distroless/static", "cgr.dev/chainguard/static", "scratch"])
