@@ -1,16 +1,19 @@
 """The runtime stage is what makes the base-image alerts not apply to the published image.
 
-Eleven of the twelve open code-scanning alerts on this repository come from one job,
+Twelve of the thirteen open code-scanning alerts on this repository come from one job,
 `base-image-trivy`, which scans the image the `Dockerfile` builds *from*. They are
 accurate about that image and none of them can be closed by editing this repository:
-measured 2026-09-09, the current upstream `python:3.12-slim-bookworm` digest carries the
-identical eleven, so refreshing the pin clears nothing.
+scanned directly from the registry on 2026-09-13, the current upstream
+`python:3.12-slim-bookworm` tag carries the identical twelve, so refreshing the pin
+clears nothing. It was eleven until 2026-09-12, when five `libpcre2` advisories arrived
+at once -- a count written into prose goes stale on somebody else's schedule.
 
 What keeps them out of the image this project *publishes* is two lines in the runtime
 stage, and nothing else:
 
 - `apt-get upgrade` applies the Debian security pocket, which moves `libpcre2-8-0` from
-  `10.42-1` to `10.42-1+deb12u1` -- the five `libpcre2` advisories;
+  `10.42-1` to `10.42-1+deb12u1` -- the fixed version named by all six `libpcre2`
+  advisories;
 - two `pip uninstall` commands remove the interpreter's package installer from both the
   system Python and the venv -- the six `pip 25.0.1` advisories.
 
@@ -19,7 +22,10 @@ on this repository does not move by one, because the alerts were never measuring
 published image. That is the failure this test exists to make loud. It ran on the built
 image on 2026-09-09: `libpcre2-8-0 10.42-1+deb12u1`, no `pip` dist-info under either
 interpreter, and Trivy reporting zero fixable vulnerabilities at any severity, against
-eleven on the base.
+eleven on the base. That run is not re-dated here, because building the image needs a
+daemon the 2026-09-13 pass did not have. What it does have is narrower: the built-image
+Trivy step in `github-ci-cd.yml` gates on fixable HIGH and CRITICAL and passed that day,
+and two of the six `libpcre2` advisories sit in that band.
 
 The Dockerfile is read rather than the image built, so this runs in the ordinary test job
 in seconds. Comments are stripped before anything is matched: the prose in the runtime
@@ -125,7 +131,7 @@ def test_the_runtime_stage_applies_debian_security_updates() -> None:
     assert upgrades, (
         "the `runtime` stage no longer runs `apt-get upgrade`. That command is the only "
         "thing moving `libpcre2-8-0` off the vulnerable `10.42-1` the pinned base image "
-        "ships, and the five `libpcre2` alerts on this repository will NOT change if it "
+        "ships, and the six `libpcre2` alerts on this repository will NOT change if it "
         "goes -- they are raised against the base image, not the published one. Removing "
         "it silently reintroduces those CVEs into what users pull. If the base image is "
         "ever rebuilt with the fix included, delete this test and say so in SECURITY.md."
