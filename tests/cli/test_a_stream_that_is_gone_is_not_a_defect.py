@@ -156,15 +156,27 @@ def test_evaluate_still_prints_its_summary_when_stdout_works(tmp_path: Path) -> 
 
 
 @pytest.mark.parametrize("extra", [[], ["--dry-run"]])
-def test_init_interactive_without_input_refuses_cleanly(extra: list[str], tmp_path: Path) -> None:
-    """Exit 2 and a sentence, not exit 3 and an empty one. `--dry-run` took the same path."""
+def test_init_interactive_without_input_never_exits_three(extra: list[str], tmp_path: Path) -> None:
+    """Whatever the platform answers here, it may not be exit 3 with an empty message.
+
+    The exit code legitimately differs by operating system, and asserting one of them is how
+    this test first failed on CI. With stdin on the null device, Linux reports `isatty()`
+    False, so the interactive branch is skipped entirely and `init` proceeds with the
+    recommended profile: exit 0. Under git-bash on Windows `isatty()` stays True, the branch
+    runs, the prompt has nothing to read, and the new handler answers exit 2.
+
+    Both are correct. The defect was exit 3 with "Unexpected error: " and nothing after it,
+    and that is what this pins on every platform. The exit-2 path itself is pinned
+    deterministically by the in-process test below, which forces the stdin that lies.
+    """
 
     proc = _run(["init", "--target", str(tmp_path), "--interactive", *extra])
 
-    assert proc.returncode == 2, proc.stderr
+    assert proc.returncode in (0, 2), proc.stderr
     assert "Unexpected error" not in proc.stderr
-    assert "--interactive" in proc.stderr, "the message must name the flag to drop"
-    assert "github-level-1" in proc.stderr, "and the profile it would have used"
+    if proc.returncode == 2:
+        assert "--interactive" in proc.stderr, "the message must name the flag to drop"
+        assert "github-level-1" in proc.stderr, "and the profile it would have used"
 
 
 def test_init_without_interactive_is_unaffected(tmp_path: Path) -> None:
