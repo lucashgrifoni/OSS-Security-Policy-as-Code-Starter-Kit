@@ -335,11 +335,41 @@ def init_cmd(
                 f"\n[cyan]Detected platform:[/cyan] {markup_safe(preview_plan.platform or 'unknown')}"
             )
             stderr_console().print(f"[cyan]Recommended profile:[/cyan] {markup_safe(recommended)}")
-            response = typer.prompt(
-                "Use this profile (press Enter to accept, or type a different profile id)",
-                default=recommended,
-                show_default=True,
-            )
+            # `--interactive` asks for a terminal. Without one -- CI, a Docker RUN line, a
+            # Makefile, any redirect, which is the exact case this flag's own help says it
+            # gates on -- `typer.prompt` aborts, and `str(Abort())` is empty. The shared
+            # handler printed "Unexpected error: " with nothing after it and exited 3, the
+            # code documented as always being a bug in the kit, for something the adopter
+            # fixes by dropping one flag.
+            #
+            # The branch above already gates on `sys.stdin.isatty()`, and that is the right
+            # fast path: with a pipe it is False and the prompt is skipped entirely. This
+            # catches the case where it LIES. Under git-bash on Windows, `isatty()` stays
+            # True through `< /dev/null`, so the branch is entered, the prompt is printed,
+            # and there is nothing to read. Adding a second isatty check was the first
+            # attempt at this fix and it failed for exactly that reason. Whether input is
+            # available is knowable only by asking for it.
+            #
+            # `typer.Abort`, not `click.exceptions.Abort`. Typer vendors its own click, so
+            # those are two different classes and the one imported from the `click` package
+            # never matches -- the second version of this fix caught that one and the run
+            # still exited 3 with the same empty message.
+            try:
+                response = typer.prompt(
+                    "Use this profile (press Enter to accept, or type a different profile id)",
+                    default=recommended,
+                    show_default=True,
+                )
+            except (typer.Abort, EOFError) as exc:
+                stderr_console().print(
+                    "\n[red]Error:[/red] --interactive needs a terminal to read from, and there "
+                    "is no input available here."
+                )
+                stderr_console().print(
+                    f"Re-run without --interactive to take the recommended profile "
+                    f"({markup_safe(recommended)}), or pass --profile to choose one."
+                )
+                raise typer.Exit(code=2) from exc
             chosen_profile = response.strip() or recommended
 
         plan = build_init_plan(

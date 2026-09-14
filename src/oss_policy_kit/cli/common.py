@@ -199,7 +199,7 @@ def exit_for_unexpected(exc: BaseException) -> NoReturn:
 
 
 def write_stdout_text(text: str) -> None:
-    """Write *text* to stdout; fall back to UTF-8 bytes when the console codepage cannot encode symbols.
+    """Write *text* to stdout, tolerating a console that cannot encode it or a stdout that is gone.
 
     Goes through ``redact_home`` for the same reason the Rich console does: this is the
     other way text reaches the operator, and it is the one the ``scan-*`` commands use --
@@ -207,15 +207,7 @@ def write_stdout_text(text: str) -> None:
     successful run. A boundary that covers one of two exits is not a boundary.
     """
 
-    text = terminal_ui.redact_home(text)
-    try:
-        sys.stdout.write(text)
-    except UnicodeEncodeError:
-        buf = getattr(sys.stdout, "buffer", None)
-        if buf is None:
-            raise
-        buf.write(text.encode("utf-8", errors="replace"))
-        buf.flush()
+    terminal_ui.write_to_stdout(terminal_ui.redact_home(text))
 
 
 def write_stderr_text(text: str) -> None:
