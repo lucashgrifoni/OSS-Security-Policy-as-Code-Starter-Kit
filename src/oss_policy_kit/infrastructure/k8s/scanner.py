@@ -36,6 +36,11 @@ EVIDENCE_FILENAME = "k8s-baseline.json"
 DEFAULT_TIMEOUT_SECONDS = 120
 DEFAULT_INCLUDE_GLOBS: tuple[str, ...] = ("**/*.yaml", "**/*.yml")
 
+#: Value of ``diagnostics.parse_errors[].resembles`` on a file that would not parse and
+#: still reads as a Kubernetes object. Nothing carries this key unless the scanner put it
+#: there, so evidence written before this existed keeps its previous meaning.
+RESEMBLES_MANIFEST = "kubernetes-manifest"
+
 _SKIP_DIRS: frozenset[str] = frozenset(
     {".git", ".terraform", "node_modules", ".venv", "venv", "__pycache__", "dist", "build", ".oss-policy-kit"}
 )
@@ -263,6 +268,38 @@ def _candidate_files_read(
     return sum(1 for path in files if _normalize_target(repo_root, path) not in failed)
 
 
+#: `apiVersion:` and `kind:` at the start of a line. Both are required on every Kubernetes
+#: object, and neither appears in an ordinary `.yaml` -- a workflow, a compose file, a lockfile,
+#: an application config. Bounded repetition instead of `*` because these run over target text,
+#: which is attacker-controlled input here in every sense that matters.
+_MANIFEST_API_VERSION_RE = re.compile(r"^[ \t]{0,200}apiVersion[ \t]{0,200}:", re.MULTILINE)
+_MANIFEST_KIND_RE = re.compile(r"^[ \t]{0,200}kind[ \t]{0,200}:", re.MULTILINE)
+
+
+def _resembles_manifest(text: str) -> bool:
+    """Whether text the YAML parser REFUSED still looks like a Kubernetes object.
+
+    The scan reaches every `**/*.yaml` in the tree, so "a candidate did not parse" says nothing
+    on its own -- most candidates are not manifests, and a guard that treated them all as
+    unchecked Kubernetes withdrew all 16 controls on this kit's own repository, over scratch
+    files and a fixture that is malformed on purpose.
+
+    This is the missing half. A file the parser refused that still carries `apiVersion:` and
+    `kind:` at the start of a line is a manifest nobody checked, and a clean verdict over the
+    rest of the repository does not cover it. One measured case: a tab-indented `pod.yaml`
+    declaring `privileged: true`, next to one readable manifest, left fifteen controls at PASS
+    and the score at 95%.
+
+    Raw text, deliberately, because there is no parse tree to consult -- the parse is what
+    failed. That is the same primitive that once let `workflow_parser` read a commented-out
+    step as a live one, and the direction here is the opposite: this can only WITHDRAW a clean
+    verdict, never grant one. A commented-out `apiVersion:` costs an operator a second look; the
+    inverse error is a privileged pod reported as a clean cluster.
+    """
+
+    return bool(_MANIFEST_API_VERSION_RE.search(text) and _MANIFEST_KIND_RE.search(text))
+
+
 def _index_manifests(
     repo_root: Path,
     files: list[Path],
@@ -297,7 +334,12 @@ def _index_manifests(
         try:
             docs = list(yaml.safe_load_all(text))
         except yaml.YAMLError as exc:
-            parse_errors.append({"file": _normalize_target(repo_root, path), "error": str(exc)})
+            entry = {"file": _normalize_target(repo_root, path), "error": str(exc)}
+            if _resembles_manifest(text):
+                # Additive key. Downstream, only an entry carrying it withdraws a clean
+                # verdict -- the rest stay the diagnostics they already were.
+                entry["resembles"] = RESEMBLES_MANIFEST
+            parse_errors.append(entry)
             continue
         for doc in docs:
             manifest = _manifest_from_doc(doc, path)

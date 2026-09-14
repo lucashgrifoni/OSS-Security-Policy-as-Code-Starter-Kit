@@ -24,9 +24,11 @@ from oss_policy_kit.application._evidence_rules import (
     rule_finding_count,
     sample_finding_files,
     unread_sources_note,
+    unread_sources_withdrawal,
 )
 from oss_policy_kit.application.evaluators_common import read_scanner_evidence
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
+from oss_policy_kit.infrastructure.iac.cfn.scanner import RESEMBLES_TEMPLATE
 
 _EVIDENCE_FILENAME = "iac-cfn.json"
 _SCHEMA_PREFIX = "oss-policy-kit/evidence/iac-cfn/"
@@ -85,6 +87,20 @@ def _make_cfn_evaluator(rule_id: str, summary: str) -> Callable[[Any], EvalOutco
             )
         count = rule_finding_count(data, rule_id)
         if count == 0:
+            # This scanner has always separated the two cases: a candidate that simply is
+            # not a template is skipped in silence, and only one that looks intended as
+            # CloudFormation and failed to parse becomes a `CfnParseError`. Acting on that
+            # distinction is all this is.
+            withheld = unread_sources_withdrawal(
+                data,
+                technology="CloudFormation",
+                why=("Each of those still reads as a CloudFormation template, so this result does not cover it."),
+                regenerate_cmd="oss-policy-kit scan-cfn",
+                sources=sources,
+                only_resembling=RESEMBLES_TEMPLATE,
+            )
+            if withheld is not None:
+                return withheld
             return EvalOutcome(
                 status=ControlStatus.PASS,
                 reason=(

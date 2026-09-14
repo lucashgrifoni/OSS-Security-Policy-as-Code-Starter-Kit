@@ -23,6 +23,7 @@ will be tracked in a future release. The evidence file still writes
 from __future__ import annotations
 
 import ast
+import re
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -32,11 +33,22 @@ from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
 from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
 from oss_policy_kit.infrastructure.scan_deadline import TIMEOUT_DIAGNOSTIC, ScanDeadline
+from oss_policy_kit.infrastructure.source_text import decode_source
 
 EVIDENCE_SCHEMA_VERSION = "oss-policy-kit/evidence/iac-pulumi/v1"
 EVIDENCE_FILENAME = "iac-pulumi.json"
 DEFAULT_TIMEOUT_SECONDS = 120
 DEFAULT_INCLUDE_GLOBS: tuple[str, ...] = ("**/*.py",)
+
+#: Value of ``diagnostics.parse_errors[].resembles`` on a module that would not compile
+#: and still imports pulumi. Every other `.py` in a repository is a candidate this scanner
+#: walks and has no opinion about.
+RESEMBLES_PROGRAM = "pulumi-program"
+
+#: `import pulumi` / `from pulumi...` at the start of a line. `_file_imports_pulumi` asks
+#: the same question of an AST; this asks it of text, for the one case where there is no
+#: AST because compiling is what failed.
+_PULUMI_IMPORT_RE = re.compile(r"^[ \t]{0,200}(?:import|from)[ \t]{1,200}pulumi", re.MULTILINE)
 
 _SKIP_DIRS: frozenset[str] = frozenset(
     {".git", ".terraform", "node_modules", ".venv", "venv", "__pycache__", "dist", "build", ".oss-policy-kit"}
@@ -155,6 +167,26 @@ def _first_string_positional(call: ast.Call) -> str:
     if isinstance(first, ast.Constant) and isinstance(first.value, str):
         return first.value
     return ""
+
+
+def _resembles_pulumi_program(source: bytes | str) -> bool:
+    """Whether a module Python REFUSED to compile still imports pulumi.
+
+    Decoded the way the interpreter would have: ``decode_source`` honours a BOM, and a PEP 263
+    coding line keeps a legal latin-1 module readable.
+
+    No ``try`` around that call, deliberately. ``decode_source`` states its contract in its
+    first line -- it returns text, always, falling back to the lossy read the scanners used
+    before it existed -- so a handler here would be a branch no input can reach, and coverage
+    said so. Bytes that hold no source decode to something with no ``import pulumi`` in it,
+    which is the same answer the handler would have given.
+
+    The caller passes whatever it read: ``bytes`` on the ordinary path, ``str`` when the file
+    was already decoded upstream.
+    """
+
+    text = decode_source(source) if isinstance(source, bytes) else source
+    return bool(_PULUMI_IMPORT_RE.search(text))
 
 
 def _file_imports_pulumi(tree: ast.AST) -> bool:
@@ -497,7 +529,13 @@ def run_scan(
             detail = getattr(exc, "msg", None) or str(exc)
             line = getattr(exc, "lineno", None)
             where = f" (line {line})" if line is not None else ""
-            parse_errors.append({"file": _normalize_target(repo_root, f), "error": f"{detail}{where}"})
+            entry = {"file": _normalize_target(repo_root, f), "error": f"{detail}{where}"}
+            # A `.py` that does not compile is usually just a broken Python file, and this
+            # scanner walks every one of them. One that imports pulumi is infrastructure
+            # nobody checked, which is a different statement and the only one worth acting on.
+            if _resembles_pulumi_program(source):
+                entry["resembles"] = RESEMBLES_PROGRAM
+            parse_errors.append(entry)
             continue
         files_read += 1
         if not _file_imports_pulumi(tree):
