@@ -31,6 +31,7 @@ from oss_policy_kit.application.evaluators._shared import (
     contextlib,
     load_yaml_file,
     preview_evidence_paths,
+    unchecked_workflows_note,
     unread_workflow_degradation,
 )
 from oss_policy_kit.application.evaluators_common import read_scanner_evidence, strip_yaml_comments
@@ -330,6 +331,16 @@ def eval_sec_codeql_010(ctx: EvalContext) -> EvalOutcome:
 
 
 def eval_sec_deprev_011(ctx: EvalContext) -> EvalOutcome:
+    """SEC-DEPREV-011: dependency review runs on pull requests.
+
+    The absence answer here is a FAIL, which makes this the one control in the workflow family
+    that cannot use :func:`unread_workflow_degradation`. Seven siblings withdraw a PASS when a
+    workflow will not parse; withdrawing this one would take a failure out of ``--fail-on
+    fail``. So it keeps the verdict and states its scope instead -- the sentence used to claim
+    the repository had no dependency review, about a `deps.yml` that ran exactly that action
+    and happened to be indented with tabs.
+    """
+
     if ctx.workflows.has_dependency_review:
         return EvalOutcome(
             status=ControlStatus.PASS,
@@ -338,12 +349,16 @@ def eval_sec_deprev_011(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[],
             confidence="medium",
         )
+    unchecked = unchecked_workflows_note(ctx.workflows)
     return EvalOutcome(
         status=ControlStatus.FAIL,
-        reason="No dependency-review-action detected in workflows.",
-        remediation="Add GitHub Dependency Review to pull request workflows.",
+        reason=f"No dependency-review-action detected in workflows.{unchecked}",
+        remediation=(
+            "Add GitHub Dependency Review to pull request workflows."
+            + (" Fix the unreadable workflow first, so this control can see all of them." if unchecked else "")
+        ),
         evidence_sources=[],
-        confidence="medium",
+        confidence="low" if unchecked else "medium",
     )
 
 
