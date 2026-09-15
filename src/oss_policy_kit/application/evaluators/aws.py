@@ -72,9 +72,11 @@ def eval_aws_ci_037(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=sources,
             confidence="high",
         )
-    withdrawn = _aws_unread_buildspecs_outcome(ctx)
-    if withdrawn is not None:
-        return withdrawn
+    # No withdrawal here, deliberately. This branch is reached only when BOTH path lists are
+    # empty, and the parser records a candidate's path even when it refuses to read it -- an
+    # oversize buildspec arrives as `buildspec_paths=[p], parse_errors=[(p, reason)]`. So a
+    # withdrawal on this line could never fire, and a guard that cannot fire reads as a
+    # protection that is not there. The controls that scan the file's CONTENTS carry it instead.
     return EvalOutcome(
         status=ControlStatus.FAIL,
         reason="No supported buildspec.yml or pipelines/aws/codepipeline* files found.",

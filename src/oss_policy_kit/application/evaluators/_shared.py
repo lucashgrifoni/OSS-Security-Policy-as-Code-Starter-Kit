@@ -1503,16 +1503,16 @@ def _self_hosted_workflow_paths(repo: Path) -> tuple[list[Path], list[Path], lis
     ephemeral_self: list[Path] = []
     unread: list[Path] = []
     for yml in sorted(list(wf_dir.glob("*.yml")) + list(wf_dir.glob("*.yaml"))):
-        try:
-            read = decode_source_detail(capped_repo_bytes(yml, label="Workflow"))
-        except OSError:
-            # Unreadable bytes: nothing was seen, which is exactly what ``unread`` records.
+        # ``read_repo_text`` rather than the capped reader: this loop has to tell "the file was
+        # refused" apart from "the file is empty", and only the reporting reader carries that.
+        # A file over the ceiling decodes to "" through the capped reader and would otherwise be
+        # counted as a workflow that declares no runner, which is the absence claim this whole
+        # function exists to stop making.
+        candidate = read_repo_text(yml, label="Workflow")
+        if candidate.unread:
             unread.append(yml)
             continue
-        if read.wide_unhonoured:
-            unread.append(yml)
-            continue
-        text = read.text
+        text = candidate.text
         if not text:
             # A genuinely empty workflow declares no runner. That is a real absence, not a gap.
             continue
