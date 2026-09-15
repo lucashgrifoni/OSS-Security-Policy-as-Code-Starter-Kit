@@ -1,9 +1,9 @@
 # ADR-031 - Add OpenVEX export alongside CycloneDX VEX (v6.6.0)
 
-- **Status**: proposed (targets v6.6.0, ADDITIVE / non-breaking) — promotes backlog item `openvex-export`
+- **Status**: accepted (v6.6.0, ADDITIVE / non-breaking) — shipped as the `emit-vex` command; status line flipped 2026-09-15 after confirming the command is in the released CLI
 - **Date**: 2026-05-26
 - **Context window**: v7.x roadmap horizon — "Contract modernization & ecosystem interoperability", shipped early as a v6.x additive minor (roadmap decision §11.1: defer the breaking reports/2.0 flip one cycle; ship low-risk interop first)
-- **Related**: ADR-002 (emit-vex scope), ADR-001 (SCA scanner choice), `docs/vex-emission.md`, `ROADMAP.md` (v7.x); local OpenVEX backlog note
+- **Related**: ADR-002 (emit-vex scope), ADR-001 (SCA scanner choice), `docs/vex-emission.md`, the maintainer's local roadmap (not published) (v7.x); local OpenVEX backlog note
 
 ## Context
 
@@ -115,4 +115,4 @@ fixtures that normalize the non-deterministic `timestamp` and `@id`.
 - State of VEX (OpenSSF, 2026-01) — <https://openssf.org/blog/2026/01/08/signal-in-the-noise-an-industry-wide-perspective-on-the-state-of-vex/>
 - CycloneDX VEX capabilities — <https://cyclonedx.org/capabilities/vex/>
 - ADR-002 (emit-vex scope), `docs/vex-emission.md`
-- `ROADMAP.md` (v7.x horizon); roadmap plan §3.7, §6 (v7.x); backlog `openvex-export-2026-05-25.md`
+- the maintainer's local roadmap (not published) (v7.x horizon); roadmap plan §3.7, §6 (v7.x); backlog `openvex-export-2026-05-25.md`

@@ -1,9 +1,9 @@
 # ADR-032 - Ingest a project's OpenSSF Security Insights file (`ingest-insights`, v6.7.0)
 
-- **Status**: proposed (targets v6.7.0, ADDITIVE / non-breaking) — promotes backlog item `ingest-security-insights`
+- **Status**: accepted (v6.7.0, ADDITIVE / non-breaking) — shipped as the `ingest-insights` command; status line flipped 2026-09-15 after confirming the command is in the released CLI
 - **Date**: 2026-05-29
 - **Context window**: v7.x roadmap horizon — "Contract modernization & ecosystem interoperability", shipped early as a v6.x additive minor (roadmap decision §11.1: defer the breaking `reports/2.0` flip one cycle; ship low-risk interop first — same lane as ADR-031 OpenVEX)
-- **Related**: ADR-011 (`emit-insights` scope), ADR-002 (`emit-vex` scope), ADR-031 (OpenVEX export), `docs/insights-emission.md`, `ROADMAP.md` (v7.x)
+- **Related**: ADR-011 (`emit-insights` scope), ADR-002 (`emit-vex` scope), ADR-031 (OpenVEX export), `docs/insights-emission.md`, the maintainer's local roadmap (not published) (v7.x)
 
 ## Context
 
@@ -14,7 +14,7 @@ the kit ignores it. That file is the project's own machine-readable, **self-repo
 posture (vulnerability-reporting channel, security contacts, project lifecycle, distribution
 points). Scorecard v6 **ingests** Security Insights; CLOMonitor and LFX Insights consume it too.
 The kit emitting but not ingesting is an interoperability asymmetry the v7.x horizon calls out
-(`ROADMAP.md` v7.x; roadmap plan §3.6, §6 v7.x).
+(the maintainer's local roadmap (not published) v7.x; roadmap plan §3.6, §6 v7.x).
 
 This is **additive**: a new subcommand that reads, structurally validates, and reports a file the
 target already contains. It does not change `evaluate`, the control catalog, the 212 evaluators,
@@ -139,5 +139,5 @@ existing contract) and by tests that pin the exit codes and the `provenance` lab
 - [OpenSSF Security Insights spec](https://security-insights.openssf.org/) + [GitHub repo](https://github.com/ossf/security-insights)
 - ADR-011 (`emit-insights` scope) — the producer side this mirrors
 - ADR-031 (OpenVEX export) — the v6.x additive-interop precedent (same roadmap §11.1 lane)
-- `ROADMAP.md` (v7.x horizon); roadmap plan §3.6, §6 (v7.x)
+- the maintainer's local roadmap (not published) (v7.x horizon); roadmap plan §3.6, §6 (v7.x)
 - `docs/insights-emission.md` — companion producer guide; `docs/insights-ingestion.md` — consumer guide (added with this change)

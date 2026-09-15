@@ -52,6 +52,7 @@ The repository publishes an [OpenSSF Scorecard](https://securityscorecards.dev/v
 |---|---|---|
 | Code-Review | 0 | One maintainer. A pull request cannot be reviewed by its author, and there is nobody else. Every change still passes the 13 required status checks, a required commit signature, and a linear-history rule before it reaches `master`. |
 | Contributors | 0 | The check counts contributors from several organizations. This project has one. |
+| CII-Best-Practices | 0 | The check looks for an OpenSSF Best Practices badge. This project has not applied for one; the badge is a self-assessment programme, not a measurement of the repository. |
 | Branch-Protection | 3 | The ruleset requires signatures, 13 status checks, linear history and no force-push. It does not require a review (see above) and it allows the repository owner to bypass — which is how a solo maintainer merges at all. |
 
 What the score *does* reflect: SAST, signed releases, pinned dependencies, token permissions, dangerous-workflow analysis, fuzzing, and a vulnerability-free dependency tree are each measured and each at or near the maximum. A drop in any of those is a regression worth reporting.

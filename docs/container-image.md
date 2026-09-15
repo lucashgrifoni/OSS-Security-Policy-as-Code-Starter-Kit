@@ -100,5 +100,5 @@ gh attestation verify oci://ghcr.io/<owner>/oss-policy-kit:6.4.0 \
 - ~~**Publish workflow**~~ — **shipped in v5.9.0** (`.github/workflows/publish-container.yml`).
 - ~~**Image signing**~~ — **shipped in v5.9.0** (cosign keyless via Sigstore Public Good).
 - ~~**SBOM attachment**~~ — **shipped in v5.9.0** (Buildx `sbom: true`).
-- **Reproducible builds via base image digest pinning** — still planned. The Dockerfile pins `python:3.12-slim-bookworm` by tag; pinning by digest (`@sha256:...`) is a follow-up to balance reproducibility vs upstream patch absorption.
+- ~~**Reproducible builds via base image digest pinning**~~ — **shipped**. The Dockerfile pins the base image by digest (`@sha256:...`), and `SECURITY.md` records how the digest is refreshed so upstream patches still land.
 - **`--source-date-epoch` integration** — planned for byte-reproducible images.

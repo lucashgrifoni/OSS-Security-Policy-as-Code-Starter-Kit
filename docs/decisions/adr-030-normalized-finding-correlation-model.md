@@ -3,7 +3,7 @@
 - **Status**: accepted (targets v10.0.0, BREAKING) — ratified 2026-06-19; sequenced **after** v9.0.0 (ADR-029 + ADR-043). Implementation begins once v9.0.0 ships, so v10.0.0 carries exactly one major's worth of breaking surface (the finding-shape change).
 - **Date**: 2026-05-25
 - **Context window**: v10.x roadmap horizon — "AI/agentic depth & correlation maturity"
-- **Related**: ADR-021 (EPSS/KEV prioritization), ADR-001 (SCA scanner choice), ADR-012 (export-evidence), `ROADMAP.md`
+- **Related**: ADR-021 (EPSS/KEV prioritization), ADR-001 (SCA scanner choice), ADR-012 (export-evidence), the maintainer's local roadmap (not published)
 
 ## Context
 
@@ -137,4 +137,4 @@ amendment.
 
 - ASPM trend (Gartner) — <https://www.gartner.com/reviews/market/application-security-posture-management-aspm-tools>, <https://apiiro.com/blog/gartner-on-aspm-what-it-means-for-your-security-strategy/>
 - ADR-021 (EPSS/KEV), ADR-001, ADR-012
-- `ROADMAP.md` (v10.x horizon); roadmap plan §6, §11.5–11.6
+- the maintainer's local roadmap (not published) (v10.x horizon); roadmap plan §6, §11.5–11.6

@@ -29,9 +29,24 @@ Run these before opening or updating a pull request:
 python -m ruff check .
 python -m ruff format --check .
 python -m mypy src/oss_policy_kit
-python -m pytest
+python scripts/check_public_hygiene.py
+python -m pytest tests --ignore=tests/property --cov=oss_policy_kit --cov-report= --cov-fail-under=0
+python -m pytest tests/property/ --cov=oss_policy_kit --cov-append --cov-report=term-missing --cov-fail-under=100
 python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck
 ```
+
+Three of those are easy to leave out and each one is a check CI enforces:
+
+- **`check_public_hygiene.py`** runs only here and in CI. A plain `pytest` never calls it.
+- **The two `pytest` invocations are one gate, not a choice.** Coverage accumulates across
+  them with `--cov-append`, and the 100% floor lives on the *second* step alone. Running
+  `python -m pytest` on its own measures no coverage at all and so cannot fail that floor.
+- **The self-check evaluates this repository with its own kit**, which is what catches a
+  control that regressed against real input rather than against a fixture.
+
+CI runs the same list on three legs: ubuntu with Python 3.12 (the required check), ubuntu
+with 3.13, and windows with 3.12. A local run is one of those three, so a green local gate
+is evidence about your platform and not about the other two.
 
 The CLI also accepts the same flags without the `evaluate` subcommand. Example:
 

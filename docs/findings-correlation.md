@@ -94,6 +94,17 @@ Contract `oss-policy-kit/findings/1.0` — strict schema at
 
 - `id` — `opk-fk/v1:<16 hex>`, the sha256 of the canonical correlation key. The full
   pre-hash key is retained in `correlation.key` for audit.
+- **`correlation.key` is not redacted, and `location.file` is.** The key is what merges two
+  findings about the same line from two scanners, so it has to be byte-stable across the run
+  that produced them — and the path it carries is the one the scanner reported, absolute host
+  layout included, on the `code`, `k8s` and `iac` key shapes. Redacting it would merge
+  findings that are not the same finding, which is why the kit does not. The consequence is
+  that a `findings/1.0` artifact can name a directory above the repository root even though
+  `location.file` beside it does not. Treat the artifact accordingly before publishing one:
+  the path-redaction promise in [`docs/results-guide.md`](results-guide.md) covers the fields
+  a reader reads, not this merge key. A regression test holds the behaviour in place so it
+  cannot change without the decision being revisited
+  (`tests/application/test_the_findings_artifact_drops_the_host_layout.py`).
 - **`id` is UNRELATED to the per-control `finding_id` in reports/2.0** (that one is a
   `{control_id}@{profile}` synthetic). The two artifacts imply no linkage.
 - `location.file` — one spelling per file, so an id does not depend on the machine that
