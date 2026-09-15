@@ -185,6 +185,35 @@ def report_json_schema_url(contract: str) -> str:
     )
 
 
+def _unknown_waiver_warnings(waivers: dict[str, Any], catalog: dict[str, Any]) -> list[str]:
+    """Name every waiver whose ``control_id`` matches no control in the catalog.
+
+    The loader in ``waivers.py`` warns on every other way an entry can fail to apply -- not a
+    mapping, missing ``control_id``, empty justification, empty owner, malformed expiry,
+    expired -- and each one reaches the operator. A typo in the control id said nothing, and it
+    is the likeliest of them: measured on a real waiver file, ``NAO-EXISTE-999`` appeared in no
+    warning, no report, no Markdown and not under ``--verbose``.
+
+    Nothing unsafe happened -- the control kept its FAIL and the pipeline stayed red -- which
+    is why this warns rather than fails. What it costs is an operator who believes a control is
+    waived when it is not.
+
+    **Only ids absent from the CATALOG.** A waiver file is shared across profiles, so an id
+    that exists but is not in the profile being evaluated is ordinary: warning on it would fire
+    on every run of every other profile, and a warning that fires on correct input is one
+    people learn to ignore. An id in no catalog entry can never apply to anything, anywhere.
+
+    The loader cannot do this check: it never sees the catalog.
+    """
+
+    unknown = sorted(cid for cid in waivers if cid not in catalog)
+    return [
+        f"Waiver for {cid} matched no control: there is no such control id in the catalog "
+        "(check the spelling, or `oss-policy-kit profiles` for the ids a profile carries)."
+        for cid in unknown
+    ]
+
+
 def _apply_waiver(
     base_status: ControlStatus,
     waiver: WaiverRecord | None,
@@ -548,6 +577,7 @@ def evaluate_repository(
 
     waivers = waiver_outcome.by_control if waiver_outcome else {}
     operational_warnings: list[str] = list(waiver_outcome.warnings if waiver_outcome else [])
+    operational_warnings.extend(_unknown_waiver_warnings(waivers, catalog))
     operational_warnings.extend(_collect_parse_warnings(workflows, azure_pipelines, aws_ci, gitlab_ci))
 
     results = [
