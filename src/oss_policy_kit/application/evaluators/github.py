@@ -882,9 +882,30 @@ def eval_gh_plat_026(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def _gh_ephemeral_posture_outcome(all_self: list[Path], ephemeral: list[Path], evidence: Path) -> EvalOutcome | None:
+def _gh_ephemeral_posture_outcome(
+    all_self: list[Path], ephemeral: list[Path], evidence: Path, unread: list[Path] | None = None
+) -> EvalOutcome | None:
     """Outcome from self-hosted/ephemeral runner posture (signal-grade), or None to use evidence handling."""
 
+    if not all_self and unread:
+        # The only branch here that concludes from finding NOTHING, so the only one an unread
+        # workflow can fool. Withdrawing rather than passing follows ADR-045; the branches below
+        # conclude from finding a runner and keep their verdicts, because a file nobody read
+        # cannot have contributed the signal they did find.
+        names = ", ".join(sorted(p.name for p in unread[:5]))
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"Absence of self-hosted runners could not be established: {names} declares an "
+                "encoding this reader could not decode, so its `runs-on:` was never seen."
+            ),
+            remediation=(
+                "Save the listed workflow(s) as UTF-8, or as UTF-16/UTF-32 with a byte-order "
+                "mark, then re-run evaluation."
+            ),
+            evidence_sources=[str(p.resolve()) for p in unread],
+            confidence="low",
+        )
     if not all_self and not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.PASS,
@@ -968,9 +989,9 @@ def eval_gh_runner_062(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[str(p.resolve()) for p in pr_self_hosted],
             confidence="high",
         )
-    all_self, ephemeral = _self_hosted_workflow_paths(ctx.repo_root)
+    all_self, ephemeral, unread = _self_hosted_workflow_paths(ctx.repo_root)
     evidence = ctx.repo_root / _KIT_DIR / "evidence" / "runner-groups.json"
-    posture_outcome = _gh_ephemeral_posture_outcome(all_self, ephemeral, evidence)
+    posture_outcome = _gh_ephemeral_posture_outcome(all_self, ephemeral, evidence, unread)
     if posture_outcome is not None:
         return posture_outcome
     # Unreachable: `_gh_ephemeral_posture_outcome` returns None only when the evidence

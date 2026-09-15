@@ -65,7 +65,7 @@ from oss_policy_kit.domain.models import ControlStatus, EvalOutcome, EvidenceCol
 from oss_policy_kit.infrastructure.aws_ci_parser import AwsCiAnalysis
 from oss_policy_kit.infrastructure.azure_pipeline_parser import AzurePipelineAnalysis
 from oss_policy_kit.infrastructure.gitlab_ci_parser import GitLabCiAnalysis
-from oss_policy_kit.infrastructure.source_text import decode_source
+from oss_policy_kit.infrastructure.source_text import decode_source, decode_source_detail
 from oss_policy_kit.infrastructure.workflow_parser import WorkflowAnalysis
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
@@ -1353,10 +1353,25 @@ _SELF_HOSTED_PATTERN = re.compile(r"runs-on\s*:\s*(.+)", re.IGNORECASE)
 
 
 def _workflow_text(path: Path) -> str:
+    """The workflow's text, or ``""`` when nothing legible came back.
+
+    Routed through ``decode_source`` rather than a bare UTF-8 read for the reason that primitive
+    exists: YAML 1.2 requires UTF-16 and UTF-32 support, so a workflow saved that way is a
+    workflow, and reading it as UTF-8 produced mojibake in which no ``runs-on:`` exists. Measured
+    before this change, on a push-triggered workflow declaring ``runs-on: [self-hosted, linux]``
+    written UTF-16: GH-RUNNER-062 moved from manual-review-required to PASS, "No self-hosted
+    runners detected in workflows".
+
+    ``""`` for a wide file this reader cannot honour, which is the same answer an unreadable file
+    already gave. The emptiness is not the whole fix -- a caller that concludes an absence from
+    it is still wrong -- so ``_self_hosted_workflow_paths`` reports those paths separately.
+    """
+
     try:
-        return path.read_text(encoding="utf-8", errors="replace")
+        read = decode_source_detail(path.read_bytes())
     except OSError:
         return ""
+    return "" if read.wide_unhonoured else read.text
 
 
 def _classify_self_hosted_runner(text: str) -> tuple[bool, bool]:
@@ -1380,24 +1395,40 @@ def _classify_self_hosted_runner(text: str) -> tuple[bool, bool]:
     return is_self, is_ephemeral
 
 
-def _self_hosted_workflow_paths(repo: Path) -> tuple[list[Path], list[Path]]:
-    """Return (all_self_hosted_paths, paths_marked_ephemeral) by raw scanning workflow YAMLs."""
+def _self_hosted_workflow_paths(repo: Path) -> tuple[list[Path], list[Path], list[Path]]:
+    """Return (all_self_hosted, marked_ephemeral, unread) by raw scanning workflow YAMLs.
+
+    The third list is the point of the signature. An empty ``all_self_hosted`` used to mean two
+    different things -- every workflow was read and none uses a self-hosted runner, or some
+    workflow was never legible -- and the control downstream reported the first for both.
+    """
 
     wf_dir = repo / _GITHUB_DIR / "workflows"
     if not wf_dir.is_dir():
-        return [], []
+        return [], [], []
     all_self: list[Path] = []
     ephemeral_self: list[Path] = []
+    unread: list[Path] = []
     for yml in sorted(list(wf_dir.glob("*.yml")) + list(wf_dir.glob("*.yaml"))):
-        text = _workflow_text(yml)
+        try:
+            read = decode_source_detail(yml.read_bytes())
+        except OSError:
+            # Unreadable bytes: nothing was seen, which is exactly what ``unread`` records.
+            unread.append(yml)
+            continue
+        if read.wide_unhonoured:
+            unread.append(yml)
+            continue
+        text = read.text
         if not text:
+            # A genuinely empty workflow declares no runner. That is a real absence, not a gap.
             continue
         is_self, is_ephemeral = _classify_self_hosted_runner(text)
         if is_self:
             all_self.append(yml)
             if is_ephemeral:
                 ephemeral_self.append(yml)
-    return all_self, ephemeral_self
+    return all_self, ephemeral_self, unread
 
 
 _RELEASE_ARCHIVE_SIGNAL_PATHS: tuple[str, ...] = (

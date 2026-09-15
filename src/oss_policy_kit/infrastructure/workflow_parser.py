@@ -14,7 +14,7 @@ from oss_policy_kit.application.input_limits import (
     bad_input_detail,
     oversize_reason,
 )
-from oss_policy_kit.infrastructure.source_text import decode_source
+from oss_policy_kit.infrastructure.source_text import decode_source_detail
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
 
@@ -980,7 +980,7 @@ def _analyze_one_workflow(path: Path, result: WorkflowAnalysis, signal_acc: set[
     # has to read the same bytes the parser now does. A UTF-16 workflow used to arrive here as
     # mojibake, which defeated the fallback too -- both roads to the finding were closed at once.
     try:
-        raw = strip_yaml_comments(decode_source(path.read_bytes()))
+        read = decode_source_detail(path.read_bytes())
     except OSError as exc:
         # The read sat outside this guard, so an unreadable workflow raised past the parser and
         # out to the CLI's bad-input handler, which ended the whole evaluation with exit 2 and no
@@ -996,6 +996,21 @@ def _analyze_one_workflow(path: Path, result: WorkflowAnalysis, signal_acc: set[
         result.parse_errors.append((path, bad_input_detail(exc)))
         result.unread_paths.append(path)
         return
+    if read.wide_unhonoured:
+        # The file's own first bytes announced UTF-16 or UTF-32 and the stride broke, which is
+        # what any wide workflow holding one character outside Latin-1 does. ``read.text`` is
+        # then mojibake: the parser finds no keys in it and the raw scan finds no `uses:`, so
+        # both roads to a finding are closed and every control that concludes from finding
+        # nothing would state an absence about a file nobody read. Measured before this branch
+        # existed, on a `pull_request_target` workflow pinned to `@main` written UTF-16 without
+        # a BOM: CI-DANGER-007 and CI-PIN-008 both answered PASS.
+        #
+        # Routed to ``unread_paths`` rather than scanned anyway, because scanning mojibake finds
+        # the same nothing while telling the controls it looked.
+        result.parse_errors.append((path, "workflow declares a wide encoding this reader could not decode"))
+        result.unread_paths.append(path)
+        return
+    raw = strip_yaml_comments(read.text)
     _scan_workflow_raw(raw, path, result, signal_acc)
     try:
         data: Any = load_yaml_file(path)

@@ -370,13 +370,47 @@ def test_self_hosted_workflow_paths(tmp_path: Path) -> None:
     (wf / "a.yml").write_text("runs-on: [self-hosted, ephemeral]\n", encoding="utf-8")
     (wf / "b.yaml").write_text("runs-on: ubuntu-latest\n", encoding="utf-8")
     (wf / "empty.yml").write_text("", encoding="utf-8")
-    all_self, ephemeral = s._self_hosted_workflow_paths(tmp_path)
+    all_self, ephemeral, unread = s._self_hosted_workflow_paths(tmp_path)
     assert len(all_self) == 1
     assert len(ephemeral) == 1
+    assert unread == [], "an empty workflow declares no runner; that is an absence, not a gap"
+
+
+def test_self_hosted_workflow_paths_reports_what_it_could_not_decode(tmp_path: Path) -> None:
+    """A wide workflow this reader cannot honour belongs in `unread`, never in "none found".
+
+    Without the third return value an empty `all_self` meant two different things, and
+    GH-RUNNER-062 reported the wrong one: "No self-hosted runners detected in workflows" over a
+    file declaring `runs-on: [self-hosted, linux]`.
+    """
+
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    body = "# nota 漢字\nruns-on: [self-hosted, linux]\n"
+    (wf / "wide.yml").write_bytes(body.encode("utf-16-le"))
+
+    all_self, ephemeral, unread = s._self_hosted_workflow_paths(tmp_path)
+
+    assert all_self == []
+    assert ephemeral == []
+    assert [p.name for p in unread] == ["wide.yml"]
+
+
+def test_self_hosted_workflow_paths_reads_a_wide_workflow_with_a_bom(tmp_path: Path) -> None:
+    """YAML 1.2 requires UTF-16 support, so a BOM-carrying workflow is read, not withdrawn."""
+
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "wide.yml").write_bytes("runs-on: [self-hosted, linux]\n".encode("utf-16"))
+
+    all_self, _ephemeral, unread = s._self_hosted_workflow_paths(tmp_path)
+
+    assert [p.name for p in all_self] == ["wide.yml"]
+    assert unread == []
 
 
 def test_self_hosted_workflow_paths_no_dir(tmp_path: Path) -> None:
-    assert s._self_hosted_workflow_paths(tmp_path) == ([], [])
+    assert s._self_hosted_workflow_paths(tmp_path) == ([], [], [])
 
 
 # --------------------------------------------------------------------------- #
