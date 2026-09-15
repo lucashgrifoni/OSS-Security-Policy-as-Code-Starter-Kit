@@ -58,6 +58,11 @@ dev = [
   "botocore>=1.34",
   "moto>=5.0.26",
   "python-hcl2>=6.1",
+  # The CEL half of `export-policy` is verified by two tests that `importorskip("celpy")`.
+  # Without this line they skipped in every environment, local and CI, while the Rego half
+  # ran against a real `opa` binary the workflow installs. A generated gate that never
+  # compiles is a gate that never denies, and nothing was checking that it compiles.
+  "cel-python>=0.1.5",
 ]
 
 # Third-party evaluator plugins can register custom controls via:

@@ -789,6 +789,9 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+      # Added with the zizmor SARIF upload below. Least privilege still: this job writes
+      # code-scanning results and nothing else beyond reading the tree.
+      security-events: write
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -865,6 +868,16 @@ jobs:
           for s in d["sources_read"]:
               print(f"  {s['status']:14} {s['kind']:14} {s['tool']}")
           EOF
+
+      # The SARIF above was produced on every run and went only into a build artifact with a
+      # 14-day retention, so zizmor contributed nothing to the code-scanning backlog that the
+      # other eight scanners in this workflow feed. A finding nobody is shown is not a finding.
+      - name: Upload zizmor SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        if: always()
+        with:
+          sarif_file: .oss-policy-kit/evidence/sast/zizmor.sarif.json
+          category: zizmor
 
       - name: Upload the findings artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
