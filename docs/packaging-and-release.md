@@ -172,7 +172,14 @@ keeps ONE open pull request titled `chore(master): release X.Y.Z` that carries:
   under `extra-files` in `.github/release-please-config.json`
 - the `CHANGELOG.md` section, grouped by the `changelog-sections` in that file
   (`feat` under Highlights, `fix` under Fixes, `perf` and `refactor` under Improvements,
-  `docs` / `build` / `ci` under Notes)
+  `docs` / `build` / `ci` / `deps` under Notes)
+
+That list REPLACES release-please's defaults rather than extending them, so a type missing
+from it is not merely uncategorised -- the commit is dropped from the changelog entirely.
+`deps` was missing until 2026-09-15, and twelve Dependabot bumps (boto3, botocore, semgrep,
+ruff, zizmor, python-hcl2) shipped without a changelog line while the thirty-two bumps the
+bot prefixes `ci` all appeared. `tests/docs/test_every_commit_type_the_bot_writes_reaches_the_changelog.py`
+now derives the check from `.github/dependabot.yml` so a new ecosystem cannot reopen it.
 
 What that means for a commit: the subject is the changelog line, so write it for the
 reader of the changelog. An unbalanced parenthesis in a commit body makes release-please
