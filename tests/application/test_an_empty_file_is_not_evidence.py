@@ -27,7 +27,8 @@ from pathlib import Path
 
 import pytest
 
-from oss_policy_kit.application.evaluators import EVALUATOR_REGISTRY, _shared as sh
+from oss_policy_kit.application.evaluators import EVALUATOR_REGISTRY
+from oss_policy_kit.application.evaluators import _shared as sh
 from oss_policy_kit.domain.models import ControlStatus
 from oss_policy_kit.infrastructure.aws_ci_parser import AwsCiAnalysis
 from oss_policy_kit.infrastructure.azure_pipeline_parser import AzurePipelineAnalysis
