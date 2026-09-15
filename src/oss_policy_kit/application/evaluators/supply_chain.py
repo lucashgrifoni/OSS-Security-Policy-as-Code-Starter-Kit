@@ -5,7 +5,6 @@ from __future__ import annotations
 from oss_policy_kit.application.evaluators._shared import (
     _COMMIT_SIGNATURE_HINTS,
     _DISTROLESS_MARKERS,
-    _DOCKER_FROM_RE,
     _IMAGE_SCAN_TOKENS,
     _KEYWORD_CI_SIGNAL_WARN,
     _OSV_SARIF_RELPATH,
@@ -26,6 +25,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _scan_sarif_epss_kev,
     cast,
     contextlib,
+    docker_from_instructions,
     json,
     preview_evidence_paths,
 )
@@ -91,13 +91,18 @@ def _from_refs_by_file(dockerfiles: list[Path]) -> tuple[list[str], list[str]]:
             # and would leak the cwd into the report (M-002).
             unread.append(f"{df.name}: {bad_input_detail(exc)}")
             continue
-        refs = _DOCKER_FROM_RE.findall(content)
-        if not refs:
+        froms = docker_from_instructions(content)
+        if not froms:
             unread.append(f"{df.name}: no FROM instruction was found in it")
             continue
-        for ref in refs:
-            if ref.lower() != "scratch" and "@sha256:" not in ref:
-                unpinned.append(f"{df.name}: {ref}")
+        for entry in froms:
+            # `FROM base` where an earlier line said `AS base` is not a pull, so there is no
+            # digest to ask for. Judging it as an image failed a Dockerfile whose only
+            # registry reference was digest-pinned on its first line.
+            if entry.names_a_stage:
+                continue
+            if entry.ref.lower() != "scratch" and "@sha256:" not in entry.ref:
+                unpinned.append(f"{df.name}: {entry.ref}")
     return unpinned, unread
 
 
@@ -934,11 +939,14 @@ def _final_stage_bases(dockerfiles: list[Path]) -> tuple[list[tuple[str, str]], 
         except OSError as exc:
             unread.append(f"{path.name}: {bad_input_detail(exc)}")
             continue
-        refs = _DOCKER_FROM_RE.findall(content)
-        if not refs:
+        froms = docker_from_instructions(content)
+        if not froms:
             unread.append(f"{path.name}: no FROM instruction was found in it")
             continue
-        finals.append((path.name, refs[-1].lower()))
+        # `.resolved`, not `.ref`. The last stage of a layered build is written `FROM base`,
+        # and asking whether the string "base" looks distroless answers about a name rather
+        # than about the image that ships.
+        finals.append((path.name, froms[-1].resolved.lower()))
     return finals, unread
 
 

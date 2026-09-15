@@ -1024,6 +1024,66 @@ _DOCKER_FROM_RE = re.compile(
     re.MULTILINE | re.IGNORECASE,
 )
 
+#: The same line, plus the optional ``AS <stage>`` that names it. Kept separate from
+#: ``_DOCKER_FROM_RE`` because adding a group there would change what ``findall`` returns for
+#: every existing caller. Bounded repetition throughout: this runs over target text.
+_DOCKER_FROM_STAGE_RE = re.compile(
+    r"^[ \t]{0,200}FROM[ \t]{1,200}(?:--\S{1,200}[ \t]{1,200}){0,8}(\S{1,1000})"
+    r"(?:[ \t]{1,200}AS[ \t]{1,200}(\S{1,200}))?",
+    re.MULTILINE | re.IGNORECASE,
+)
+
+
+class DockerFrom(NamedTuple):
+    """One ``FROM`` line, with stage references resolved.
+
+    ``ref`` is what was written. ``resolved`` is the registry image it ends up meaning, which
+    differs only when ``ref`` names an earlier stage. ``names_a_stage`` says which case this
+    is, so a control can ask the question it actually cares about.
+    """
+
+    ref: str
+    resolved: str
+    names_a_stage: bool
+
+
+def docker_from_instructions(content: str) -> list[DockerFrom]:
+    """Every ``FROM`` in *content*, in file order, with stage names resolved to real images.
+
+    ``FROM base`` is not a pull. Docker resolves the name against the stages declared earlier
+    in the same file and only falls through to a registry when nothing matches. Reading every
+    ref as an image made ``CONT-IMAGE-001`` report a fully digest-pinned Dockerfile as
+    unpinned::
+
+        FROM python:3.12-slim@sha256:1234... AS base
+        FROM base AS build
+        FROM base AS runtime
+
+        CONT-IMAGE-001  FAIL  without digest pin: Dockerfile: base; Dockerfile: base.
+
+    Failing a repository that has already done what the control asks is not a conservative
+    error. It is how a control gets waived, and a waived control is one nobody reads again.
+
+    Resolution follows chains, because stages are routinely layered: a stage built ``FROM
+    base`` and then used as ``FROM build`` resolves all the way back to the pinned image. It
+    only ever looks BACKWARD, which is what Docker does -- a name used before it is declared
+    matches no stage and really is a registry reference.
+
+    Case-insensitive on stage names, matching Docker, which lowercases them.
+    """
+
+    out: list[DockerFrom] = []
+    declared: dict[str, str] = {}
+    for match in _DOCKER_FROM_STAGE_RE.finditer(content):
+        ref = match.group(1)
+        stage = match.group(2)
+        target = declared.get(ref.lower())
+        resolved = target if target is not None else ref
+        out.append(DockerFrom(ref=ref, resolved=resolved, names_a_stage=target is not None))
+        if stage:
+            declared[stage.lower()] = resolved
+    return out
+
 
 def _find_dockerfiles(repo: Path) -> list[Path]:
     from oss_policy_kit.application.evaluators_common import find_dockerfiles
@@ -3268,6 +3328,7 @@ __all__ = [
     "_DISCLOSURE_SLA_KEYWORDS",
     "_DISTROLESS_MARKERS",
     "_DOCKER_FROM_RE",
+    "docker_from_instructions",
     "_EVIDENCE_EXPIRY_WARN_DAYS",
     "_EVIDENCE_MAX_AGE_DAYS",
     "_GITIGNORE_SECRET_FRAGMENTS",
