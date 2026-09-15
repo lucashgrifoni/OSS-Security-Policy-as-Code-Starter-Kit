@@ -53,6 +53,7 @@ def _last_commit_iso(path: Path) -> str | None:
         cwd=_REPO_ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
     )
     return out.stdout.strip() or None
@@ -118,6 +119,7 @@ def test_the_catalog_data_partial_is_regenerated_not_hand_edited() -> None:
         cwd=_REPO_ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
     )
 
