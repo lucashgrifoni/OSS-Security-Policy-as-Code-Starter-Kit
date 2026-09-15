@@ -50,6 +50,7 @@ from oss_policy_kit.application.evidence_loading import load_evidence_schema
 from oss_policy_kit.application.evidence_placeholders import has_placeholder_values, is_placeholder_digest
 from oss_policy_kit.application.input_limits import (
     BAD_INPUT_ERRORS,
+    MAX_CI_CONFIG_BYTES,
     MAX_JSON_DEPTH,
     MAX_SARIF_BYTES,
     bad_input_detail,
@@ -1350,6 +1351,56 @@ def _verification_freshness_status(verified_at: str, *, max_age_days: int) -> st
 
 
 _SELF_HOSTED_PATTERN = re.compile(r"runs-on\s*:\s*(.+)", re.IGNORECASE)
+
+
+class RepoText(NamedTuple):
+    """The text of a file the AUDITED repository controls, and whether it was really read.
+
+    Every control that scans a repository file needs the same three things and most of them
+    open-coded two: the bytes, a ceiling, and a decode that honours the encoding the file
+    declares. What none of them had was the fourth: a way to tell "I read it and the signal is
+    not there" apart from "I never read it". Those are different claims, and reporting the first
+    for the second is how a control states an absence about a file nobody opened.
+    """
+
+    #: The decoded text, or ``""`` when nothing legible came back.
+    text: str
+    #: Nothing usable was read. A control concluding from absence must withdraw, per ADR-045.
+    unread: bool
+    #: Operator-facing reason, for the withdrawal message. ``""`` when the file was read.
+    why: str
+
+
+def read_repo_text(path: Path, *, max_bytes: int = MAX_CI_CONFIG_BYTES, label: str = "File") -> RepoText:
+    """Read a repository-controlled file the way a control is allowed to read one.
+
+    Three refusals, each of which used to be an unbounded or silent read somewhere:
+
+    * **over the ceiling** -- the audited repository decides this file's size, and before the
+      cap existed it also decided how long the audit ran. ``oversize_reason`` is checked before
+      the bytes are touched, because a cap applied after the read has already paid for it.
+    * **unreadable bytes** -- a permission error, a directory where a file was expected, a
+      broken link. ``bad_input_detail`` rather than ``str(exc)``, which appends the resolved
+      filename and would publish the host layout into a report (M-002).
+    * **an encoding this reader cannot honour** -- see ``DecodedSource.wide_unhonoured``. The
+      text would be mojibake, and mojibake is indistinguishable from an absent signal.
+
+    Anything else is read, including a file whose bytes lost a character to the replacement
+    decode: that is a lossy read of a legible file, the structure around the loss survives, and
+    a control is still entitled to its verdict.
+    """
+
+    oversize = oversize_reason(path, max_bytes, label=label)
+    if oversize is not None:
+        return RepoText("", True, oversize)
+    try:
+        data = path.read_bytes()
+    except OSError as exc:
+        return RepoText("", True, bad_input_detail(exc))
+    read = decode_source_detail(data)
+    if read.wide_unhonoured:
+        return RepoText("", True, f"{label} declares a wide encoding this reader could not decode: {path.name}")
+    return RepoText(read.text, False, "")
 
 
 def _workflow_text(path: Path) -> str:
@@ -2975,15 +3026,66 @@ _LONG_LIVED_PASSWORD_PATTERN = re.compile(
 _NPM_PROVENANCE_PATTERN = re.compile(r"(--provenance\b|provenance:\s*true)", re.IGNORECASE)
 
 
-def _publish_workflows(paths: list[Path]) -> list[Path]:
-    """Return the subset of workflow paths that look like publish workflows."""
+def _publish_workflows(paths: list[Path]) -> tuple[list[Path], list[Path]]:
+    """Return (workflows that look like publish workflows, workflows nobody could read).
+
+    The second list is what makes the first honest. Discovery here is a keyword scan, so a
+    workflow that arrives as mojibake matches no keyword and drops out silently -- and five
+    controls then answer "No publish workflow detected" about a repository that publishes.
+
+    Measured before the second list existed, on the `oss-publish-readiness-1` profile over two
+    repositories whose `publish.yml` differed only in its encoding:
+
+        PUBLISH-OIDC-001        FAIL -> NOT_APPLICABLE
+        PUBLISH-OIDC-002        FAIL -> NOT_APPLICABLE
+        PUBLISH-OIDC-003        FAIL -> NOT_APPLICABLE
+        SCANNER-INTEGRITY-001   FAIL -> NOT_APPLICABLE
+        WORM-PUBLISH-SCOPE-001  PASS -> NOT_APPLICABLE
+
+    exit 1 -> exit 0. And `--fail-on degraded`, which this project documents as the operator's
+    conservative setting, does not close it either: it counts `fail` and
+    `manual-review-required`, and every one of those five landed in `not-applicable`.
+    """
+
     out: list[Path] = []
+    unread: list[Path] = []
     for p in paths:
-        with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
-            if any(kw in text for kw in _PUBLISH_KEYWORDS):
-                out.append(p)
-    return out
+        read = read_repo_text(p, label="Workflow")
+        if read.unread:
+            unread.append(p)
+            continue
+        if any(kw in read.text.lower() for kw in _PUBLISH_KEYWORDS):
+            out.append(p)
+    return out, unread
+
+
+def unread_candidates_outcome(unread: list[Path], *, what: str, remediation: str | None = None) -> EvalOutcome | None:
+    """Withdraw a not-applicable that rests on a candidate nobody read, or ``None`` to proceed.
+
+    The counterpart to ``unread_sources_withdrawal`` for controls whose applicability -- not just
+    their verdict -- is decided by scanning files. Answering `not-applicable` is a positive claim
+    about the repository ("this does not apply here"), and a control that reaches it by not
+    finding a keyword in a file it never read has not established it.
+    """
+
+    if not unread:
+        return None
+    names = ", ".join(sorted(p.name for p in unread[:5]))
+    more = f" and {len(unread) - 5} more" if len(unread) > 5 else ""
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            f"Whether {what} could not be established: {names}{more} was never read, so the "
+            "files that would have answered it were not scanned."
+        ),
+        remediation=(
+            remediation
+            or "Save the listed file(s) as UTF-8, or as UTF-16/UTF-32 with a byte-order mark, "
+            "keep them under the input size cap, and re-run evaluation."
+        ),
+        evidence_sources=[str(p.resolve()) for p in unread],
+        confidence="low",
+    )
 
 
 _COMMIT_SIGNATURE_HINTS: tuple[str, ...] = (

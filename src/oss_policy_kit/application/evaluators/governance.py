@@ -51,13 +51,14 @@ from oss_policy_kit.application.evaluators._shared import (
     _validate_bsi_tr_03183_v2_1,
     _validate_json_evidence,
     _verification_freshness_status,
-    _workflow_text,
     checks_as_map,
     contextlib,
     has_placeholder_values,
     insights_self_attested_outcome,
     json,
     load_yaml_file,
+    read_repo_text,
+    unread_candidates_outcome,
 )
 from oss_policy_kit.application.evaluators_common import strip_yaml_comments
 from oss_policy_kit.application.input_limits import bad_input_detail
@@ -1529,8 +1530,14 @@ def eval_publish_oidc_001(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[],
             confidence="high",
         )
-    publish = _publish_workflows(paths)
+    publish, unread = _publish_workflows(paths)
     if not publish:
+        # Applicability itself rests on a keyword scan, so a workflow nobody read drops out of
+        # `publish` exactly as an absent one does, and this branch then states that this
+        # repository does not publish. Withdrawn instead, per ADR-045.
+        withdrawn = unread_candidates_outcome(unread, what="whether this repository publishes to a package registry")
+        if withdrawn is not None:
+            return withdrawn
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No publish workflow detected (no PyPI / npm / RubyGems / crates keyword in any workflow).",
@@ -1584,8 +1591,14 @@ def eval_publish_oidc_002(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[],
             confidence="high",
         )
-    publish = _publish_workflows(paths)
+    publish, unread = _publish_workflows(paths)
     if not publish:
+        # Applicability itself rests on a keyword scan, so a workflow nobody read drops out of
+        # `publish` exactly as an absent one does, and this branch then states that this
+        # repository does not publish. Withdrawn instead, per ADR-045.
+        withdrawn = unread_candidates_outcome(unread, what="whether this repository publishes to a package registry")
+        if withdrawn is not None:
+            return withdrawn
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No publish workflow detected.",
@@ -1639,12 +1652,18 @@ def eval_publish_oidc_003(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     npm_publish: list[Path] = []
+    unread: list[Path] = []
     for p in paths:
-        with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
-            if "npm publish" in text:
-                npm_publish.append(p)
+        read = read_repo_text(p, label="Workflow")
+        if read.unread:
+            unread.append(p)
+            continue
+        if "npm publish" in read.text.lower():
+            npm_publish.append(p)
     if not npm_publish:
+        withdrawn = unread_candidates_outcome(unread, what="whether an npm publish step exists")
+        if withdrawn is not None:
+            return withdrawn
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No npm publish step detected.",
@@ -1740,14 +1759,24 @@ def eval_osps_scorecard_v6_001(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def _scan_scanner_action_pinning(paths: list[Path]) -> tuple[list[str], int, bool]:
-    """Scan workflows for scanner ``uses:`` refs; return ``(unpinned, pinned_count, saw_any_scanner)``."""
+def _scan_scanner_action_pinning(paths: list[Path]) -> tuple[list[str], int, bool, list[Path]]:
+    """Scan workflows for scanner ``uses:`` refs.
+
+    Returns ``(unpinned, pinned_count, saw_any_scanner, unread)``. The last element exists
+    because ``seen_scanner`` is False for two different reasons -- no workflow references a
+    scanner, or a workflow was never legible -- and the control reported the first for both.
+    """
 
     unpinned: list[str] = []
     pinned = 0
     seen_scanner = False
+    unread: list[Path] = []
     for p in paths:
-        for raw_line in _workflow_text(p).splitlines():
+        read = read_repo_text(p, label="Workflow")
+        if read.unread:
+            unread.append(p)
+            continue
+        for raw_line in read.text.splitlines():
             line = raw_line.strip()
             if "uses:" not in line:
                 continue
@@ -1759,7 +1788,7 @@ def _scan_scanner_action_pinning(paths: list[Path]) -> tuple[list[str], int, boo
                 pinned += 1
             else:
                 unpinned.append(f"{p.name}: {ref}")
-    return unpinned, pinned, seen_scanner
+    return unpinned, pinned, seen_scanner, unread
 
 
 def eval_scanner_integrity_001(ctx: EvalContext) -> EvalOutcome:
@@ -1773,8 +1802,11 @@ def eval_scanner_integrity_001(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[],
             confidence="high",
         )
-    unpinned, pinned, seen_scanner = _scan_scanner_action_pinning(paths)
+    unpinned, pinned, seen_scanner, unread = _scan_scanner_action_pinning(paths)
     if not seen_scanner:
+        withdrawn = unread_candidates_outcome(unread, what="whether any workflow references a scanner action")
+        if withdrawn is not None:
+            return withdrawn
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No scanner actions referenced in workflows; scanner integrity check does not apply.",

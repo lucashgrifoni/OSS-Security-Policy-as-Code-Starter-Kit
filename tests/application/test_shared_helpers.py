@@ -667,7 +667,24 @@ def test_publish_workflows(tmp_path: Path) -> None:
     a.write_text("steps:\n  - run: twine upload dist/*\n", encoding="utf-8")
     b = tmp_path / "b.yml"
     b.write_text("steps:\n  - run: echo hi\n", encoding="utf-8")
-    assert s._publish_workflows([a, b]) == [a]
+    assert s._publish_workflows([a, b]) == ([a], [])
+
+
+def test_publish_workflows_reports_the_candidate_it_could_not_read(tmp_path: Path) -> None:
+    """A publish workflow that arrives as mojibake matches no keyword and must not vanish.
+
+    Five controls decided applicability from the first list alone, so an unreadable publish
+    workflow made every one of them answer "No publish workflow detected" about a repository
+    that publishes -- and turned `--fail-on fail` from exit 1 to exit 0.
+    """
+
+    wide = tmp_path / "wide.yml"
+    wide.write_bytes("# nota 漢字\nsteps:\n  - run: twine upload dist/*\n".encode("utf-16-le"))
+
+    found, unread = s._publish_workflows([wide])
+
+    assert found == []
+    assert unread == [wide]
 
 
 def test_read_first_existing(tmp_path: Path) -> None:

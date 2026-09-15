@@ -28,6 +28,8 @@ from oss_policy_kit.application.evaluators._shared import (
     docker_from_instructions,
     json,
     preview_evidence_paths,
+    read_repo_text,
+    unread_candidates_outcome,
 )
 
 # SLSA-SRC-005 / SLSA-SRC-008 delegate to the AUDIT-STREAM-060 evaluator, which lives
@@ -446,12 +448,19 @@ def eval_worm_lockfile_drift_001(ctx: EvalContext) -> EvalOutcome:
 def eval_worm_publish_scope_001(ctx: EvalContext) -> EvalOutcome:
     """WORM-PUBLISH-SCOPE-001: publish workflow scoped to main/release branches."""
     publish_paths: list[Path] = []
+    unread: list[Path] = []
     for p in ctx.workflows.workflow_paths:
-        with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
-            if "npm publish" in text or "twine upload" in text or "pypi-publish" in text or "cargo publish" in text:
-                publish_paths.append(p)
+        read = read_repo_text(p, label="Workflow")
+        if read.unread:
+            unread.append(p)
+            continue
+        text = read.text.lower()
+        if "npm publish" in text or "twine upload" in text or "pypi-publish" in text or "cargo publish" in text:
+            publish_paths.append(p)
     if not publish_paths:
+        withdrawn = unread_candidates_outcome(unread, what="whether this repository publishes to a package registry")
+        if withdrawn is not None:
+            return withdrawn
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No publish workflow detected.",
