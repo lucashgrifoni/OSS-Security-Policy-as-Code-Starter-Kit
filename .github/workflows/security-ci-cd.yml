@@ -605,7 +605,11 @@ jobs:
           fetch-depth: 0
 
       - name: Scan git history for leaked secrets
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        # v3 is a runtime migration and nothing else: node20 -> node24, no change to inputs,
+        # outputs or behaviour. Urgent rather than routine -- GitHub removes Node 20 from
+        # hosted runners on 2026-09-16, after which v2 stops working regardless of any
+        # opt-out flag, and this repository's only git-history secret scan stops with it.
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           # gitleaks-action v2.3.9 (latest) still declares `runs.using:
           # node20`, which GitHub forces to Node 24 from 2026-06-02 and removes

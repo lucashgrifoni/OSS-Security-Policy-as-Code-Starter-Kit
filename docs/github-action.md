@@ -29,8 +29,15 @@ empty version and the action ran `pip install oss-policy-kit` with no pin at all
 whatever was newest on PyPI. Following the advice on this page therefore produced a *less*
 reproducible install than ignoring it, and the two SHAs this page and the template used to
 show were both from that period. Since v10.0.14 the action reads its version out of its own
-checkout, so every pinning style resolves to the exact wheel that revision ships. The example
-above pins v10.0.15 because that is the current release, not because v10.0.14 is unsafe.
+checkout, so every pinning style resolves to the exact wheel that revision ships.
+
+The example above pins v10.0.15, which was current when this page was written and is not the
+current release now. That is deliberate rather than stale: a SHA pin is an exact revision, so
+bumping the example every release would churn this page and the template for no gain to a
+reader who is going to pin their own. What matters is the floor, and v10.0.15 clears it. Pin
+whichever release you are adopting, and check the [CHANGELOG](../CHANGELOG.md) for what it
+contains; a guard in `tests/docs/` holds every self-referencing pin on this page at or above
+v10.0.14 so the example can never drift back below the floor.
 
 ## Inputs
 
