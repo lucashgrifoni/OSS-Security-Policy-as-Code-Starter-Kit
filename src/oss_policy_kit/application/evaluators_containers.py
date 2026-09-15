@@ -29,7 +29,7 @@ from typing import Any
 
 from oss_policy_kit.application.evaluators_common import DOCKERFILE_SCAN_LIMIT, strip_dockerfile_comments
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
-from oss_policy_kit.infrastructure.source_text import decode_source
+from oss_policy_kit.infrastructure.source_text import decode_source_detail
 
 # The leading run is possessive. ``FROM`` cannot begin with a space or a tab, so every
 # shorter length the greedy form backtracks into fails for the same reason the longest one
@@ -125,16 +125,26 @@ def _read_text(path: Path) -> str:
 def _read_text_or_none(path: Path) -> str | None:
     """As :func:`_read_text`, but ``None`` when the file could not be read at all.
 
-    Six of the seven controls here fail when they find no signal, so a failed read leaves them
-    restrictive and "" is the right answer for them. CONT-RUNTIME-003 passes when it finds no
-    signal, so for that one "" and "unreadable" are the same value with opposite meanings: it
-    answered "No curl|bash / wget|sh pattern detected" about a Dockerfile it never opened.
+    Three of the seven controls here conclude something from finding no signal, so for those
+    "" and "unreadable" are the same value with opposite meanings. CONT-RUNTIME-003 passes on
+    no signal; CONT-RUNTIME-005 and CONT-RUNTIME-006 answer not-applicable on it.
+
+    This docstring used to say "six of the seven ... fail when they find no signal", and that
+    sentence is what exempted 005 and 006 from the first sweep. They do not fail on no signal;
+    they declare themselves not applicable, which is equally a positive claim about the
+    repository. Measured: a Dockerfile running `apt-get install` behind a read error moved
+    CONT-RUNTIME-005 and CONT-RUNTIME-006 from FAIL to not-applicable, "No apt-get install
+    lines detected in any Dockerfile".
     """
 
     try:
-        return decode_source(path.read_bytes())
+        read = decode_source_detail(path.read_bytes())
     except OSError:
         return None
+    # A wide Dockerfile whose stride broke decodes to mojibake, in which no line pattern
+    # matches. Indistinguishable from an empty file by its text, and the opposite of it by
+    # meaning, so it takes the unreadable answer.
+    return None if read.wide_unhonoured else read.text
 
 
 def _truncation_clause(truncated: bool) -> str:
@@ -151,6 +161,30 @@ def _truncation_clause(truncated: bool) -> str:
     return (
         f" The repository holds more than {DOCKERFILE_SCAN_LIMIT} Dockerfiles and only the "
         f"first {DOCKERFILE_SCAN_LIMIT} were read, so this result does not cover the rest."
+    )
+
+
+def _cannot_tell_over_unread(what: str, unread: list[Path]) -> EvalOutcome:
+    """Refuse to call a control ``not-applicable`` over Dockerfiles nobody could read.
+
+    The sibling of :func:`_cannot_tell_past_the_cap`. That one covers files the cap hid; this
+    one covers files the cap admitted and the reader could not decode. Both withdraw the same
+    state and neither touches a FAIL, because the offender branches run first.
+    """
+
+    names = ", ".join(sorted(p.name for p in unread[:5]))
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            f"Cannot confirm this repository has no {what}. None was found in what was read, "
+            f"but {names} could not be read at all."
+        ),
+        remediation=(
+            "Save the listed Dockerfile(s) as UTF-8, or as UTF-16/UTF-32 with a byte-order "
+            "mark, make them readable, then re-run evaluation."
+        ),
+        evidence_sources=[str(p.resolve()) for p in unread],
+        confidence="low",
     )
 
 
@@ -387,9 +421,14 @@ def eval_cont_runtime_005(ctx: Any) -> EvalOutcome:
     if not dockerfiles:
         return _na_no_dockerfile()
     offenders: list[Path] = []
+    unread: list[Path] = []
     apt_used = False
     for df in dockerfiles:
-        text = strip_dockerfile_comments(_read_text(df))
+        raw = _read_text_or_none(df)
+        if raw is None:
+            unread.append(df)
+            continue
+        text = strip_dockerfile_comments(raw)
         if not _APT_INSTALL_RE.search(text):
             continue
         apt_used = True
@@ -403,6 +442,8 @@ def eval_cont_runtime_005(ctx: Any) -> EvalOutcome:
         # no offenders to lose. This only ever replaces `not-applicable`.
         if truncated:
             return _cannot_tell_past_the_cap("apt-get install line", dockerfiles)
+        if unread:
+            return _cannot_tell_over_unread("apt-get install line", unread)
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No apt-get install lines detected in any Dockerfile.",
@@ -450,17 +491,25 @@ def _dockerfile_install_pin_state(df: Path) -> tuple[bool, bool]:
     return relevant, False
 
 
-def _scan_pkg_pinning(dockerfiles: list[Path]) -> tuple[list[Path], bool]:
-    """Return ``(offenders, saw_install_line)`` for unpinned apt/apk install lines."""
+def _scan_pkg_pinning(dockerfiles: list[Path]) -> tuple[list[Path], bool, list[Path]]:
+    """Return ``(offenders, saw_install_line, unread)`` for unpinned apt/apk install lines.
+
+    ``saw_install_line`` is False for two different reasons -- no Dockerfile installs packages,
+    or a Dockerfile was never legible -- and CONT-RUNTIME-006 reported the first for both.
+    """
 
     offenders: list[Path] = []
     relevant = False
+    unread: list[Path] = []
     for df in dockerfiles:
+        if _read_text_or_none(df) is None:
+            unread.append(df)
+            continue
         df_relevant, unpinned = _dockerfile_install_pin_state(df)
         relevant = relevant or df_relevant
         if unpinned and df not in offenders:
             offenders.append(df)
-    return offenders, relevant
+    return offenders, relevant, unread
 
 
 def eval_cont_runtime_006(ctx: Any) -> EvalOutcome:
@@ -469,12 +518,14 @@ def eval_cont_runtime_006(ctx: Any) -> EvalOutcome:
     dockerfiles, truncated = _find_dockerfiles_capped(ctx.repo_root)
     if not dockerfiles:
         return _na_no_dockerfile()
-    offenders, relevant = _scan_pkg_pinning(dockerfiles)
+    offenders, relevant, unread = _scan_pkg_pinning(dockerfiles)
     if not relevant:
         # Same shape as CONT-RUNTIME-005 and found by sweeping its sibling: "nothing to pin"
         # is a claim about the whole repository, made from the first twenty Dockerfiles.
         if truncated:
             return _cannot_tell_past_the_cap("apt or apk install line", dockerfiles)
+        if unread:
+            return _cannot_tell_over_unread("apt or apk install line", unread)
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No apt/apk install lines detected; nothing to pin.",

@@ -411,7 +411,23 @@ def test_mcp_evaluators_not_applicable(tmp_path: Path) -> None:
 def test_asi_goal_001_pass(tmp_path: Path) -> None:
     _make_agentic(tmp_path)
     (tmp_path / "prompts").mkdir()
+    (tmp_path / "prompts" / "system.md").write_text("You are a build assistant.\n", encoding="utf-8")
     assert ai.eval_agent_asi_goal_001(_ctx(tmp_path)).status == ControlStatus.PASS
+
+
+def test_asi_goal_001_does_not_pass_on_an_empty_prompt_library(tmp_path: Path) -> None:
+    """`mkdir prompts` is not a version-controlled goal definition, and neither is `touch`.
+
+    This assertion used to be the PASS case above: an empty directory satisfied a control
+    about whether the agent's goal is version-controlled and integrity-checked.
+    """
+
+    _make_agentic(tmp_path)
+    (tmp_path / "prompts").mkdir()
+    assert ai.eval_agent_asi_goal_001(_ctx(tmp_path)).status == ControlStatus.MANUAL_REVIEW_REQUIRED
+
+    (tmp_path / "prompts" / "system.md").write_bytes(b"")
+    assert ai.eval_agent_asi_goal_001(_ctx(tmp_path)).status == ControlStatus.MANUAL_REVIEW_REQUIRED
 
 
 def test_asi_goal_001_no_prompt(tmp_path: Path) -> None:

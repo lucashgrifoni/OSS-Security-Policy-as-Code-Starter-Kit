@@ -304,7 +304,18 @@ def test_an_apt_layer_that_leaves_its_lists_behind_is_reported(tmp_path: Path) -
 def test_a_dockerfile_the_scanner_cannot_open_reads_as_empty_rather_than_crashing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Best-effort, and it resolves downwards: an unreadable file contributes no apt evidence."""
+    """Best-effort, and it resolves to "I could not tell" -- never to "there is nothing here".
+
+    This test used to assert ``NOT_APPLICABLE`` and its docstring called that resolving
+    downwards. It is not downwards. "No apt-get install lines detected in any Dockerfile" is a
+    positive claim about the repository, made about a file nobody opened, and `--fail-on
+    degraded` does not count `not-applicable` -- so the refused read turned a red gate green.
+    Measured: a Dockerfile running `apt-get install -y curl` behind a PermissionError moved
+    CONT-RUNTIME-005 and CONT-RUNTIME-006 from FAIL to not-applicable.
+
+    What the test is really for -- the reader survives a refusal instead of crashing -- is
+    unchanged and still asserted by reaching a verdict at all.
+    """
 
     _write(tmp_path, "Dockerfile", "FROM debian:12\nRUN apt-get install -y curl\n")
     original_text = Path.read_text
@@ -328,7 +339,7 @@ def test_a_dockerfile_the_scanner_cannot_open_reads_as_empty_rather_than_crashin
     monkeypatch.setattr(Path, "read_text", _refuse_text)
     monkeypatch.setattr(Path, "read_bytes", _refuse_bytes)
 
-    assert containers.eval_cont_runtime_005(_ctx(tmp_path)).status is ControlStatus.NOT_APPLICABLE
+    assert containers.eval_cont_runtime_005(_ctx(tmp_path)).status is ControlStatus.MANUAL_REVIEW_REQUIRED
 
 
 # --------------------------------------------------------------------------- #

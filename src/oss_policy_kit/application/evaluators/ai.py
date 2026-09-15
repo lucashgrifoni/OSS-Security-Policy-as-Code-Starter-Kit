@@ -357,7 +357,7 @@ def eval_llm_ai_act_003(ctx: EvalContext) -> EvalOutcome:
     """LLM-AI-ACT-003: Risk management documentation present (Annex IV §5)."""
     for rel in _RISK_MGMT_PATHS:
         p = ctx.repo_root / rel
-        if p.is_file():
+        if _has_content(p):
             return EvalOutcome(
                 status=ControlStatus.PASS,
                 reason=f"Risk-management documentation found at {rel} (Annex IV §5).",
@@ -937,7 +937,10 @@ def eval_agent_asi_goal_001(ctx: EvalContext) -> EvalOutcome:
         ctx.repo_root / "system_prompt.txt",
         ctx.repo_root / "SYSTEM_PROMPT.md",
     ]
-    present = [p for p in prompt_locations if p.exists()]
+    # A version-controlled prompt file with nothing in it is not a version-controlled goal
+    # definition, and neither is a `prompts/` holding one empty file -- which is what
+    # `mkdir prompts && touch prompts/system.md` produced before this guard.
+    present = [p for p in prompt_locations if _has_content(p) or _holds_a_non_empty_file(p)]
     if present:
         return EvalOutcome(
             status=ControlStatus.PASS,

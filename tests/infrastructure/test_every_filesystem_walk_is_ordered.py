@@ -65,9 +65,6 @@ _ORDER_CANNOT_MATTER: dict[tuple[str, str], str] = {
     ("oss_policy_kit/application/evaluators/cra.py", "eval_cra_art13_sbd_001"): (
         "`any(adr.is_file() for adr in ...)` -- uncapped boolean, no path is reported from it"
     ),
-    ("oss_policy_kit/application/evaluators_fuzzing.py", "_has_fuzz_directory"): (
-        "`any(d.iterdir())` -- asks whether the directory is non-empty, not which entry is first"
-    ),
     ("oss_policy_kit/application/profile_hints.py", "schema_backed_evidence_filenames"): (
         "the entries become a frozenset; membership is all any caller asks of it"
     ),

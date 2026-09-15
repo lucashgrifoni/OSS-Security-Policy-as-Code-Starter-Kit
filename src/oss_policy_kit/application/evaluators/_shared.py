@@ -1262,7 +1262,9 @@ def _audit_stream_signal_match(repo: Path) -> Path | None:
 
     for rel in _AUDIT_STREAM_SIGNAL_PATHS:
         p = repo / rel
-        if not p.is_file():
+        if not _has_content(p):
+            # `touch .github/audit-log-streaming.yml` used to satisfy three controls. A
+            # configuration file implies intent, and a file holding nothing implies none.
             continue
         # Configuration YAMLs imply intent on their own; doc files require a keyword match
         # so a generic release-readiness.md without an audit-streaming section does not pass.
@@ -1501,7 +1503,7 @@ _RELEASE_ARCHIVE_KEYWORDS: tuple[str, ...] = (
 def _release_archive_signal_match(repo: Path) -> Path | None:
     for rel in _RELEASE_ARCHIVE_SIGNAL_PATHS:
         p = repo / rel
-        if not p.is_file():
+        if not _has_content(p):
             continue
         if rel.endswith((".yml", ".yaml")):
             return p
@@ -2561,6 +2563,22 @@ def _has_content(path: Path) -> bool:
     Existing is not the same as being there: a zero-byte or whitespace-only artifact is the shape
     of a file someone created and never filled in. A file that cannot be read answers False --
     the kit has not seen content, so it must not claim any.
+
+    This helper existed before the controls below used it, which is the whole defect. Measured
+    on the tree at v10.0.22, one zero-byte file per repository and nothing else:
+
+        DEP-UPDATE-001        renovate.json                   -> PASS  (assurance=deterministic)
+        CRA-ART14-CSAF-001    .well-known/csaf                -> PASS
+        LLM-AI-ACT-003        risk-management.md              -> PASS
+        SEC-FUZZ-001          fuzz/target_fuzz.go             -> PASS
+        AGENT-ASI-GOAL-001    prompts/system.md               -> PASS
+        AUDIT-STREAM-060      .github/audit-log-streaming.yml -> PASS
+        SLSA-SRC-005          (same)                          -> PASS
+        SLSA-SRC-008          (same)                          -> PASS
+        RELEASE-ARCHIVE-063   RELEASE_ARCHIVAL.md             -> PASS
+
+    ``touch`` is the cheapest way there is to pass a control, and two of those nine are
+    catalogued ``assurance: evidence-backed``, which promises more than a path existing.
     """
 
     with contextlib.suppress(OSError):

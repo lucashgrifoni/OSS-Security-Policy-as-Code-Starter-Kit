@@ -86,16 +86,47 @@ def test_signal_helpers_skip_a_document_they_cannot_read(
     assert fn(tmp_path) is None
 
 
-def test_audit_stream_config_yaml_signals_without_being_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A dedicated config YAML implies intent by existing; its contents are never opened."""
+def test_audit_stream_config_yaml_signals_without_a_keyword(tmp_path: Path) -> None:
+    """A dedicated config YAML implies intent; unlike a doc file it needs no keyword match."""
 
     config = tmp_path / ".github" / "audit-log-streaming.yml"
     config.parent.mkdir(parents=True)
     config.write_text("nothing the keyword list would match\n", encoding="utf-8")
 
+    assert _shared._audit_stream_signal_match(tmp_path) == config
+
+
+def test_audit_stream_config_yaml_signals_nothing_when_it_is_empty(tmp_path: Path) -> None:
+    """`touch .github/audit-log-streaming.yml` satisfied three controls. It is not a signal."""
+
+    config = tmp_path / ".github" / "audit-log-streaming.yml"
+    config.parent.mkdir(parents=True)
+    config.write_bytes(b"")
+
+    assert _shared._audit_stream_signal_match(tmp_path) is None
+
+
+def test_audit_stream_config_yaml_signals_nothing_when_it_cannot_be_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """This assertion used to be its opposite, and the opposite was the defect.
+
+    The old test was named ``..._signals_without_being_read`` and required the match to succeed
+    while every read of the file was refused. That makes the control state a positive posture --
+    "audit log streaming is configured" -- about a file it could not open.
+
+    Not signalling is the safe direction and costs nothing: the controls reading this matcher
+    answer ``manual-review-required`` when they find no signal, so a refused read degrades
+    rather than passing or claiming an absence.
+    """
+
+    config = tmp_path / ".github" / "audit-log-streaming.yml"
+    config.parent.mkdir(parents=True)
+    config.write_text("streaming: on\n", encoding="utf-8")
+
     _fail_reads_of(monkeypatch, config)
 
-    assert _shared._audit_stream_signal_match(tmp_path) == config
+    assert _shared._audit_stream_signal_match(tmp_path) is None
 
 
 # --------------------------------------------------------------------------- #

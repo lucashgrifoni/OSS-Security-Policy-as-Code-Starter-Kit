@@ -37,6 +37,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _gov_disc_013_private_reporting_signals,
     _has_build_instructions,
     _has_changelog,
+    _has_content,
     _has_license,
     _has_placeholder_security_contact,
     _org_mfa_schema,
@@ -74,6 +75,16 @@ _WAIVERS_YAML = "waivers.yaml"
 
 def eval_gov_sec_001(ctx: EvalContext) -> EvalOutcome:
     text = _read_security(ctx.repo_root)
+    if text is not None and not text.strip():
+        # Found by the derived zero-byte sweep, not by a reviewer: `touch SECURITY.md` passed a
+        # control whose whole subject is whether a reporter can find out how to reach you.
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason="SECURITY.md is present but empty, so it tells a reporter nothing.",
+            remediation="Describe supported versions and how to report a vulnerability privately.",
+            evidence_sources=[str((ctx.repo_root / "SECURITY.md").resolve())],
+            confidence="high",
+        )
     if text is not None:
         return EvalOutcome(
             status=ControlStatus.PASS,
@@ -102,6 +113,14 @@ def eval_gov_con_002(ctx: EvalContext) -> EvalOutcome:
         (ctx.repo_root / "docs", "CONTRIBUTING.md"),
     ):
         p = _file_named_any_case(directory, name)
+        if p is not None and not _has_content(p):
+            return EvalOutcome(
+                status=ControlStatus.FAIL,
+                reason=f"`{p.name}` is present but empty, so it guides no contributor.",
+                remediation="Describe how to propose a change, run the tests, and report a security issue.",
+                evidence_sources=[str(p.resolve())],
+                confidence="high",
+            )
         if p is not None:
             return EvalOutcome(
                 status=ControlStatus.PASS,
@@ -571,14 +590,34 @@ def eval_dep_update_001(ctx: EvalContext) -> EvalOutcome:
         repo / _GITHUB_DIR / "renovate.json",
     ]
     for p in renovate_candidates:
-        if p.is_file():
+        if not p.is_file():
+            continue
+        if not _has_content(p):
+            # The asymmetry this closes: the Dependabot branch above already refuses a file
+            # that declares nothing, and this one passed on the file existing. A zero-byte
+            # `renovate.json` configures no Renovate run, and this control is catalogued
+            # `assurance: deterministic`, which promises the verdict follows from what was read.
             return EvalOutcome(
-                status=ControlStatus.PASS,
-                reason="Renovate configuration file detected.",
-                remediation="Keep Renovate schedules and automerge rules aligned with security policy.",
+                status=ControlStatus.FAIL,
+                reason=(
+                    f"`{p.name}` is present but empty, so Renovate is configured with nothing "
+                    "and opens no pull request."
+                ),
+                remediation=(
+                    'Add a Renovate configuration body (at minimum `{"extends": '
+                    '["config:recommended"]}`), or remove the file if updates are handled '
+                    "elsewhere."
+                ),
                 evidence_sources=[str(p.resolve())],
                 confidence="high",
             )
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason="Renovate configuration file detected.",
+            remediation="Keep Renovate schedules and automerge rules aligned with security policy.",
+            evidence_sources=[str(p.resolve())],
+            confidence="high",
+        )
     return EvalOutcome(
         status=ControlStatus.FAIL,
         reason="No automated dependency update tool detected (Dependabot or Renovate).",

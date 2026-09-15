@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from oss_policy_kit.adapters.scorecard_json import checks_as_map
+from oss_policy_kit.application.evaluators._shared import _has_content, _holds_a_non_empty_file
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 
 _FUZZ_DIR_NAMES: tuple[str, ...] = ("fuzz", "fuzzing", "fuzzers", "fuzz_tests", "test/fuzz", "tests/fuzz")
@@ -91,9 +92,17 @@ def _iter_candidate_paths(repo_root: Path) -> Iterable[Path]:
 
 
 def _has_fuzz_directory(repo_root: Path) -> str | None:
+    """A ``fuzz/`` holding only empty files is not a harness.
+
+    ``any(d.iterdir())`` accepted a directory whose single entry was zero bytes, so
+    ``mkdir fuzz && touch fuzz/target_fuzz.go`` passed a control about whether this project
+    fuzzes. ``_holds_a_non_empty_file`` descends, so a harness whose only content sits in a
+    subdirectory still counts.
+    """
+
     for name in _FUZZ_DIR_NAMES:
         d = repo_root / name
-        if d.is_dir() and any(d.iterdir()):
+        if d.is_dir() and _holds_a_non_empty_file(d):
             return f"Detected fuzz harness directory at {name}/."
     return None
 
@@ -101,7 +110,8 @@ def _has_fuzz_directory(repo_root: Path) -> str | None:
 def _has_fuzz_filename(repo_root: Path) -> str | None:
     for path in _iter_candidate_paths(repo_root):
         n = path.name.lower()
-        if any(hint in n for hint in _FUZZ_FILENAME_HINTS):
+        if any(hint in n for hint in _FUZZ_FILENAME_HINTS) and _has_content(path):
+            # The name alone used to be enough, so `touch fuzz_target.go` passed the control.
             return f"Detected fuzz target file: {path.relative_to(repo_root).as_posix()}."
     return None
 

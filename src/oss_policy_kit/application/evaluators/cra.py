@@ -7,6 +7,8 @@ from oss_policy_kit.application.evaluators._shared import (
     EvalContext,
     EvalOutcome,
     Path,
+    _has_content,
+    _holds_a_non_empty_file,
     _read_first_existing,
     _scan_readme_for_section,
     contextlib,
@@ -79,7 +81,9 @@ def eval_cra_art14_csaf_001(ctx: EvalContext) -> EvalOutcome:
     )
     for rel in candidates:
         p = ctx.repo_root / rel
-        if p.exists():
+        # `.well-known/csaf` is legitimately a directory in the CSAF layout, so a file
+        # needs content and a directory needs a file with content in it.
+        if _has_content(p) or (p.is_dir() and _holds_a_non_empty_file(p)):
             return EvalOutcome(
                 status=ControlStatus.PASS,
                 reason=f"CSAF advisory feed signal present ({rel}) — CRA Article 14 reporting readiness.",
