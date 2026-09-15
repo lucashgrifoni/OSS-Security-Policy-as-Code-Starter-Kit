@@ -17,6 +17,43 @@ os.environ.setdefault("SOURCE_DATE_EPOCH", "1781524800")
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def _assert_the_suite_tests_this_tree() -> None:
+    """Refuse to run against a build that is not the checkout the tests came from.
+
+    A non-editable `pip install .` leaves a copy of the package in site-packages that shadows
+    `src/`. Every test then passes or fails against THAT copy, and the diff under review is
+    never executed. Nothing said so: the suite was green, the coverage report was green, and
+    the numbers described a build nobody had edited.
+
+    Checked once, at collection, because by the time a single test has imported the package the
+    damage is already done and every subsequent failure points at the wrong code.
+
+    The escape hatch is deliberate and narrow. `OPK_ALLOW_INSTALLED_PACKAGE=1` lets the
+    clean-room runs -- which install the built wheel into an empty venv on purpose and then run
+    a subset of the suite against it -- do exactly that, and nothing else silently does.
+    """
+
+    if os.environ.get("OPK_ALLOW_INSTALLED_PACKAGE") == "1":
+        return
+    import oss_policy_kit
+
+    package_dir = Path(oss_policy_kit.__file__).resolve().parent
+    expected = (ROOT / "src" / "oss_policy_kit").resolve()
+    if package_dir != expected:
+        raise RuntimeError(
+            "the test suite imported oss_policy_kit from\n"
+            f"    {package_dir}\n"
+            "but this checkout is at\n"
+            f"    {expected}\n"
+            "so the tests would run against another build and the diff under review would "
+            "never execute. Reinstall editable with `pip install -e .`, or set "
+            "OPK_ALLOW_INSTALLED_PACKAGE=1 if testing an installed artifact is the point."
+        )
+
+
+_assert_the_suite_tests_this_tree()
 EXAMPLE_VULNERABLE = ROOT / "examples" / "vulnerable-repo"
 EXAMPLE_HARDENED = ROOT / "examples" / "hardened-repo"
 TEST_FIXTURES = ROOT / "tests" / "fixtures"
