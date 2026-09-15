@@ -41,7 +41,10 @@ def test_a_document_that_cannot_be_opened_documents_nothing(tmp_path: Path, monk
 
     assert _documents_section(doc, ("intended purpose",))
 
+    # read_bytes as well as read_text: the reader under test decodes bytes so it can honour
+    # the encoding a file declares, and a patch that covers only one of them refuses nothing.
     monkeypatch.setattr(Path, "read_text", _refuse)
+    monkeypatch.setattr(Path, "read_bytes", _refuse)
 
     assert not _documents_section(doc, ("intended purpose",))
 
@@ -54,7 +57,10 @@ def test_a_manifest_that_cannot_be_opened_mentions_nothing(tmp_path: Path, monke
 
     assert _raw_text_mentions(manifest, ("openai",))
 
+    # read_bytes as well as read_text: the reader under test decodes bytes so it can honour
+    # the encoding a file declares, and a patch that covers only one of them refuses nothing.
     monkeypatch.setattr(Path, "read_text", _refuse)
+    monkeypatch.setattr(Path, "read_bytes", _refuse)
 
     assert not _raw_text_mentions(manifest, ("openai",))
 

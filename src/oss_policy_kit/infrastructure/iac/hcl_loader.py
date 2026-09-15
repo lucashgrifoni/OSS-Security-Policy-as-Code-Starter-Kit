@@ -17,6 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
 from oss_policy_kit.infrastructure.source_text import decode_source
 
 #: Deliberately ``Any``, and deliberately assigned before the import rather than by it.
@@ -88,6 +89,12 @@ def load_hcl_file(path: Path) -> dict[str, Any]:
 
     if not _HCL2_AVAILABLE or _hcl2 is None:
         raise HclLoadError(path, RuntimeError("python-hcl2 is not installed"))
+    oversize = oversize_reason(path, MAX_CI_CONFIG_BYTES, label="Terraform file")
+    if oversize is not None:
+        # Raised rather than skipped: HclLoadError is the channel every Terraform control
+        # already consults, so a refused file withdraws the clean verdict instead of
+        # dropping out of the candidate set as an absent one would.
+        raise HclLoadError(path, RuntimeError(oversize))
     try:
         # Decode by BOM before handing text to hcl2. An editor that saved this as UTF-16
         # left a file a human still reads as Terraform, and reading it as UTF-8 raised

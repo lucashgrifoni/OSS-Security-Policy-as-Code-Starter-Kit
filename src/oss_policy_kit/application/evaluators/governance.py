@@ -52,6 +52,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _validate_bsi_tr_03183_v2_1,
     _validate_json_evidence,
     _verification_freshness_status,
+    capped_repo_text,
     checks_as_map,
     contextlib,
     has_placeholder_values,
@@ -61,10 +62,9 @@ from oss_policy_kit.application.evaluators._shared import (
     read_repo_text,
     unread_candidates_outcome,
 )
-from oss_policy_kit.application.evaluators_common import strip_yaml_comments
+from oss_policy_kit.application.evaluators_common import capped_evidence_text, strip_yaml_comments
 from oss_policy_kit.application.input_limits import bad_input_detail
 from oss_policy_kit.domain.models import utc_now
-from oss_policy_kit.infrastructure.source_text import decode_source
 
 _GITHUB_DIR = ".github"
 _KIT_DIR = ".oss-policy-kit"
@@ -168,7 +168,7 @@ def eval_gov_cown_003(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     try:
-        text = decode_source(path.read_bytes())
+        text = capped_repo_text(path)
     except OSError:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -391,7 +391,7 @@ def _classify_evidence_files(
     expiry_warns: list[str] = []
     for path in json_files:
         try:
-            data = json.loads(path.read_text(encoding="utf-8-sig"))
+            data = json.loads(capped_evidence_text(path) or "null")
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             return (
                 stale,
@@ -877,7 +877,7 @@ def _read_evidence_json(evid: Path) -> Any:
     if not evid.is_file():
         return None
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return json.loads(evid.read_text(encoding="utf-8-sig"))
+        return json.loads(capped_evidence_text(evid) or "null")
     return None
 
 
@@ -957,7 +957,7 @@ def _classify_sbom_file(p: Path) -> tuple[str | None, str | None, str | None]:
     """
 
     with contextlib.suppress(OSError):
-        content = p.read_text(encoding="utf-8", errors="replace")
+        content = capped_repo_text(p)
         fmt_detail, version = _detect_sbom_format_and_version(content)
         if not fmt_detail:
             return None, None, p.name
@@ -1029,7 +1029,7 @@ def _sbom_ci_signal(ctx: EvalContext) -> EvalOutcome | None:
     )
     for p in all_ci:
         with contextlib.suppress(OSError):
-            text = strip_yaml_comments(p.read_text(encoding="utf-8", errors="replace")).lower()
+            text = strip_yaml_comments(capped_repo_text(p)).lower()
             if "cyclonedx" in text or "spdx" in text or "syft" in text:
                 return EvalOutcome(
                     status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -1590,7 +1590,7 @@ def eval_publish_oidc_001(ctx: EvalContext) -> EvalOutcome:
     matched: list[Path] = []
     for p in publish:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace")
+            text = capped_repo_text(p)
             if _OIDC_TOKEN_PATTERN.search(text):
                 matched.append(p)
     if not matched:
@@ -1648,7 +1648,7 @@ def eval_publish_oidc_002(ctx: EvalContext) -> EvalOutcome:
     offenders: list[Path] = []
     for p in publish:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace")
+            text = capped_repo_text(p)
             if _LONG_LIVED_PASSWORD_PATTERN.search(text):
                 offenders.append(p)
     if offenders:
@@ -1713,7 +1713,7 @@ def eval_publish_oidc_003(ctx: EvalContext) -> EvalOutcome:
     with_provenance: list[Path] = []
     for p in npm_publish:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace")
+            text = capped_repo_text(p)
             if _NPM_PROVENANCE_PATTERN.search(text):
                 with_provenance.append(p)
     if not with_provenance:
@@ -1768,7 +1768,7 @@ def eval_osps_scorecard_v6_001(ctx: EvalContext) -> EvalOutcome:
             confidence="medium",
         )
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evidence.read_text(encoding="utf-8-sig"))
+        data = json.loads(capped_evidence_text(evidence) or "null")
         if isinstance(data, dict):
             verdict = str(data.get("conformance") or data.get("result") or data.get("overall") or "").strip().lower()
             if verdict in {"pass", "passed", "conformant", "true"}:

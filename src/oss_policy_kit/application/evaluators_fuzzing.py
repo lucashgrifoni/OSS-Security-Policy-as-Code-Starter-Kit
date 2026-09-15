@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from oss_policy_kit.adapters.scorecard_json import checks_as_map
-from oss_policy_kit.application.evaluators._shared import _has_content, _holds_a_non_empty_file
+from oss_policy_kit.application.evaluators._shared import _has_content, _holds_a_non_empty_file, capped_repo_bytes
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 
 _FUZZ_DIR_NAMES: tuple[str, ...] = ("fuzz", "fuzzing", "fuzzers", "fuzz_tests", "test/fuzz", "tests/fuzz")
@@ -124,7 +124,9 @@ def _has_fuzz_content(repo_root: Path) -> str | None:
         if suf not in {".py", ".go", ".rs", ".c", ".cc", ".cpp", ".yaml", ".yml", ".toml"}:
             continue
         try:
-            head = path.read_bytes()[:_SCAN_BYTES_PER_FILE].decode("utf-8", errors="ignore").lower()
+            # Capped before the slice: slicing after the read has already paid for the
+            # whole file, and the audited repository chooses its size.
+            head = capped_repo_bytes(path)[:_SCAN_BYTES_PER_FILE].decode("utf-8", errors="ignore").lower()
         except OSError:
             continue
         for hint in _FUZZ_CONTENT_HINTS:

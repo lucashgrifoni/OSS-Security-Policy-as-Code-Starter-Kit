@@ -27,6 +27,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _parse_zizmor_severity_properties,
     _python_lock_or_pins,
     _reusable_workflow_ref_has_full_sha,
+    capped_repo_text,
     checks_as_map,
     contextlib,
     load_yaml_file,
@@ -261,7 +262,7 @@ def _codeql_action_outcome(ctx: EvalContext) -> EvalOutcome | None:
             # scan that does not run. A comment cannot change what a pipeline does, so it
             # must not change a verdict. `strip_yaml_comments` keeps every line and column,
             # so the file this reports still points where it did.
-            text = strip_yaml_comments(p.read_text(encoding="utf-8", errors="replace"))
+            text = strip_yaml_comments(capped_repo_text(p))
             if any(pat in text for pat in _CODEQL_ACTION_PATTERNS):
                 return EvalOutcome(
                     status=ControlStatus.PASS,
@@ -368,7 +369,7 @@ def eval_sec_secrets_050(ctx: EvalContext) -> EvalOutcome:
     texts: list[tuple[Path, str]] = []
     for p in paths:
         with contextlib.suppress(OSError):
-            texts.append((p, p.read_text(encoding="utf-8", errors="replace")))
+            texts.append((p, capped_repo_text(p)))
     hits: list[Path] = []
     for path, text in texts:
         lower = text.lower()
@@ -428,7 +429,7 @@ def eval_sec_gitignore_051(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     try:
-        raw = gi.read_text(encoding="utf-8", errors="replace")
+        raw = capped_repo_text(gi)
     except OSError:
         raw = ""
     # Commented lines are dropped before matching. This searched the raw file, so a
@@ -552,7 +553,7 @@ def _scan_wfcallsha_structured(doc: dict[str, Any], path: Path, acc: _WfCallShaS
 def _scan_wfcallsha_path(path: Path, acc: _WfCallShaScan) -> None:
     """Scan one workflow file for reusable-workflow SHA pins (structured, regex fallback on parse failure)."""
 
-    raw = path.read_text(encoding="utf-8", errors="replace")
+    raw = capped_repo_text(path)
     try:
         doc = load_yaml_file(path)
     except Exception:  # noqa: BLE001 - fall back to regex scan on any parse error

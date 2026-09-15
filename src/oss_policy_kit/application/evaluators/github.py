@@ -25,10 +25,12 @@ from oss_policy_kit.application.evaluators._shared import (
     _verification_freshness_status,
     _workflow_text,
     _workflow_text_has_long_lived_cloud_secret,
+    capped_repo_text,
     contextlib,
     json,
     preview_evidence_paths,
 )
+from oss_policy_kit.application.evaluators_common import capped_evidence_text
 
 _GITHUB_DIR = ".github"
 _KIT_DIR = ".oss-policy-kit"
@@ -307,7 +309,7 @@ def eval_gh_dep_022(ctx: EvalContext) -> EvalOutcome:
     long_lived_hits: list[Path] = []
     for p in cloud_deploy_paths or ctx.workflows.workflow_paths:
         with contextlib.suppress(OSError):
-            raw = p.read_text(encoding="utf-8", errors="replace")
+            raw = capped_repo_text(p)
             if _workflow_text_has_long_lived_cloud_secret(raw):
                 long_lived_hits.append(p)
     has_long_lived_secrets = bool(long_lived_hits)
@@ -359,7 +361,7 @@ def _gh_provenance_verification_recorded(evidence_path: Path) -> bool:
     if not evidence_path.is_file():
         return False
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evidence_path.read_text(encoding="utf-8-sig"))
+        data = json.loads(capped_evidence_text(evidence_path) or "null")
         if isinstance(data, dict):
             verification = data.get("verification")
             if isinstance(verification, dict) and verification.get("transparency_log_inclusion"):
@@ -1084,7 +1086,7 @@ def eval_gh_egress_hrn_001(ctx: EvalContext) -> EvalOutcome:
     matched: list[Path] = []
     for p in paths:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = capped_repo_text(p).lower()
             if any(pat in text for pat in _HARDEN_RUNNER_PATTERNS):
                 matched.append(p)
     if not matched:

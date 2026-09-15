@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from oss_policy_kit.application.clock import report_generated_at
+from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
 from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
 from oss_policy_kit.infrastructure.scan_deadline import TIMEOUT_DIAGNOSTIC, ScanDeadline
@@ -473,6 +474,12 @@ def run_scan(
     for f in files:
         if deadline.expired():
             break
+        oversize = oversize_reason(f, MAX_CI_CONFIG_BYTES, label="Bicep file")
+        if oversize is not None:
+            # Every `**/*.bicep` candidate IS the technology, so a refused one withdraws the
+            # clean verdict rather than dropping out of the candidate set.
+            parse_errors.append({"file": _normalize_target(repo_root, f), "error": oversize})
+            continue
         try:
             raw = f.read_bytes()
         except OSError as exc:

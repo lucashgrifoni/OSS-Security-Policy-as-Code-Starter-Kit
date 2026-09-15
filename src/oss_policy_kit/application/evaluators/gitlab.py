@@ -12,6 +12,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _gl_no_pipeline_response,
     _scan_gitlab_pipelines,
     _validate_json_evidence,
+    capped_repo_text,
     contextlib,
 )
 
@@ -375,7 +376,7 @@ def eval_gl_pipe_009(ctx: EvalContext) -> EvalOutcome:
     matched: list[Path] = []
     for p in candidates:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = capped_repo_text(p).lower()
             if any(h in text for h in ("audit_event", "audit-event", "audit streaming", "audit_streaming")):
                 matched.append(p)
     if not matched:

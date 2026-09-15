@@ -52,9 +52,11 @@ from oss_policy_kit.application.evaluators._shared import (
     _read_lower,
     _scan_readme_for_heading,
     _update_config_names,
+    capped_repo_text,
     contextlib,
     json,
 )
+from oss_policy_kit.application.evaluators_common import capped_evidence_text
 
 
 def eval_llm_218a_po_001(ctx: EvalContext) -> EvalOutcome:
@@ -122,7 +124,7 @@ def eval_llm_218a_ps_001(ctx: EvalContext) -> EvalOutcome:
             confidence="medium",
         )
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evidence.read_text(encoding="utf-8-sig"))
+        data = json.loads(capped_evidence_text(evidence) or "null")
         # Truthiness credited `model_sha: "x"` and `model_version: "TBD"`. The digest has to have
         # the shape of one and the version has to name a version.
         if (
@@ -306,7 +308,7 @@ def _file_has_output_filter(p: Path, repo_root: Path) -> bool:
     if not p.is_file() or any(skip in parts for skip in (".git", ".venv", "node_modules", "__pycache__")):
         return False
     with contextlib.suppress(OSError):
-        text = p.read_text(encoding="utf-8", errors="replace")
+        text = capped_repo_text(p)
         # `# TODO: add guardrails` used to satisfy an EU AI Act conformance claim, on a line whose
         # whole content is that the filter is missing. The hint has to sit on a line that does not
         # say it is pending -- read wherever it appears, so a docstring describing real behaviour
@@ -782,7 +784,7 @@ def eval_mcp_tool_hash_001(ctx: EvalContext) -> EvalOutcome:
     evidence = ctx.repo_root / ".oss-policy-kit" / "evidence" / "mcp-tool-descriptions.json"
     if evidence.is_file():
         with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-            data = json.loads(evidence.read_text(encoding="utf-8-sig"))
+            data = json.loads(capped_evidence_text(evidence) or "null")
             text = json.dumps(data).lower() if data is not None else ""
             if "sha256" in text or "hash" in text:
                 return EvalOutcome(

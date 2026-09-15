@@ -228,7 +228,10 @@ def test_an_artifact_the_kit_cannot_open_does_not_count_as_present(
     def _refuse(self: Path, *args: object, **kwargs: object) -> str:
         raise OSError(13, "Permission denied")
 
+    # read_bytes as well as read_text: the reader under test decodes bytes so it can honour
+    # the encoding a file declares, and a patch that covers only one of them refuses nothing.
     monkeypatch.setattr(Path, "read_text", _refuse)
+    monkeypatch.setattr(Path, "read_bytes", _refuse)
 
     assert not _has_content(artifact), "an unreadable file was reported as carrying content"
     assert not _holds_a_non_empty_file(registry), "an unreadable registry was reported as populated"
@@ -274,7 +277,10 @@ def test_an_update_config_the_kit_cannot_open_is_a_refusal_not_an_empty_answer(
     def _refuse(self: Path, *args: object, **kwargs: object) -> str:
         raise OSError(13, "Permission denied")
 
+    # read_bytes as well as read_text: the reader under test decodes bytes so it can honour
+    # the encoding a file declares, and a patch that covers only one of them refuses nothing.
     monkeypatch.setattr(Path, "read_text", _refuse)
+    monkeypatch.setattr(Path, "read_bytes", _refuse)
 
     assert _update_config_names(config) is None, (
         "a config the kit could not open answered 'names no package' instead of 'I could not "

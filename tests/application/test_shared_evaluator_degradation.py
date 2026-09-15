@@ -28,17 +28,32 @@ from oss_policy_kit.domain.models import ControlStatus
 
 
 def _fail_reads_of(monkeypatch: pytest.MonkeyPatch, *targets: Path) -> None:
-    """Make ``read_text`` raise OSError for *targets* and behave normally elsewhere."""
+    """Make every reader raise OSError for *targets* and behave normally elsewhere.
+
+    Both ``read_text`` and ``read_bytes``, not just the one the helper under test happens to
+    call today. These readers move between the two whenever an encoding fix lands -- and a test
+    that intercepts only one stops testing anything the moment that choice changes, silently,
+    because refusing nothing lets the file read fine and the assertion then measures the
+    ordinary path. Patching only ``read_text`` is how twelve of these went green against a
+    reader that had moved to ``read_bytes``.
+    """
 
     wanted = {p.resolve() for p in targets}
-    real = Path.read_text
+    real_text = Path.read_text
+    real_bytes = Path.read_bytes
 
     def _read_text(self: Path, *args: Any, **kwargs: Any) -> str:
         if self.resolve() in wanted:
             raise OSError(13, "Permission denied")
-        return real(self, *args, **kwargs)
+        return real_text(self, *args, **kwargs)
+
+    def _read_bytes(self: Path, *args: Any, **kwargs: Any) -> bytes:
+        if self.resolve() in wanted:
+            raise OSError(13, "Permission denied")
+        return real_bytes(self, *args, **kwargs)
 
     monkeypatch.setattr(Path, "read_text", _read_text)
+    monkeypatch.setattr(Path, "read_bytes", _read_bytes)
 
 
 # --------------------------------------------------------------------------- #

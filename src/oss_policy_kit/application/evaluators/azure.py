@@ -26,6 +26,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _provenance_artifact_digest_strings,
     _sbom_artifact_digest_strings,
     _validate_json_evidence,
+    capped_repo_text,
     contextlib,
     has_placeholder_values,
 )
@@ -153,7 +154,7 @@ def eval_az_pipe_029(ctx: EvalContext) -> EvalOutcome:
     explicit_false: list[Path] = []
     for p in ctx.azure_pipelines.pipeline_paths:
         with contextlib.suppress(OSError):
-            if _PERSIST_CREDENTIALS_FALSE_RE.search(p.read_text(encoding="utf-8", errors="replace")):
+            if _PERSIST_CREDENTIALS_FALSE_RE.search(capped_repo_text(p)):
                 explicit_false.append(p)
     if explicit_false:
         return EvalOutcome(

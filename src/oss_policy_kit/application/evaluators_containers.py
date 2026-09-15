@@ -27,6 +27,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application.evaluators._shared import capped_repo_bytes
 from oss_policy_kit.application.evaluators_common import DOCKERFILE_SCAN_LIMIT, strip_dockerfile_comments
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 from oss_policy_kit.infrastructure.source_text import decode_source_detail
@@ -138,7 +139,7 @@ def _read_text_or_none(path: Path) -> str | None:
     """
 
     try:
-        read = decode_source_detail(path.read_bytes())
+        read = decode_source_detail(capped_repo_bytes(path, label="Dockerfile"))
     except OSError:
         return None
     # A wide Dockerfile whose stride broke decodes to mojibake, in which no line pattern

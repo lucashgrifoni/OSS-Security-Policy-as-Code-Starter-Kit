@@ -32,6 +32,7 @@ from oss_policy_kit.application.evaluators_common import (
 )
 from oss_policy_kit.application.evaluators_common import (
     as_mapping,
+    capped_evidence_text,
     strip_yaml_comments,
 )
 from oss_policy_kit.application.evaluators_common import (
@@ -460,7 +461,7 @@ def _has_build_instructions(repo: Path) -> bool:
         if not path.is_file():
             continue
         try:
-            text = path.read_text(encoding="utf-8", errors="replace")
+            text = capped_repo_text(path)
         except OSError:
             continue
         if _BUILD_HEADING_PATTERN.search(text):
@@ -543,7 +544,7 @@ def _read_security(repo: Path) -> str | None:
     for name in (_SECURITY_MD, "security.md"):
         p = repo / name
         if p.is_file():
-            return p.read_text(encoding="utf-8", errors="replace")
+            return capped_repo_text(p)
     return None
 
 
@@ -673,7 +674,7 @@ def _github_workflow_raw_suggests_release_or_deploy(raw: str) -> bool:
 def _any_github_workflow_suggests_release_or_deploy(ctx: EvalContext) -> bool:
     for p in ctx.workflows.workflow_paths:
         with contextlib.suppress(OSError):
-            if _github_workflow_raw_suggests_release_or_deploy(p.read_text(encoding="utf-8", errors="replace")):
+            if _github_workflow_raw_suggests_release_or_deploy(capped_repo_text(p)):
                 return True
     return False
 
@@ -774,7 +775,7 @@ def _reusable_workflow_uses_from_strings(uses_values: list[str]) -> list[str]:
 def _parse_branch_protection_evidence(evidence: Path) -> EvalOutcome:
     """Validate and interpret a branch-protection evidence file."""
     try:
-        data = json.loads(evidence.read_text(encoding="utf-8-sig"))
+        data = json.loads(capped_evidence_text(evidence) or "null")
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -895,7 +896,7 @@ def _lockfile_has_content(path: Path) -> bool:
     if not path.is_file():
         return False
     with contextlib.suppress(OSError):
-        return bool(path.read_text(encoding="utf-8", errors="replace").strip())
+        return bool(capped_repo_text(path).strip())
     return False
 
 
@@ -908,7 +909,7 @@ def _python_lock_or_pins(repo: Path) -> bool:
     if req.is_file():
         body = ""
         with contextlib.suppress(OSError):
-            body = req.read_text(encoding="utf-8", errors="replace")
+            body = capped_repo_text(req)
         return bool(_PIN_REQ_PIN.search(body))
     return False
 
@@ -1271,7 +1272,7 @@ def _audit_stream_signal_match(repo: Path) -> Path | None:
         if rel.endswith((".yml", ".yaml")):
             return p
         try:
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = capped_repo_text(p).lower()
         except OSError:
             continue
         if any(kw in text for kw in _AUDIT_STREAM_SIGNAL_KEYWORDS):
@@ -1307,7 +1308,7 @@ def _disclosure_sla_signal_match(repo: Path) -> tuple[Path, str] | None:
         if not p.is_file():
             continue
         try:
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = capped_repo_text(p).lower()
         except OSError:
             continue
         for kw in _DISCLOSURE_SLA_KEYWORDS:
@@ -1405,6 +1406,45 @@ def read_repo_text(path: Path, *, max_bytes: int = MAX_CI_CONFIG_BYTES, label: s
     return RepoText(read.text, False, "")
 
 
+def capped_repo_bytes(path: Path, *, max_bytes: int = MAX_CI_CONFIG_BYTES, label: str = "File") -> bytes:
+    """The bytes of a repository-controlled file, refused past *max_bytes*.
+
+    The bytes counterpart of :func:`capped_repo_text`, for readers that decode themselves --
+    ``ast.parse`` honouring a PEP 263 line, ``decode_source`` honouring a BOM. Same contract:
+    **OSError still propagates**, and only the ceiling is added. An over-cap file reads as empty,
+    which is the answer these readers already give for a file with nothing usable in it.
+    """
+
+    if oversize_reason(path, max_bytes, label=label) is not None:
+        return b""
+    return path.read_bytes()
+
+
+def capped_repo_text(path: Path, *, max_bytes: int = MAX_CI_CONFIG_BYTES, label: str = "File") -> str:
+    """The text of a repository-controlled file, refused past *max_bytes*.
+
+    The narrow sibling of :func:`read_repo_text`, for the reads that already existed. It keeps
+    ``read_text``'s contract exactly -- **OSError still propagates** -- and adds only the ceiling.
+    That distinction is not cosmetic: several controls here tell "unreadable" apart from "empty"
+    by catching the exception, and a helper that swallows it silently converts a withdrawal back
+    into the false absence this project keeps fixing. Retrofitting ``read_repo_text`` over those
+    call sites broke twenty tests that were, correctly, asserting exactly that.
+
+    Why the ceiling matters at all: the audited repository writes these files, and in CI against
+    a fork an attacker writes them. Before the cap, that repository decided how long its own
+    audit ran. ``MAX_CI_CONFIG_BYTES`` is 1 MiB, generous for any README, SECURITY.md, workflow
+    or Dockerfile, and an over-cap file reads as empty rather than as an error -- the same answer
+    the scanners have always given for a file with nothing usable in it.
+
+    ``decode_source`` rather than a bare UTF-8 read, so a file in the encoding it declares is
+    honoured. That is additive: every input reads at least as well as it did before.
+    """
+
+    if oversize_reason(path, max_bytes, label=label) is not None:
+        return ""
+    return decode_source(path.read_bytes())
+
+
 def _workflow_text(path: Path) -> str:
     """The workflow's text, or ``""`` when nothing legible came back.
 
@@ -1421,7 +1461,7 @@ def _workflow_text(path: Path) -> str:
     """
 
     try:
-        read = decode_source_detail(path.read_bytes())
+        read = decode_source_detail(capped_repo_bytes(path, label="Workflow"))
     except OSError:
         return ""
     return "" if read.wide_unhonoured else read.text
@@ -1464,7 +1504,7 @@ def _self_hosted_workflow_paths(repo: Path) -> tuple[list[Path], list[Path], lis
     unread: list[Path] = []
     for yml in sorted(list(wf_dir.glob("*.yml")) + list(wf_dir.glob("*.yaml"))):
         try:
-            read = decode_source_detail(yml.read_bytes())
+            read = decode_source_detail(capped_repo_bytes(yml, label="Workflow"))
         except OSError:
             # Unreadable bytes: nothing was seen, which is exactly what ``unread`` records.
             unread.append(yml)
@@ -1508,7 +1548,7 @@ def _release_archive_signal_match(repo: Path) -> Path | None:
         if rel.endswith((".yml", ".yaml")):
             return p
         try:
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = capped_repo_text(p).lower()
         except OSError:
             continue
         if any(kw in text for kw in _RELEASE_ARCHIVE_KEYWORDS):
@@ -1800,7 +1840,7 @@ def _scan_gitlab_pipelines(ctx: EvalContext, hints: tuple[str, ...]) -> list[Pat
     matched: list[Path] = []
     for p in ctx.gitlab_ci.pipeline_paths:
         with contextlib.suppress(OSError):
-            text = strip_yaml_comments(p.read_text(encoding="utf-8", errors="replace")).lower()
+            text = strip_yaml_comments(capped_repo_text(p)).lower()
             if any(h in text for h in hints):
                 matched.append(p)
     return matched
@@ -1966,7 +2006,7 @@ def _documents_section(path: Path, headings: tuple[str, ...]) -> bool:
     """True when ``path`` carries one of ``headings`` as a real heading with something under it."""
 
     with contextlib.suppress(OSError):
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = capped_repo_text(path)
         return any(any(hint in title for hint in headings) and body.strip() for title, body in _markdown_sections(text))
     return False
 
@@ -1988,7 +2028,7 @@ def _scan_readme_for_section(repo: Path, hints: tuple[str, ...]) -> Path | None:
         if not p.is_file():
             continue
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = capped_repo_text(p).lower()
             if any(h in text for h in hints):
                 return p
     return None
@@ -2111,7 +2151,7 @@ def _raw_text_mentions(path: Path, hints: tuple[str, ...]) -> bool:
     """
 
     with contextlib.suppress(OSError):
-        text = path.read_text(encoding="utf-8", errors="replace").lower()
+        text = capped_repo_text(path).lower()
         return any(hint in text for hint in hints)
     return False
 
@@ -2325,7 +2365,7 @@ def _iter_ai_agent_text_files(repo: Path) -> list[Path]:
 
 def _read_lower(path: Path) -> str:
     with contextlib.suppress(OSError):
-        return path.read_text(encoding="utf-8", errors="replace").lower()
+        return capped_repo_text(path).lower()
     return ""
 
 
@@ -2582,7 +2622,7 @@ def _has_content(path: Path) -> bool:
     """
 
     with contextlib.suppress(OSError):
-        return path.is_file() and bool(path.read_text(encoding="utf-8", errors="replace").strip())
+        return path.is_file() and bool(capped_repo_text(path).strip())
     return False
 
 
@@ -2604,7 +2644,7 @@ def _toml_document(path: Path) -> dict[str, Any] | None:
     """The parsed TOML mapping, or ``None`` when the file cannot be read or parsed."""
 
     with contextlib.suppress(OSError, tomllib.TOMLDecodeError):
-        return tomllib.loads(decode_source(path.read_bytes()))
+        return tomllib.loads(capped_repo_text(path))
     return None
 
 
@@ -2813,7 +2853,7 @@ def _requirements_names(path: Path) -> set[str] | None:
 
     with contextlib.suppress(OSError):
         declared: set[str] = set()
-        for raw in decode_source(path.read_bytes()).splitlines():
+        for raw in capped_repo_text(path).splitlines():
             line = raw.strip()
             if not line or line.startswith("#"):
                 continue
@@ -2848,7 +2888,7 @@ def _package_json_names(path: Path) -> set[str] | None:
     """
 
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(decode_source(path.read_bytes()))
+        data = json.loads(capped_repo_text(path))
         if not isinstance(data, dict):
             return None
         names: set[str] = set()
@@ -2898,7 +2938,7 @@ def _update_config_names(path: Path) -> set[str] | None:
         # falls back to scanning raw text. A BOM'd ``renovate.json`` naming an SDK only in prose
         # therefore PASSED, which is the comment-decides-the-verdict behaviour a fix removed.
         # PyYAML tolerates the mark, so only the JSON half was ever affected.
-        text = path.read_text(encoding="utf-8-sig")
+        text = capped_evidence_text(path)
         data = json.loads(text) if path.suffix.lower() == ".json" else yaml.safe_load(text)
         # This reader does not go through ``load_yaml_file``, so it carries the expansion guard
         # itself. Measured before the guard existed: a 360-byte Dependabot file whose aliases
@@ -3124,7 +3164,7 @@ def _read_first_existing(repo: Path, relpaths: tuple[str, ...]) -> tuple[Path | 
         p = repo / rel
         if p.is_file():
             with contextlib.suppress(OSError):
-                return p, p.read_text(encoding="utf-8", errors="replace").lower()
+                return p, capped_repo_text(p).lower()
     return None, ""
 
 
@@ -3133,7 +3173,7 @@ def _load_ai_system_doc(ctx: EvalContext) -> tuple[dict[str, Any] | None, Path]:
     if not p.is_file():
         return None, p
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(p.read_text(encoding="utf-8-sig"))
+        data = json.loads(capped_evidence_text(p) or "null")
         if isinstance(data, dict):
             return cast(dict[str, Any], data), p
     return None, p
@@ -3252,7 +3292,7 @@ def _scan_sarif_epss_kev(
 ) -> SarifEpssKevScan:
     """Scan SARIF ``result.properties`` for KEV flags and high-EPSS findings."""
     try:
-        doc = json.loads(sarif_path.read_text(encoding="utf-8-sig"))
+        doc = json.loads(capped_evidence_text(sarif_path, label="SARIF") or "null")
     except BAD_INPUT_ERRORS as exc:
         return SarifEpssKevScan([], [], f"Could not read SARIF: {bad_input_detail(exc)}")
     if not isinstance(doc, dict):
@@ -3278,7 +3318,7 @@ def _branch_protection_evidence(ctx: EvalContext) -> tuple[dict[str, Any] | None
     if not p.is_file():
         return None, p
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(p.read_text(encoding="utf-8-sig"))
+        data = json.loads(capped_evidence_text(p) or "null")
         if isinstance(data, dict):
             return cast(dict[str, Any], data), p
     return None, p
@@ -3305,7 +3345,7 @@ def _mcp_applicable(repo: Path) -> tuple[bool, list[Path]]:
         p = repo / rel
         if p.is_file():
             with contextlib.suppress(OSError):
-                text = p.read_text(encoding="utf-8", errors="replace").lower()
+                text = capped_repo_text(p).lower()
                 if any(h in text for h in _MCP_DEP_HINTS):
                     found.append(p)
     if (repo / ".mcp").is_dir():
@@ -3333,7 +3373,7 @@ def _mcp_text_signal(repo: Path, found: list[Path], needles: tuple[str, ...]) ->
         if p.is_dir():
             continue
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = capped_repo_text(p).lower()
             if any(n in text for n in needles):
                 return p
     return None
@@ -3396,7 +3436,7 @@ def _agentic_signal(
             scan.append(p)
     for p in scan:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = capped_repo_text(p).lower()
             if any(n in text for n in needles):
                 return p
     return None
