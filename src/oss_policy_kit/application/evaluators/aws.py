@@ -28,6 +28,37 @@ from oss_policy_kit.application.evaluators._shared import (
 _KIT_DIR = ".oss-policy-kit"
 
 
+def _aws_unread_buildspecs_outcome(ctx: EvalContext) -> EvalOutcome | None:
+    """Outcome for a buildspec nobody could read, or None when every candidate was read.
+
+    ``AwsCiAnalysis`` has carried ``parse_errors`` since it was written and no evaluator read
+    it -- AWS was the only CI family here whose controls could not degrade even in principle,
+    while azure.py, cicd.py, github.py and gitlab.py all consult theirs.
+
+    The consequence is not theoretical. ``buildspec_paths`` comes back empty for a file the
+    parser refused, so five controls answer "No AWS CodeBuild buildspec detected" about a
+    repository that has one: a buildspec over the input size cap, or holding a hardcoded
+    secret behind a YAML error, withdrew a real AWS-SECRET-038 FAIL into not-applicable --
+    which ``--fail-on degraded`` does not count.
+    """
+
+    if not ctx.aws_ci.parse_errors:
+        return None
+    names = ", ".join(sorted({p.name for p, _ in ctx.aws_ci.parse_errors}))
+    return EvalOutcome(
+        status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        reason=(
+            f"AWS CodeBuild/CodePipeline file(s) could not be read ({names}), so whether this "
+            "repository defines one, and what it declares, could not be established."
+        ),
+        remediation=(
+            "Fix the syntax in the listed file(s), keep them under the input size cap, and re-run evaluation."
+        ),
+        evidence_sources=[str(p.resolve()) for p, _ in ctx.aws_ci.parse_errors],
+        confidence="low",
+    )
+
+
 def eval_aws_ci_037(ctx: EvalContext) -> EvalOutcome:
     """AWS-CI-037: committed CodeBuild buildspec or CodePipeline-shaped file exists."""
 
@@ -41,6 +72,9 @@ def eval_aws_ci_037(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=sources,
             confidence="high",
         )
+    withdrawn = _aws_unread_buildspecs_outcome(ctx)
+    if withdrawn is not None:
+        return withdrawn
     return EvalOutcome(
         status=ControlStatus.FAIL,
         reason="No supported buildspec.yml or pipelines/aws/codepipeline* files found.",
@@ -54,6 +88,15 @@ def eval_aws_secret_038(ctx: EvalContext) -> EvalOutcome:
     """AWS-SECRET-038: buildspec avoids obvious inline secrets and prefers managed secret sources."""
 
     aws = ctx.aws_ci
+    # Ahead of the path check and ahead of every content scan below. A buildspec the parser
+    # refused leaves BOTH empty: the path list, which turns this control not-applicable, and
+    # the scanned text, which makes the content branches conclude from a blank page. Measured
+    # on a buildspec over the input cap holding a hardcoded AWS key: AWS-SECRET-038 lost its
+    # FAIL and answered "No Parameter Store or Secrets Manager env references detected",
+    # which is a statement about a file nobody read.
+    withdrawn = _aws_unread_buildspecs_outcome(ctx)
+    if withdrawn is not None:
+        return withdrawn
     if not aws.buildspec_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
@@ -109,6 +152,15 @@ def eval_aws_sec_039(ctx: EvalContext) -> EvalOutcome:
     """AWS-SEC-039: security scanning signal in CodeBuild buildspec."""
 
     aws = ctx.aws_ci
+    # Ahead of the path check and ahead of every content scan below. A buildspec the parser
+    # refused leaves BOTH empty: the path list, which turns this control not-applicable, and
+    # the scanned text, which makes the content branches conclude from a blank page. Measured
+    # on a buildspec over the input cap holding a hardcoded AWS key: AWS-SECRET-038 lost its
+    # FAIL and answered "No Parameter Store or Secrets Manager env references detected",
+    # which is a statement about a file nobody read.
+    withdrawn = _aws_unread_buildspecs_outcome(ctx)
+    if withdrawn is not None:
+        return withdrawn
     if not aws.buildspec_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
@@ -142,6 +194,15 @@ def eval_aws_sca_040(ctx: EvalContext) -> EvalOutcome:
     """AWS-SCA-040: dependency audit or SCA signal in buildspec."""
 
     aws = ctx.aws_ci
+    # Ahead of the path check and ahead of every content scan below. A buildspec the parser
+    # refused leaves BOTH empty: the path list, which turns this control not-applicable, and
+    # the scanned text, which makes the content branches conclude from a blank page. Measured
+    # on a buildspec over the input cap holding a hardcoded AWS key: AWS-SECRET-038 lost its
+    # FAIL and answered "No Parameter Store or Secrets Manager env references detected",
+    # which is a statement about a file nobody read.
+    withdrawn = _aws_unread_buildspecs_outcome(ctx)
+    if withdrawn is not None:
+        return withdrawn
     if not aws.buildspec_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
@@ -175,6 +236,15 @@ def eval_aws_sbom_041(ctx: EvalContext) -> EvalOutcome:
     """AWS-SBOM-041: SBOM generation signal in buildspec."""
 
     aws = ctx.aws_ci
+    # Ahead of the path check and ahead of every content scan below. A buildspec the parser
+    # refused leaves BOTH empty: the path list, which turns this control not-applicable, and
+    # the scanned text, which makes the content branches conclude from a blank page. Measured
+    # on a buildspec over the input cap holding a hardcoded AWS key: AWS-SECRET-038 lost its
+    # FAIL and answered "No Parameter Store or Secrets Manager env references detected",
+    # which is a statement about a file nobody read.
+    withdrawn = _aws_unread_buildspecs_outcome(ctx)
+    if withdrawn is not None:
+        return withdrawn
     if not aws.buildspec_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
@@ -243,6 +313,15 @@ def eval_aws_prov_043(ctx: EvalContext) -> EvalOutcome:
     """AWS-PROV-043: provenance or attestation signal in buildspec."""
 
     aws = ctx.aws_ci
+    # Ahead of the path check and ahead of every content scan below. A buildspec the parser
+    # refused leaves BOTH empty: the path list, which turns this control not-applicable, and
+    # the scanned text, which makes the content branches conclude from a blank page. Measured
+    # on a buildspec over the input cap holding a hardcoded AWS key: AWS-SECRET-038 lost its
+    # FAIL and answered "No Parameter Store or Secrets Manager env references detected",
+    # which is a statement about a file nobody read.
+    withdrawn = _aws_unread_buildspecs_outcome(ctx)
+    if withdrawn is not None:
+        return withdrawn
     if not aws.buildspec_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,

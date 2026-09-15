@@ -36,10 +36,7 @@ from oss_policy_kit.infrastructure.workflow_parser import analyze_workflows
 #: Signal paths gathered from the kit's own constants rather than retyped here, so a path added
 #: to any of these tuples joins the sweep automatically.
 _DERIVED_SIGNAL_PATHS: tuple[str, ...] = tuple(
-    sorted(
-        set(sh._AUDIT_STREAM_SIGNAL_PATHS)
-        | set(sh._RELEASE_ARCHIVE_SIGNAL_PATHS)
-    )
+    sorted(set(sh._AUDIT_STREAM_SIGNAL_PATHS) | set(sh._RELEASE_ARCHIVE_SIGNAL_PATHS))
 )
 
 #: Paths the constants above do not cover, each one a control's own literal. Kept short and
@@ -121,9 +118,7 @@ def test_no_control_passes_a_repository_made_only_of_empty_files(hollow_repo: Pa
         ("RELEASE-ARCHIVE-063", "RELEASE_ARCHIVAL.md", "Our release archival policy."),
     ],
 )
-def test_the_same_path_with_content_in_it_still_passes(
-    control_id: str, rel: str, body: str, tmp_path: Path
-) -> None:
+def test_the_same_path_with_content_in_it_still_passes(control_id: str, rel: str, body: str, tmp_path: Path) -> None:
     """The over-withdrawal guard: refusing `touch` must not refuse the real thing.
 
     Without this half, the cheapest way to make the sweep above pass is to stop any of these
