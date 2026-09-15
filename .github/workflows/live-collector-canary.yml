@@ -1,0 +1,80 @@
+# Runs the one test in this repository that talks to the real GitHub API.
+#
+# `tests/integration/test_collect_evidence_github.py` is gated on `GITHUB_TOKEN` being present
+# in the environment. In GitHub Actions that variable is NOT set automatically: the token is
+# available as `${{ secrets.GITHUB_TOKEN }}` and reaches a step only through an explicit `env:`.
+# No job passed it, and no developer exports it locally, so the module skipped in every
+# environment it has ever run in. It reported as a skip, which is how it stayed that way.
+#
+# Why it lives here rather than in the `quality` job, whose egress allowlist already admits
+# api.github.com. That job carries the required check. A GitHub API incident, or a change in
+# the response shape, would then block every merge in the repository -- for a test whose value
+# is precisely that it fails when the upstream API changes. A canary that can stop the line is
+# not a canary. This workflow is scheduled and dispatchable, never required, so the signal
+# arrives as a red weekly run and the pull requests keep moving.
+#
+# What it uniquely covers: the shape GitHub actually returns. Every code path in the collector
+# is already exercised offline by tests/unit/test_github_collector_degraded_api.py, so this adds
+# no coverage. It adds the one thing no offline test can assert.
+#
+# tests/docs/test_a_skipped_test_is_not_a_passing_test.py fails if this job stops passing the
+# token, which is the state it was written to end.
+
+name: Live collector canary
+
+on:
+  schedule:
+    # Mondays at 05:00 UTC, an hour after the Scorecard run and two after the security scan,
+    # so a red GitHub morning produces one story rather than three.
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-collector-canary
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    name: Collect from the real API
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
+            objects.githubusercontent.com:443
+
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project (dev)
+        run: |
+          python -m pip install --require-hashes -r .github/requirements/pip.txt
+          python -m pip install -e ".[dev]"
+
+      - name: Collect and evaluate against the live API
+        # The token is read-only for a public repository and is scoped to this run. The test
+        # reads octocat/Hello-World, which belongs to GitHub and is not this repository, so a
+        # broader permission would buy nothing.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        # `-p no:cacheprovider` for the same reason the self-check step uses it, and `-rs` so a
+        # skip prints its reason: the failure mode this whole file exists to end is a silent one.
+        run: python -m pytest tests/integration/test_collect_evidence_github.py -v -rs -p no:cacheprovider
