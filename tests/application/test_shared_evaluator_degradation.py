@@ -300,3 +300,75 @@ def test_a_repo_with_no_agent_signal_at_all_is_not_applicable(tmp_path: Path) ->
 
     assert applicable is False
     assert found == []
+
+
+# --------------------------------------------------------------------------- #
+# the read that fails on the second attempt, not the first
+# --------------------------------------------------------------------------- #
+
+
+def _fail_reads_after_the_first(monkeypatch: pytest.MonkeyPatch, target: Path) -> list[int]:
+    """Let the first read of *target* succeed and raise OSError on every read after it.
+
+    The signal helpers read each candidate twice: `_has_content` reads it to decide whether
+    there is anything in the file, and the loop body reads it again to match keywords. A test
+    that refuses every read never reaches the second one, because `_has_content` answers False
+    and the loop skips the file one branch earlier. That is why the `except OSError` around the
+    keyword read looked dead: the only way in is for the file to stop being readable BETWEEN
+    the two reads, which is what a deleted file, a revoked permission or a dropped mount does
+    while an evaluation is running.
+
+    Returns a single-element list holding the read count, so the caller can assert the second
+    read was actually attempted rather than trust that it was.
+    """
+
+    wanted = target.resolve()
+    real_bytes = Path.read_bytes
+    calls = [0]
+
+    def _read_bytes(self: Path, *args: Any, **kwargs: Any) -> bytes:
+        if self.resolve() == wanted:
+            calls[0] += 1
+            if calls[0] > 1:
+                raise OSError(5, "Input/output error")
+        return real_bytes(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_bytes", _read_bytes)
+    return calls
+
+
+@pytest.mark.parametrize(
+    ("helper", "relative", "body"),
+    [
+        ("_audit_stream_signal_match", "RELEASE_OPERATIONS.md", "audit log streaming is enabled"),
+        ("_release_archive_signal_match", "RELEASE_ARCHIVAL.md", "retention policy: 7 years"),
+    ],
+)
+def test_signal_helpers_survive_a_file_that_stops_being_readable_mid_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    helper: str,
+    relative: str,
+    body: str,
+) -> None:
+    """The keyword read fails after the content check passed: answer "no signal", do not raise.
+
+    Both controls reading these helpers PASS only on finding the signal and answer
+    manual-review-required without it, so losing the file here withdraws the claim instead of
+    inventing one. That is the direction ADR-045 asks for, and it holds here for free rather
+    than by a withdrawal written into the helper.
+    """
+
+    doc = tmp_path / relative
+    doc.parent.mkdir(parents=True, exist_ok=True)
+    doc.write_text(body, encoding="utf-8")
+    fn = getattr(_shared, helper)
+    assert fn(tmp_path) is not None, "fixture does not reach the branch under test"
+
+    calls = _fail_reads_after_the_first(monkeypatch, doc)
+
+    assert fn(tmp_path) is None
+    assert calls[0] >= 2, (
+        "the second read was never attempted, so the branch under test did not run; "
+        f"{relative} was read {calls[0]} time(s)"
+    )
