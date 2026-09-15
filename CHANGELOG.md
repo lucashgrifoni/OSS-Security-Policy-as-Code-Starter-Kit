@@ -6,6 +6,35 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.22](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.21...v10.0.22) (2026-09-15)
+
+
+### Fixes
+
+* **cli:** a stream that is gone made the kit report a defect in itself ([#245](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/245)) ([2670da8](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2670da86ed7a55dd51e4f3415f1e17bbe710abea))
+* **containers:** a Containerfile was never discovered, and two discovery functions had drifted ([#244](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/244)) ([cdca6c6](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/cdca6c6b489583d95ff424c745b008ad066da08b))
+* **containers:** a stage name is not an image, and a cap is not an absence ([#251](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/251)) ([319b0c1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/319b0c12e2b0fdeb792188f67f012036cb30bde7))
+* **containers:** one stage called AS build is one stage, not a multi-stage build ([#247](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/247)) ([9c492d4](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9c492d4e3bed26fdd677c6008e50da1a6693205e))
+* **containers:** three Dockerfile controls answered PASS about files they had not read ([#231](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/231)) ([08f14d2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/08f14d21163e440339d7b501b9976442516f2fa2))
+* **evaluate:** SEC-DEPREV-011 denied a dependency review it could not read ([#250](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/250)) ([19891ee](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/19891eeff9122cd0f1d648b834c2ea0dade147f8))
+* **export-policy:** a control id reached the generated policy as syntax, not as a string ([#230](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/230)) ([20593f3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/20593f3c3e6009924963829bbaa9da3633b86697))
+* **limits:** the depth budget counted brackets, and block-style YAML has none ([#242](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/242)) ([7325910](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/7325910c1a915d0089ac40381f2fe5a0b7e39e0c))
+* **parsers:** one unreadable file ended the whole audit, and the guard that watches for that class was flaky ([#229](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/229)) ([339a50e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/339a50e059b19b0aa8e57a6abdc9ac71b4aaa3f0))
+* **reports:** two reports that looked complete and were not ([#248](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/248)) ([af31526](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/af31526a19a849b2a15fa31ecb420d8e338c8015))
+* **reports:** the Markdown report could forge its own conclusion, and the batch named the host ([#246](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/246)) ([1c79307](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/1c793073634e821580625351d655227b68d0b930))
+* **scan-k8s:** a GitHub Actions workflow counted as a scanned Kubernetes manifest ([#243](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/243)) ([e41a9a2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/e41a9a2a0c7c25873346d97f46d27d29de8857c9))
+* **scan-k8s:** fifteen controls scored 95% over a pod the parser refused ([#249](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/249)) ([7ac92a8](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/7ac92a803580b88fa73d758377f0f5e7dbc1f45d))
+* **tests:** the quadratic guard read the runner's noise as a defect ([#240](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/240)) ([2e64853](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2e64853ee5339f01b9d69dd583c781e7de8d3ef5))
+* **waivers:** a waiver that matched no control said nothing at all ([#252](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/252)) ([fa12208](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/fa12208b4fd4367eb41932e33e10c3882c0c4585))
+
+
+### Notes
+
+* **deps:** bump actions/deploy-pages from 5.0.0 to 5.0.1 ([#218](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/218)) ([4c72b8b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4c72b8beda160ba572c4f510ea4d162b970e1af3))
+* **deps:** bump docker/setup-qemu-action from 4.2.0 to 4.3.0 ([#217](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/217)) ([0cbd166](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0cbd166ba37e240790195cf8e2664016769b02f2))
+* **deps:** bump the codeql-action group with 4 updates ([#239](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/239)) ([9461581](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/94615818e1fabc34c36535a3519398150bd73a90))
+* **security:** the libpcre2 advisories went from five to six and three files still said five ([#232](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/232)) ([98827f1](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/98827f1a8cef75677be914982c75df9ef193f1c1))
+
 ## [10.0.21](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.20...v10.0.21) (2026-09-11)
 
 
