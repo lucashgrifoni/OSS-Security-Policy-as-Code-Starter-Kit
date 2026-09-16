@@ -48,10 +48,10 @@ Planned for a future release (not yet shipped):
 Chainloop's ingest spec is pre-1.0 and has changed twice since 2024. ADR-012 documents the design tension. The contract from the kit's side:
 
 - The **subcommand surface** (`export-evidence`, `--format`, `--output`, `--target`) is stable.
-- The **output shape for `--format chainloop`** may change in v6.0.x if Chainloop maintainers revise their spec. The CHANGELOG will call out any change.
-- Promotion to **stable** depends on adopter feedback and Chainloop spec stability; no v6.x promotion date is committed.
+- The **output shape for `--format chainloop`** may change in any patch release if Chainloop maintainers revise their spec. The CHANGELOG will call out any change.
+- Promotion to **stable** depends on adopter feedback and Chainloop spec stability; no promotion date is committed.
 
-Adopters running `export-evidence --format chainloop` in production should pin the kit version explicitly and read the CHANGELOG before upgrading inside the v6.x line.
+Adopters running `export-evidence --format chainloop` in production should pin the kit version explicitly and read the CHANGELOG before upgrading, including across patch releases.
 
 ## What `export-evidence` will not do
 
