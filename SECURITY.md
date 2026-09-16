@@ -83,6 +83,29 @@ Everything shipped to a user *is* hash-pinned — the container image installs f
 
 The alerts stay open regardless, and it is worth being precise about why, because it is not the reason that applies to pip. They are raised against the *base* image by digest, so no change in this repository moves them — including the fix that already shipped. Refreshing the pin does not help either: scanned directly from the registry on 2026-09-13, the current upstream `python:3.12-slim-bookworm` tag carries the identical twelve, `10.42-1` included. The consequence is that the alert list cannot be used to tell whether this is handled, so `tests/infrastructure/test_the_runtime_stage_keeps_the_base_image_cves_out.py` is what holds the two runtime commands in place. Deleting either one would put these CVEs back into the published image without changing a single alert.
 
+**Two secret-scanning settings that stay off, and cannot be turned on from the API.**
+`secret_scanning_validity_checks` and `secret_scanning_non_provider_patterns` are both
+`disabled`. Secret scanning itself and push protection are enabled.
+
+This is recorded here because the obvious conclusion from the outside is that nobody tried.
+Measured on 2026-09-16: `PATCH /repos/{owner}/{repo}` with either field returns **HTTP 200**
+with `X-Accepted-Github-Permissions: administration=write`, the response body reports the
+field as `disabled`, and an independent re-read reports `disabled`. There is no dedicated
+endpoint either; `secret-scanning/validity-checks`, `secret-scanning-validity-checks` and
+`secret-scanning/settings` all return 404. So the request is accepted and discarded, which
+is worse than a refusal: an operator scripting it would see success and never learn otherwise.
+
+The web UI is the only route, and turning them on is a maintainer action rather than an
+automated one. Recorded rather than silently pending, because the same probe was run twice
+across two sessions before anyone wrote down that it does not work.
+
+Worth separating from the two above it: this is a repository setting, not a code-scanning
+alert, and nothing in this repository can close it. The neighbouring setting on the same
+surface, immutable releases, was in the same state until the dedicated
+`/repos/{owner}/{repo}/immutable-releases` endpoint turned out to exist and accept a `PUT`.
+It is now `enabled`. That is the reason this entry names the exact endpoints that were tried:
+"the API cannot do it" was already wrong once.
+
 ## Scope
 
 Reports should target this repository and its distributed artifacts:
