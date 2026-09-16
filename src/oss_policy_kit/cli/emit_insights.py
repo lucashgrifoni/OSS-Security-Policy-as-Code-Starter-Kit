@@ -41,7 +41,14 @@ import yaml
 
 from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
 from oss_policy_kit.application.insights_evidence import INSIGHTS_SCHEMA_VERSION as _INSIGHTS_SCHEMA_VERSION
-from oss_policy_kit.cli.common import app, exit_for_unexpected, markup_safe, stderr_console, write_stdout_text
+from oss_policy_kit.cli.common import (
+    app,
+    display_path,
+    exit_for_unexpected,
+    markup_safe,
+    stderr_console,
+    write_stdout_text,
+)
 from oss_policy_kit.cli.help_text import CMD_PANEL_EXPORT
 from oss_policy_kit.domain.errors import InvalidInputError, OssPolicyKitError
 from oss_policy_kit.domain.models import utc_now
@@ -266,6 +273,26 @@ def _build_insights_fragment(target: Path) -> dict[str, Any]:
     return doc
 
 
+def _written_path(output: Path) -> str:
+    """The path that was written, anchored so the reader can tell which directory it means.
+
+    This command takes a ``--target`` and writes relative to the working directory, and those
+    are regularly not the same place. Echoing ``--output`` back named the file and not the
+    directory, and the default value is a bare filename, so the common case said the least.
+
+    ``display_path`` alone does not fix it: it reduces a path under the working directory to a
+    cwd-relative one, which for the default is the bare filename again. The leading ``./`` is
+    what turns that into "here". A path outside the working directory keeps ``display_path``'s
+    answer, which is the one that does not hand out the host layout (M-002).
+    """
+
+    written = output.resolve()
+    try:
+        return f"./{written.relative_to(Path.cwd()).as_posix()}"
+    except (OSError, ValueError):
+        return display_path(written)
+
+
 def _run_emit_insights(target: Path, output: Path, validate: bool, merge: bool) -> None:
     target_path = target.resolve()
     if not target_path.is_dir():
@@ -277,7 +304,7 @@ def _run_emit_insights(target: Path, output: Path, validate: bool, merge: bool) 
         fragment = _build_insights_fragment(target_path)
         yaml_text = _FRAGMENT_BANNER + yaml.safe_dump(fragment, sort_keys=True, allow_unicode=True)
         output.write_text(yaml_text, encoding="utf-8")
-        write_stdout_text(f"emit-insights: wrote merge fragment {output}\n")
+        write_stdout_text(f"emit-insights: wrote merge fragment {_written_path(output)}\n")
         return
 
     doc = _build_insights_document(target_path)
@@ -291,7 +318,7 @@ def _run_emit_insights(target: Path, output: Path, validate: bool, merge: bool) 
 
     yaml_text = yaml.safe_dump(doc, sort_keys=False, allow_unicode=True)
     output.write_text(yaml_text, encoding="utf-8")
-    write_stdout_text(f"emit-insights: wrote {output}\n")
+    write_stdout_text(f"emit-insights: wrote {_written_path(output)}\n")
 
 
 @app.command("emit-insights", rich_help_panel=CMD_PANEL_EXPORT)

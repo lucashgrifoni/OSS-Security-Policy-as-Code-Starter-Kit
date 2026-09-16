@@ -56,7 +56,14 @@ def scan_sast_cmd(
     rulesets: str = typer.Option(
         ",".join(DEFAULT_RULESETS),
         "--rulesets",
-        help=("Comma-separated list of Semgrep rulesets (e.g. auto, p/owasp-top-ten). Defaults to 'auto'."),
+        # Not 'auto', which this said for as long as the default was 'auto' and kept saying
+        # after the adapter moved off it. Semgrep refuses 'auto' while --metrics=off is passed,
+        # and this command always passes it, so the documented default was one the scanner
+        # would not run. See DEFAULT_RULESETS for the full reasoning.
+        help=(
+            "Comma-separated list of Semgrep rulesets (e.g. p/owasp-top-ten, or a local rules file). "
+            "Defaults to 'p/security-audit'; 'auto' needs Semgrep metrics enabled to resolve."
+        ),
     ),
     timeout: int = typer.Option(
         DEFAULT_TIMEOUT_SECONDS,

@@ -574,6 +574,17 @@ def run_batch_evaluation(  # noqa: C901
     catalog = load_catalog(root / "controls" / "catalog.yaml")
     targets = discover_batch_targets(target_root, include=include, exclude=exclude)
     if not targets:
+        # Name the filter when there was one. The directory is only the answer when nothing
+        # was asked to be filtered out of it: with --include or --exclude in play, sending the
+        # operator to inspect a directory that has the children they expect wastes the one
+        # piece of information this message exists to carry. The --skip-non-repos check a few
+        # lines below already names its own flag, so this is the shape the file already uses.
+        applied = [f"{flag} '{value}'" for flag, value in (("--include", include), ("--exclude", exclude)) if value]
+        if applied:
+            raise InvalidInputError(
+                f"No subdirectories under --target-root '{target_root.name}' matched {' and '.join(applied)}. "
+                "Widen or drop the pattern; fnmatch patterns are matched against the directory name only."
+            )
         raise InvalidInputError(f"No subdirectories to evaluate under {target_root}")
 
     eval_queue, skipped_dirs = _build_eval_queue(

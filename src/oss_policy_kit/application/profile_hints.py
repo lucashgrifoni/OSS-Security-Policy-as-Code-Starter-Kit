@@ -1086,20 +1086,22 @@ def _multi_platform_notes(order: list[str]) -> list[str]:
 
     if len(order) <= 1:
         return []
-    primary = order[0]
-    pretty = {
-        "github": "GitHub Actions",
-        "gitlab": "GitLab CI",
-        "azure": "Azure Pipelines",
-        "aws": "AWS CodeBuild",
-    }.get(primary, primary)
-    tail = ", ".join(
-        {"github": "GitHub", "gitlab": "GitLab", "azure": "Azure", "aws": "AWS"}.get(p, p) for p in order[1:]
-    )
+    # Every platform, not "primary plus the rest". The note used to crown `order[0]` as the
+    # primary ranked platform, which reads as a measurement and often is not one: `_platform_order`
+    # counts a platform's CI files as a boolean, so nine workflows and one pipeline carry the same
+    # weight and the winner is `sorted()` falling back to the name, where `azure` beats `github`.
+    #
+    # It also claimed the suggestions below were ordered by platform strength. They are not.
+    # `_merge_platform_suggestions` sorts on each suggestion's own priority and uses the platform
+    # rank only to break ties, so the first suggestion is regularly not the first platform -- which
+    # is what a reader saw, directly under a sentence saying otherwise.
+    names = {"github": "GitHub Actions", "gitlab": "GitLab CI", "azure": "Azure Pipelines", "aws": "AWS CodeBuild"}
+    detected = ", ".join(names.get(p, p) for p in order)
     return [
         (
-            f"Multiple CI platforms detected in this clone (primary ranked: {pretty}; also: {tail}). "
-            "Profile suggestions prioritize the strongest platform signals first."
+            f"Multiple CI platforms detected in this clone: {detected}. "
+            "The suggestions above are ordered by how well each profile fits the signals found, "
+            "so the first one is not necessarily for the first platform listed."
         ),
         (
             "Pass --platform github | gitlab | azure | aws (on `init`) or --profile <id> (on `evaluate`) "
