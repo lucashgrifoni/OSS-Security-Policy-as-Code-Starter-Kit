@@ -210,9 +210,22 @@ runs:
         fi
         python -m oss_policy_kit "${args[@]}"
         rc=$?
-        out_dir="${INPUT_OUTPUT_DIR}"
-        report_json="${GITHUB_WORKSPACE}/${out_dir}/evaluation-report.json"
-        report_md="${GITHUB_WORKSPACE}/${out_dir}/evaluation-report.md"
+        # Resolve output-dir ONCE, honouring an absolute path. The kit resolves --output-dir
+        # itself, so an absolute one (`${{ runner.temp }}/reports`, for instance) is written
+        # exactly where it says. Joining it onto the workspace anyway produced
+        # `.../repo//tmp/reports/evaluation-report.json` in report-json and report-markdown:
+        # paths that do not exist, on a run where the reports were written fine. The summary
+        # below is gated on `[ -f "${report_json}" ]`, so it vanished too, with no message.
+        #
+        # The leading-slash test already existed for sarif-output alone, which left a relative
+        # SARIF under an absolute output-dir wrong in both halves at once.
+        if [[ "${INPUT_OUTPUT_DIR}" = /* ]]; then
+          out_dir="${INPUT_OUTPUT_DIR}"
+        else
+          out_dir="${GITHUB_WORKSPACE}/${INPUT_OUTPUT_DIR}"
+        fi
+        report_json="${out_dir}/evaluation-report.json"
+        report_md="${out_dir}/evaluation-report.md"
         echo "exit_code=${rc}" >> "${GITHUB_OUTPUT}"
         echo "report_json=${report_json}" >> "${GITHUB_OUTPUT}"
         echo "report_md=${report_md}" >> "${GITHUB_OUTPUT}"
@@ -220,7 +233,7 @@ runs:
           if [[ "${INPUT_SARIF_OUTPUT}" = /* ]]; then
             sarif_path="${INPUT_SARIF_OUTPUT}"
           else
-            sarif_path="${GITHUB_WORKSPACE}/${out_dir}/${INPUT_SARIF_OUTPUT}"
+            sarif_path="${out_dir}/${INPUT_SARIF_OUTPUT}"
           fi
           echo "sarif=${sarif_path}" >> "${GITHUB_OUTPUT}"
         fi
