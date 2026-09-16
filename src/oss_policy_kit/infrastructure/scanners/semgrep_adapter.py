@@ -10,9 +10,8 @@ Design constraints:
   ``shutil.which("semgrep")`` so we never run untrusted strings through
   a shell. ``shell=False`` is enforced by always passing a list.
 - The adapter is **safe by default**: it pins the rule registry to
-  ``--config auto`` (which is what most users expect from "run semgrep")
-  and accepts an explicit override only via a typed parameter, never via
-  free-form CLI input passthrough.
+  :data:`DEFAULT_RULESETS` and accepts an explicit override only via a
+  typed parameter, never via free-form CLI input passthrough.
 - Output schema is versioned (``oss-policy-kit/evidence/sast-semgrep/v1``)
   so downstream evaluators can rely on a stable shape independently of
   Semgrep's own JSON layout, which evolves between versions.
@@ -267,7 +266,8 @@ def run_semgrep(
     Args:
         target: Repository root to scan. Must be an existing directory.
         rulesets: Tuple of ``--config`` arguments passed to Semgrep.
-            Defaults to ``("auto",)``.
+            Defaults to :data:`DEFAULT_RULESETS`, which is ``("p/security-audit",)``
+            and not ``auto``; the constant carries the reason.
         timeout_seconds: Wall-clock timeout for the scan.
 
     Returns:
