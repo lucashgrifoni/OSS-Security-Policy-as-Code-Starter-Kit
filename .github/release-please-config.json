@@ -42,6 +42,11 @@
       "hidden": false
     },
     {
+      "type": "deps",
+      "section": "Notes",
+      "hidden": false
+    },
+    {
       "type": "chore",
       "section": "Notes",
       "hidden": true
