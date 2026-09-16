@@ -66,10 +66,15 @@ _MINIMUM_PIP_INSTALLS_FOUND = 15
 #: - the pip-audit install is the job's whole point: it audits the runtime closure the
 #:   declared ranges resolve to. Pinning it would audit the lock instead, and report
 #:   clean on the day a newly published range-satisfying version became vulnerable.
+#: - the live-collector canary installs the same dev extra as the quality job, and for the
+#:   same reason. Its purpose is to run one test the way this repository runs every other
+#:   one, so an install shape unique to that job would be testing a configuration nothing
+#:   else uses. It is also the only job here that never gates a merge.
 _ACCEPTED_UNPINNED = Counter(
     {
         (".github/workflows/github-ci-cd.yml", "python -m pip install -e .[dev]"): 2,
         (".github/workflows/security-ci-cd.yml", "python -m pip install -e ."): 1,
+        (".github/workflows/live-collector-canary.yml", "python -m pip install -e .[dev]"): 1,
     }
 )
 
