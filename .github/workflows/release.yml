@@ -234,6 +234,23 @@ jobs:
         # major exceeds the tag just published: a genuine major bump is never proposed
         # by the run that follows a release, because it would come from a `feat!` merged
         # AFTER this tag, and that PR is opened by a later run.
+        #
+        # What the transient PR costs, and why CI is not gated to avoid it. Measured over
+        # the two most recent ones, #227 and #253: each fires two workflow runs, 21 jobs,
+        # about 44 minutes of runner time, and both runs COMPLETE. Cancelling them when
+        # this step closes the PR is therefore the wrong fix, and the measurement is what
+        # says so: #253 was closed 0.7 min before its last run ended, #227 was closed 20
+        # hours after its CI had already finished, and #211 was closed so fast that no run
+        # was attributed to its head SHA at all.
+        #
+        # Skipping CI on the transient PR instead would need the workflow to tell it apart
+        # from the GENUINE release PR at trigger time, and the two share a head branch. The
+        # only signal is the proposed major, which means a gate job every heavy job depends
+        # on. That gate misfiring skips the required check on the one pull request that must
+        # never go untested: the release PR bumps the version in seven extra-files. Trading
+        # 44 free-tier minutes for that risk is not worth it, so this is a decision rather
+        # than an omission. Revisit it if the runners stop being free or the release
+        # cadence rises enough for the minutes to matter.
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.meta.outputs.tag }}
