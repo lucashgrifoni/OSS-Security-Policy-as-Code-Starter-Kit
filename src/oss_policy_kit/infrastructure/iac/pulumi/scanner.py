@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from oss_policy_kit.application.clock import report_generated_at
+from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
 from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
 from oss_policy_kit.infrastructure.scan_deadline import TIMEOUT_DIAGNOSTIC, ScanDeadline
@@ -492,6 +493,35 @@ def all_rule_ids() -> tuple[str, ...]:
     return tuple(rid for rid, _ in _RULES)
 
 
+def _read_candidate(repo_root: Path, path: Path) -> tuple[bytes, dict[str, str] | None]:
+    """The candidate's bytes, or ``(b"", entry)`` when it was refused.
+
+    Both refusals live here, which is what keeps ``run_scan`` under the project's complexity
+    limit -- lowering that limit to fit a change is how a limit stops meaning anything.
+
+    BYTES, not text: ``ast.parse`` honours a PEP 263 ``# -*- coding: latin-1 -*-`` line and a
+    BOM, so a legal module in another encoding still parses. Reading it as strict UTF-8 first
+    rejected such a module and DELETED its findings -- a public-read bucket went FAIL to PASS.
+
+    The ceiling comes first, because the audited repository writes this file and a cap applied
+    after the bytes are in memory has already paid for them.
+    """
+
+    oversize = oversize_reason(path, MAX_CI_CONFIG_BYTES, label="Python file")
+    if oversize is not None:
+        # Marked, because `**/*.py` mostly is NOT a pulumi program: only a file that reads like
+        # one withdraws a verdict, and one nobody read cannot be sniffed.
+        return b"", {
+            "file": _normalize_target(repo_root, path),
+            "error": oversize,
+            "resembles": RESEMBLES_PROGRAM,
+        }
+    try:
+        return path.read_bytes(), None
+    except OSError as exc:
+        return b"", {"file": _normalize_target(repo_root, path), "error": str(exc)}
+
+
 def run_scan(
     repo_root: Path,
     *,
@@ -508,14 +538,9 @@ def run_scan(
     for f in files:
         if deadline.expired():
             break
-        try:
-            # BYTES, not text. `ast.parse` honours a PEP 263 `# -*- coding: latin-1 -*-`
-            # line and a BOM, so a legal module in another encoding still parses. Reading
-            # it as strict UTF-8 first rejected such a module and DELETED its findings --
-            # a public-read bucket went from FAIL to PASS.
-            source: bytes | str = f.read_bytes()
-        except OSError as exc:
-            parse_errors.append({"file": _normalize_target(repo_root, f), "error": str(exc)})
+        source, refused = _read_candidate(repo_root, f)
+        if refused is not None:
+            parse_errors.append(refused)
             continue
         try:
             tree = ast.parse(source)

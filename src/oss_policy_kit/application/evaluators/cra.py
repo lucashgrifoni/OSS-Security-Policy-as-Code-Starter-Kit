@@ -7,12 +7,16 @@ from oss_policy_kit.application.evaluators._shared import (
     EvalContext,
     EvalOutcome,
     Path,
+    _has_content,
+    _holds_a_non_empty_file,
     _read_first_existing,
     _scan_readme_for_section,
+    capped_repo_text,
     contextlib,
     insights_self_attested_outcome,
     json,
 )
+from oss_policy_kit.application.evaluators_common import capped_evidence_text
 
 
 def eval_cra_art13_sbd_001(ctx: EvalContext) -> EvalOutcome:
@@ -79,7 +83,9 @@ def eval_cra_art14_csaf_001(ctx: EvalContext) -> EvalOutcome:
     )
     for rel in candidates:
         p = ctx.repo_root / rel
-        if p.exists():
+        # `.well-known/csaf` is legitimately a directory in the CSAF layout, so a file
+        # needs content and a directory needs a file with content in it.
+        if _has_content(p) or (p.is_dir() and _holds_a_non_empty_file(p)):
             return EvalOutcome(
                 status=ControlStatus.PASS,
                 reason=f"CSAF advisory feed signal present ({rel}) — CRA Article 14 reporting readiness.",
@@ -104,7 +110,7 @@ def eval_cra_art14_coord_002(ctx: EvalContext) -> EvalOutcome:
     disclosure = ctx.repo_root / ".oss-policy-kit" / "evidence" / "disclosure-policy.json"
     if disclosure.is_file():
         with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-            data = json.loads(disclosure.read_text(encoding="utf-8-sig"))
+            data = json.loads(capped_evidence_text(disclosure) or "null")
             if isinstance(data, dict) and data.get("coordinated_disclosure") is True:
                 return EvalOutcome(
                     status=ControlStatus.PASS,
@@ -251,7 +257,7 @@ def eval_cisa_sbd_vdp_001(ctx: EvalContext) -> EvalOutcome:
             continue
         text = ""
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = capped_repo_text(p).lower()
         if "contact:" in text:
             return EvalOutcome(
                 status=ControlStatus.PASS,
@@ -323,7 +329,7 @@ def eval_cisa_sbd_cve_003(ctx: EvalContext) -> EvalOutcome:
         )
     for f in advisory_files:
         with contextlib.suppress(OSError):
-            if "cwe-" in f.read_text(encoding="utf-8", errors="replace").lower():
+            if "cwe-" in capped_repo_text(f).lower():
                 return EvalOutcome(
                     status=ControlStatus.PASS,
                     reason=f"Advisory metadata references CWE identifiers ({f.name}) — ISO/IEC 30111 hygiene.",
@@ -358,7 +364,7 @@ def eval_cisa_sbd_secrets_005(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evidence.read_text(encoding="utf-8-sig"))
+        data = json.loads(capped_evidence_text(evidence) or "null")
         if isinstance(data, dict):
             findings = 0
             for run in data.get("runs") or []:

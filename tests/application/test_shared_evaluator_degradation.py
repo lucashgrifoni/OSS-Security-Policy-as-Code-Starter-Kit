@@ -28,17 +28,32 @@ from oss_policy_kit.domain.models import ControlStatus
 
 
 def _fail_reads_of(monkeypatch: pytest.MonkeyPatch, *targets: Path) -> None:
-    """Make ``read_text`` raise OSError for *targets* and behave normally elsewhere."""
+    """Make every reader raise OSError for *targets* and behave normally elsewhere.
+
+    Both ``read_text`` and ``read_bytes``, not just the one the helper under test happens to
+    call today. These readers move between the two whenever an encoding fix lands -- and a test
+    that intercepts only one stops testing anything the moment that choice changes, silently,
+    because refusing nothing lets the file read fine and the assertion then measures the
+    ordinary path. Patching only ``read_text`` is how twelve of these went green against a
+    reader that had moved to ``read_bytes``.
+    """
 
     wanted = {p.resolve() for p in targets}
-    real = Path.read_text
+    real_text = Path.read_text
+    real_bytes = Path.read_bytes
 
     def _read_text(self: Path, *args: Any, **kwargs: Any) -> str:
         if self.resolve() in wanted:
             raise OSError(13, "Permission denied")
-        return real(self, *args, **kwargs)
+        return real_text(self, *args, **kwargs)
+
+    def _read_bytes(self: Path, *args: Any, **kwargs: Any) -> bytes:
+        if self.resolve() in wanted:
+            raise OSError(13, "Permission denied")
+        return real_bytes(self, *args, **kwargs)
 
     monkeypatch.setattr(Path, "read_text", _read_text)
+    monkeypatch.setattr(Path, "read_bytes", _read_bytes)
 
 
 # --------------------------------------------------------------------------- #
@@ -86,16 +101,47 @@ def test_signal_helpers_skip_a_document_they_cannot_read(
     assert fn(tmp_path) is None
 
 
-def test_audit_stream_config_yaml_signals_without_being_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A dedicated config YAML implies intent by existing; its contents are never opened."""
+def test_audit_stream_config_yaml_signals_without_a_keyword(tmp_path: Path) -> None:
+    """A dedicated config YAML implies intent; unlike a doc file it needs no keyword match."""
 
     config = tmp_path / ".github" / "audit-log-streaming.yml"
     config.parent.mkdir(parents=True)
     config.write_text("nothing the keyword list would match\n", encoding="utf-8")
 
+    assert _shared._audit_stream_signal_match(tmp_path) == config
+
+
+def test_audit_stream_config_yaml_signals_nothing_when_it_is_empty(tmp_path: Path) -> None:
+    """`touch .github/audit-log-streaming.yml` satisfied three controls. It is not a signal."""
+
+    config = tmp_path / ".github" / "audit-log-streaming.yml"
+    config.parent.mkdir(parents=True)
+    config.write_bytes(b"")
+
+    assert _shared._audit_stream_signal_match(tmp_path) is None
+
+
+def test_audit_stream_config_yaml_signals_nothing_when_it_cannot_be_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """This assertion used to be its opposite, and the opposite was the defect.
+
+    The old test was named ``..._signals_without_being_read`` and required the match to succeed
+    while every read of the file was refused. That makes the control state a positive posture --
+    "audit log streaming is configured" -- about a file it could not open.
+
+    Not signalling is the safe direction and costs nothing: the controls reading this matcher
+    answer ``manual-review-required`` when they find no signal, so a refused read degrades
+    rather than passing or claiming an absence.
+    """
+
+    config = tmp_path / ".github" / "audit-log-streaming.yml"
+    config.parent.mkdir(parents=True)
+    config.write_text("streaming: on\n", encoding="utf-8")
+
     _fail_reads_of(monkeypatch, config)
 
-    assert _shared._audit_stream_signal_match(tmp_path) == config
+    assert _shared._audit_stream_signal_match(tmp_path) is None
 
 
 # --------------------------------------------------------------------------- #
@@ -254,3 +300,75 @@ def test_a_repo_with_no_agent_signal_at_all_is_not_applicable(tmp_path: Path) ->
 
     assert applicable is False
     assert found == []
+
+
+# --------------------------------------------------------------------------- #
+# the read that fails on the second attempt, not the first
+# --------------------------------------------------------------------------- #
+
+
+def _fail_reads_after_the_first(monkeypatch: pytest.MonkeyPatch, target: Path) -> list[int]:
+    """Let the first read of *target* succeed and raise OSError on every read after it.
+
+    The signal helpers read each candidate twice: `_has_content` reads it to decide whether
+    there is anything in the file, and the loop body reads it again to match keywords. A test
+    that refuses every read never reaches the second one, because `_has_content` answers False
+    and the loop skips the file one branch earlier. That is why the `except OSError` around the
+    keyword read looked dead: the only way in is for the file to stop being readable BETWEEN
+    the two reads, which is what a deleted file, a revoked permission or a dropped mount does
+    while an evaluation is running.
+
+    Returns a single-element list holding the read count, so the caller can assert the second
+    read was actually attempted rather than trust that it was.
+    """
+
+    wanted = target.resolve()
+    real_bytes = Path.read_bytes
+    calls = [0]
+
+    def _read_bytes(self: Path, *args: Any, **kwargs: Any) -> bytes:
+        if self.resolve() == wanted:
+            calls[0] += 1
+            if calls[0] > 1:
+                raise OSError(5, "Input/output error")
+        return real_bytes(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_bytes", _read_bytes)
+    return calls
+
+
+@pytest.mark.parametrize(
+    ("helper", "relative", "body"),
+    [
+        ("_audit_stream_signal_match", "RELEASE_OPERATIONS.md", "audit log streaming is enabled"),
+        ("_release_archive_signal_match", "RELEASE_ARCHIVAL.md", "retention policy: 7 years"),
+    ],
+)
+def test_signal_helpers_survive_a_file_that_stops_being_readable_mid_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    helper: str,
+    relative: str,
+    body: str,
+) -> None:
+    """The keyword read fails after the content check passed: answer "no signal", do not raise.
+
+    Both controls reading these helpers PASS only on finding the signal and answer
+    manual-review-required without it, so losing the file here withdraws the claim instead of
+    inventing one. That is the direction ADR-045 asks for, and it holds here for free rather
+    than by a withdrawal written into the helper.
+    """
+
+    doc = tmp_path / relative
+    doc.parent.mkdir(parents=True, exist_ok=True)
+    doc.write_text(body, encoding="utf-8")
+    fn = getattr(_shared, helper)
+    assert fn(tmp_path) is not None, "fixture does not reach the branch under test"
+
+    calls = _fail_reads_after_the_first(monkeypatch, doc)
+
+    assert fn(tmp_path) is None
+    assert calls[0] >= 2, (
+        "the second read was never attempted, so the branch under test did not run; "
+        f"{relative} was read {calls[0]} time(s)"
+    )

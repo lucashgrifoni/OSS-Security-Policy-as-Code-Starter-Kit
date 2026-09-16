@@ -3,7 +3,7 @@
 - **Status**: accepted (2026-06-08) — targets v8.x; staged opt-in first, the default flip is the v8.0.0 BREAKING step (gated, §D6 below). Ratified per roadmap plan §11.2–§11.3.
 - **Date**: 2026-05-25 (proposed); 2026-06-08 (accepted)
 - **Context window**: v8.x roadmap horizon — "Gemara & OSPS conformance alignment"
-- **Related**: ADR-013 (reports/2.0 five-state vocabulary), ADR-027 (default flip), ADR-018 (OSPS Baseline 2026 / Scorecard v6), ADR-017 (source-built container release / cosign), `ROADMAP.md`
+- **Related**: ADR-013 (reports/2.0 five-state vocabulary), ADR-027 (default flip), ADR-018 (OSPS Baseline 2026 / Scorecard v6), ADR-017 (source-built container release / cosign), the maintainer's local roadmap (not published)
 
 ## Context
 
@@ -111,4 +111,4 @@ per the local execution plan.
 
 - OpenSSF Scorecard v6 / OSPS conformance + Gemara Layer 4 — <https://github.com/ossf/scorecard/pull/4952>, <https://openssf.org/blog/2026/03/09/introducing-the-gemara-model/>
 - OSPS Baseline — <https://baseline.openssf.org/>
-- ADR-013, ADR-017, ADR-018; `ROADMAP.md` (v8.x horizon); roadmap plan §6, §11.2–11.3
+- ADR-013, ADR-017, ADR-018; the maintainer's local roadmap (not published) (v8.x horizon); roadmap plan §6, §11.2–11.3

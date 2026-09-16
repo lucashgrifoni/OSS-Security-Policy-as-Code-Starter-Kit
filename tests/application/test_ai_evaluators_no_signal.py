@@ -120,7 +120,10 @@ def test_a_file_that_cannot_be_read_is_not_credited_with_a_filter(
             raise OSError(13, "Permission denied")
         return real(self, *args, **kwargs)  # type: ignore[arg-type]
 
+    # read_bytes as well as read_text: the reader under test decodes bytes so it can honour
+    # the encoding a file declares, and a patch that covers only one of them refuses nothing.
     monkeypatch.setattr(Path, "read_text", _read_text)
+    monkeypatch.setattr(Path, "read_bytes", _read_text)
 
     assert ai._file_has_output_filter(target, tmp_path) is False
 

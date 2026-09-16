@@ -37,6 +37,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _gov_disc_013_private_reporting_signals,
     _has_build_instructions,
     _has_changelog,
+    _has_content,
     _has_license,
     _has_placeholder_security_contact,
     _org_mfa_schema,
@@ -51,18 +52,19 @@ from oss_policy_kit.application.evaluators._shared import (
     _validate_bsi_tr_03183_v2_1,
     _validate_json_evidence,
     _verification_freshness_status,
-    _workflow_text,
+    capped_repo_text,
     checks_as_map,
     contextlib,
     has_placeholder_values,
     insights_self_attested_outcome,
     json,
     load_yaml_file,
+    read_repo_text,
+    unread_candidates_outcome,
 )
-from oss_policy_kit.application.evaluators_common import strip_yaml_comments
+from oss_policy_kit.application.evaluators_common import capped_evidence_text, strip_yaml_comments
 from oss_policy_kit.application.input_limits import bad_input_detail
 from oss_policy_kit.domain.models import utc_now
-from oss_policy_kit.infrastructure.source_text import decode_source
 
 _GITHUB_DIR = ".github"
 _KIT_DIR = ".oss-policy-kit"
@@ -73,6 +75,16 @@ _WAIVERS_YAML = "waivers.yaml"
 
 def eval_gov_sec_001(ctx: EvalContext) -> EvalOutcome:
     text = _read_security(ctx.repo_root)
+    if text is not None and not text.strip():
+        # Found by the derived zero-byte sweep, not by a reviewer: `touch SECURITY.md` passed a
+        # control whose whole subject is whether a reporter can find out how to reach you.
+        return EvalOutcome(
+            status=ControlStatus.FAIL,
+            reason="SECURITY.md is present but empty, so it tells a reporter nothing.",
+            remediation="Describe supported versions and how to report a vulnerability privately.",
+            evidence_sources=[str((ctx.repo_root / "SECURITY.md").resolve())],
+            confidence="high",
+        )
     if text is not None:
         return EvalOutcome(
             status=ControlStatus.PASS,
@@ -101,6 +113,14 @@ def eval_gov_con_002(ctx: EvalContext) -> EvalOutcome:
         (ctx.repo_root / "docs", "CONTRIBUTING.md"),
     ):
         p = _file_named_any_case(directory, name)
+        if p is not None and not _has_content(p):
+            return EvalOutcome(
+                status=ControlStatus.FAIL,
+                reason=f"`{p.name}` is present but empty, so it guides no contributor.",
+                remediation="Describe how to propose a change, run the tests, and report a security issue.",
+                evidence_sources=[str(p.resolve())],
+                confidence="high",
+            )
         if p is not None:
             return EvalOutcome(
                 status=ControlStatus.PASS,
@@ -148,7 +168,7 @@ def eval_gov_cown_003(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     try:
-        text = decode_source(path.read_bytes())
+        text = capped_repo_text(path)
     except OSError:
         return EvalOutcome(
             status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -371,7 +391,7 @@ def _classify_evidence_files(
     expiry_warns: list[str] = []
     for path in json_files:
         try:
-            data = json.loads(path.read_text(encoding="utf-8-sig"))
+            data = json.loads(capped_evidence_text(path) or "null")
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             return (
                 stale,
@@ -570,14 +590,34 @@ def eval_dep_update_001(ctx: EvalContext) -> EvalOutcome:
         repo / _GITHUB_DIR / "renovate.json",
     ]
     for p in renovate_candidates:
-        if p.is_file():
+        if not p.is_file():
+            continue
+        if not _has_content(p):
+            # The asymmetry this closes: the Dependabot branch above already refuses a file
+            # that declares nothing, and this one passed on the file existing. A zero-byte
+            # `renovate.json` configures no Renovate run, and this control is catalogued
+            # `assurance: deterministic`, which promises the verdict follows from what was read.
             return EvalOutcome(
-                status=ControlStatus.PASS,
-                reason="Renovate configuration file detected.",
-                remediation="Keep Renovate schedules and automerge rules aligned with security policy.",
+                status=ControlStatus.FAIL,
+                reason=(
+                    f"`{p.name}` is present but empty, so Renovate is configured with nothing "
+                    "and opens no pull request."
+                ),
+                remediation=(
+                    'Add a Renovate configuration body (at minimum `{"extends": '
+                    '["config:recommended"]}`), or remove the file if updates are handled '
+                    "elsewhere."
+                ),
                 evidence_sources=[str(p.resolve())],
                 confidence="high",
             )
+        return EvalOutcome(
+            status=ControlStatus.PASS,
+            reason="Renovate configuration file detected.",
+            remediation="Keep Renovate schedules and automerge rules aligned with security policy.",
+            evidence_sources=[str(p.resolve())],
+            confidence="high",
+        )
     return EvalOutcome(
         status=ControlStatus.FAIL,
         reason="No automated dependency update tool detected (Dependabot or Renovate).",
@@ -837,7 +877,7 @@ def _read_evidence_json(evid: Path) -> Any:
     if not evid.is_file():
         return None
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return json.loads(evid.read_text(encoding="utf-8-sig"))
+        return json.loads(capped_evidence_text(evid) or "null")
     return None
 
 
@@ -917,7 +957,7 @@ def _classify_sbom_file(p: Path) -> tuple[str | None, str | None, str | None]:
     """
 
     with contextlib.suppress(OSError):
-        content = p.read_text(encoding="utf-8", errors="replace")
+        content = capped_repo_text(p)
         fmt_detail, version = _detect_sbom_format_and_version(content)
         if not fmt_detail:
             return None, None, p.name
@@ -989,7 +1029,7 @@ def _sbom_ci_signal(ctx: EvalContext) -> EvalOutcome | None:
     )
     for p in all_ci:
         with contextlib.suppress(OSError):
-            text = strip_yaml_comments(p.read_text(encoding="utf-8", errors="replace")).lower()
+            text = strip_yaml_comments(capped_repo_text(p)).lower()
             if "cyclonedx" in text or "spdx" in text or "syft" in text:
                 return EvalOutcome(
                     status=ControlStatus.MANUAL_REVIEW_REQUIRED,
@@ -1529,8 +1569,14 @@ def eval_publish_oidc_001(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[],
             confidence="high",
         )
-    publish = _publish_workflows(paths)
+    publish, unread = _publish_workflows(paths)
     if not publish:
+        # Applicability itself rests on a keyword scan, so a workflow nobody read drops out of
+        # `publish` exactly as an absent one does, and this branch then states that this
+        # repository does not publish. Withdrawn instead, per ADR-045.
+        withdrawn = unread_candidates_outcome(unread, what="whether this repository publishes to a package registry")
+        if withdrawn is not None:
+            return withdrawn
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No publish workflow detected (no PyPI / npm / RubyGems / crates keyword in any workflow).",
@@ -1544,7 +1590,7 @@ def eval_publish_oidc_001(ctx: EvalContext) -> EvalOutcome:
     matched: list[Path] = []
     for p in publish:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace")
+            text = capped_repo_text(p)
             if _OIDC_TOKEN_PATTERN.search(text):
                 matched.append(p)
     if not matched:
@@ -1584,8 +1630,14 @@ def eval_publish_oidc_002(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[],
             confidence="high",
         )
-    publish = _publish_workflows(paths)
+    publish, unread = _publish_workflows(paths)
     if not publish:
+        # Applicability itself rests on a keyword scan, so a workflow nobody read drops out of
+        # `publish` exactly as an absent one does, and this branch then states that this
+        # repository does not publish. Withdrawn instead, per ADR-045.
+        withdrawn = unread_candidates_outcome(unread, what="whether this repository publishes to a package registry")
+        if withdrawn is not None:
+            return withdrawn
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No publish workflow detected.",
@@ -1596,7 +1648,7 @@ def eval_publish_oidc_002(ctx: EvalContext) -> EvalOutcome:
     offenders: list[Path] = []
     for p in publish:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace")
+            text = capped_repo_text(p)
             if _LONG_LIVED_PASSWORD_PATTERN.search(text):
                 offenders.append(p)
     if offenders:
@@ -1639,12 +1691,18 @@ def eval_publish_oidc_003(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     npm_publish: list[Path] = []
+    unread: list[Path] = []
     for p in paths:
-        with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
-            if "npm publish" in text:
-                npm_publish.append(p)
+        read = read_repo_text(p, label="Workflow")
+        if read.unread:
+            unread.append(p)
+            continue
+        if "npm publish" in read.text.lower():
+            npm_publish.append(p)
     if not npm_publish:
+        withdrawn = unread_candidates_outcome(unread, what="whether an npm publish step exists")
+        if withdrawn is not None:
+            return withdrawn
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No npm publish step detected.",
@@ -1655,7 +1713,7 @@ def eval_publish_oidc_003(ctx: EvalContext) -> EvalOutcome:
     with_provenance: list[Path] = []
     for p in npm_publish:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace")
+            text = capped_repo_text(p)
             if _NPM_PROVENANCE_PATTERN.search(text):
                 with_provenance.append(p)
     if not with_provenance:
@@ -1710,7 +1768,7 @@ def eval_osps_scorecard_v6_001(ctx: EvalContext) -> EvalOutcome:
             confidence="medium",
         )
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evidence.read_text(encoding="utf-8-sig"))
+        data = json.loads(capped_evidence_text(evidence) or "null")
         if isinstance(data, dict):
             verdict = str(data.get("conformance") or data.get("result") or data.get("overall") or "").strip().lower()
             if verdict in {"pass", "passed", "conformant", "true"}:
@@ -1740,14 +1798,24 @@ def eval_osps_scorecard_v6_001(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def _scan_scanner_action_pinning(paths: list[Path]) -> tuple[list[str], int, bool]:
-    """Scan workflows for scanner ``uses:`` refs; return ``(unpinned, pinned_count, saw_any_scanner)``."""
+def _scan_scanner_action_pinning(paths: list[Path]) -> tuple[list[str], int, bool, list[Path]]:
+    """Scan workflows for scanner ``uses:`` refs.
+
+    Returns ``(unpinned, pinned_count, saw_any_scanner, unread)``. The last element exists
+    because ``seen_scanner`` is False for two different reasons -- no workflow references a
+    scanner, or a workflow was never legible -- and the control reported the first for both.
+    """
 
     unpinned: list[str] = []
     pinned = 0
     seen_scanner = False
+    unread: list[Path] = []
     for p in paths:
-        for raw_line in _workflow_text(p).splitlines():
+        read = read_repo_text(p, label="Workflow")
+        if read.unread:
+            unread.append(p)
+            continue
+        for raw_line in read.text.splitlines():
             line = raw_line.strip()
             if "uses:" not in line:
                 continue
@@ -1759,7 +1827,7 @@ def _scan_scanner_action_pinning(paths: list[Path]) -> tuple[list[str], int, boo
                 pinned += 1
             else:
                 unpinned.append(f"{p.name}: {ref}")
-    return unpinned, pinned, seen_scanner
+    return unpinned, pinned, seen_scanner, unread
 
 
 def eval_scanner_integrity_001(ctx: EvalContext) -> EvalOutcome:
@@ -1773,8 +1841,11 @@ def eval_scanner_integrity_001(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[],
             confidence="high",
         )
-    unpinned, pinned, seen_scanner = _scan_scanner_action_pinning(paths)
+    unpinned, pinned, seen_scanner, unread = _scan_scanner_action_pinning(paths)
     if not seen_scanner:
+        withdrawn = unread_candidates_outcome(unread, what="whether any workflow references a scanner action")
+        if withdrawn is not None:
+            return withdrawn
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No scanner actions referenced in workflows; scanner integrity check does not apply.",

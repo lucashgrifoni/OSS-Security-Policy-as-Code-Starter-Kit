@@ -25,10 +25,12 @@ from oss_policy_kit.application.evaluators._shared import (
     _verification_freshness_status,
     _workflow_text,
     _workflow_text_has_long_lived_cloud_secret,
+    capped_repo_text,
     contextlib,
     json,
     preview_evidence_paths,
 )
+from oss_policy_kit.application.evaluators_common import capped_evidence_text
 
 _GITHUB_DIR = ".github"
 _KIT_DIR = ".oss-policy-kit"
@@ -307,7 +309,7 @@ def eval_gh_dep_022(ctx: EvalContext) -> EvalOutcome:
     long_lived_hits: list[Path] = []
     for p in cloud_deploy_paths or ctx.workflows.workflow_paths:
         with contextlib.suppress(OSError):
-            raw = p.read_text(encoding="utf-8", errors="replace")
+            raw = capped_repo_text(p)
             if _workflow_text_has_long_lived_cloud_secret(raw):
                 long_lived_hits.append(p)
     has_long_lived_secrets = bool(long_lived_hits)
@@ -359,7 +361,7 @@ def _gh_provenance_verification_recorded(evidence_path: Path) -> bool:
     if not evidence_path.is_file():
         return False
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(evidence_path.read_text(encoding="utf-8-sig"))
+        data = json.loads(capped_evidence_text(evidence_path) or "null")
         if isinstance(data, dict):
             verification = data.get("verification")
             if isinstance(verification, dict) and verification.get("transparency_log_inclusion"):
@@ -882,9 +884,30 @@ def eval_gh_plat_026(ctx: EvalContext) -> EvalOutcome:
     )
 
 
-def _gh_ephemeral_posture_outcome(all_self: list[Path], ephemeral: list[Path], evidence: Path) -> EvalOutcome | None:
+def _gh_ephemeral_posture_outcome(
+    all_self: list[Path], ephemeral: list[Path], evidence: Path, unread: list[Path] | None = None
+) -> EvalOutcome | None:
     """Outcome from self-hosted/ephemeral runner posture (signal-grade), or None to use evidence handling."""
 
+    if not all_self and unread:
+        # The only branch here that concludes from finding NOTHING, so the only one an unread
+        # workflow can fool. Withdrawing rather than passing follows ADR-045; the branches below
+        # conclude from finding a runner and keep their verdicts, because a file nobody read
+        # cannot have contributed the signal they did find.
+        names = ", ".join(sorted(p.name for p in unread[:5]))
+        return EvalOutcome(
+            status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+            reason=(
+                f"Absence of self-hosted runners could not be established: {names} declares an "
+                "encoding this reader could not decode, so its `runs-on:` was never seen."
+            ),
+            remediation=(
+                "Save the listed workflow(s) as UTF-8, or as UTF-16/UTF-32 with a byte-order "
+                "mark, then re-run evaluation."
+            ),
+            evidence_sources=[str(p.resolve()) for p in unread],
+            confidence="low",
+        )
     if not all_self and not evidence.is_file():
         return EvalOutcome(
             status=ControlStatus.PASS,
@@ -968,9 +991,9 @@ def eval_gh_runner_062(ctx: EvalContext) -> EvalOutcome:
             evidence_sources=[str(p.resolve()) for p in pr_self_hosted],
             confidence="high",
         )
-    all_self, ephemeral = _self_hosted_workflow_paths(ctx.repo_root)
+    all_self, ephemeral, unread = _self_hosted_workflow_paths(ctx.repo_root)
     evidence = ctx.repo_root / _KIT_DIR / "evidence" / "runner-groups.json"
-    posture_outcome = _gh_ephemeral_posture_outcome(all_self, ephemeral, evidence)
+    posture_outcome = _gh_ephemeral_posture_outcome(all_self, ephemeral, evidence, unread)
     if posture_outcome is not None:
         return posture_outcome
     # Unreachable: `_gh_ephemeral_posture_outcome` returns None only when the evidence
@@ -1063,7 +1086,7 @@ def eval_gh_egress_hrn_001(ctx: EvalContext) -> EvalOutcome:
     matched: list[Path] = []
     for p in paths:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = capped_repo_text(p).lower()
             if any(pat in text for pat in _HARDEN_RUNNER_PATTERNS):
                 matched.append(p)
     if not matched:

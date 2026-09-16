@@ -45,6 +45,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application.evaluators._shared import capped_repo_bytes
 from oss_policy_kit.domain.models import ControlStatus, EvalOutcome
 
 _HMAC_COMPARE_DIGEST = "hmac.compare_digest"
@@ -233,7 +234,7 @@ def _scan_signals(
     replay_hint: str | None = None
     for path in (walk or _collect_candidate_paths(repo_root)).paths:
         try:
-            head = path.read_bytes()[:_SCAN_BYTES_PER_FILE].decode("utf-8", errors="ignore").lower()
+            head = capped_repo_bytes(path)[:_SCAN_BYTES_PER_FILE].decode("utf-8", errors="ignore").lower()
         except OSError:
             continue
         rel = path.relative_to(repo_root).as_posix()
@@ -449,7 +450,7 @@ def _scan_for_any(repo_root: Path, hints: tuple[str, ...], *, walk: _Walk | None
     """Return the first repo-relative POSIX path containing any of ``hints``, or None."""
     for path in (walk or _collect_candidate_paths(repo_root)).paths:
         try:
-            head = path.read_bytes()[:_SCAN_BYTES_PER_FILE].decode("utf-8", errors="ignore").lower()
+            head = capped_repo_bytes(path)[:_SCAN_BYTES_PER_FILE].decode("utf-8", errors="ignore").lower()
         except OSError:
             continue
         if any(h in head for h in hints):

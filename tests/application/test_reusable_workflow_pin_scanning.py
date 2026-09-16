@@ -176,7 +176,10 @@ def test_an_unreadable_gitignore_is_not_credited_with_patterns_it_might_contain(
             raise PermissionError("locked")
         return original(self, *args, **kwargs)  # type: ignore[arg-type]
 
+    # read_bytes as well as read_text: the reader under test decodes bytes so it can honour
+    # the encoding a file declares, and a patch that covers only one of them refuses nothing.
     monkeypatch.setattr(Path, "read_text", _refuse)
+    monkeypatch.setattr(Path, "read_bytes", _refuse)
     outcome = cicd.eval_sec_gitignore_051(_ctx(tmp_path))
 
     assert outcome.status is ControlStatus.MANUAL_REVIEW_REQUIRED

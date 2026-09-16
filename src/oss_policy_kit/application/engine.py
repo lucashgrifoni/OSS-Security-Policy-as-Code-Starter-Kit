@@ -15,6 +15,7 @@ from oss_policy_kit.adapters.scorecard_json import ScorecardBundle
 from oss_policy_kit.application.applicability import resolve_applicability
 from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.evaluators import EVALUATOR_REGISTRY, PLUGIN_CONTROL_IDS, EvalContext
+from oss_policy_kit.application.evaluators_common import capped_evidence_text
 from oss_policy_kit.application.evidence_placeholders import has_placeholder_values
 from oss_policy_kit.application.insights_evidence import InsightsEvidence
 from oss_policy_kit.application.loader import ControlSpec, ProfileSpec
@@ -57,7 +58,7 @@ def _has_real_evidence(evidence_dir: Path) -> bool:
         return False
     for path in sorted(evidence_dir.glob("*.json")):
         try:
-            data = json.loads(path.read_text(encoding="utf-8-sig"))
+            data = json.loads(capped_evidence_text(path) or "null")
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
         if not has_placeholder_values(data):

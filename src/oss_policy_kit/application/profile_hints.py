@@ -7,6 +7,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
+
 # --- Which evidence filenames the kit itself writes and reads ----------------
 #
 # The invariant this section exists to hold: every filename `scaffold-evidence`
@@ -392,6 +394,10 @@ def _append_pyproject_tooling_notes(pyproject: Path, notes: list[str]) -> None:
     """
 
     try:
+        # Capped: the audited repository writes this file, so before the ceiling it also
+        # decided how long reading it took.
+        if oversize_reason(pyproject, MAX_CI_CONFIG_BYTES, label="pyproject.toml") is not None:
+            return
         body = pyproject.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return

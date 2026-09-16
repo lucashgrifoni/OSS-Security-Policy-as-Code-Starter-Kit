@@ -3,7 +3,7 @@
 - **Status**: accepted (targets v7.0.0, BREAKING) — ratified by maintainer 2026-06-01
 - **Date**: 2026-05-25 (proposed); 2026-06-01 (accepted)
 - **Context window**: v7.x roadmap horizon — "Contract modernization & ecosystem interoperability"
-- **Related**: ADR-013 (reports/2.0 contract), ADR-008 (schema URL), ADR-033/034/035/036 (v7.0.0 bundle companions), `docs/reports-contract-v2.0.md`, `scripts/migrate-1.0-to-2.0.py`, `ROADMAP.md`
+- **Related**: ADR-013 (reports/2.0 contract), ADR-008 (schema URL), ADR-033/034/035/036 (v7.0.0 bundle companions), `docs/reports-contract-v2.0.md`, `scripts/migrate-1.0-to-2.0.py`, the maintainer's local roadmap (not published)
 
 > **Ratification note (2026-06-01).** This supersedes the roadmap plan §11.1 decision
 > (2026-05-26) that deferred the flip for "one more opt-in cycle". The maintainer elected to
@@ -77,4 +77,4 @@ In **v7.0.0**, make `reports/2.0` the **default** report contract.
 
 - ADR-013, `docs/reports-contract-v2.0.md`, `scripts/migrate-1.0-to-2.0.py`
 - OpenSSF Scorecard v6 conformance model — <https://github.com/ossf/scorecard/pull/4952>
-- `ROADMAP.md` (v7.x horizon); local roadmap plan (§6, §11.1)
+- the maintainer's local roadmap (not published) (v7.x horizon); local roadmap plan (§6, §11.1)

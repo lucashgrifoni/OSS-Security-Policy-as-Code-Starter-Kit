@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import codecs
 import contextlib
+from typing import NamedTuple
 
 #: (BOM, codec). Longest first: the UTF-32-LE BOM starts with the UTF-16-LE BOM, so testing
 #: the short one first would decode a UTF-32 file as UTF-16 and produce silent garbage.
@@ -55,6 +56,21 @@ def _codec_without_bom(data: bytes) -> str | None:
     Returning ``None`` means "no wide encoding recognised", which is the ordinary UTF-8 case.
     """
 
+    candidate = _wide_candidate(data)
+    if candidate is None or not _stride_holds(data, candidate):
+        return None
+    return candidate
+
+
+def _wide_candidate(data: bytes) -> str | None:
+    """The wide codec *data*'s first four bytes name, before the stride is checked.
+
+    Split out from ``_codec_without_bom`` so a caller can tell the two failure modes apart. No
+    candidate at all means ordinary narrow text. A candidate whose stride then fails means the
+    bytes announced a wide encoding and this reader could not honour it -- see
+    ``DecodedSource.wide_unhonoured`` for why that distinction has to reach a control.
+    """
+
     head = data[:4]
     if len(head) < 2:
         return None
@@ -70,8 +86,6 @@ def _codec_without_bom(data: bytes) -> str | None:
             candidate = "utf-16-be"
         elif nul[:2] == (False, True):
             candidate = "utf-16-le"
-    if candidate is None or not _stride_holds(data, candidate):
-        return None
     return candidate
 
 
@@ -156,11 +170,52 @@ def decode_source(data: bytes) -> str:
     file it had always accepted, and twelve Terraform rules stopped firing.
     """
 
+    return decode_source_detail(data).text
+
+
+class DecodedSource(NamedTuple):
+    """What :func:`decode_source` read, plus what it could not honour while reading it."""
+
+    #: The text, decoded exactly as ``decode_source`` has always decoded it.
+    text: str
+    #: The codec that decoded ``text``, or ``None`` when the replacement fallback produced it.
+    used_codec: str | None
+    #: The first bytes named a wide encoding and the decode did not use one.
+    #:
+    #: This is the one distinction ``text`` cannot carry. A wide file whose stride breaks -- any
+    #: UTF-16 or UTF-32 source holding a character outside Latin-1, which is the limitation
+    #: ``_stride_holds`` documents -- falls through to the replacement read and arrives as
+    #: mojibake. Nothing parses out of mojibake, so a control scanning it finds no signal, and a
+    #: control that concludes from finding none then states an absence about a file it never
+    #: read. Measured on the tree at v10.0.22: one workflow written UTF-16 without a BOM, holding
+    #: one CJK character in a comment, moved ``CI-DANGER-007`` and ``CI-PIN-008`` from FAIL to
+    #: PASS over a ``pull_request_target`` workflow pinned to ``@main``.
+    #:
+    #: Deliberately narrower than "the read lost something". A cp1252 byte in a comment also
+    #: produces a replacement character, and the structure around it survives -- the ``uses:``
+    #: line is still there and the control is still right. Withdrawing a verdict over that would
+    #: repeat the over-withdrawal this project already shipped once. Only a file whose own first
+    #: bytes announced a wide encoding sets this.
+    wide_unhonoured: bool
+
+
+def decode_source_detail(data: bytes) -> DecodedSource:
+    """:func:`decode_source`'s text, alongside what the decode could not honour.
+
+    ``text`` is byte-for-byte what ``decode_source`` returns; this function is where it is
+    produced. The extra fields exist so a reader can route an unhonoured wide file into the
+    channel its callers already have for "nothing was seen at all" -- ``unread_paths`` on the
+    workflow analysis, ``parse_errors`` on the scanners -- rather than handing a control mojibake
+    and letting it call that an absence.
+    """
+
     decoded: str | None = None
+    used: str | None = None
     for bom, codec in _BOMS:
         if data.startswith(bom):
             with contextlib.suppress(UnicodeDecodeError):
                 decoded = data[len(bom) :].decode(codec)
+                used = codec
             break
     if decoded is None:
         # Not named `codec`: the BOM loop above already binds that name in this scope.
@@ -171,8 +226,13 @@ def decode_source(data: bytes) -> str:
             # well as it did before. Detection can only ever add a successful decode here.
             with contextlib.suppress(UnicodeDecodeError):
                 decoded = data.decode(deduced)
+                used = deduced
     if decoded is None:
         # `errors="replace"`, deliberately: this is the read the scanners have always done, and
         # keeping it is what guarantees no input reads worse than it did before.
         decoded = data.decode("utf-8", errors="replace")
-    return decoded.replace("\r\n", "\n").replace("\r", "\n")
+    return DecodedSource(
+        text=decoded.replace("\r\n", "\n").replace("\r", "\n"),
+        used_codec=used,
+        wide_unhonoured=used is None and _wide_candidate(data) is not None,
+    )

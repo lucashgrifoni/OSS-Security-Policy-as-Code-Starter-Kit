@@ -26,6 +26,7 @@ from typing import Any
 import yaml
 
 from oss_policy_kit.application.clock import report_generated_at
+from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
 from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
 from oss_policy_kit.infrastructure.scan_deadline import TIMEOUT_DIAGNOSTIC, ScanDeadline
@@ -318,6 +319,16 @@ def _index_manifests(
     for path in files:
         if deadline is not None and deadline.expired():
             break
+        # Ahead of the read: the audited repository writes this file, and a cap applied after
+        # the bytes are in memory has already paid for them.
+        oversize = oversize_reason(path, MAX_CI_CONFIG_BYTES, label="Manifest")
+        if oversize is not None:
+            entry = {"file": _normalize_target(repo_root, path), "error": oversize}
+            # Marked, so a control that would otherwise report a clean cluster withdraws
+            # instead -- a manifest nobody read is not a manifest without a finding.
+            entry["resembles"] = RESEMBLES_MANIFEST
+            parse_errors.append(entry)
+            continue
         try:
             raw = path.read_bytes()
         except OSError as exc:

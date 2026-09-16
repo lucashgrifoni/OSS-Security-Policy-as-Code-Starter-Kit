@@ -23,20 +23,22 @@ from oss_policy_kit.application.evaluators._shared import (
     _parse_branch_protection_evidence,
     _parts_within_repo,
     _scan_sarif_epss_kev,
+    capped_repo_text,
     cast,
     contextlib,
     docker_from_instructions,
     json,
     preview_evidence_paths,
+    read_repo_text,
+    unread_candidates_outcome,
 )
 
 # SLSA-SRC-005 / SLSA-SRC-008 delegate to the AUDIT-STREAM-060 evaluator, which lives
 # in the governance family. Explicit cross-family import (governance does not import
 # back, so no cycle).
 from oss_policy_kit.application.evaluators.governance import eval_audit_stream_060
-from oss_policy_kit.application.evaluators_common import DOCKERFILE_SCAN_LIMIT
+from oss_policy_kit.application.evaluators_common import DOCKERFILE_SCAN_LIMIT, capped_evidence_text
 from oss_policy_kit.application.input_limits import bad_input_detail
-from oss_policy_kit.infrastructure.source_text import decode_source
 
 _NO_ACTION_REQUIRED = "No action required."
 _PACKAGE_JSON = "package.json"
@@ -85,7 +87,7 @@ def _from_refs_by_file(dockerfiles: list[Path]) -> tuple[list[str], list[str]]:
             #
             # A positive claim about a security control, from any Windows editor that saves as
             # UTF-16.
-            content = decode_source(df.read_bytes())
+            content = capped_repo_text(df)
         except OSError as exc:
             # `bad_input_detail` and not `str(exc)`: the latter carries the absolute filename
             # and would leak the cwd into the report (M-002).
@@ -181,7 +183,7 @@ def eval_cont_image_002(ctx: EvalContext) -> EvalOutcome:
     unread: list[str] = []
     for df in dockerfiles:
         try:
-            content = decode_source(df.read_bytes())
+            content = capped_repo_text(df)
         except OSError as exc:
             # Was `contextlib.suppress(OSError)`, which made an unreadable Dockerfile
             # indistinguishable from one declaring a non-root USER. A file saying `USER root`
@@ -256,7 +258,7 @@ def eval_cont_image_003(ctx: EvalContext) -> EvalOutcome:
     )
     for p in all_ci_paths:
         with contextlib.suppress(OSError):
-            text = decode_source(p.read_bytes()).lower()
+            text = capped_repo_text(p).lower()
             if any(tok in text for tok in _IMAGE_SCAN_TOKENS):
                 return EvalOutcome(
                     status=ControlStatus.PASS,
@@ -306,7 +308,7 @@ def _is_ml_bom_marker_file(p: Path, repo_root: Path) -> bool:
 
     if not p.is_file() or ".git" in _parts_within_repo(p, repo_root):
         return False
-    sample = p.read_text(encoding="utf-8", errors="replace")[:8000].lower()
+    sample = capped_repo_text(p)[:8000].lower()
     return "machine-learning-model" in sample or "modelcard" in sample or "ml-bom" in sample
 
 
@@ -348,7 +350,7 @@ def eval_worm_postinstall_001(ctx: EvalContext) -> EvalOutcome:
             confidence="high",
         )
     with contextlib.suppress(OSError, UnicodeDecodeError, json.JSONDecodeError):
-        data = json.loads(pkg.read_text(encoding="utf-8-sig"))
+        data = json.loads(capped_evidence_text(pkg) or "null")
         if isinstance(data, dict):
             raw_scripts = data.get("scripts")
             scripts = cast(dict[str, Any], raw_scripts) if isinstance(raw_scripts, dict) else {}
@@ -446,12 +448,19 @@ def eval_worm_lockfile_drift_001(ctx: EvalContext) -> EvalOutcome:
 def eval_worm_publish_scope_001(ctx: EvalContext) -> EvalOutcome:
     """WORM-PUBLISH-SCOPE-001: publish workflow scoped to main/release branches."""
     publish_paths: list[Path] = []
+    unread: list[Path] = []
     for p in ctx.workflows.workflow_paths:
-        with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
-            if "npm publish" in text or "twine upload" in text or "pypi-publish" in text or "cargo publish" in text:
-                publish_paths.append(p)
+        read = read_repo_text(p, label="Workflow")
+        if read.unread:
+            unread.append(p)
+            continue
+        text = read.text.lower()
+        if "npm publish" in text or "twine upload" in text or "pypi-publish" in text or "cargo publish" in text:
+            publish_paths.append(p)
     if not publish_paths:
+        withdrawn = unread_candidates_outcome(unread, what="whether this repository publishes to a package registry")
+        if withdrawn is not None:
+            return withdrawn
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
             reason="No publish workflow detected.",
@@ -462,7 +471,7 @@ def eval_worm_publish_scope_001(ctx: EvalContext) -> EvalOutcome:
     risky: list[Path] = []
     for p in publish_paths:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = capped_repo_text(p).lower()
             # Look for tag-only or branch-restricted triggers.
             has_branch_restriction = any(
                 pat in text
@@ -542,7 +551,7 @@ def eval_slsa_src_002(ctx: EvalContext) -> EvalOutcome:
     matched: list[Path] = []
     for p in candidates:
         with contextlib.suppress(OSError):
-            text = p.read_text(encoding="utf-8", errors="replace").lower()
+            text = capped_repo_text(p).lower()
             if any(h in text for h in _COMMIT_SIGNATURE_HINTS):
                 matched.append(p)
     if not matched:
@@ -935,7 +944,7 @@ def _final_stage_bases(dockerfiles: list[Path]) -> tuple[list[tuple[str, str]], 
     unread: list[str] = []
     for path in dockerfiles:
         try:
-            content = decode_source(path.read_bytes())
+            content = capped_repo_text(path)
         except OSError as exc:
             unread.append(f"{path.name}: {bad_input_detail(exc)}")
             continue

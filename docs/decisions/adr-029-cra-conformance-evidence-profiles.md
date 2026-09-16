@@ -3,7 +3,7 @@
 - **Status**: accepted (targets v9.0.0, BREAKING) — ratified 2026-06-19; implementation in progress. Sequenced v9 → v10: this CRA tightening/rename + the `reports/1.0` removal (ADR-043) ship in **v9.0.0**; the normalized-finding model (ADR-030) follows in **v10.0.0**. The renamed-profile aliases are deprecated through the v9.x line and removed in v10.0.0.
 - **Date**: 2026-05-25
 - **Context window**: v9.x roadmap horizon — "EU CRA & regulatory readiness depth"
-- **Related**: ADR-020 (CRA Article 13/14 product class), ADR-010 (CRA + EU AI Act Art.11), ADR-019 (EU AI Act Annex IV evidence), ADR-028 (ATTESTED state), `docs/cra-readiness.md`, `ROADMAP.md`
+- **Related**: ADR-020 (CRA Article 13/14 product class), ADR-010 (CRA + EU AI Act Art.11), ADR-019 (EU AI Act Annex IV evidence), ADR-028 (ATTESTED state), `docs/cra-readiness.md`, the maintainer's local roadmap (not published)
 
 ## Context
 
@@ -74,4 +74,4 @@ In **v9.0.0**, evolve the CRA profiles from "ready" to a stricter
 
 - EU CRA timeline — <https://digital-strategy.ec.europa.eu/en/policies/cyber-resilience-act>, <https://www.keysight.com/blogs/en/tech/nwvs/2025/09/11/one-year-countdown-to-eu-cra-compliance-september-11-2026-changes-everything>
 - ADR-020, ADR-010, ADR-019, ADR-028; `docs/cra-readiness.md`
-- `ROADMAP.md` (v9.x horizon); roadmap plan §6, §11.4
+- the maintainer's local roadmap (not published) (v9.x horizon); roadmap plan §6, §11.4

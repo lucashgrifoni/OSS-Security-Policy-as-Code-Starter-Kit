@@ -51,6 +51,7 @@ Repository entry points:
 - [collector-parity.md](collector-parity.md) - what each platform collector retrieves today (GitHub vs Azure vs AWS) and what intentionally stays self-attested
 - [framework-alignment.md](framework-alignment.md) - master cross-framework mapping (Scorecard, OSPS, OWASP CICD Top 10, SLSA v1.0, NIST SSDF, S2C2F, CIS SSCS, AWS Well-Architected, Azure DevOps Security)
 - [policy-data-lifecycle.md](policy-data-lifecycle.md) - lifecycle states for controls and profiles
+- [decisions/](decisions/README.md) - 45 architecture decision records: what was decided, what was rejected, and what it cost
 
 ## Migration guides
 

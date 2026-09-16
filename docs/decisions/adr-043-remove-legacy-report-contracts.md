@@ -2,7 +2,7 @@
 
 - **Status**: accepted (targets v9.0.0, BREAKING) — ratified 2026-06-19
 - **Date**: 2026-06-19
-- **Related**: ADR-027 (reports/2.0 default flip, which promised the removal "after one cycle"), ADR-041 (v8.0.0 defaults), ROADMAP.md §11.1
+- **Related**: ADR-027 (reports/2.0 default flip, which promised the removal "after one cycle"), ADR-041 (v8.0.0 defaults), the maintainer's local roadmap (not published) §11.1
 
 ## Context
 

@@ -5,12 +5,16 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
+
 
 def read_github_repo_slug_from_git_config(repo_root: Path) -> str | None:
     """Return ``owner/repo`` from ``origin`` when it points to github.com, else ``None``."""
 
     cfg = repo_root / ".git" / "config"
     if not cfg.is_file():
+        return None
+    if oversize_reason(cfg, MAX_CI_CONFIG_BYTES, label="git config") is not None:
         return None
     text = cfg.read_text(encoding="utf-8", errors="replace")
     return _parse_origin_github_slug(text)

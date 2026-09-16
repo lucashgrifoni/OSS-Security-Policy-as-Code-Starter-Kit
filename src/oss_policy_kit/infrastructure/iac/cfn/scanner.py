@@ -29,6 +29,7 @@ from typing import Any
 import yaml
 
 from oss_policy_kit.application.clock import report_generated_at
+from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
 from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
 from oss_policy_kit.infrastructure.scan_deadline import TIMEOUT_DIAGNOSTIC, ScanDeadline
@@ -216,6 +217,11 @@ def _load_cfn(path: Path) -> dict[str, Any] | None:
     # that failed the `_looks_like_cfn` sniff below and left through the *not a template*
     # door; refusing it outright instead degraded whole control families on repositories
     # that merely contain a UTF-16 appsettings.json and no CloudFormation at all.
+    oversize = oversize_reason(path, MAX_CI_CONFIG_BYTES, label="Template")
+    if oversize is not None:
+        # `_load_cfn` already raises only for files that sniffed as a template, so the caller
+        # records this the same way it records a syntax error -- as a template it could not read.
+        raise CfnParseError(oversize)
     text = decode_source(path.read_bytes())
     if path.suffix.lower() == ".json":
         try:

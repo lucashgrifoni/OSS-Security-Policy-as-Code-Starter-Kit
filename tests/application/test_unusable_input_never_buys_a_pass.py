@@ -161,7 +161,10 @@ def test_a_lockfile_that_cannot_be_read_does_not_count_as_pinned(
     def _denied(*_args: object, **_kwargs: object) -> str:
         raise PermissionError("denied")
 
+    # read_bytes as well as read_text: the reader under test decodes bytes so it can honour
+    # the encoding a file declares, and a patch that covers only one of them refuses nothing.
     monkeypatch.setattr(Path, "read_text", _denied)
+    monkeypatch.setattr(Path, "read_bytes", _denied)
     assert not _lockfile_has_content(path), "an unreadable lockfile establishes nothing"
 
 

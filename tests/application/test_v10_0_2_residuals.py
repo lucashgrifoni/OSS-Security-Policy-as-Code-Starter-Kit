@@ -75,7 +75,10 @@ def test_python_lock_or_pins_unreadable_requirements_does_not_crash(tmp_path: Pa
             raise OSError("simulated unreadable file")
         return real_read_text(self, *a, **k)
 
+    # read_bytes as well as read_text: the reader under test decodes bytes so it can honour
+    # the encoding a file declares, and a patch that covers only one of them refuses nothing.
     monkeypatch.setattr(Path, "read_text", _boom)
+    monkeypatch.setattr(Path, "read_bytes", _boom)
     assert _python_lock_or_pins(tmp_path) is False  # no NameError, honest False
 
 

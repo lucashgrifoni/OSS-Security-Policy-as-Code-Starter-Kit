@@ -1,6 +1,6 @@
 # Evidence export (`export-evidence`)
 
-> **Available since v6.0.0; the `chainloop` format is experimental.** The `export-evidence` subcommand and its Chainloop format renderer shipped in v6.0.0. The `chainloop` format is **experimental** — its output may change within the v6.x line if the Chainloop ingest spec evolves. See ADR-012 for the experimental-label rationale.
+> **Available since v6.0.0; the `chainloop` format is still experimental.** The `export-evidence` subcommand and its Chainloop format renderer shipped in v6.0.0 and the `chainloop` format has carried the **experimental** label ever since, through the v10.x line: its output may change in any minor release if the Chainloop ingest spec evolves. Pin the exact kit version before a pipeline depends on that shape. See ADR-012 for the experimental-label rationale.
 
 This page is the third in the emit-only subcommand family alongside [`vex-emission.md`](vex-emission.md) (`emit-vex`) and [`insights-emission.md`](insights-emission.md) (`emit-insights`). The architectural pattern is the same: a dedicated subcommand re-projects existing evaluator outputs into a stable external format without adding new controls to the catalog.
 

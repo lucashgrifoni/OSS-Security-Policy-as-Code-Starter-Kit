@@ -39,6 +39,7 @@ from typing import Any
 import typer
 import yaml
 
+from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
 from oss_policy_kit.application.insights_evidence import INSIGHTS_SCHEMA_VERSION as _INSIGHTS_SCHEMA_VERSION
 from oss_policy_kit.cli.common import app, exit_for_unexpected, markup_safe, stderr_console, write_stdout_text
 from oss_policy_kit.cli.help_text import CMD_PANEL_EXPORT
@@ -106,6 +107,8 @@ def _security_md_email(security_md: Path | None) -> str | None:
     if security_md is None:
         return None
     try:
+        if oversize_reason(security_md, MAX_CI_CONFIG_BYTES, label="SECURITY.md") is not None:
+            return None
         text = security_md.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None

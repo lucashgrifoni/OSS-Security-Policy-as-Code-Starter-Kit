@@ -122,7 +122,7 @@ def read_scanner_evidence(
 
     regenerate = f"Re-run `{regenerate_cmd}` to regenerate the evidence file."
     try:
-        data = json.loads(evidence.read_text(encoding="utf-8-sig"))
+        data = json.loads(capped_evidence_text(evidence) or "null")
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         return _review(
             f"Could not parse {label} evidence file {evidence.name}: {bad_input_detail(exc)}",
@@ -177,6 +177,21 @@ def evidence_placeholder_outcome(evidence: Path, placeholders: list[str]) -> Eva
     )
 
 
+def capped_evidence_text(path: Path, *, label: str = "Evidence") -> str:
+    """JSON evidence text, refused past ``MAX_EVIDENCE_BYTES``. OSError still propagates.
+
+    These files live under ``.oss-policy-kit/evidence/`` inside the repository being audited, so
+    the repository writes them. ``validate_json_evidence`` has capped its own path since it was
+    written; the readers that bypass it did not, which is the gap this closes.
+
+    ``utf-8-sig`` is kept exactly: these are JSON documents and a BOM is legal in front of one.
+    """
+
+    if oversize_reason(path, MAX_EVIDENCE_BYTES, label=label) is not None:
+        return ""
+    return path.read_text(encoding="utf-8-sig")
+
+
 def validate_json_evidence(
     evidence: Path,
     *,
@@ -189,7 +204,7 @@ def validate_json_evidence(
     if oversize is not None:
         return None, oversize, []
     try:
-        data = json.loads(evidence.read_text(encoding="utf-8-sig"))
+        data = json.loads(capped_evidence_text(evidence) or "null")
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         # M-002: this string is returned verbatim as the ``reason`` of eval_org_mfa_001 and
         # every other control routed through here, and ``str(OSError)`` appends the resolved

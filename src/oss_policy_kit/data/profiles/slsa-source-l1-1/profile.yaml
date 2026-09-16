@@ -16,9 +16,9 @@ description: >
   **Posture:** advisory. **Recommended `--fail-on`:** ``degraded`` only.
 audience: >
   Teams that already adopted SLSA Build Track L2 (via ``slsa-build-l2-1``)
-  and want to document the parallel Source Track posture. Future
-  ``slsa-source-l2-1`` and ``slsa-source-l3-1`` will share the same
-  ``SLSA-SRC-*`` family with stricter thresholds.
+  and want to document the parallel Source Track posture. ``slsa-source-l2-1``
+  ships alongside this profile and applies stricter thresholds to the same
+  ``SLSA-SRC-*`` family; an L3 profile is not bundled yet.
 controls:
   - SLSA-SRC-001
   - SLSA-SRC-002
