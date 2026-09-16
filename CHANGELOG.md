@@ -6,6 +6,28 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.23](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.22...v10.0.23) (2026-09-16)
+
+
+### Fixes
+
+* **ci:** the one test that talks to GitHub has never run anywhere ([#260](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/260)) ([a68b400](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a68b400224026caf730ead88fa8f59b5594375d6))
+* **ci:** the secret-history scan breaks tomorrow, and two gates nothing held in place ([#256](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/256)) ([946111b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/946111b251c11ba92ed537039d307aa224dadc0b))
+* **ci:** two checks that produced output nobody ever saw ([#255](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/255)) ([bc1dd3d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/bc1dd3d66b573840759c65d1b2afdd871c1a9d2e))
+* **cli:** a deferred format that answered as if it had never been considered ([#264](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/264)) ([9c48ed5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9c48ed57a6e6c5840d8e7b48859e6f007b2ed460))
+* **evaluate:** nine controls that spoke about evidence they never read ([#254](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/254)) ([f4b5a6e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f4b5a6ec1f245b5d13b302ffe1b255dbc1768d96))
+* **findings:** the merge key printed the operator's directory chain ([#262](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/262)) ([3d86e14](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3d86e1424e08fc25bb5d55a795b218270fcb3fab))
+* **parsers:** a UTF-16 buildspec hid a hardcoded key, and nothing withdrew ([#265](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/265)) ([d778457](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/d77845725fc01dbf6733ec5491171d2154073d43))
+* **release:** the commit release-please reads and does not write ([#263](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/263)) ([25c11a7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/25c11a76b3ea9e726bc576d24b6390a86fe2d407))
+* **release:** twelve dependency bumps the changelog never mentioned ([#259](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/259)) ([423a55c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/423a55c7efa7d6718a37ad626f8e4108f9efdb87))
+
+
+### Notes
+
+* **evidence-export:** guidance written for a release line that ended four majors ago ([#266](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/266)) ([1f0b90d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/1f0b90d9f45e2aede324ba4cf2163c71c269d591))
+* **release:** what the transient release PR costs, and why CI is not gated ([#261](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/261)) ([2ea564b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2ea564b037d5d146bbd53fb08feb1fa69febe004))
+* **security:** two settings the API accepts and discards, written down ([#267](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/267)) ([b0d6bfc](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b0d6bfc7b83684b0be7bb08613b319f7bcd70ace))
+
 ## [10.0.22](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.21...v10.0.22) (2026-09-15)
 
 
