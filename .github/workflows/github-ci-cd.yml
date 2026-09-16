@@ -307,8 +307,6 @@ jobs:
           push: false
           load: true
           tags: oss-policy-kit:ci
-          build-args: |
-            KIT_VERSION=0.0.0+ci
 
       - name: The image runs, and runs as a non-root user
         run: |

@@ -76,7 +76,14 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Install the package from the checked-out source tree. This keeps the
 # release image bound to the Git tag being built and removes any dependency
 # on PyPI propagation timing.
-ARG KIT_VERSION=5.9.0
+#
+# There was an `ARG KIT_VERSION=5.9.0` here, referenced nowhere, still carrying a default
+# from four majors earlier while two workflows dutifully passed it a value. Installing
+# from the source tree is what binds the image to its version, and the version LABEL is
+# set by `publish-container.yml`, so the argument had nothing left to do. A version stamp
+# with no reader is worse than none: a release-readiness pass read that 5.9.0 as the image's
+# version. `tests/infrastructure/test_a_build_arg_nobody_reads.py` now fails on an argument
+# nothing reads, and on a workflow passing one this file does not declare.
 COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY .github/requirements/pip.txt .github/requirements/runtime-all.txt /tmp/requirements/
 COPY src ./src
