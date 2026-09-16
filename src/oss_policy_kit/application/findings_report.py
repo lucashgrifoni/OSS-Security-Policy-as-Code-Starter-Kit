@@ -67,6 +67,31 @@ def _file_for_payload(file: str | None, *, include_absolute: bool) -> str | None
     return _sanitize_target_path_for_payload(file, include_absolute=False)
 
 
+def _key_for_payload(key: str, *, include_absolute: bool) -> str:
+    """The correlation key with its `file=` component under the same rule as `location.file`.
+
+    Splits on the key's own separator rather than reaching for the prose sanitizer: the
+    canonical key has no whitespace, so the whitespace-delimited token pass would treat the
+    whole string as one token. Only the `file=` component is rewritten, and by exactly the
+    function `location.file` already goes through, so the two fields cannot drift apart.
+
+    What this does NOT touch is the identity. ``finding.id`` is the sha256 of the canonical
+    key computed in memory, before serialization, and correlate() has already grouped by that
+    same in-memory key. Redacting the printed copy therefore changes no merge and no id, which
+    is what the older comment here conflated: it treated the displayed key and the merge key
+    as one object and deferred the whole thing as a contract decision.
+    """
+
+    if include_absolute or not key:
+        return key
+    parts = key.split("|")
+    for i, part in enumerate(parts):
+        if part.startswith("file="):
+            value = part[len("file=") :]
+            parts[i] = "file=" + (_file_for_payload(value, include_absolute=False) or value)
+    return "|".join(parts)
+
+
 def _finding_to_dict(finding: NormalizedFinding, *, include_absolute: bool = False) -> dict[str, Any]:
     """Serialize one finding, dropping the host layout unless the operator asked for it.
 
@@ -80,11 +105,19 @@ def _finding_to_dict(finding: NormalizedFinding, *, include_absolute: bool = Fal
     Only an absolute one loses its directories, which is the same rule `reports/2.0` follows,
     and `--include-absolute-path` still returns everything for operators who want it.
 
-    `correlation.key` is deliberately NOT sanitized here and still carries the file on the
-    `code` axis. It is a MERGE key: redacting the path inside it would make two findings in
-    different directories share an identity, which is the over-merge ADR-030 exists to avoid.
-    Fixing that means changing what the key is made of, which is a contract decision rather
-    than a redaction pass.
+    `correlation.key` follows the same rule, on all three axes that carry a file (`code`,
+    `k8s`, `iac`). The earlier note here argued it could not: that redacting the path inside a
+    MERGE key would make two findings in different directories share an identity, the
+    over-merge ADR-030 exists to avoid. That conflated two objects. correlate() groups on the
+    canonical key in memory and `finding.id` is the sha256 of that same in-memory string, both
+    settled before anything is serialized. This function redacts the printed copy only, so no
+    finding merges differently and no id changes.
+
+    The one property it does cost, and the docs say so: under the privacy default, sha256 of
+    the DISPLAYED key no longer reproduces `id`. `--include-absolute-path` returns the key
+    verbatim, so an operator who needs that check can still make it. Two findings in different
+    directories can now print the same key and still carry different ids, which is exactly
+    what `location.file` has always done with its basename.
     """
 
     loc = finding.location
@@ -144,7 +177,10 @@ def _finding_to_dict(finding: NormalizedFinding, *, include_absolute: bool = Fal
             "rationale": finding.priority.rationale if finding.priority else "",
         },
         "correlation": {
-            "key": finding.correlation.key if finding.correlation else "",
+            "key": _key_for_payload(
+                finding.correlation.key if finding.correlation else "",
+                include_absolute=include_absolute,
+            ),
             "merged_from": finding.correlation.merged_from if finding.correlation else 1,
             "confidence": finding.correlation.confidence if finding.correlation else "exact",
         },
