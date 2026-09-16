@@ -104,8 +104,9 @@ jobs:
           tags: ${{ steps.tags.outputs.tags }}
           provenance: mode=max
           sbom: true
-          build-args: |
-            KIT_VERSION=${{ steps.tags.outputs.version }}
+          # No build-args: the Dockerfile installs from this checkout, so the image is bound
+          # to the ref being built without one. The version reaches the image as the LABEL
+          # below, which is what `docker inspect` and the registry report.
           labels: |
             org.opencontainers.image.title=oss-policy-kit
             org.opencontainers.image.version=${{ steps.tags.outputs.version }}
