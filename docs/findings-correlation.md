@@ -92,19 +92,25 @@ Contract `oss-policy-kit/findings/1.0` — strict schema at
 `src/oss_policy_kit/data/schema/findings/1.0.json`). Adding any field means a
 `findings/1.1`. Key semantics:
 
-- `id` — `opk-fk/v1:<16 hex>`, the sha256 of the canonical correlation key. The full
-  pre-hash key is retained in `correlation.key` for audit.
-- **`correlation.key` is not redacted, and `location.file` is.** The key is what merges two
-  findings about the same line from two scanners, so it has to be byte-stable across the run
-  that produced them — and the path it carries is the one the scanner reported, absolute host
-  layout included, on the `code`, `k8s` and `iac` key shapes. Redacting it would merge
-  findings that are not the same finding, which is why the kit does not. The consequence is
-  that a `findings/1.0` artifact can name a directory above the repository root even though
-  `location.file` beside it does not. Treat the artifact accordingly before publishing one:
-  the path-redaction promise in [`docs/results-guide.md`](results-guide.md) covers the fields
-  a reader reads, not this merge key. A regression test holds the behaviour in place so it
-  cannot change without the decision being revisited
-  (`tests/application/test_the_findings_artifact_drops_the_host_layout.py`).
+- `id` — `opk-fk/v1:<16 hex>`, the sha256 of the canonical correlation key, computed before
+  the artifact is written.
+- **`correlation.key` is redacted on the same rule as `location.file`**, on the `code`, `k8s`
+  and `iac` key shapes that carry a file. An absolute path loses its directories; a
+  repository-relative one is left alone.
+
+  This page used to say the opposite, and the reason it gave was that the key is what merges
+  two findings, so redacting it would merge findings that are not the same finding. That
+  conflated two objects. Correlation groups on the canonical key **in memory** and `id` is the
+  sha256 of that same in-memory string, both settled before serialization; only the printed
+  copy is redacted, so no finding merges differently and no `id` changes. Measured on two
+  results whose absolute paths differ only in their directory: two findings and two ids either
+  way, with the printed keys identical under redaction and distinct without it.
+
+  What it does cost: under the privacy default, the sha256 of the key you can see no longer
+  reproduces `id`. Pass `--include-absolute-path` to get the key verbatim when you need to
+  make that check. And as with `location.file`, two different files can now print the same
+  key — the `id` beside it is what tells them apart.
+  (`tests/application/test_the_findings_artifact_drops_the_host_layout.py` holds all of this.)
 - **`id` is UNRELATED to the per-control `finding_id` in reports/2.0** (that one is a
   `{control_id}@{profile}` synthetic). The two artifacts imply no linkage.
 - `location.file` — one spelling per file, so an id does not depend on the machine that
