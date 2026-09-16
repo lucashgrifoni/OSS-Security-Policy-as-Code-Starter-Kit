@@ -186,3 +186,52 @@ jobs:
           git add docs/sample-reports/
           git commit -m "chore(release): regenerate the sample reports for this version bump"
           git push origin "HEAD:${BRANCH}"
+
+  # A commit BODY the conventional-commits parser rejects -- an unbalanced "(", or a nested
+  # call such as bytes(range(256)) -- makes release-please omit that commit from the CHANGELOG
+  # while this workflow stays green. It ate a security fix from the 10.0.22 cycle and nothing
+  # noticed, because there is nothing to notice: the release succeeds and the entry is absent.
+  #
+  # The check compares what reached the CHANGELOG against what was in the range, rather than
+  # replaying the parser. The parser's exact rejection rule is not pinned, so an approximation
+  # of it would be a second thing to be wrong about. Comparing the outcome needs no theory of
+  # the parser, and it is why this job needs no npm egress: `fetch-depth: 0` and `git log` are
+  # the whole dependency list.
+  #
+  # It runs on the release branch, where the section is still being written and a dropped
+  # commit can still be recovered. On master the newest section is already tagged, and the
+  # script says so and passes rather than reporting history nobody can act on.
+  changelog-kept-every-commit:
+    name: Every commit of a visible type reached the CHANGELOG
+    needs: release-please
+    if: needs.release-please.outputs.release_branch != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+
+      - name: Check out the release branch with its history
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.release-please.outputs.release_branch }}
+          # The range starts at the previous release TAG, so a shallow clone cannot resolve it
+          # and every commit would read as missing.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Compare the CHANGELOG against the range it claims to cover
+        # Standard library only, so there is nothing to install and nothing to pin.
+        run: python scripts/check_changelog_kept_every_commit.py
