@@ -6,6 +6,16 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.23](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.22...v10.0.23) (2026-09-16)
+
+
+### Fixes
+
+* **ci:** the secret-history scan breaks tomorrow, and two gates nothing held in place ([#256](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/256)) ([946111b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/946111b251c11ba92ed537039d307aa224dadc0b))
+* **ci:** two checks that produced output nobody ever saw ([#255](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/255)) ([bc1dd3d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/bc1dd3d66b573840759c65d1b2afdd871c1a9d2e))
+* **evaluate:** nine controls that spoke about evidence they never read ([#254](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/254)) ([f4b5a6e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f4b5a6ec1f245b5d13b302ffe1b255dbc1768d96))
+* **release:** twelve dependency bumps the changelog never mentioned ([#259](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/259)) ([423a55c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/423a55c7efa7d6718a37ad626f8e4108f9efdb87))
+
 ## [10.0.22](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.21...v10.0.22) (2026-09-15)
 
 
