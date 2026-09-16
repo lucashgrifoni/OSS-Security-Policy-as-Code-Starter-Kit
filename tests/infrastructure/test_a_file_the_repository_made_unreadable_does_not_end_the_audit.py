@@ -48,20 +48,34 @@ PARSERS = [
 def _deny_read(monkeypatch: pytest.MonkeyPatch, target: Path) -> None:
     """Make exactly one file raise on read, leaving every other read alone.
 
-    Patching `Path.read_text` rather than the filesystem keeps the test identical on every
-    platform: the condition being asserted is "an OSError on this read does not end the run", and
-    which OS produces that error is not the property under test. The real ACL case is covered by
-    the end-to-end test below, which runs where chmod means something.
+    Patching the readers rather than the filesystem keeps the test identical on every platform:
+    the condition being asserted is "an OSError on this read does not end the run", and which
+    OS produces that error is not the property under test. The real ACL case is covered by the
+    end-to-end test below, which runs where chmod means something.
+
+    BOTH readers, not whichever one the parsers happen to call today. This helper patched only
+    `read_text`, and the day the AWS and Azure parsers moved to `decode_source_detail` -- which
+    reads bytes so it can honour the encoding the file declares -- four cases here started
+    refusing nothing: the file read fine and the assertion measured the ordinary path. They
+    failed loudly, which is the good outcome, but the same slip has gone silent elsewhere in
+    this suite before.
     """
 
-    real = Path.read_text
+    real_text = Path.read_text
+    real_bytes = Path.read_bytes
 
-    def refuse(self: Path, *args: object, **kwargs: object) -> str:
+    def refuse_text(self: Path, *args: object, **kwargs: object) -> str:
         if self == target:
             raise PermissionError(13, "Permission denied")
-        return real(self, *args, **kwargs)  # type: ignore[arg-type]
+        return real_text(self, *args, **kwargs)  # type: ignore[arg-type]
 
-    monkeypatch.setattr(Path, "read_text", refuse)
+    def refuse_bytes(self: Path, *args: object, **kwargs: object) -> bytes:
+        if self == target:
+            raise PermissionError(13, "Permission denied")
+        return real_bytes(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Path, "read_text", refuse_text)
+    monkeypatch.setattr(Path, "read_bytes", refuse_bytes)
 
 
 @pytest.mark.parametrize(("analyze", "name", "body"), PARSERS)
