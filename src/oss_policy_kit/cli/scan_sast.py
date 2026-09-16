@@ -39,10 +39,52 @@ from oss_policy_kit.infrastructure.scanners.semgrep_adapter import (
     DEFAULT_RULESETS,
     DEFAULT_TIMEOUT_SECONDS,
     EVIDENCE_FILENAME,
+    SemgrepRunOutcome,
+    engine_never_started,
     render_evidence_payload,
     run_semgrep,
     write_evidence,
 )
+
+
+def _report_scanner_failure(outcome: SemgrepRunOutcome, *, evidence_filename: str) -> None:
+    """Say what failed, and for the one failure with a known shape, say what to do about it.
+
+    Semgrep reaches this function two ways that look identical from the exit code: it scanned
+    and could not finish, or it never started. The first is answered by the evidence file. The
+    second is not, because the diagnostics in that file are the same marker the operator has
+    already seen, so the pointer on its own is a dead end.
+    """
+
+    # Name the containing directory, not just the file: `write_evidence` always writes under
+    # `.oss-policy-kit/evidence/`, a dot-directory the operator has no reason to guess. Kept
+    # repo-relative so no host path reaches stderr.
+    #
+    # The exit code goes on the line itself. Sending someone to a file is only useful when the
+    # file has something in it, and Semgrep can fail with an empty stderr; the code at least
+    # says *which* failure to look up.
+    code = "" if outcome.exit_code is None else f" (semgrep exit {outcome.exit_code})"
+    stderr_console().print(
+        f"[red]Semgrep failed{code}:[/red] see diagnostics in "
+        f".oss-policy-kit/evidence/{evidence_filename} (relative to --target).",
+    )
+    if not engine_never_started(outcome):
+        return
+
+    stderr_console().print(
+        "[yellow]Semgrep's engine (semgrep-core) did not start, so no file was scanned.[/yellow] "
+        "The empty finding count is not a clean result: the evidence records status 'error' and "
+        "the next evaluate run reports SAST-SEMGREP-064 as manual-review-required.",
+    )
+    if sys.platform == "win32":
+        # Where this failure has been observed, and the part that was missing: a place the scan
+        # does work. Not this project's container image, which carries the kit's runtime
+        # dependencies and no scanner; Semgrep runs on a Linux runner in CI instead, which is
+        # what WSL gives a Windows host.
+        stderr_console().print(
+            "Run it from WSL or another Linux environment, where Semgrep's own build works. "
+            "That is where this project scans itself.",
+        )
 
 
 @app.command("scan-sast", rich_help_panel=CMD_PANEL_SCAN)
@@ -102,18 +144,7 @@ def scan_sast_cmd(
         evidence_path = write_evidence(payload, repo_root=repo, filename=EVIDENCE_FILENAME)
 
         if outcome.status == "error":
-            # Name the containing directory, not just the file: `write_evidence` always
-            # writes under `.oss-policy-kit/evidence/`, a dot-directory the operator has
-            # no reason to guess. Kept repo-relative so no host path reaches stderr.
-            #
-            # The exit code goes on the line itself. Sending someone to a file is only
-            # useful when the file has something in it, and Semgrep can fail with an
-            # empty stderr; the code at least says *which* failure to look up.
-            code = "" if outcome.exit_code is None else f" (semgrep exit {outcome.exit_code})"
-            stderr_console().print(
-                f"[red]Semgrep failed{code}:[/red] see diagnostics in "
-                f".oss-policy-kit/evidence/{evidence_path.name} (relative to --target).",
-            )
+            _report_scanner_failure(outcome, evidence_filename=evidence_path.name)
             raise typer.Exit(code=2)
 
         # ``not_available`` and ``timeout`` are valid evidence states: the
