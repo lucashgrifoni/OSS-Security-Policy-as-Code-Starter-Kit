@@ -134,7 +134,10 @@ jobs:
         with:
           ref: ${{ needs.release-please.outputs.release_branch }}
           token: ${{ steps.app-token.outputs.token }}
-          persist-credentials: true
+          # No credential is persisted into the runner's git config: this job reads the branch
+          # and writes its commit through the API, so a token left in `.git/config` would be a
+          # privilege nothing here uses. It was `true` while the job pushed with `git push`.
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -164,28 +167,46 @@ jobs:
           python -m oss_policy_kit evaluate --target ./examples/hardened-repo             --profile github-level-1 --output-dir ./docs/sample-reports/hardened --summary-only
           python -m oss_policy_kit evaluate --target ./examples/vulnerable-repo             --profile github-level-1 --output-dir ./docs/sample-reports/vulnerable --summary-only
 
+      # Written through the GitHub API rather than with `git commit` + `git push`, because a
+      # runner has no signing key and the `Default Master` ruleset requires signatures. An
+      # unsigned commit here blocked its own release pull request, and every release since at
+      # least 10.0.20 was merged with the owner's admin bypass to get past it -- a control
+      # contourned every time is not a control. Measured on the 10.0.23 branch, where the two
+      # commits differ only in how they were made:
+      #
+      #     736a4b89d  verified=true   chore(master): release 10.0.23      (release-please, API)
+      #     0f75a716b  verified=false  chore(release): regenerate the ...  (this job, git commit)
+      #
+      # GitHub signs a commit created through the Git Data API by a GitHub App, so the write
+      # is the whole fix. The script reads the commit back and fails if it came back unsigned,
+      # so a regression surfaces as a failed job rather than as a blocked release.
       - name: Commit only if something actually changed
         env:
           BRANCH: ${{ needs.release-please.outputs.release_branch }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set -euo pipefail
-          if git diff --quiet -- docs/sample-reports/; then
+          # `git status`, not `git diff`: a regeneration can add a report that did not
+          # exist before, and git reports no diff for a path it is not yet tracking. The
+          # script reads the same list, so the guard and the commit agree on what changed.
+          if [ -z "$(git status --porcelain --untracked-files=all -- docs/sample-reports/)" ]; then
             echo "Sample reports already match this tree; nothing to push."
             exit 0
           fi
           # Guard the blast radius: this job exists to move a version stamp, so anything
           # outside the sample reports means the regeneration did something unexpected and
-          # the run should stop rather than commit it.
+          # the run should stop rather than commit it. The script restricts itself to the same
+          # prefix, so this check and the commit cannot disagree about what is in scope.
           if ! git diff --quiet -- . ':(exclude)docs/sample-reports/'; then
             echo "::error::Regeneration touched files outside docs/sample-reports/:" >&2
             git diff --name-only -- . ':(exclude)docs/sample-reports/' >&2
             exit 1
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/sample-reports/
-          git commit -m "chore(release): regenerate the sample reports for this version bump"
-          git push origin "HEAD:${BRANCH}"
+          python scripts/push_signed_commit.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --branch "${BRANCH}" \
+            --prefix docs/sample-reports/ \
+            --message "chore(release): regenerate the sample reports for this version bump"
 
   # A commit BODY the conventional-commits parser rejects -- an unbalanced "(", or a nested
   # call such as bytes(range(256)) -- makes release-please omit that commit from the CHANGELOG
