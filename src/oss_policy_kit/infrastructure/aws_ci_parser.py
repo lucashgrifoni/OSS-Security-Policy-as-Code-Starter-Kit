@@ -14,6 +14,7 @@ from oss_policy_kit.application.input_limits import (
     bad_input_detail,
     oversize_reason,
 )
+from oss_policy_kit.infrastructure.source_text import decode_source_detail
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
 _AKIA_PATTERN = re.compile(r"\bAKIA[0-9A-Z]{16}\b")
@@ -232,7 +233,17 @@ def analyze_aws_ci(repo_root: Path) -> AwsCiAnalysis:
             result.parse_errors.append((path, oversize))
             continue
         try:
-            raw = path.read_text(encoding="utf-8", errors="replace")
+            read = decode_source_detail(path.read_bytes())
+            if read.wide_unhonoured:
+                # An encoding this reader cannot honour. Decoding it anyway produced mojibake
+                # carrying none of what the scans below look for and -- measured -- no parse
+                # error either, because the mojibake still loaded as YAML. So the file looked
+                # read, the raw secret scan found nothing, and AWS-SECRET-038 lost a real FAIL
+                # to a control default rather than to any withdrawal. Recorded here instead,
+                # where the evaluators already look.
+                result.parse_errors.append((path, "buildspec is in an encoding this reader cannot honour; not scanned"))
+                continue
+            raw = read.text
         except OSError as exc:
             # Outside the try below, this line ended the whole run: exit 2, no report, every
             # control in the profile lost to one file the audited repository made unreadable.

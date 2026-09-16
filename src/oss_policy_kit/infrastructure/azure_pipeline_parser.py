@@ -12,6 +12,7 @@ from oss_policy_kit.application.input_limits import (
     bad_input_detail,
     oversize_reason,
 )
+from oss_policy_kit.infrastructure.source_text import decode_source_detail
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
 
@@ -154,7 +155,15 @@ def analyze_azure_pipelines(repo_root: Path) -> AzurePipelineAnalysis:
         # pipeline DOES something, and a comment does not run. Derived sweeping caught
         # AZ-IDENT-036 changing verdict on a commented-out line alone.
         try:
-            raw_lower = strip_yaml_comments(path.read_text(encoding="utf-8", errors="replace")).lower()
+            read = decode_source_detail(path.read_bytes())
+            if read.wide_unhonoured:
+                # An encoding this reader cannot honour. Scanning the mojibake anyway finds
+                # none of the tokens below and, measured on the sibling AWS path, does not
+                # necessarily raise either -- so the file reads as a pipeline that simply
+                # does none of these things. Recorded where the evaluators already look.
+                result.parse_errors.append((path, "pipeline is in an encoding this reader cannot honour; not scanned"))
+                continue
+            raw_lower = strip_yaml_comments(read.text).lower()
         except OSError as exc:
             # Same shape as the AWS parser: this read sat outside the try that guards the
             # parse, so one unreadable pipeline file ended the run with exit 2 and no report.
