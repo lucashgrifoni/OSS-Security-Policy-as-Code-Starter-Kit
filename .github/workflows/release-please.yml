@@ -179,11 +179,14 @@ jobs:
       #
       # GitHub signs a commit created through the Git Data API by a GitHub App, so the write
       # is the whole fix. The script reads the commit back and fails if it came back unsigned,
-      # so a regression surfaces as a failed job rather than as a blocked release.
+      # so a regression surfaces as a failed job rather than as a blocked release. It makes the
+      # four calls with `gh`, which is already how this project's other workflows reach GitHub.
       - name: Commit only if something actually changed
         env:
           BRANCH: ${{ needs.release-please.outputs.release_branch }}
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          # GH_TOKEN, not GITHUB_TOKEN: the script writes through `gh`, which reads this name
+          # first, and `release.yml` already passes the token to `gh` the same way.
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set -euo pipefail
           # `git status`, not `git diff`: a regeneration can add a report that did not

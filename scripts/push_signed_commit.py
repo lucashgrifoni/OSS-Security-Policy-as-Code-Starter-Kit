@@ -11,6 +11,8 @@ release branch, where the two commits differ only in how they were made:
 Same App token, same branch, same workflow run. GitHub signs a commit created through the Git
 Data API by a GitHub App, so routing the write through the API is the whole fix.
 
+The four calls go through `gh`, not through a hand-written HTTP client. See `_call` for why.
+
 The script builds the commit from the working-tree status restricted to one path prefix, which
 keeps the blast radius the same as the `git add <prefix>` it replaces: a file outside the
 prefix cannot enter the commit even if the regeneration touched it, and a file git has never
@@ -29,13 +31,9 @@ import json
 import os
 import subprocess
 import sys
-import urllib.error
-import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
-
-_API = "https://api.github.com"
 
 
 def changed_paths(repo: Path, prefix: str) -> list[tuple[str, str]]:
@@ -82,6 +80,11 @@ def tree_entries(
     A deletion is `sha: None`, which is how the API is told to remove a path from the base
     tree. Anything else carries a blob sha produced by *blob_for*, which is passed in so the
     shape of this function can be tested without a network.
+
+    Every entry is mode `100644`. That is an assumption about one prefix rather than a general
+    truth: the five tracked files under `docs/sample-reports/` are all `100644` today, and the
+    job that calls this only ever regenerates reports. An executable or a symlink arriving under
+    that prefix would be written back as a plain file.
     """
 
     entries: list[dict[str, object]] = []
@@ -101,25 +104,54 @@ def tree_entries(
     return entries
 
 
-def _call(token: str, method: str, path: str, payload: dict[str, object] | None = None) -> dict[str, Any]:
-    body = json.dumps(payload).encode("utf-8") if payload is not None else None
-    request = urllib.request.Request(
-        f"{_API}{path}",
-        data=body,
-        method=method,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "Content-Type": "application/json",
-        },
+def gh_argv(method: str, path: str, *, has_body: bool) -> list[str]:
+    """The argv for one `gh api` call, split out so a test can read it without a network.
+
+    The body goes in on stdin rather than as arguments: `gh`'s own field flags coerce types and
+    split values on `=`, which is not something a report's bytes should be subjected to.
+    """
+
+    argv = [
+        "gh",
+        "api",
+        "--method",
+        method,
+        path,
+        "-H",
+        "Accept: application/vnd.github+json",
+        "-H",
+        "X-GitHub-Api-Version: 2022-11-28",
+    ]
+    if has_body:
+        argv.extend(["--input", "-"])
+    return argv
+
+
+def _call(method: str, path: str, payload: dict[str, object] | None = None) -> dict[str, Any]:
+    """One GitHub API call, made by `gh`.
+
+    Not `urllib`. Writing the request by hand meant assembling a URL out of this script's own
+    arguments and building the Authorization header here, which both scanners in this project's
+    Security CI read as a request sink fed by command-line input, and which nothing else in this
+    repository does. `gh` ships on every GitHub-hosted runner, already talks to GitHub for
+    `publish-pypi.yml` and `release.yml`, resolves the host itself and reads the token from the
+    environment, so no URL and no credential are assembled in this file at all.
+    """
+
+    proc = subprocess.run(  # noqa: S603 - argv is a list of strings and shell is False
+        gh_argv(method, path, has_body=payload is not None),
+        input=json.dumps(payload) if payload is not None else None,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        text=True,
+        check=False,
+        shell=False,
     )
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            return cast("dict[str, Any]", json.loads(response.read() or b"{}"))
-    except urllib.error.HTTPError as exc:  # pragma: no cover - network failure path
-        detail = exc.read().decode("utf-8", "replace")[:400]
-        raise SystemExit(f"{method} {path} failed: HTTP {exc.code} {detail}") from exc
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()[:400]
+        raise SystemExit(f"{method} {path} failed: gh exit {proc.returncode} {detail}")
+    return cast("dict[str, Any]", json.loads(proc.stdout or "{}"))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -131,22 +163,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=Path.cwd())
     args = parser.parse_args(argv)
 
-    token = os.environ.get("GITHUB_TOKEN", "")
-    if not token:
-        raise SystemExit("GITHUB_TOKEN is not set; the commit must be made by the App to be signed.")
+    # `gh` reads GH_TOKEN before GITHUB_TOKEN, and this project's workflows already pass it
+    # under that name. Checked here rather than left to `gh` so the failure names the App token
+    # the signature depends on, instead of reporting a generic authentication problem.
+    if not os.environ.get("GH_TOKEN", ""):
+        raise SystemExit("GH_TOKEN is not set; the commit must be made by the App to be signed.")
 
     changes = changed_paths(args.root, args.prefix)
     if not changes:
         print(f"Nothing changed under {args.prefix}; nothing to commit.")
         return 0
 
-    ref = _call(token, "GET", f"/repos/{args.repo}/git/ref/heads/{args.branch}")
+    ref = _call("GET", f"/repos/{args.repo}/git/ref/heads/{args.branch}")
     parent = ref["object"]["sha"]
-    base_tree = _call(token, "GET", f"/repos/{args.repo}/git/commits/{parent}")["tree"]["sha"]
+    base_tree = _call("GET", f"/repos/{args.repo}/git/commits/{parent}")["tree"]["sha"]
 
     def blob_for(content: bytes) -> str:
         created = _call(
-            token,
             "POST",
             f"/repos/{args.repo}/git/blobs",
             {"content": base64.b64encode(content).decode("ascii"), "encoding": "base64"},
@@ -154,25 +187,22 @@ def main(argv: list[str] | None = None) -> int:
         return str(created["sha"])
 
     tree = _call(
-        token,
         "POST",
         f"/repos/{args.repo}/git/trees",
         {"base_tree": base_tree, "tree": tree_entries(args.root, changes, blob_for)},
     )
     commit = _call(
-        token,
         "POST",
         f"/repos/{args.repo}/git/commits",
         {"message": args.message, "tree": tree["sha"], "parents": [parent]},
     )
     _call(
-        token,
         "PATCH",
         f"/repos/{args.repo}/git/refs/heads/{args.branch}",
         {"sha": commit["sha"], "force": False},
     )
 
-    verification = _call(token, "GET", f"/repos/{args.repo}/commits/{commit['sha']}")["commit"]["verification"]
+    verification = _call("GET", f"/repos/{args.repo}/commits/{commit['sha']}")["commit"]["verification"]
     print(f"Committed {len(changes)} path(s) under {args.prefix} as {commit['sha'][:12]}")
     if not verification.get("verified"):
         raise SystemExit(

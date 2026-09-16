@@ -16,11 +16,15 @@ shape of the payload can be asserted without it.
 
 from __future__ import annotations
 
+import ast
 import subprocess
 from pathlib import Path
 
 import pytest
-from scripts.push_signed_commit import changed_paths, tree_entries
+from scripts.push_signed_commit import changed_paths, gh_argv, tree_entries
+
+#: The node types `ast.get_docstring` accepts; anything else raises rather than returning None.
+_DOCUMENTABLE = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
 
 
 def _repo(tmp_path: Path) -> Path:
@@ -131,9 +135,56 @@ def test_the_script_refuses_to_run_without_a_token(monkeypatch: pytest.MonkeyPat
 
     from scripts.push_signed_commit import main
 
-    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
 
     with pytest.raises(SystemExit) as caught:
         main(["--repo", "o/r", "--branch", "b", "--prefix", "p/", "--message", "m"])
 
-    assert "GITHUB_TOKEN" in str(caught.value)
+    assert "GH_TOKEN" in str(caught.value)
+
+
+def test_no_url_is_built_in_this_file() -> None:
+    """The reason the calls go through `gh` at all.
+
+    The first version wrote the request by hand: it joined a base URL with a path built from
+    `--repo` and `--branch`, and put the token in an Authorization header. Snyk Code read that
+    as an SSRF sink fed by a command-line argument, and Semgrep flagged the same construct, on a
+    repository that carries no suppression of either. `gh` resolves the host and reads the token
+    from the environment, so neither a URL nor a credential is assembled here.
+    """
+
+    path = Path(__file__).resolve().parents[2] / "scripts" / "push_signed_commit.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+
+    imported = {
+        node.module.split(".")[0] if isinstance(node, ast.ImportFrom) and node.module else alias.name.split(".")[0]
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in getattr(node, "names", [])
+    }
+    # Docstrings are prose about this change and say both words on purpose, so the check reads
+    # the literals the code evaluates rather than the file's text.
+    # clean=False: the cleaned form is dedented and would no longer equal the raw literal the
+    # Constant node carries, so every indented docstring would slip back into the comparison.
+    docstrings = {ast.get_docstring(n, clean=False) for n in ast.walk(tree) if isinstance(n, _DOCUMENTABLE)}
+    literals = [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value not in docstrings
+    ]
+
+    assert "urllib" not in imported, f"imports: {sorted(imported)}"
+    assert not [text for text in literals if "https://" in text], "this file builds a URL"
+    assert not [text for text in literals if "Authorization" in text], "this file builds a credential header"
+
+
+def test_the_body_goes_in_on_stdin_not_as_arguments() -> None:
+    """`gh`'s field flags coerce types and split on `=`; a report's bytes get neither."""
+
+    write = gh_argv("POST", "/repos/o/r/git/blobs", has_body=True)
+    read = gh_argv("GET", "/repos/o/r/git/ref/heads/b", has_body=False)
+
+    assert write[:5] == ["gh", "api", "--method", "POST", "/repos/o/r/git/blobs"]
+    assert write[-2:] == ["--input", "-"]
+    assert "--input" not in read, "a GET has no body, so nothing should be waiting on stdin"
+    assert "--field" not in write and "-f" not in write
