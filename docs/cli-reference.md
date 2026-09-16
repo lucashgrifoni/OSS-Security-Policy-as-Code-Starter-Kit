@@ -75,6 +75,23 @@ python -m oss_policy_kit evaluate --target . --profile appsec-sast-sca-1 --fail-
 
 A starting template for fully custom profiles still ships at `templates/profiles/external-with-sast.yaml.example`.
 
+### Semgrep on Windows
+
+Semgrep installs on Windows and `semgrep --version` answers, but its Python front end could not
+start `semgrep-core`, the binary that does the scanning. Measured on Windows 11 with semgrep
+1.163.0 and 1.177.0, against a local rule file with no network, so neither the ruleset nor the
+registry is involved. The run ends at exit 2 having read no file, printing `<ERROR: missing
+output>`.
+
+`scan-sast` recognises that failure and says so rather than pointing at an evidence file whose
+diagnostics repeat the same marker. The evidence records `status: error`, so `evaluate` reports
+`SAST-SEMGREP-064` as `manual-review-required`: an empty finding count from a scan that never
+ran is never treated as a pass.
+
+Run `scan-sast` from WSL or another Linux environment to get real findings. The published
+container image is not a way around this: it carries the kit's runtime dependencies and no
+scanner, so `scan-sast` there reports `not_available`.
+
 ## IaC evidence (Terraform / OpenTofu)
 
 `scan-iac` runs the bundled Terraform / OpenTofu rule pack against the target and writes evidence consumed by every `IAC-TF-*` control (12 rules introduced in v5.5.0). Pair it with the bundled `iac-terraform-baseline-1` advisory profile:

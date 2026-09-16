@@ -111,10 +111,46 @@ class SemgrepRunOutcome:
     scanned_at: str = ""
 
 
+#: Strings Semgrep prints when its Python front end cannot drive ``semgrep-core``, the binary
+#: that does the actual scanning. The run ends before any file is read, so the outcome is not
+#: "no findings" and not a ruleset problem: it is the scanner failing to start.
+#:
+#: Measured on Windows against this repository, with semgrep 1.163.0 and 1.177.0, using a local
+#: rule file and no network, which rules out both the ruleset and the registry. With the
+#: adapter's own ``--quiet`` the whole failure reduces to the first marker on stdout; the rest
+#: appear when Semgrep is run without it, and are matched so the classification does not depend
+#: on which flags this module happens to pass.
+_ENGINE_FAILURE_MARKERS: tuple[str, ...] = (
+    "<ERROR: missing output>",
+    "RPC input error",
+    "RPC subprocess exited",
+    "Failed to obtain target files from semgrep-core",
+    "semgrep-core rule validation failed",
+)
+
+
 def is_available() -> bool:
     """Return whether ``semgrep`` is on PATH."""
 
     return shutil.which("semgrep") is not None
+
+
+def engine_never_started(outcome: SemgrepRunOutcome) -> bool:
+    """Whether *outcome* is Semgrep failing to start rather than Semgrep failing to scan.
+
+    The distinction is the whole point: both reach the operator as exit 2, but one is fixed by
+    correcting a ruleset and the other cannot be fixed on that host at all. The caller uses
+    this to choose which of those two things to say.
+
+    Deliberately narrow. A failure with no diagnostics is *not* claimed as this one, because
+    silence is not evidence, and a confident wrong explanation is worse than the pointer at the
+    evidence file it would replace.
+    """
+
+    if outcome.status != "error":
+        return False
+    blob = f"{outcome.raw_stdout}\n{outcome.raw_stderr}"
+    return any(marker in blob for marker in _ENGINE_FAILURE_MARKERS)
 
 
 def _semgrep_version() -> str | None:
