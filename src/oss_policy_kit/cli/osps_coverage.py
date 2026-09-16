@@ -52,8 +52,34 @@ def _render_human(cov: OspsCoverage) -> None:
     write_stdout_text("\n".join(lines) + "\n")
 
 
+#: A format the kit deliberately does not emit, and the reason, so asking for it gets an
+#: answer instead of a list of two. The conformance renderer is deferred until the Scorecard
+#: v6 wire shape it would have to match reaches GA -- ADR-018 and
+#: docs/osps-baseline-2026-coverage.md both record that, and until this constant existed the
+#: only way to learn it was to read the second half of a documentation page. Emitting a shape
+#: guessed at before the upstream one is stable would be a conformance claim the kit cannot
+#: keep.
+#:
+#: The CONSUMING half is already shipped: OSPS-SCORECARD-V6-001 reads a
+#: `scorecard --format=osps` report from .oss-policy-kit/evidence/scorecard-osps.json when
+#: one is present, and answers manual review when it is not.
+_DEFERRED_FORMATS = {
+    "osps": (
+        "--format osps is not implemented yet, deliberately. It would have to match the "
+        "Scorecard v6 OSPS conformance wire shape, which is still a proposal rather than a "
+        "released format, and emitting a guess at it would be a conformance claim this kit "
+        "cannot keep. See ADR-018 and docs/osps-baseline-2026-coverage.md. The kit already "
+        "CONSUMES that format: put a scorecard --format=osps report at "
+        ".oss-policy-kit/evidence/scorecard-osps.json and OSPS-SCORECARD-V6-001 reads it. "
+        "For the coverage map itself, use --format json."
+    )
+}
+
+
 def _run_osps_coverage(output_format: str) -> None:
     fmt = output_format.lower().strip()
+    if fmt in _DEFERRED_FORMATS:
+        raise InvalidInputError(_DEFERRED_FORMATS[fmt])
     if fmt not in {"human", "json"}:
         raise InvalidInputError("--format must be human or json.")
     cov = load_osps_coverage()
