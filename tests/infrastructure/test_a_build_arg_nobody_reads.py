@@ -32,6 +32,24 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 #: `ARG NAME`, `ARG NAME=default`, indented or not.
 _ARG_DECLARATION = re.compile(r"^\s*ARG\s+([A-Za-z_][A-Za-z0-9_]*)", re.MULTILINE)
 
+#: `--build-arg NAME=...` as a document writes it, with either spelling of the separator.
+_DOC_BUILD_ARG = re.compile(r"--build-arg[=\s]+([A-Za-z_][A-Za-z0-9_]*)")
+
+#: A fenced code block, which is the part of a page a reader copies and runs.
+_FENCED_BLOCK = re.compile(r"^```[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
+
+
+def _runnable_text(markdown: str) -> str:
+    """Only the fenced blocks, because only those are instructions rather than prose.
+
+    Searching the whole page cannot tell "run this" from "this was removed, here is why", so it
+    forbids a page from documenting its own history. The first version of this guard did
+    exactly that: it failed on the paragraph in `docs/container-image.md` that explains the
+    argument is gone, because the explanation necessarily names it.
+    """
+
+    return "\n".join(_FENCED_BLOCK.findall(markdown))
+
 
 def _declared_args() -> set[str]:
     return set(_ARG_DECLARATION.findall(DOCKERFILE.read_text(encoding="utf-8")))
@@ -75,8 +93,33 @@ def test_no_workflow_passes_a_build_arg_the_dockerfile_does_not_declare() -> Non
     assert not stray, f"build-args that reach no ARG: {stray}"
 
 
+def test_no_document_teaches_a_build_arg_the_dockerfile_does_not_declare() -> None:
+    """The third direction, and the one the first two guards were blind to.
+
+    Removing the argument fixed the Dockerfile and both workflows and added the two guards
+    above, and left `docs/container-image.md` telling adopters to pass
+    `--build-arg KIT_VERSION=...`, described as feeding the image labels. The guards could not
+    see it: their inputs are the Dockerfile and the workflows, and a documentation page is
+    neither. BuildKit discards an undeclared build argument silently, so the documented command
+    kept exiting 0 and nothing surfaced the drift.
+
+    A reader runs what a page tells them to run, which makes a document as much a consumer of
+    the Dockerfile's interface as a workflow is.
+    """
+
+    declared = _declared_args()
+    stray: dict[str, list[str]] = {}
+    for path in sorted(ROOT.glob("docs/**/*.md")) + sorted(ROOT.glob("*.md")):
+        runnable = _runnable_text(path.read_text(encoding="utf-8"))
+        names = sorted(set(_DOC_BUILD_ARG.findall(runnable)) - declared)
+        if names:
+            stray[path.relative_to(ROOT).as_posix()] = names
+
+    assert not stray, f"documented --build-arg that reaches no ARG: {stray}"
+
+
 def test_the_guard_is_reading_something() -> None:
-    """An anti-vacuum floor: both checks above pass trivially if the parsing silently returns nothing."""
+    """An anti-vacuum floor: the checks above pass trivially if the parsing returns nothing."""
 
     body = DOCKERFILE.read_text(encoding="utf-8")
 
@@ -84,3 +127,4 @@ def test_the_guard_is_reading_something() -> None:
     assert _workflow_build_args() or not re.search(r"build-args:", body), (
         "no workflow build-args were parsed, so the second guard checked an empty set"
     )
+    assert list(ROOT.glob("docs/**/*.md")), "no documentation was read, so the third guard checked nothing"

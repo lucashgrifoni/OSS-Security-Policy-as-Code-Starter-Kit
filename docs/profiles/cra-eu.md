@@ -62,7 +62,7 @@ Broader CRA-prep checklist (12 controls, 25% evidence-backed). Maps multi-platfo
 
 ## Profile: `cra-eu-strict-1`
 
-Strictest of the three (19 controls, 37% evidence-backed). Covers the 2027-12-11 full-obligations window: design-time risk handling, SBOM, vulnerability disclosure, security update channels, audit-log streaming, and reporting. **Description corrected in v5.9.0** to advisory.
+Strictest of the three (19 controls, 42% evidence-backed). Covers the 2027-12-11 full-obligations window: design-time risk handling, SBOM, vulnerability disclosure, security update channels, audit-log streaming, and reporting. **Description corrected in v5.9.0** to advisory.
 
 ## What none of the three profiles certify
 
