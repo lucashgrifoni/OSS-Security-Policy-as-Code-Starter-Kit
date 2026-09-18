@@ -93,7 +93,11 @@ def test_an_sbom_step_inventories_the_distribution_not_the_build_tools(workflow:
         "immediately above, not the artifact being released."
     )
 
-    assert re.search(r"\bpip install\b[^\n]*dist/", script), (
+    # `pip [flags] install ... dist/`. The flags matter: installing into the throwaway
+    # environment FROM OUTSIDE it, which this file's own docstring already called for, is
+    # spelled `pip --python <interpreter> install`, and a pattern requiring the two words to be
+    # adjacent rejected exactly the shape it was asking for.
+    assert re.search(r"\bpip\s+(?:--?\S+(?:\s+\S+)?\s+)*install\b[^\n]*dist/", script), (
         f"{workflow}: nothing installs the built distribution before the SBOM is generated, so "
         "whatever environment is inventoried cannot contain the artifact this SBOM claims to "
         "describe."
