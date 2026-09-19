@@ -170,3 +170,33 @@ def test_a_template_that_hides_its_arguments_is_a_packaging_fault() -> None:
     # writing where the template says while the config claims somewhere else.
     message = str(caught.value)
     assert "--profile" in message and "--fail-on" in message and "--output-dir" in message
+
+
+def test_a_template_whose_upload_ignores_its_own_output_dir_is_a_packaging_fault() -> None:
+    """Fail closed on the other half of the coupling, for the same reason as the first.
+
+    A template can expose every argument on its own line and still publish somewhere else.
+    Scaffolding that gives the adopter a job that writes one directory, uploads another, and
+    exits 0 with an empty artifact, which is worse than refusing, because it looks like it
+    worked.
+    """
+
+    mismatched = (
+        "jobs:\n"
+        "  x:\n"
+        "    steps:\n"
+        "      - run: |\n"
+        "          evaluate \\\n"
+        "            --profile github-level-1 \\\n"
+        "            --fail-on fail \\\n"
+        "            --output-dir ./reports\n"
+        "      - uses: actions/upload-artifact@v4\n"
+        "        with:\n"
+        "          name: reports\n"
+        "          path: ./somewhere-else/\n"
+    )
+
+    with pytest.raises(InvalidInputError) as caught:
+        iw._apply_workflow_settings(mismatched, profile="github-level-3", fail_on="degraded", output_dir="./chosen")
+
+    assert "0 paths" in str(caught.value) and "./reports" in str(caught.value)
