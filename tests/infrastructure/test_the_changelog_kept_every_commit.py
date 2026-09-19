@@ -106,7 +106,7 @@ def test_the_script_is_reachable_as_a_module() -> None:
 
 
 def _git(repo: Path, *args: str) -> None:
-    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True)
+    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True, encoding="utf-8")
 
 
 def _repo_at_the_window(tmp_path: Path, *, tag_previous: bool) -> Path:
