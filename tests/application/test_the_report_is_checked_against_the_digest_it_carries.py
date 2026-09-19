@@ -359,3 +359,22 @@ def test_the_export_evidence_reader_warns_on_a_report_it_cannot_check(tmp_path: 
 
     assert parsed["controls"], "the report still loads; this is a warning, not a refusal"
     assert "results_digest" in " ".join(capsys.readouterr().err.split())
+
+
+def test_the_export_evidence_reader_passes_a_report_that_verifies(tmp_path: Path, capsys: Any) -> None:
+    """The third branch, and the one the other two are measured against.
+
+    `_read_report` was exercised on a tampered report and on an unverifiable one, and
+    never on a good one, so the arm that simply returns was unmeasured. A reader that
+    only ever ran on bad input is not evidence that good input survives it.
+    """
+
+    from oss_policy_kit.cli.export_evidence import _read_report
+
+    path = tmp_path / "evaluation-report.json"
+    path.write_text(json.dumps(_vulnerable()), encoding="utf-8")
+
+    parsed = _read_report(path)
+
+    assert parsed["results_digest"] == _vulnerable()["results_digest"]
+    assert capsys.readouterr().err == "", "a report that verifies must produce no warning"
