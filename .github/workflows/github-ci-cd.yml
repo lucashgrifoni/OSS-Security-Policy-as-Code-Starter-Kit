@@ -160,32 +160,32 @@ jobs:
 
       - name: CLI help smoke
         run: |
-          python -m oss_policy_kit --help
-          python -m oss_policy_kit evaluate --help
+          python -P -m oss_policy_kit --help
+          python -P -m oss_policy_kit evaluate --help
 
       - name: Evaluate hardened example
         run: |
-          python -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile github-level-1 --output-dir ./out/ci-hardened-example
+          python -P -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile github-level-1 --output-dir ./out/ci-hardened-example
 
       - name: Self-check (github-level-1)
         run: |
-          python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck-ci --fail-on fail
+          python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck-ci --fail-on fail
 
       - name: Smoke evaluate-many
         run: |
-          python -m oss_policy_kit evaluate-many --target-root ./examples --profiles github-level-1 --output-dir ./out/ci-evaluate-many --skip-non-repos --quiet
+          python -P -m oss_policy_kit evaluate-many --target-root ./examples --profiles github-level-1 --output-dir ./out/ci-evaluate-many --skip-non-repos --quiet
 
       - name: Smoke scaffold-evidence
         run: |
-          python -m oss_policy_kit scaffold-evidence --target ./out/ci-scaffold-test --platform github
+          python -P -m oss_policy_kit scaffold-evidence --target ./out/ci-scaffold-test --platform github
 
       - name: Smoke collect-evidence dry-run
         run: |
-          python -m oss_policy_kit collect-evidence --target . --platform github --repo "owner/repo" --output-dir ./out/ci-collect --dry-run
+          python -P -m oss_policy_kit collect-evidence --target . --platform github --repo "owner/repo" --output-dir ./out/ci-collect --dry-run
 
       - name: Smoke diff-reports
         run: |
-          python -m oss_policy_kit diff-reports --before ./out/ci-hardened-example/evaluation-report.json --after ./out/selfcheck-ci/evaluation-report.json --no-fail-on-regression --format markdown
+          python -P -m oss_policy_kit diff-reports --before ./out/ci-hardened-example/evaluation-report.json --after ./out/selfcheck-ci/evaluation-report.json --no-fail-on-regression --format markdown
 
       - name: Upload evaluation outputs
         if: ${{ always() }}
@@ -280,8 +280,8 @@ jobs:
           # earns its own keep for a different reason -- every dependency is already
           # installed from `.[dev]` above, so this step reaches for nothing on the network.
           python -m pip install --no-deps dist/*.whl
-          python -m oss_policy_kit --help
-          python -m oss_policy_kit evaluate --help
+          python -P -m oss_policy_kit --help
+          python -P -m oss_policy_kit evaluate --help
 
       # `pyproject.toml` classifies 3.13, and until this step nothing ran the built
       # artifact there: the quality matrix runs 3.13 against the SOURCE tree, and this job
@@ -308,8 +308,8 @@ jobs:
           .wheel-313/bin/python -m pip install --require-hashes -r .github/requirements/pip.txt
           .wheel-313/bin/python -m pip install dist/*.whl
           .wheel-313/bin/python -c "import sys; assert sys.version_info[:2] == (3, 13), sys.version"
-          .wheel-313/bin/python -m oss_policy_kit --help
-          .wheel-313/bin/python -m oss_policy_kit evaluate --help
+          .wheel-313/bin/python -P -m oss_policy_kit --help
+          .wheel-313/bin/python -P -m oss_policy_kit evaluate --help
           .wheel-313/bin/oss-policy-kit --version
           rm -rf .wheel-313
 
