@@ -80,15 +80,24 @@ not be used as release gates.
 ## Reading the report
 
 The report JSON (under `--output-dir`) contains a `controls` array (one entry
-per control) and a `summary_by_status` dict. Status values you should know:
+per control) and a `summary_by_status` dict keyed by state. Each entry carries a
+`state`, a human-readable `message`, and, where the state needs refining, a
+`reason` sub-code.
 
-- `pass`, `fail`: self-explanatory.
-- `not-applicable`: control does not apply to this target.
-- `manual-review-required`: automation cannot conclude; a human decides.
-- `not-evaluated`: evidence was present but invalid (placeholders, malformed).
-- `self-attested`: local evidence exists, but trust depends on maintainer
-  honesty or platform confirmation.
-- `waived`: a waiver entry explicitly excepts this control.
+The six states are:
+
+- `PASS`, `FAIL`: self-explanatory.
+- `NOT_APPLICABLE`: the control does not apply to this target.
+- `ATTESTED`: the verdict rests on a verified attestation.
+- `SELF_ATTESTED`: the verdict rests on the project's own self-reported
+  evidence, which the kit records rather than verifies.
+- `UNKNOWN`: no verdict could be produced, and `reason` says why. The complete
+  set is `manual-review-required`, `waived`, `skipped-by-flag`,
+  `evaluator-error`, `not-evaluated` and `not-observable-in-clone`.
+
+A consumer that branched on the pre-2.0 lowercase names — `pass`, `skipped`,
+`error`, `waived`, `not-evaluated` — branches on `state` and `reason` instead.
+`docs/reports-contract-v2.0.md` maps every old name to its replacement.
 
 For the full wire schema of the report JSON, see
 [`docs/reports-contract-v2.0.md`](reports-contract-v2.0.md) and the schema
@@ -139,9 +148,10 @@ cat ./out/release-gate/evaluation-report.json | jq '.summary_by_status,
     .operational_warnings'
 ```
 
-If `operational_warnings` remains empty and `summary_by_status` shows only
-`pass`, `self-attested`, `not-applicable`, and `waived`, the release gate
-is clean.
+If `operational_warnings` remains empty and `summary_by_status` shows no
+`FAIL`, the release gate is clean. `UNKNOWN` deserves a look before you
+accept it: `reason: "waived"` is a decision somebody made, while
+`reason: "manual-review-required"` is a question nobody has answered yet.
 
 ### Reading `Operational warnings (N)` on stderr
 
