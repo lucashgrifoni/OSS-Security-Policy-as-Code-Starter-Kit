@@ -103,9 +103,28 @@ jobs:
         run: |
           pip install --require-hashes -r .github/requirements/build-tools.txt
           mkdir -p artifacts
-          python -m venv .sbom-env
-          .sbom-env/bin/python -m pip install dist/*.whl
-          python -m cyclonedx_py environment .sbom-env --of JSON -o artifacts/sbom.cyclonedx.json
+          # --without-pip, and install from OUTSIDE the environment.
+          #
+          # `cyclonedx_py environment` inventories whatever is installed in the venv, and
+          # `python -m venv` bundles pip into it. The published 10.0.23 SBOM therefore listed
+          # pip 25.0.1 as a second ROOT of its own dependency graph, beside oss-policy-kit,
+          # and `trivy sbom` on that asset reported six CVEs -- every one of them against that
+          # pip, none against anything the wheel actually depends on. A release SBOM for a
+          # security tool that reports six vulnerabilities it does not have is worse than no
+          # SBOM: an adopter who scans it has to disprove all six before trusting any of it.
+          #
+          # This is the same leak the runtime image already closed by shipping no pip at all.
+          # `pip --python <interpreter> install` drives the target environment from the outer
+          # pip, so the inventory holds the distribution and its closure and nothing else.
+          python -m venv --without-pip .sbom-env
+          python -m pip --python .sbom-env/bin/python install dist/*.whl
+          # --pyproject/--mc-type give the document a SUBJECT. Without them the SBOM's
+          # `metadata.component` is absent and the release appears as one library among many,
+          # so nothing in the file says what it is an inventory OF.
+          python -m cyclonedx_py environment .sbom-env \
+            --pyproject pyproject.toml \
+            --mc-type application \
+            --of JSON -o artifacts/sbom.cyclonedx.json
 
       - name: Stage provenance bundle for release assets
         # `bundle-path` comes through `env:` for the same reason as the container summary:
