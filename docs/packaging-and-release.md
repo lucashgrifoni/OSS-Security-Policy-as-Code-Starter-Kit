@@ -13,6 +13,22 @@ This document describes how to install, build, validate, and distribute the `oss
 ## What gets published
 
 - `sdist` (`.tar.gz`)
+
+> **The two artifacts are not equivalent, and the difference is in the supply chain.**
+> The wheel is `py3-none-any`: it installs from what is inside it, and `pip install
+> --no-index <wheel>` succeeds with no network at all. The sdist is built at install
+> time, and `[build-system] requires` names `setuptools>=77` with no exact version and
+> no hash, so the tool that produces the installed artifact is chosen at that moment.
+> Measured: `pip install --no-index <sdist>` exits 1 with `Could not find a version
+> that satisfies the requirement setuptools>=77`, while the same command against the
+> wheel installs.
+>
+> Nothing the project promises today is contradicted by this, and the sdist stays
+> published: it is what lets an adopter build for a platform or a Python the wheel was
+> not built for. The point is that a reader choosing between them is choosing between a
+> hash-pinned, signed, attested artifact and one whose build inputs are resolved on
+> their machine. Everywhere else these two are written as "wheel/sdist", which reads as
+> a choice of file format.
 - `wheel` (`.whl`)
 - CycloneDX SBOM JSON as a release/documentation artifact (`artifacts/sbom.cyclonedx.json`)
 

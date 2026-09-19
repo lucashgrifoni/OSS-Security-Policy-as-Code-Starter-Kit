@@ -283,6 +283,36 @@ jobs:
           python -m oss_policy_kit --help
           python -m oss_policy_kit evaluate --help
 
+      # `pyproject.toml` classifies 3.13, and until this step nothing ran the built
+      # artifact there: the quality matrix runs 3.13 against the SOURCE tree, and this job
+      # is pinned to PYTHON_VERSION. The gap that leaves is narrow and worth naming rather
+      # than overstating. The wheel is `py3-none-any`, so the same file installs on both,
+      # and anything missing from it fails on 3.12 already. What only this step covers is
+      # importing the installed layout under 3.13.
+      #
+      # A matrix over the whole job would rebuild, re-run twine and regenerate the SBOM to
+      # get here. This reuses the wheel that was just built, in a virtual environment of
+      # its own so it cannot borrow anything the job installed for 3.12.
+      - name: Setup Python 3.13
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.13"
+
+      - name: Smoke install wheel on 3.13
+        run: |
+          # `python` is 3.13 here: the step above just put it in front on PATH, and the
+          # assert below refuses to continue if that is ever untrue.
+          python -m venv .wheel-313
+          # Hash-pinned for the same reason as the build tools above; the wheel itself is
+          # a `.whl` argument, which is what makes the install below a pinned one.
+          .wheel-313/bin/python -m pip install --require-hashes -r .github/requirements/pip.txt
+          .wheel-313/bin/python -m pip install dist/*.whl
+          .wheel-313/bin/python -c "import sys; assert sys.version_info[:2] == (3, 13), sys.version"
+          .wheel-313/bin/python -m oss_policy_kit --help
+          .wheel-313/bin/python -m oss_policy_kit evaluate --help
+          .wheel-313/bin/oss-policy-kit --version
+          rm -rf .wheel-313
+
   container-build:
     name: Container (build only, no push)
     runs-on: ubuntu-latest
