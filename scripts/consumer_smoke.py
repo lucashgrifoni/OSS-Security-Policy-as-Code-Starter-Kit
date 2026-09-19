@@ -336,6 +336,19 @@ def main() -> int:
 
     steps: list[SmokeStep] = []
 
+    def skipped(name: str, why: str) -> None:
+        """Record a step that did not run, so the summary cannot shrink in silence.
+
+        `expected_exit_code=None` is the file's existing way of saying "not checked", so
+        this never counts as a pass and never counts as a mismatch. What it does is
+        appear: in the step table, in the JSON, and in the `skipped_steps` list beside
+        `all_expected_matched`, which on its own would have said true over a shorter run.
+        """
+
+        steps.append(
+            SmokeStep(name=name, argv=[], exit_code=0, expected_exit_code=None, stderr_excerpt=f"skipped: {why}")
+        )
+
     def add(name: str, argv: list[str], expect: int | None = 0) -> None:
         code, stderr_excerpt = _run(py, argv, cwd=repo_root)
         steps.append(
@@ -452,7 +465,9 @@ def main() -> int:
         ],
         1,
     )
-    if (repo_root / invalid_wf).is_dir():
+    if not (repo_root / invalid_wf).is_dir():
+        skipped("invalid_fail_on_degraded", f"no fixture at {invalid_wf.as_posix()}")
+    else:
         add(
             "invalid_fail_on_degraded",
             [
@@ -523,6 +538,7 @@ def main() -> int:
     mismatches = [
         step.name for step in steps if step.expected_exit_code is not None and step.exit_code != step.expected_exit_code
     ]
+    skipped_steps = [step.name for step in steps if step.expected_exit_code is None]
     payload = {
         "repo_root": str(repo_root),
         "wheel": str(wheel),
@@ -530,6 +546,9 @@ def main() -> int:
         "kit_root_resolved": kit_root,
         "all_expected_matched": len(mismatches) == 0,
         "mismatched_steps": mismatches,
+        # Read this beside `all_expected_matched`: that flag is true over the steps that
+        # ran, and says nothing about the ones that did not.
+        "skipped_steps": skipped_steps,
         "steps": [asdict(step) for step in steps],
     }
 
@@ -542,6 +561,11 @@ def main() -> int:
         "",
         f"- Wheel: `{wheel}`",
         f"- All expectations matched: **{payload['all_expected_matched']}**",
+        (
+            f"- Steps skipped: **{len(skipped_steps)}** ({', '.join(skipped_steps)})"
+            if skipped_steps
+            else "- Steps skipped: **0**"
+        ),
         "",
         "| Step | Exit | Expected |",
         "| --- | ---: | ---: |",
@@ -557,6 +581,8 @@ def main() -> int:
             # Only ever a directory this script created; the repository is never a candidate.
             shutil.rmtree(venv_containment, ignore_errors=True)
 
+    if skipped_steps:
+        print(f"Smoke steps skipped: {', '.join(skipped_steps)}", file=sys.stderr)
     if mismatches:
         print(f"Smoke mismatches: {', '.join(mismatches)}", file=sys.stderr)
         return 1
