@@ -41,7 +41,7 @@ def _evaluate_args(workflow_body: str) -> dict[str, str]:
     found: dict[str, str] = {}
     for line in workflow_body.splitlines():
         stripped = line.strip().rstrip("\\").strip()
-        for name in ("--profile", "--fail-on"):
+        for name in ("--profile", "--fail-on", "--output-dir"):
             if stripped.startswith(name + " "):
                 found[name] = stripped[len(name) :].strip()
     return found
@@ -118,7 +118,9 @@ def test_every_shipped_template_takes_the_plans_gate_settings(dest: str) -> None
     """Fixing only the template `init` happens to write leaves the same defect in the others."""
 
     _, body = iw._resolve_workflow_template(dest)
-    applied = iw._apply_workflow_settings(body, profile="github-level-3", fail_on="degraded")
+    applied = iw._apply_workflow_settings(
+        body, profile="github-level-3", fail_on="degraded", output_dir="./oss-policy-reports"
+    )
     args = _evaluate_args(applied)
 
     assert args["--profile"] == "github-level-3"
@@ -133,7 +135,15 @@ def test_substituting_a_templates_own_values_changes_nothing(dest: str) -> None:
     _, body = iw._resolve_workflow_template(dest)
     current = _evaluate_args(body)
 
-    assert iw._apply_workflow_settings(body, profile=current["--profile"], fail_on=current["--fail-on"]) == body
+    assert (
+        iw._apply_workflow_settings(
+            body,
+            profile=current["--profile"],
+            fail_on=current["--fail-on"],
+            output_dir=current["--output-dir"],
+        )
+        == body
+    )
 
 
 def test_the_customize_comment_is_not_an_argument() -> None:
@@ -143,7 +153,9 @@ def test_the_customize_comment_is_not_an_argument() -> None:
     comment = "# Customize --profile and --fail-on to match your desired strictness."
     assert comment in body
 
-    assert comment in iw._apply_workflow_settings(body, profile="github-level-3", fail_on="degraded")
+    assert comment in iw._apply_workflow_settings(
+        body, profile="github-level-3", fail_on="degraded", output_dir="./oss-policy-reports"
+    )
 
 
 def test_a_template_that_hides_its_arguments_is_a_packaging_fault() -> None:
@@ -152,6 +164,39 @@ def test_a_template_that_hides_its_arguments_is_a_packaging_fault() -> None:
     single_line = "jobs:\n  x:\n    steps:\n      - run: evaluate --target . --profile github-level-1 --fail-on fail\n"
 
     with pytest.raises(InvalidInputError) as caught:
-        iw._apply_workflow_settings(single_line, profile="github-level-3", fail_on="degraded")
+        iw._apply_workflow_settings(single_line, profile="github-level-3", fail_on="degraded", output_dir="./reports")
 
-    assert "--profile" in str(caught.value) and "--fail-on" in str(caught.value)
+    # `--output-dir` joined the same contract: a template that hides it would leave the run
+    # writing where the template says while the config claims somewhere else.
+    message = str(caught.value)
+    assert "--profile" in message and "--fail-on" in message and "--output-dir" in message
+
+
+def test_a_template_whose_upload_ignores_its_own_output_dir_is_a_packaging_fault() -> None:
+    """Fail closed on the other half of the coupling, for the same reason as the first.
+
+    A template can expose every argument on its own line and still publish somewhere else.
+    Scaffolding that gives the adopter a job that writes one directory, uploads another, and
+    exits 0 with an empty artifact, which is worse than refusing, because it looks like it
+    worked.
+    """
+
+    mismatched = (
+        "jobs:\n"
+        "  x:\n"
+        "    steps:\n"
+        "      - run: |\n"
+        "          evaluate \\\n"
+        "            --profile github-level-1 \\\n"
+        "            --fail-on fail \\\n"
+        "            --output-dir ./reports\n"
+        "      - uses: actions/upload-artifact@v4\n"
+        "        with:\n"
+        "          name: reports\n"
+        "          path: ./somewhere-else/\n"
+    )
+
+    with pytest.raises(InvalidInputError) as caught:
+        iw._apply_workflow_settings(mismatched, profile="github-level-3", fail_on="degraded", output_dir="./chosen")
+
+    assert "0 paths" in str(caught.value) and "./reports" in str(caught.value)
