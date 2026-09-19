@@ -37,6 +37,31 @@ class ProjectDist:
     version: str
 
 
+#: Variables that decide which `oss_policy_kit` a child imports, removed from every child
+#: environment this script starts.
+#:
+#: The point of the script is to run the wheel it just installed into a throwaway venv. It
+#: runs the CLI from inside the checkout, because the steps evaluate `examples/hardened-repo`
+#: and the fixtures by relative path, and that on its own is harmless: there is no top-level
+#: `oss_policy_kit` package at the repo root, only `src/oss_policy_kit`. `PYTHONPATH` is the
+#: one thing that changes the answer. An operator who happens to have it pointing at a `src/`
+#: gets a run that installs the artifact and then exercises the working tree, finishes green,
+#: and proves nothing about what was built.
+#:
+#: `PYTHONHOME` goes too, for the same reason one step further down: it can move the whole
+#: standard library out from under the venv's interpreter.
+_ENVIRONMENT_THAT_WOULD_SHADOW_THE_WHEEL = ("PYTHONPATH", "PYTHONHOME")
+
+
+def _child_env() -> dict[str, str]:
+    """The parent environment with the import-path overrides taken out."""
+
+    env = dict(os.environ)
+    for name in _ENVIRONMENT_THAT_WOULD_SHADOW_THE_WHEEL:
+        env.pop(name, None)
+    return env
+
+
 _CAPTURE_TEXT_KWARGS = {
     "capture_output": True,
     "text": True,
@@ -212,7 +237,9 @@ def resolve_wheel(repo_root: Path, wheel_glob: str | None = None) -> Path:
 
 
 def _run(py: Path, argv: Sequence[str], *, cwd: Path) -> int:
-    proc = subprocess.run(_safe_subprocess_argv(py, argv), cwd=cwd, shell=False, **_CAPTURE_TEXT_KWARGS)
+    proc = subprocess.run(
+        _safe_subprocess_argv(py, argv), cwd=cwd, shell=False, env=_child_env(), **_CAPTURE_TEXT_KWARGS
+    )
     return int(proc.returncode)
 
 
@@ -247,6 +274,7 @@ def main() -> int:
         [sys.executable, "-m", "venv", str(venv_dir)],
         cwd=repo_root,
         shell=False,
+        env=_child_env(),
         check=True,
     )
     py = _safe_python_exe(venv_dir)
@@ -255,6 +283,7 @@ def main() -> int:
         _safe_subprocess_argv(py, ["-m", "pip", "install", "--upgrade", "pip", str(wheel)]),
         cwd=repo_root,
         shell=False,
+        env=_child_env(),
         check=True,
     )
 
@@ -265,6 +294,7 @@ def main() -> int:
         ),
         cwd=repo_root,
         shell=False,
+        env=_child_env(),
         **_CAPTURE_TEXT_KWARGS,
         check=True,
     )
