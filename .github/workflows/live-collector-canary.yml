@@ -65,6 +65,22 @@ jobs:
           cache: pip
 
       - name: Install project (dev)
+        # Scorecard flags the second line: `pipCommand not pinned by hash`. It is accepted
+        # here, and the reason is NOT the one `github-ci-cd.yml` gives for the identical
+        # line. That file argues the finding covers "a job with no secrets", and this job
+        # does hold a credential -- the step below binds `github.token`. Inheriting that
+        # wording would be inheriting a premise that is false here.
+        #
+        # The conclusion still holds, for a stronger reason: the credential confers no
+        # privilege. Workflow `permissions:` is `contents: read` on a PUBLIC repository, so
+        # the token grants exactly what an anonymous caller already has, and the test reads
+        # `octocat/Hello-World`, which is not this repository. Checkout runs with
+        # `persist-credentials: false`, the token never enters this step's environment, and
+        # harden-runner blocks egress to everything outside the five endpoints above.
+        #
+        # Pinning the dev extras by hash would mean CI testing one version of ruff or mypy
+        # while the project declares another. Revisit if this job ever gains a permission
+        # beyond `contents: read`, or a secret of its own.
         run: |
           python -m pip install --require-hashes -r .github/requirements/pip.txt
           python -m pip install -e ".[dev]"
