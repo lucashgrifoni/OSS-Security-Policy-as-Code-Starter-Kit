@@ -35,7 +35,7 @@ rendered, kept so an existing consumer's parsing does not break.
 Command:
 
 ```bash
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
   --target ./examples/hardened-repo \
   --profile github-level-1 \
   --output-dir ./docs/sample-reports/hardened \
@@ -52,7 +52,7 @@ Expected shape: `{"PASS": 14}` — 14 of 14 controls satisfied.
 Command:
 
 ```bash
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
   --target ./examples/vulnerable-repo \
   --profile github-level-1 \
   --output-dir ./docs/sample-reports/vulnerable \

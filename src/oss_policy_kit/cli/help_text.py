@@ -38,7 +38,12 @@ ROOT_EXIT_CODES: tuple[tuple[str, str], ...] = (
     ("2", "Invalid usage, missing input, or validation/load error."),
     ("3", "Unexpected internal error."),
 )
-ROOT_WINDOWS_NOTE = "Prefer `python -m oss_policy_kit` if the oss-policy-kit script is not on PATH."
+ROOT_WINDOWS_NOTE = (
+    "Use `python -P -m oss_policy_kit` if the oss-policy-kit script is not on PATH. "
+    "Keep the -P: without it Python searches the current directory first, so running "
+    "from inside a scanned repository imports that repository's oss_policy_kit "
+    "instead of this one."
+)
 
 _EXIT_CODES_HEADING = "EXIT CODES"
 _EXIT_CODE_2_LINE = "  2  Invalid usage, missing input, or validation/load error."
@@ -50,25 +55,25 @@ ROOT_CLI_EPILOG = "\n\n".join(
         "EXAMPLES",
         "----------------------------------------------------------------------",
         "Baseline evaluation (writes reports under ./out):",
-        "  python -m oss_policy_kit evaluate --target . --profile github-level-1",
+        "  python -P -m oss_policy_kit evaluate --target . --profile github-level-1",
         "Compatibility (root flags, no subcommand):",
-        "  python -m oss_policy_kit --target . --profile github-level-1",
+        "  python -P -m oss_policy_kit --target . --profile github-level-1",
         "CI gate (exit 1 when any control is fail):",
-        "  python -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on fail",
+        "  python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on fail",
         "JSON summary on stdout:",
-        "  python -m oss_policy_kit evaluate --target . --profile github-level-1 --format json --summary-only",
+        "  python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --format json --summary-only",
         "List bundled profiles (compact table on stdout):",
-        "  python -m oss_policy_kit profiles",
+        "  python -P -m oss_policy_kit profiles",
         "Show bundled profiles with full audience/description via root flag:",
-        "  python -m oss_policy_kit --show-profiles",
+        "  python -P -m oss_policy_kit --show-profiles",
         "Profiles as JSON:",
-        "  python -m oss_policy_kit profiles --format json",
+        "  python -P -m oss_policy_kit profiles --format json",
         "Many repos under one parent folder:",
-        "  python -m oss_policy_kit evaluate-many --target-root ./repos --profiles github-level-1,azure-level-1",
+        "  python -P -m oss_policy_kit evaluate-many --target-root ./repos --profiles github-level-1,azure-level-1",
         "Evidence JSON templates (release-hardening):",
-        "  python -m oss_policy_kit scaffold-evidence --target . --platform github",
+        "  python -P -m oss_policy_kit scaffold-evidence --target . --platform github",
         "Heuristic profile suggestions:",
-        "  python -m oss_policy_kit recommend-profile --target .",
+        "  python -P -m oss_policy_kit recommend-profile --target .",
         "",
         "----------------------------------------------------------------------",
         _EXIT_CODES_HEADING,
@@ -81,7 +86,7 @@ ROOT_CLI_EPILOG = "\n\n".join(
         "----------------------------------------------------------------------",
         "WINDOWS",
         "----------------------------------------------------------------------",
-        "Prefer python -m oss_policy_kit if the oss-policy-kit script is not on PATH.",
+        "Prefer python -P -m oss_policy_kit if the oss-policy-kit script is not on PATH.",
     ]
 )
 
@@ -91,22 +96,22 @@ EVALUATE_EPILOG = "\n\n".join(
         "EXAMPLES",
         "----------------------------------------------------------------------",
         "Baseline (reports under ./out):",
-        "  python -m oss_policy_kit evaluate --target . --profile github-level-1",
+        "  python -P -m oss_policy_kit evaluate --target . --profile github-level-1",
         "Positional target (when the path has no spaces):",
-        "  python -m oss_policy_kit evaluate . --profile github-level-1",
+        "  python -P -m oss_policy_kit evaluate . --profile github-level-1",
         "JSON summary on stdout:",
-        "  python -m oss_policy_kit evaluate --target . --profile github-level-1 --summary-only --format json",
+        "  python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --summary-only --format json",
         "CI gate (fail severity):",
-        "  python -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on fail",
+        "  python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on fail",
         "CI gate (fail or manual-review-required):",
-        "  python -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on degraded",
+        "  python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on degraded",
         "Custom output dir and waivers file:",
         (
-            "  python -m oss_policy_kit evaluate -t . --profile github-release-hardening-1 "
+            "  python -P -m oss_policy_kit evaluate -t . --profile github-release-hardening-1 "
             "-o ./reports --waivers ./waivers/waivers.example.yaml"
         ),
         "Optional OpenSSF Scorecard JSON:",
-        "  python -m oss_policy_kit evaluate --target . --profile github-level-1 --scorecard-json ./scorecard.json",
+        "  python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --scorecard-json ./scorecard.json",
         "",
         "----------------------------------------------------------------------",
         "FAIL-ON MODES",
@@ -132,11 +137,11 @@ EVALUATE_MANY_EPILOG = "\n\n".join(
         "EXAMPLES",
         "----------------------------------------------------------------------",
         "Evaluate each child folder as a repo:",
-        "  python -m oss_policy_kit evaluate-many --target-root ./repos --profiles github-level-1",
+        "  python -P -m oss_policy_kit evaluate-many --target-root ./repos --profiles github-level-1",
         "CI gate across the batch (exit 1 if any repo has fail):",
-        "  python -m oss_policy_kit evaluate-many --target-root ./repos --profiles github-level-1 --fail-on fail",
+        "  python -P -m oss_policy_kit evaluate-many --target-root ./repos --profiles github-level-1 --fail-on fail",
         "Skip folders that look like docs/assets (non-repos):",
-        "  python -m oss_policy_kit evaluate-many --target-root ./mono --profiles github-level-1 --skip-non-repos",
+        "  python -P -m oss_policy_kit evaluate-many --target-root ./mono --profiles github-level-1 --skip-non-repos",
         "",
         "----------------------------------------------------------------------",
         _EXIT_CODES_HEADING,
@@ -159,11 +164,11 @@ DIFF_REPORTS_EPILOG = "\n\n".join(
         "EXAMPLES",
         "----------------------------------------------------------------------",
         "Default CI gate (exit 1 when any control regresses):",
-        "  python -m oss_policy_kit diff-reports --before old.json --after new.json",
+        "  python -P -m oss_policy_kit diff-reports --before old.json --after new.json",
         "Opt out of the regression gate (always exit 0 unless the inputs are invalid):",
-        "  python -m oss_policy_kit diff-reports --before old.json --after new.json --no-fail-on-regression",
+        "  python -P -m oss_policy_kit diff-reports --before old.json --after new.json --no-fail-on-regression",
         "Markdown drift report on stdout for a PR comment:",
-        "  python -m oss_policy_kit diff-reports --before old.json --after new.json --format markdown",
+        "  python -P -m oss_policy_kit diff-reports --before old.json --after new.json --format markdown",
         "",
         "Note: the gate flag pair is --fail-on-regression / --no-fail-on-regression (singular).",
     ]

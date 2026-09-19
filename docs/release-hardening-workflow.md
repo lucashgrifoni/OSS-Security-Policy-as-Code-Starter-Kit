@@ -23,9 +23,9 @@ posture score.
 ### Path 1 - Manual scaffold (dry runs and local rehearsals)
 
 ```bash
-python -m oss_policy_kit scaffold-evidence --target . --platform github
-python -m oss_policy_kit scaffold-evidence --target . --platform aws
-python -m oss_policy_kit scaffold-evidence --target . --platform azure
+python -P -m oss_policy_kit scaffold-evidence --target . --platform github
+python -P -m oss_policy_kit scaffold-evidence --target . --platform aws
+python -P -m oss_policy_kit scaffold-evidence --target . --platform azure
 ```
 
 This creates template JSON files under `.oss-policy-kit/evidence/` that must
@@ -38,16 +38,16 @@ Use `--force` to overwrite an existing scaffold when re-seeding a dry run.
 
 ```bash
 # GitHub
-GITHUB_TOKEN=... python -m oss_policy_kit collect-evidence \
+GITHUB_TOKEN=... python -P -m oss_policy_kit collect-evidence \
     --target . --platform github --repo owner/repo
 
 # AWS (boto3 credential chain, plus optional env vars)
 AWS_CODEBUILD_PROJECT=... AWS_CODEPIPELINE_NAME=... \
-    python -m oss_policy_kit collect-evidence --target . --platform aws
+    python -P -m oss_policy_kit collect-evidence --target . --platform aws
 
 # Azure DevOps
 AZURE_DEVOPS_ORG=... AZURE_DEVOPS_TOKEN=... \
-    python -m oss_policy_kit collect-evidence --target . --platform azure \
+    python -P -m oss_policy_kit collect-evidence --target . --platform azure \
     --repo ProjectName/repoName
 ```
 
@@ -59,7 +59,7 @@ attestations to `pass` with higher confidence, instead of the
 Preview what would be written without calling remote APIs:
 
 ```bash
-python -m oss_policy_kit collect-evidence --target . --platform github --dry-run
+python -P -m oss_policy_kit collect-evidence --target . --platform github --dry-run
 ```
 
 ## Recommended ladder per CI moment
@@ -118,7 +118,7 @@ posture percent when different controls are in `pass` vs `fail`. Treat
   real data (or use `collect-evidence`).
 - **Score stuck at 0%**: usually the target folder has no
   `.github/workflows/`, no `buildspec.yml`, no Azure pipeline YAML in a supported path. Run
-  `python -m oss_policy_kit recommend-profile --target .` to see which
+  `python -P -m oss_policy_kit recommend-profile --target .` to see which
   profile family actually fits the repository shape.
 - **"Signal came from supplemental evidence only"**: the profile produced a
   `pass` from Scorecard JSON or equivalent supplemental input rather than
@@ -132,11 +132,11 @@ posture percent when different controls are in `pass` vs `fail`. Treat
 
 ```bash
 # 1. Collect evidence from the GitHub API (read-only PAT with repo:read)
-GITHUB_TOKEN=$GH_PAT python -m oss_policy_kit collect-evidence \
+GITHUB_TOKEN=$GH_PAT python -P -m oss_policy_kit collect-evidence \
     --target . --platform github --repo owner/repo
 
 # 2. Evaluate with the strict L3 profile and fail on any fail
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
     --target . \
     --profile github-level-3 \
     --output-dir ./out/release-gate \

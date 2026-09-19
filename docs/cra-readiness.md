@@ -72,14 +72,14 @@ The recommended `--fail-on` for every CRA-aligned profile is **`degraded`**. Usi
 
 ```bash
 # Reporting-readiness check (Sep 2026 deadline)
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
   --target ./my-product \
   --profile cra-eu-reporting-1 \
   --fail-on degraded \
   --output-dir ./out/cra-reporting
 
 # Full CRA preparation (Dec 2027 deadline)
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
   --target ./my-product \
   --profile cra-eu-strict-1 \
   --fail-on degraded \

@@ -10,11 +10,11 @@ This is **complementary** to running the kit in CI — the CI gate stays authori
 
 ### `oss-policy-kit-evaluate`
 
-Runs `python -m oss_policy_kit evaluate --target . --fail-on fail --summary-only` on `pre-push`. Use for **deterministic / hard-gate ladder profiles** (`*-level-3`, `*-release-hardening-3`, `appsec-sast-sca-1` with `scan-sast` evidence). Fails the push when the gate sees a `fail` result.
+Runs `python -P -m oss_policy_kit evaluate --target . --fail-on fail --summary-only` on `pre-push`. Use for **deterministic / hard-gate ladder profiles** (`*-level-3`, `*-release-hardening-3`, `appsec-sast-sca-1` with `scan-sast` evidence). Fails the push when the gate sees a `fail` result.
 
 ### `oss-policy-kit-evaluate-degraded`
 
-Runs `python -m oss_policy_kit evaluate --target . --fail-on degraded --summary-only` on `pre-push`. Use for **advisory profiles** (every `cra-eu-*`, `osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, the IaC / Kubernetes / container baselines, and `webhook-security-1`).
+Runs `python -P -m oss_policy_kit evaluate --target . --fail-on degraded --summary-only` on `pre-push`. Use for **advisory profiles** (every `cra-eu-*`, `osps-baseline-1`, `slsa-build-l2-1`, `ssdf-baseline-1`, `cis-supply-chain-1`, `owasp-cicd-top10-1`, `s2c2f-l1-1`, the IaC / Kubernetes / container baselines, and `webhook-security-1`).
 
 Why two hooks? `--fail-on fail` paired with an advisory profile defeats the design — advisory profiles surface `manual-review-required` on platform/SBOM/provenance controls when evidence files are not filled, and treating that as a hard block creates false outage signals. The two-hook split makes the contract explicit.
 
@@ -57,7 +57,7 @@ pre-commit install --hook-type pre-commit  # only if using oss-policy-kit-valida
 
 ## What the hook expects
 
-- The repository must have an `oss-policy-kit.yaml` at the root (run `python -m oss_policy_kit init --target .` once if it does not exist).
+- The repository must have an `oss-policy-kit.yaml` at the root (run `python -P -m oss_policy_kit init --target .` once if it does not exist).
 - Python 3.12+ on the developer's machine.
 - The kit is installed as a dependency of the hook via pre-commit's own venv — no global install required.
 - If the repository uses a profile that needs evidence files (`*-release-hardening-2/3`, `cra-eu-strict-1`, etc.), the corresponding files must exist under `.oss-policy-kit/evidence/` or the hook will surface them as gaps.

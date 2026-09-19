@@ -28,7 +28,7 @@ python -m pip install -e ".[dev]"
 
 The `oss-policy-kit` console script is registered in `pyproject.toml`. On Windows, the user-site `Scripts/` directory may not be on `PATH` by default. Either:
 
-1. Use the canonical form `python -m oss_policy_kit ...`, which always works.
+1. Use the canonical form `python -P -m oss_policy_kit ...`, which always works.
 2. Or activate a virtualenv (`.venv\Scripts\Activate.ps1`) so its `Scripts/` directory is on `PATH`.
 
 ## Local test loop
@@ -76,10 +76,10 @@ formatter for the same Bandit sweep.
 ## CLI smoke checks
 
 ```powershell
-python -m oss_policy_kit --version
-python -m oss_policy_kit --help
-python -m oss_policy_kit profiles --format json | Out-Null
-python -m oss_policy_kit evaluate --target examples/hardened-repo --profile github-level-1 --output-dir .tmp-validation/smoke
+python -P -m oss_policy_kit --version
+python -P -m oss_policy_kit --help
+python -P -m oss_policy_kit profiles --format json | Out-Null
+python -P -m oss_policy_kit evaluate --target examples/hardened-repo --profile github-level-1 --output-dir .tmp-validation/smoke
 ```
 
 ## Local cache cleanup

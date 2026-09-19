@@ -39,14 +39,14 @@ python -m pytest
 ## 3) Evaluate and gate
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/adoption --format json
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/adoption-gate --fail-on fail
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/adoption --format json
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/adoption-gate --fail-on fail
 ```
 
 For a quick human-readable recap without opening the Markdown report:
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/adoption --summary-only
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/adoption --summary-only
 ```
 
 If you operate several repos under one parent directory, batch evaluation is available via `evaluate-many` (see `README.md`).
@@ -61,7 +61,7 @@ Expected shape for this baseline:
 If you also track branch protection evidence in-repo:
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-release-hardening-1 --output-dir ./out/hardening --format json
+python -P -m oss_policy_kit evaluate --target . --profile github-release-hardening-1 --output-dir ./out/hardening --format json
 ```
 
 `self-attested` for platform settings can still be expected locally.

@@ -263,7 +263,7 @@ def cli_root(
         stderr_console().print(
             "[yellow]Deprecation:[/yellow] --show-profiles is deprecated; "
             "use the 'profiles' subcommand "
-            "(e.g. `python -m oss_policy_kit profiles`)."
+            "(e.g. `python -P -m oss_policy_kit profiles`)."
         )
         try:
             _print_profiles_table(detailed=True, compact_layout=False)
@@ -496,10 +496,10 @@ def evaluate_cmd(
     Use this command when you want a full evaluation report written to disk.
 
     Preferred form:
-      python -m oss_policy_kit evaluate --target <repo> --profile <profile>
+      python -P -m oss_policy_kit evaluate --target <repo> --profile <profile>
 
     You can also pass the repository path positionally:
-      python -m oss_policy_kit evaluate <repo> --profile <profile>
+      python -P -m oss_policy_kit evaluate <repo> --profile <profile>
 
     Outputs:
       - evaluation-report.json

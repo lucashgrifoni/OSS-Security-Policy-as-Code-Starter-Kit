@@ -6,9 +6,14 @@ reason it exists.
 `_run` captured stdout and stderr and returned only the return code, so a red summary named
 a step and gave nothing to act on. The selfcheck step writes a report and nothing looked for
 it, so every check passed for a run that wrote no report at all. And every step invoked
-`-m oss_policy_kit`, never the `oss-policy-kit` executable the wheel installs, which is what
-the documentation tells an adopter to type: a broken `[project.scripts]` would have shipped
-with the whole summary green.
+`-m oss_policy_kit`, never the `oss-policy-kit` executable the wheel installs: a broken
+`[project.scripts]` would have shipped with the whole summary green.
+
+That last paragraph said the console script is "what the documentation tells an adopter to
+type", and it was wrong. Counted afterwards: the docs teach `python -m oss_policy_kit` 201
+times against 52 for the console script, and `docs/adoption-guide.md` recommends the `-m`
+form by name. The step is worth having because the wheel declares that entry point and
+nothing exercised it, which is a smaller claim than the one this file used to make.
 
 Measured on a real run of the script against a freshly built wheel, before and after: the
 step list went from 10 to 12, the console script answered `--version` with exit 0, and the

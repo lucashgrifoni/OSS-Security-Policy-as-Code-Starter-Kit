@@ -59,10 +59,10 @@ Exit codes: `0` success, `2` user-input error (missing / malformed SARIF, unwrit
 osv-scanner --format sarif --recursive . > .oss-policy-kit/evidence/sast/osv-scanner.sarif.json
 
 # 2. (Optional) Evaluate with the kit — SAST-OSV-068 will surface the findings
-python -m oss_policy_kit evaluate --target . --profile appsec-sast-sca-1
+python -P -m oss_policy_kit evaluate --target . --profile appsec-sast-sca-1
 
 # 3. Emit VEX (v0.2 surface — applies per-CVE waivers, validates, embeds advisories)
-python -m oss_policy_kit emit-vex \
+python -P -m oss_policy_kit emit-vex \
   --waivers waivers/waivers.yaml \
   --validate \
   --include-references \
@@ -138,7 +138,7 @@ document from the same OSV-Scanner SARIF and waiver inputs. The default remains
 
 ```bash
 # OpenVEX with an explicit product identity (recommended)
-python -m oss_policy_kit emit-vex \
+python -P -m oss_policy_kit emit-vex \
   --format openvex \
   --product pkg:pypi/your-package@1.2.3 \
   --waivers waivers/waivers.yaml \

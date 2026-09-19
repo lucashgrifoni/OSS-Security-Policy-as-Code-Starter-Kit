@@ -9,9 +9,23 @@ This guide is for maintainers who want a pragmatic baseline without over-claimin
 - **GitHub Release artifacts (alternative):** install downloaded wheel/sdist in controlled environments
 - **Source/editable (contributors):** `python -m pip install -e ".[dev]"`
 
-Recommended CLI entrypoint across platforms: `python -m oss_policy_kit`.
+Recommended CLI entrypoint across platforms: `python -P -m oss_policy_kit`.
 
-**Supported Windows shells:** Git Bash, PowerShell 7+, or WSL. Windows PowerShell 5.1 also works but lacks `&&` / `||` pipeline operators and uses UTF-16 LE for redirections by default; when copying examples written in bash, prefer Git Bash or PowerShell 7+. Always prefer `python -m oss_policy_kit` over the `oss-policy-kit` console script on Windows so you do not depend on the per-user `Scripts\` directory being on `PATH`.
+> **Keep the `-P`.** Without it, Python puts the current directory first on `sys.path`, so
+> `python -m oss_policy_kit` run from inside a repository imports an `oss_policy_kit.py` or
+> `oss_policy_kit/` belonging to *that repository* instead of the installed package. This
+> kit is pointed at repositories you have not read, and most examples here use
+> `--target .`, so the two meet: a file in a scanned repository would run as the tool
+> scanning it. Measured on 10.0.24 against a directory containing a one-line
+> `oss_policy_kit.py`: the plain form executed that file, and `-P` ran the real CLI.
+>
+> `-P` needs Python 3.11 or newer, and this kit requires 3.12. The `oss-policy-kit` console
+> script is equally safe and needs no flag, because its `sys.path[0]` is the script's own
+> directory; `PYTHONSAFEPATH=1` in the environment has the same effect as `-P`. Use
+> whichever suits you, but do not use plain `python -m` from inside a repository you do not
+> trust.
+
+**Supported Windows shells:** Git Bash, PowerShell 7+, or WSL. Windows PowerShell 5.1 also works but lacks `&&` / `||` pipeline operators and uses UTF-16 LE for redirections by default; when copying examples written in bash, prefer Git Bash or PowerShell 7+. On Windows, `python -P -m oss_policy_kit` avoids depending on the per-user `Scripts\` directory being on `PATH`. Either form is safe as long as the `-P` is there; the console script needs no flag.
 
 ## Choose a baseline (predict outcomes before you run)
 
@@ -40,7 +54,7 @@ For stricter tiers:
 - `github-level-3`: **hard-gate** — adds GitHub platform evidence (`GH-PLAT-024`–`026`), merge queue, reusable workflow SHA pins (`CI-WFCALLSHA-055`), and evidence freshness (`GOV-EVIDFRESH-054`). Weak-only deploy/provenance YAML signals are intentionally excluded.
 - `github-release-hardening-2` and `github-release-hardening-3`: add platform-evidence controls for rulesets, deployment environments, and secret scanning posture (`GH-PLAT-024` to `GH-PLAT-026`) plus freshness where listed.
 
-Use `python -m oss_policy_kit profiles` for the compact bundled profile table on **stdout** with `profile`, `title`, `platform`, `level`, executive `audience`, and a brief `description`. For the same data with full audience and description text, run `python -m oss_policy_kit profiles --format detailed`. For automation, use `python -m oss_policy_kit profiles --format json`. (`python -m oss_policy_kit --show-profiles` is a deprecated alias kept for compatibility; it still works but emits a deprecation warning.) For a heuristic starting point from a clone layout, use `python -m oss_policy_kit recommend-profile --target <repo>`.
+Use `python -P -m oss_policy_kit profiles` for the compact bundled profile table on **stdout** with `profile`, `title`, `platform`, `level`, executive `audience`, and a brief `description`. For the same data with full audience and description text, run `python -P -m oss_policy_kit profiles --format detailed`. For automation, use `python -P -m oss_policy_kit profiles --format json`. (`python -P -m oss_policy_kit --show-profiles` is a deprecated alias kept for compatibility; it still works but emits a deprecation warning.) For a heuristic starting point from a clone layout, use `python -P -m oss_policy_kit recommend-profile --target <repo>`.
 
 > **Reading `recommend-profile` honestly:** `recommend-profile` will only suggest a `*-release-hardening-2` profile when **both** a CI signal (workflow / pipeline / buildspec) **and** release-shaped evidence JSON are present in the clone. A repository carrying only an evidence pack — or only a workflow — falls back to `*-level-1`. The heuristic still cannot tell scaffolded (template) evidence apart from `collect-evidence` output, so before promoting any `*-release-hardening-*` suggestion to a hard gate, confirm the evidence files are filled with real platform data. See [`docs/profiles/overview.md` — How `recommend-profile` reads `.oss-policy-kit/evidence/`](profiles/overview.md#how-recommend-profile-reads-oss-policy-kitevidence).
 
@@ -65,7 +79,7 @@ To start `release-hardening-*` evidence files without hand-authoring JSON from s
 Keep `evaluation-report.json` from two points in time (for example before/after CI changes) and compare:
 
 ```powershell
-python -m oss_policy_kit diff-reports --before out/old/evaluation-report.json --after out/new/evaluation-report.json --format markdown
+python -P -m oss_policy_kit diff-reports --before out/old/evaluation-report.json --after out/new/evaluation-report.json --format markdown
 ```
 
 Use `--fail-on-regression` in CI gates when you want to fail on `pass`/`self-attested` → `fail` regressions.
@@ -142,13 +156,13 @@ When the parent folder contains mixed items, use `--include` and `--exclude` wit
 
 ```bash
 # Only evaluate child folders matching lab-*
-python -m oss_policy_kit evaluate-many \
+python -P -m oss_policy_kit evaluate-many \
   --target-root ./apps \
   --profiles github-level-1 \
   --include "lab-*"
 
 # Skip auxiliary / output folders that are not real repos
-python -m oss_policy_kit evaluate-many \
+python -P -m oss_policy_kit evaluate-many \
   --target-root ./apps \
   --profiles github-level-1 \
   --skip-non-repos \
@@ -162,7 +176,7 @@ Combine with `--skip-non-repos` when you want both a repo-shape filter and a nam
 `evaluate-many` is optimized for the "many sibling repos" case. When a sub-project is itself a monorepo (e.g. a `services/` folder with its own internal layout), treat it as a separate target and call `evaluate` directly on the sub-tree that is the real repository root:
 
 ```bash
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
   --target ./services/api \
   --profile github-level-1 \
   --output-dir ./out/services-api
@@ -174,16 +188,16 @@ This keeps the `--skip-non-repos` heuristic honest and avoids false positives fr
 
 ```bash
 python -m pip install -e .
-python -m oss_policy_kit evaluate --target /path/to/your/repo --profile github-level-1 --output-dir ./out
+python -P -m oss_policy_kit evaluate --target /path/to/your/repo --profile github-level-1 --output-dir ./out
 ```
 
 Equivalent (omits `evaluate`, same flags):
 
 ```bash
-python -m oss_policy_kit --target /path/to/your/repo --profile github-level-1 --output-dir ./out
+python -P -m oss_policy_kit --target /path/to/your/repo --profile github-level-1 --output-dir ./out
 ```
 
-On Windows, treat `python -m oss_policy_kit` as the **supported** entrypoint. If `oss-policy-kit` is not found, your Python Scripts directory may not be on `PATH` (common with per-user installs); use `-m` or add Scripts to PATH.
+On Windows, treat `python -P -m oss_policy_kit` as the **supported** entrypoint. If `oss-policy-kit` is not found, your Python Scripts directory may not be on `PATH` (common with per-user installs); use `-m` or add Scripts to PATH.
 
 ### What the profile is (and is not)
 
@@ -201,19 +215,19 @@ In pipelines, use **`--fail-on fail`** (or **`degraded`**, which also treats `ma
 Example:
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out --fail-on fail
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out --fail-on fail
 ```
 
 For machine-readable stdout (in addition to the JSON report file), use:
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out --format json
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out --format json
 ```
 
 If you need a compact parser-friendly summary:
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out --summary-only --format json
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out --summary-only --format json
 ```
 
 The summary object includes ordered status counts, `controls_total`, and warning count.

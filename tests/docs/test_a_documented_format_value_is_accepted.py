@@ -65,7 +65,10 @@ _MINIMAL_ARGV: dict[str, list[str]] = {
     "recommend-profile": ["--target", "."],
 }
 
-_DOC_COMMAND = re.compile(r"^(?:python -m oss_policy_kit|oss-policy-kit)\s+([a-z][a-z0-9-]*)\b(.*)$")
+#: `-P` is optional in this pattern and mandatory in the docs: the regex only has to
+#: recognise a command line. A page that drops the flag is the business of
+#: tests/docs/test_the_documented_invocation_does_not_import_the_scanned_repo.py.
+_DOC_COMMAND = re.compile(r"^(?:python (?:-P )?-m oss_policy_kit|oss-policy-kit)\s+([a-z][a-z0-9-]*)\b(.*)$")
 _FORMAT_VALUE = re.compile(r"--format[= ]+([A-Za-z0-9_.-]+)")
 
 

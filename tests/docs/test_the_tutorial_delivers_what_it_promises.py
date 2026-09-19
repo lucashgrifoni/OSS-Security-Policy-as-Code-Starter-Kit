@@ -37,7 +37,7 @@ from tests.conftest import ROOT
 _TUTORIAL = ROOT / "docs" / "tutorial-first-pr-gate.md"
 
 #: The bootstrap step: the first documented `init` invocation on the page.
-_INIT_LINE = re.compile(r"^(?:python -m oss_policy_kit|oss-policy-kit)\s+init\b.*$", re.MULTILINE)
+_INIT_LINE = re.compile(r"^(?:python (?:-P )?-m oss_policy_kit|oss-policy-kit)\s+init\b.*$", re.MULTILINE)
 
 #: The artifacts Step 2 promises, exactly as the page lists them.
 _PROMISED = ("oss-policy-kit.yaml", ".oss-policy-kit/evidence", ".github/workflows/oss-policy-check.yml")
@@ -51,7 +51,7 @@ def _bootstrap_argv() -> list[str]:
     line = _INIT_LINE.search(_tutorial_text())
     assert line is not None, "the tutorial no longer contains an `init` command line"
     command = line.group(0).strip()
-    for prefix in ("python -m oss_policy_kit ", "oss-policy-kit "):
+    for prefix in ("python -P -m oss_policy_kit ", "python -m oss_policy_kit ", "oss-policy-kit "):
         command = command.removeprefix(prefix)
     return shlex.split(command, posix=True)
 

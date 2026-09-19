@@ -18,7 +18,7 @@
 | `gitlab-release-hardening-2` | 29 | release ladder | `degraded` |
 | `gitlab-release-hardening-3` | 36 | release hard-gate (extreme) | `fail` (+ `collect-evidence`) |
 
-> Counts come from `python -m oss_policy_kit profiles --format json --family gitlab`
+> Counts come from `python -P -m oss_policy_kit profiles --format json --family gitlab`
 > against this build; that JSON is the canonical source of truth.
 
 ## Native GitLab CI controls (`GL-PIPE-001..012`)
@@ -73,13 +73,13 @@ GitLab evidence comes from two paths, the same as the other families:
 
 ```bash
 # Manual templates (fill in by hand):
-python -m oss_policy_kit scaffold-evidence --target . --platform gitlab
+python -P -m oss_policy_kit scaffold-evidence --target . --platform gitlab
 # -> .oss-policy-kit/evidence/{branch-protection,gitlab-mr-rules,org-mfa-posture}.json
 
 # API-backed collection (read-only):
 export GITLAB_TOKEN=glpat-...            # read_api (+ group read for MFA posture)
 export GITLAB_URL=https://gitlab.com     # optional; set for self-managed instances
-python -m oss_policy_kit collect-evidence --target . --platform gitlab --repo group/project
+python -P -m oss_policy_kit collect-evidence --target . --platform gitlab --repo group/project
 ```
 
 The GitLab collector retrieves three evidence files:
@@ -114,16 +114,16 @@ GitLab **instance** administrators are never fully restricted by project setting
 
 ```bash
 # 1. From the repo root with a .gitlab-ci.yml
-python -m oss_policy_kit recommend-profile --target .
+python -P -m oss_policy_kit recommend-profile --target .
 # Expected: gitlab-level-1 recommended when a .gitlab-ci.yml exists
 #           (gitlab-release-hardening-2 once GitLab-shaped evidence is present)
 
 # 2. Run as a release gate
-python -m oss_policy_kit evaluate --target . --profile gitlab-level-3 --fail-on degraded \
+python -P -m oss_policy_kit evaluate --target . --profile gitlab-level-3 --fail-on degraded \
     --output-dir oss-policy-reports
 
 # 3. Inspect drift between two evaluations
-python -m oss_policy_kit diff-reports \
+python -P -m oss_policy_kit diff-reports \
     --before main/evaluation-report.json \
     --after pr-branch/evaluation-report.json \
     --format markdown

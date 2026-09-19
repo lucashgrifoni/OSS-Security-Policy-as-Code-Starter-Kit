@@ -123,8 +123,8 @@ python -m venv .venv-release
 # Windows: .venv-release\Scripts\activate
 # Unix: source .venv-release/bin/activate
 python -m pip install dist/*.whl
-python -m oss_policy_kit --help
-python -m oss_policy_kit evaluate --help
+python -P -m oss_policy_kit --help
+python -P -m oss_policy_kit evaluate --help
 ```
 
 Windows PowerShell:
@@ -133,7 +133,7 @@ Windows PowerShell:
 python -m venv .venv-release
 .\.venv-release\Scripts\Activate.ps1
 python -m pip install (Get-ChildItem dist\oss_policy_kit-*.whl | Sort-Object Name | Select-Object -Last 1)
-python -m oss_policy_kit --help
+python -P -m oss_policy_kit --help
 ```
 
 ## Official consumer smoke
@@ -294,7 +294,7 @@ Consumer install examples:
 ```bash
 python -m pip install oss-policy-kit
 python -m pip install oss-policy-kit==<version>
-python -m oss_policy_kit --version
+python -P -m oss_policy_kit --version
 ```
 
 Keep the distinction explicit:

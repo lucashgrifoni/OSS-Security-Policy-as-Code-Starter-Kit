@@ -36,8 +36,8 @@ A control that fires wrongly is worse than one that does not exist. False-positi
 
 ```bash
 python -m pip install oss-policy-kit
-python -m oss_policy_kit init --target . --with-evidence --with-workflow
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on fail
+python -P -m oss_policy_kit init --target . --with-evidence --with-workflow
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on fail
 ```
 
 The evaluation writes:
@@ -83,7 +83,7 @@ First-time tutorial: [docs/tutorial-first-pr-gate.md](docs/tutorial-first-pr-gat
 List bundled profiles:
 
 ```bash
-python -m oss_policy_kit profiles
+python -P -m oss_policy_kit profiles
 ```
 
 Common starting points:

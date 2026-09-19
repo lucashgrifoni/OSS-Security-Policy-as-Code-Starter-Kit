@@ -104,9 +104,9 @@ collector help. A typical sequence:
 # only with valid credentials; verify minimum permissions first
 export AWS_CODEBUILD_PROJECT=<project>
 export AWS_CODEPIPELINE_NAME=<pipeline>
-python -m oss_policy_kit collect-evidence --target . --platform aws
+python -P -m oss_policy_kit collect-evidence --target . --platform aws
 
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
   --target . --profile aws-release-hardening-3 \
   --fail-on fail --summary-only
 ```

@@ -17,7 +17,7 @@ It is decoupled from the Python package version: contract `1.0` describes wire s
 ## Selecting `reports/1.0`
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 \
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 \
   --output-dir ./out --report-json-contract 1.0
 ```
 

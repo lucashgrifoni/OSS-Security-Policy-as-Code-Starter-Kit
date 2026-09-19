@@ -8,17 +8,17 @@ Total time: about 15 minutes. The local part does not need a GitHub token.
 
 ```bash
 python -m pip install oss-policy-kit
-python -m oss_policy_kit --version
+python -P -m oss_policy_kit --version
 ```
 
-If your shell cannot find the `oss-policy-kit` script, keep using `python -m oss_policy_kit`. That form works consistently on Windows, Linux, and macOS.
+If your shell cannot find the `oss-policy-kit` script, keep using `python -P -m oss_policy_kit`. That form works consistently on Windows, Linux, and macOS.
 
 ## Step 2 - Bootstrap your repo (1 min)
 
 Run this from your repository root:
 
 ```bash
-python -m oss_policy_kit init --target . --platform github --with-evidence --with-workflow
+python -P -m oss_policy_kit init --target . --platform github --with-evidence --with-workflow
 ```
 
 This writes:
@@ -43,7 +43,7 @@ git diff -- oss-policy-kit.yaml .github/workflows/oss-policy-check.yml
 ## Step 3 - First evaluation (1 min)
 
 ```bash
-python -m oss_policy_kit evaluate --target . --output-dir ./out
+python -P -m oss_policy_kit evaluate --target . --output-dir ./out
 ```
 
 `evaluate` reads the profile (and, when you omit them, the `fail_on` / `output_dir` / `report_json_contract`) from the `oss-policy-kit.yaml` that Step 2 wrote — you will see `Using profile from oss-policy-kit.yaml: github-level-1` on stderr. Passing `--output-dir ./out` explicitly keeps the report paths below stable regardless of the directory recorded in the config.
@@ -77,7 +77,7 @@ Keep this text evidence instead of an image:
 A missing `SECURITY.md` is a good first fix:
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/before
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/before
 ```
 
 Create a minimal `SECURITY.md` in your editor:
@@ -94,7 +94,7 @@ We will acknowledge valid reports within 5 business days.
 Run again:
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/after
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/after
 ```
 
 For a gap that is real but not fixable today, add a waiver:
@@ -119,7 +119,7 @@ loaded and never applies. Full shape: [`waivers/waivers.example.yaml`](../waiver
 Then run with waivers:
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --waivers ./waivers/waivers.yaml
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --waivers ./waivers/waivers.yaml
 ```
 
 The report still shows the control, now as `waived`, with its owner, justification, and expiry.
@@ -180,7 +180,7 @@ Install Python 3.12+ and rerun the install command. Older Python versions are no
 Use the module form:
 
 ```bash
-python -m oss_policy_kit evaluate --target .
+python -P -m oss_policy_kit evaluate --target .
 ```
 
 ### Every control is manual-review-required
@@ -188,7 +188,7 @@ python -m oss_policy_kit evaluate --target .
 You probably selected a profile that needs platform evidence not present in the clone. Run:
 
 ```bash
-python -m oss_policy_kit recommend-profile --target .
+python -P -m oss_policy_kit recommend-profile --target .
 ```
 
 Then start with the recommended baseline and add evidence-backed profiles later.
