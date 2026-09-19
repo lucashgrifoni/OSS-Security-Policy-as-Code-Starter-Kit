@@ -211,6 +211,51 @@ def _resolve_workflow_template(dest_filename: str) -> tuple[str, str]:
     )
 
 
+#: The header line that tells a reader to copy the template somewhere. Two of the three
+#: bundled templates carry one, and the waivers template folds a second instruction into the
+#: same sentence, so the remainder is captured rather than discarded with it.
+_WORKFLOW_COPY_INSTRUCTION_RE = re.compile(r"^# Copy (?:this file )?to \S+(?P<tail>.*)$")
+
+#: What follows the destination path differs per template: " in your repository." on one,
+#: " and ensure waivers/waivers.yaml is committed." on the other. Only the second half of an
+#: `and` clause survives `init`, so it is matched separately rather than folded into the line
+#: pattern above. A single combined regex matched the waivers template and silently left the
+#: main one untouched, which is the defect this whole change is about.
+_WORKFLOW_COPY_REMAINDER_RE = re.compile(r"\band\s+(?P<rest>.+?)\.?\s*$")
+
+
+def _drop_copy_instruction(body: str) -> str:
+    """Remove the "copy this somewhere" header from a workflow ``init`` is about to write.
+
+    The instruction is correct for someone reading the template in `templates/workflows/` on
+    GitHub, which `docs/adoption-guide.md` tells adopters to do. It is wrong in the file
+    `init --with-workflow` just created, because that file is already at the destination the
+    sentence names: the adopter is told to copy it to where it is.
+
+    The templates on disk keep the line. Only the generated copy loses it, which is the same
+    split the profile and fail-on substitution already uses.
+
+    The waivers template writes "Copy to <path> and ensure waivers/waivers.yaml is committed",
+    where the second half still applies after `init` has run. That remainder is kept as its
+    own line instead of being dropped with the clause around it.
+    """
+
+    kept: list[str] = []
+    for line in body.splitlines(keepends=True):
+        match = _WORKFLOW_COPY_INSTRUCTION_RE.match(line)
+        if match is None:
+            kept.append(line)
+            continue
+        remainder = _WORKFLOW_COPY_REMAINDER_RE.search(match.group("tail"))
+        if remainder is not None:
+            # Keep the half that still applies, as its own comment line.
+            rest = remainder.group("rest")
+            ending = line[len(line.rstrip("\r\n")) :]
+            kept.append(f"# {rest[0].upper()}{rest[1:]}.{ending}")
+        # Otherwise the whole line goes, newline included, so no blank gap is left behind.
+    return "".join(kept)
+
+
 def _apply_workflow_settings(body: str, *, profile: str | None, fail_on: str) -> str:
     """Put the plan's gate settings into the template's ``evaluate`` invocation.
 
@@ -331,7 +376,7 @@ def execute_init_plan(plan: InitPlan) -> InitOutcome:
     if plan.write_workflow:
         _, template_body = _resolve_workflow_template(plan.workflow_filename)
         workflow_body = _apply_workflow_settings(
-            template_body,
+            _drop_copy_instruction(template_body),
             profile=plan.workflow_profile,
             fail_on=plan.fail_on,
         )
