@@ -27,14 +27,23 @@ from __future__ import annotations
 
 import re
 
+import pytest
 import yaml
 from tests.conftest import ROOT
 
-PUBLISH = ROOT / ".github" / "workflows" / "publish-pypi.yml"
+_WORKFLOWS = ROOT / ".github" / "workflows"
 
 
-def _sbom_step() -> str:
-    """The COMMANDS of the step that generates the release SBOM, with its comments removed.
+def _sbom_steps() -> list[tuple[str, str]]:
+    """(workflow name, commands) for every step that generates an SBOM, comments removed.
+
+    Every such step, not just the publishing one: `github-ci-cd.yml` generated an SBOM the
+    same wrong way, and a guard bound to one filename would have left it there.
+
+    One entry per step rather than one joined string. The joined version was written first
+    and a mutation showed what it was worth: with both scripts in one text, `--without-pip`
+    present in either one satisfied the assertion for both, so reverting the second workflow
+    to its broken form left the guard green.
 
     Comments are stripped because the first version of this guard did not strip them, and the
     step carries a comment block explaining why each flag is there. Deleting `--pyproject` and
@@ -44,19 +53,25 @@ def _sbom_step() -> str:
     that a docs guard hit again the same afternoon.
     """
 
-    data = yaml.safe_load(PUBLISH.read_text(encoding="utf-8")) or {}
-    for job in (data.get("jobs") or {}).values():
-        for step in job.get("steps") or []:
-            body = step.get("run")
-            if isinstance(body, str) and "cyclonedx_py" in body:
-                return "\n".join(line for line in body.splitlines() if not line.lstrip().startswith("#"))
-    raise AssertionError("no step in publish-pypi.yml generates an SBOM")
+    found: list[tuple[str, str]] = []
+    for path in sorted(_WORKFLOWS.glob("*.yml")):
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for job in (data.get("jobs") or {}).values():
+            for step in job.get("steps") or []:
+                script = step.get("run")
+                if isinstance(script, str) and "cyclonedx_py" in script:
+                    executable = "\n".join(line for line in script.splitlines() if not line.lstrip().startswith("#"))
+                    found.append((path.name, executable))
+    assert found, "no workflow step generates an SBOM"
+    return found
 
 
-def test_the_sbom_environment_does_not_bundle_pip() -> None:
+_SBOM_STEPS = _sbom_steps()
+
+
+@pytest.mark.parametrize("workflow,body", _SBOM_STEPS, ids=[name for name, _ in _SBOM_STEPS])
+def test_the_sbom_environment_does_not_bundle_pip(workflow: str, body: str) -> None:
     """Without this, pip is inventoried as part of the release and carries its own CVEs."""
-
-    body = _sbom_step()
 
     assert re.search(r"venv\s+--without-pip\b", body), (
         "the SBOM venv is created with pip inside it, which puts pip in the published inventory "
@@ -65,10 +80,9 @@ def test_the_sbom_environment_does_not_bundle_pip() -> None:
     )
 
 
-def test_the_wheel_is_installed_from_outside_that_environment() -> None:
+@pytest.mark.parametrize("workflow,body", _SBOM_STEPS, ids=[name for name, _ in _SBOM_STEPS])
+def test_the_wheel_is_installed_from_outside_that_environment(workflow: str, body: str) -> None:
     """The other half: a pip-free venv cannot install into itself."""
-
-    body = _sbom_step()
 
     assert re.search(r"pip\s+--python\s+\S*\.sbom-env\S*\s+install", body), (
         "nothing installs the distribution into the pip-free SBOM environment; "
@@ -76,10 +90,9 @@ def test_the_wheel_is_installed_from_outside_that_environment() -> None:
     )
 
 
-def test_the_sbom_declares_what_it_is_an_inventory_of() -> None:
+@pytest.mark.parametrize("workflow,body", _SBOM_STEPS, ids=[name for name, _ in _SBOM_STEPS])
+def test_the_sbom_declares_what_it_is_an_inventory_of(workflow: str, body: str) -> None:
     """`metadata.component`. Absent on the published 10.0.23 document."""
-
-    body = _sbom_step()
 
     assert "--pyproject" in body and "--mc-type" in body, (
         "the SBOM is generated without a main component, so `metadata.component` is absent and "
@@ -88,12 +101,9 @@ def test_the_sbom_declares_what_it_is_an_inventory_of() -> None:
     )
 
 
-def test_the_step_this_guard_reads_is_the_real_one() -> None:
+@pytest.mark.parametrize("workflow,body", _SBOM_STEPS, ids=[name for name, _ in _SBOM_STEPS])
+def test_the_step_this_guard_reads_is_the_real_one(workflow: str, body: str) -> None:
     """Anti-vacuum: every assertion above passes against an empty string."""
 
-    body = _sbom_step()
-
-    assert "cyclonedx_py environment" in body, "the parsed step does not generate an SBOM"
-    assert "artifacts/sbom.cyclonedx.json" in body, (
-        "the parsed step does not write the release asset this guard is about"
-    )
+    assert "cyclonedx_py environment" in body, f"{workflow}: the parsed step does not generate an SBOM"
+    assert "sbom.cyclonedx.json" in body, f"{workflow}: the parsed step writes no SBOM document"

@@ -249,9 +249,13 @@ jobs:
       # CI environment -- dev tooling included -- which is not what the wheel carries.
       - name: Generate CycloneDX SBOM
         run: |
-          python -m venv .sbom-env
-          .sbom-env/bin/python -m pip install dist/*.whl
-          python -m cyclonedx_py environment .sbom-env --output-format JSON --output-file dist/sbom.cyclonedx.json
+          # Generated the same way the publish workflow generates the released one, and for
+          # the same reasons (see the comment block there). A rehearsal that runs a different
+          # command rehearses nothing: this step existed to prove SBOM generation works before
+          # a release, and it was proving it for a shape the release does not use.
+          python -m venv --without-pip .sbom-env
+          python -m pip --python .sbom-env/bin/python install dist/*.whl
+          python -m cyclonedx_py environment .sbom-env             --pyproject pyproject.toml             --mc-type application             --output-format JSON --output-file dist/sbom.cyclonedx.json
 
       - name: Smoke install wheel
         run: |
