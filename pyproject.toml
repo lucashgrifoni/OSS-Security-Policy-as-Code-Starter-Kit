@@ -59,8 +59,17 @@ github = ["httpx>=0.27"]
 gitlab = ["httpx>=0.27"]
 azure = ["httpx>=0.27"]
 aws = ["boto3>=1.34", "botocore>=1.34"]
-iac = ["python-hcl2>=6.1"]
-all = ["httpx>=0.27", "boto3>=1.34", "botocore>=1.34", "python-hcl2>=6.1"]
+# 7.0, not 6.1. The suite was run against every declared floor at once for the first time
+# on 2026-09-19, and this was the only one that did not hold: at 6.1.0 and 6.1.1, three IaC
+# tests fail. They do not fail loudly. `IAC-TF-001` through `IAC-TF-004` answer
+# `manual-review-required` where the fixture should give `pass`, and `IAC-TF-009` does not
+# trigger on a vulnerable fixture at all, so an adopter resolving to the old floor gets
+# wrong verdicts rather than an error. Bisected: 6.1.0 and 6.1.1 fail, 7.0.0, 7.1.0, 7.3.1
+# and 8.1.4 pass, and the whole suite is green at 7.0.0 with every other floor still at its
+# floor. An import check would have missed it: `python-hcl2==6.1.1` imports cleanly and has
+# both `load` and `loads`.
+iac = ["python-hcl2>=7.0"]
+all = ["httpx>=0.27", "boto3>=1.34", "botocore>=1.34", "python-hcl2>=7.0"]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=4.1",
@@ -78,7 +87,7 @@ dev = [
   "boto3>=1.34",
   "botocore>=1.34",
   "moto>=5.0.26",
-  "python-hcl2>=6.1",
+  "python-hcl2>=7.0",
   # An independent CommonMark reader for the guard in
   # `tests/application/test_a_name_from_the_filesystem_is_not_markdown.py`, which asks what a
   # reader of the report actually sees rather than re-deriving the spec rule the fix is built

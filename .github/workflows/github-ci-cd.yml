@@ -313,6 +313,61 @@ jobs:
           .wheel-313/bin/oss-policy-kit --version
           rm -rf .wheel-313
 
+  dependency-floors:
+    name: Dependency floors (suite at the lowest declared versions)
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 30
+    # `pyproject.toml` promises that `python-hcl2>=7.0` works. Until 2026-09-19 nothing had
+    # ever run the suite against those lower bounds, and one of the nine was wrong: at
+    # `python-hcl2==6.1.x` four Terraform controls answered manual-review-required where the
+    # fixture gives pass, and a fifth stopped triggering. Wrong verdicts, not an error, which
+    # is why an import check had not caught it in three years of the floor being there.
+    #
+    # `tests/infrastructure/test_a_declared_floor_is_a_version_that_works.py` compares the
+    # declared floor against a minimum a human recorded. This job is the other half: it
+    # executes at the floor, so a recorded minimum that is simply wrong is caught by the
+    # code rather than by the next person to check by hand.
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
+
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install project (dev)
+        run: |
+          python -m pip install --require-hashes -r .github/requirements/pip.txt
+          python -m pip install -e ".[dev]"
+
+      - name: Force every runtime dependency down to its declared floor
+        # The pins are read out of pyproject.toml rather than written here, so this job
+        # cannot drift from the declaration it is meant to be testing.
+        run: python scripts/install_dependency_floors.py
+
+      - name: Show what is installed
+        run: python -m pip list
+
+      - name: Pytest at the floors
+        # No coverage: this job is about which versions the code runs on, and the floor is
+        # measured by whether the suite passes, not by how much of it executed.
+        run: python -m pytest tests --ignore=tests/property -q -p no:cacheprovider
+
   container-build:
     name: Container (build only, no push)
     runs-on: ubuntu-latest

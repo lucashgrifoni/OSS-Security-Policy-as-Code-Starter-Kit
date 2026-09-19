@@ -52,14 +52,14 @@ _PIP_BINARIES = frozenset({"pip", "pip3"})
 #: comment stripping or the splitting below could quietly reduce this test to asserting
 #: that an empty set equals an empty set. The tree held 23 on 2026-09-02; the floor is
 #: deliberately lower so that removing a job does not fail the build for the wrong reason.
-_MINIMUM_PIP_INSTALLS_FOUND = 15
+_MINIMUM_PIP_INSTALLS_FOUND = 16
 
 #: The unpinned installs that are accepted, and why. Each entry is (path relative to the
 #: repo root, the command after `shlex.split` -- so shell quoting is already removed, and
 #: `-e ".[dev]"` in the workflow appears here as `-e .[dev]`). Counted, not set-compared:
-#: the dev extra is installed in two separate jobs and both are accepted.
+#: the dev extra is installed in three separate jobs in that file and all are accepted.
 #:
-#: - the two `.[dev]` installs resolve the dev tool ranges `pyproject.toml` declares. A
+#: - the three `.[dev]` installs resolve the dev tool ranges `pyproject.toml` declares. A
 #:   lock would have to be regenerated inside every Dependabot bump of a dev tool, and
 #:   would fail silently when it drifted -- CI testing one ruff while the project
 #:   declares another.
@@ -70,9 +70,13 @@ _MINIMUM_PIP_INSTALLS_FOUND = 15
 #:   same reason. Its purpose is to run one test the way this repository runs every other
 #:   one, so an install shape unique to that job would be testing a configuration nothing
 #:   else uses. It is also the only job here that never gates a merge.
+#: - the dependency-floors job installs the dev extra for its test tooling and then forces
+#:   every runtime dependency down to the floor `pyproject.toml` declares. Pinning the dev
+#:   install would not change what that job measures, which is the runtime floors, and it
+#:   would tie the job to a lock it has no reason to care about.
 _ACCEPTED_UNPINNED = Counter(
     {
-        (".github/workflows/github-ci-cd.yml", "python -m pip install -e .[dev]"): 2,
+        (".github/workflows/github-ci-cd.yml", "python -m pip install -e .[dev]"): 3,
         (".github/workflows/security-ci-cd.yml", "python -m pip install -e ."): 1,
         (".github/workflows/live-collector-canary.yml", "python -m pip install -e .[dev]"): 1,
     }
