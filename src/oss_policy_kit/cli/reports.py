@@ -6,7 +6,12 @@ from pathlib import Path
 
 import typer
 
-from oss_policy_kit.application.drift import DriftReport, compute_drift, load_report_json
+from oss_policy_kit.application.drift import (
+    UNVERIFIED_DIGEST_KEY,
+    DriftReport,
+    compute_drift,
+    load_report_json,
+)
 from oss_policy_kit.application.reporting import render_drift_report
 from oss_policy_kit.cli import terminal_ui
 from oss_policy_kit.cli.common import app, exit_for_unexpected, markup_safe, stderr_console, write_stdout_text
@@ -114,6 +119,12 @@ def diff_reports_cmd(
         # longer produce byte-identical rejections ("Expecting value: line 1 column 1").
         b = load_report_json(before, label="--before report")
         a = load_report_json(after, label="--after report")
+        for side, payload in (("--before", b), ("--after", a)):
+            unverified = payload.get(UNVERIFIED_DIGEST_KEY)
+            if unverified:
+                stderr_console().print(
+                    f"[yellow]Warning:[/yellow] {markup_safe(side)} report: {markup_safe(str(unverified))}"
+                )
         drift = compute_drift(b, a, include_absolute_path=include_absolute_path)
         _guard_target_mismatch(drift, allow_different_targets=allow_different_targets)
         if drift.profile_mismatch:

@@ -339,6 +339,12 @@ def compute_drift(
     )
 
 
+#: Set on a loaded report whose digest could not be checked, holding the reason. Absent
+#: when the digest verified. A caller that shows the report to a person reads this and says
+#: so; nothing downstream should treat its absence as proof of anything but a clean check.
+UNVERIFIED_DIGEST_KEY = "_digest_unverified"
+
+
 def load_report_json(path: Path, *, label: str = "Report") -> dict[str, Any]:
     """Load an evaluation report, rejecting anything that is not ``reports/2.0``.
 
@@ -377,6 +383,10 @@ def load_report_json(path: Path, *, label: str = "Report") -> dict[str, Any]:
         msg = f"{label} root must be an object: {path}"
         raise ValueError(msg)
 
+    # The digest is checked after the contract and before anything reads a verdict, in
+    # the one function every report consumer already calls. Until this, `results_digest`
+    # was written into every report and read by nothing: a file whose `state` had been
+    # edited from FAIL to PASS produced a clean drift verdict and exit 0.
     contract = raw.get("contract_version")
     if contract != REPORT_CONTRACT:
         seen = contract if isinstance(contract, str) and contract.strip() else "none"
@@ -388,6 +398,22 @@ def load_report_json(path: Path, *, label: str = "Report") -> dict[str, Any]:
         )
         raise InvalidInputError(msg)
 
+    # Imported here rather than at module scope: `reporting` imports `DriftReport` from
+    # this module, so a top-level import would close the cycle. Same reason and same shape
+    # as `config_loader`'s lazy import of `report_json_schema_url`.
+    from oss_policy_kit.application.reporting import verify_results_digest
+
+    verdict, why = verify_results_digest(raw)
+    if verdict == "tampered":
+        raise InvalidInputError(f"{label} '{path.name}': {why}")
+
     raw = dict(raw)
     raw["_path"] = str(path.resolve())
+    if verdict == "unverifiable":
+        # Not a refusal. ADR-045's rule is that not knowing and knowing-it-is-wrong are
+        # different answers, and a report carrying no digest has not been shown to be
+        # wrong. The drift still runs; the key travels with the payload so the CLI can
+        # tell the operator the verdicts it rests on were never checked against anything.
+        # Kept out of this layer's own output on purpose: printing belongs to the caller.
+        raw[UNVERIFIED_DIGEST_KEY] = why
     return raw

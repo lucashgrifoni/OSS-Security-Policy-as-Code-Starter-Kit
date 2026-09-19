@@ -292,8 +292,14 @@ def test_no_markdown_sink_interpolates_an_unescaped_value() -> None:
     for joined in ast.walk(tree):
         if not isinstance(joined, ast.JoinedStr):
             continue
-        literal = "".join(v.value for v in joined.values if isinstance(v, ast.Constant) and isinstance(v.value, str))
-        if not any(marker in literal for marker in ("**", "| ", "- ", "`", "# ")):
+        # Each literal piece is tested on its own. Joining them first manufactures markers
+        # that are in none of them: `f"control #{index} is not an object"` joins to
+        # "control # is not an object" and matches "# ", so two error messages in
+        # `digest_for_report_payload` were reported as Markdown sinks. One of the two
+        # values is genuinely target-controlled, so allowlisting it would have put a false
+        # reason in the list below, which is worse than the false positive.
+        chunks = [v.value for v in joined.values if isinstance(v, ast.Constant) and isinstance(v.value, str)]
+        if not any(marker in chunk for chunk in chunks for marker in ("**", "| ", "- ", "`", "# ")):
             continue
         for value in joined.values:
             if isinstance(value, ast.FormattedValue) and not is_escaped(value.value):
