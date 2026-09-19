@@ -30,7 +30,12 @@ tools in the browser.
 - `build-js.mjs` - esbuild transform for the static JSX bundle
 - `bundle.js` - generated site JavaScript, committed for GitHub Pages
 - `app.jsx` - top-level React app
-- `parts/*.jsx` - section components (background, header, hero, sections-a/b/c, footer-cta, primitives)
+- `parts/*.jsx` - section components. `build-js.mjs` is the list: it names every part it
+  concatenates, in order, so read that rather than trusting a copy here. This line used to
+  enumerate them and had fallen three behind, omitting `strip.jsx`, which renders the headline
+  numbers a visitor reads first.
+- `parts/catalog-data.jsx` - **generated** by `scripts/generate-gitpage-catalog-data.py`. Do not
+  hand-edit it; `--check` fails the build when it drifts from the catalog.
 - `styles.css` - additional custom styles on top of generated Tailwind CSS
 - `parts/sections-c.jsx` - renders the Sample Output section as structured text and control rows
 

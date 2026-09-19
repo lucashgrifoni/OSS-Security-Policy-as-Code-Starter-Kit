@@ -10,14 +10,12 @@ Adopters can build locally today; CI automation activates when a tag is pushed.
 ## Build
 
 ```bash
-docker build -t oss-policy-kit:6.4.0 .
+docker build -t oss-policy-kit:local .
 ```
 
-The image installs from the checked-out source tree. The build arg is retained for image labels and release tag plumbing:
+The image installs from the checked-out source tree, and that is what binds it to a version: build a tag, get that tag's code. There is no build argument to pass. One used to be documented here, `--build-arg KIT_VERSION=...`, described as feeding the image labels. The Dockerfile stopped reading it and it was removed in v10.0.24; BuildKit discards an undeclared build argument without a warning, so the old command still exited 0 and still produced an image with the source tree's real version, which is why the line survived so long.
 
-```bash
-docker build --build-arg KIT_VERSION=6.4.0 -t oss-policy-kit:6.4.0 .
-```
+`org.opencontainers.image.version` and `.revision` are set by `publish-container.yml` as labels on the **published** image. A local build carries neither, so do not read `docker inspect` on your own build as evidence of what the registry serves.
 
 ## Run
 
@@ -27,7 +25,7 @@ The image runs as a non-root user (uid 10001, container-baseline-1 expectation) 
 docker run --rm \
   -v "$(pwd):/work" \
   -w /work \
-  oss-policy-kit:6.4.0 \
+  oss-policy-kit:local \
   evaluate --target . --profile github-level-1 --summary-only
 ```
 
@@ -38,7 +36,7 @@ docker run --rm \
   -v "$(pwd):/work" \
   -w /work \
   -e GITHUB_TOKEN \
-  oss-policy-kit:6.4.0 \
+  oss-policy-kit:local \
   collect-evidence --target . --platform github --repo owner/name
 ```
 
@@ -48,7 +46,7 @@ For `emit-vex` against an existing OSV-Scanner SARIF in your repo:
 docker run --rm \
   -v "$(pwd):/work" \
   -w /work \
-  oss-policy-kit:6.4.0 \
+  oss-policy-kit:local \
   emit-vex --waivers waivers/waivers.yaml --output vex.cyclonedx.json
 ```
 
@@ -70,17 +68,17 @@ The `publish-container` workflow handles the release flow on `v*` tag pushes:
 - **Signed**: `cosign sign --yes` (keyless via Sigstore Public Good + GitHub OIDC). Verify with `cosign verify`.
 - **Provenance**: `actions/attest-build-provenance` pushes a GitHub Artifact Attestation to the registry. Verify with `gh attestation verify oci://...`.
 - **SBOM attached**: `sbom: true` on the Buildx build action; resulting SBOM is part of the OCI index.
-- **Reproducible-ish**: pinned base image (`python:3.12-slim-bookworm`), pinned action SHAs, source-tree install from the release tag, and build-arg-controlled image version.
+- **Reproducible-ish**: pinned base image (`python:3.12-slim-bookworm`), pinned action SHAs, and a source-tree install from the release tag, which is what fixes the version in the image.
 - **Tags**: `<version>` and `latest` on tagged releases; `edge` on manual `workflow_dispatch` runs.
 
 To verify a published image:
 
 ```bash
-cosign verify ghcr.io/<owner>/oss-policy-kit:6.4.0 \
+cosign verify ghcr.io/<owner>/oss-policy-kit:<version> \
   --certificate-identity-regexp 'https://github.com/<owner>/.+' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
 
-gh attestation verify oci://ghcr.io/<owner>/oss-policy-kit:6.4.0 \
+gh attestation verify oci://ghcr.io/<owner>/oss-policy-kit:<version> \
   --repo <owner>/OSS-Security-Policy-as-Code-Starter-Kit
 ```
 

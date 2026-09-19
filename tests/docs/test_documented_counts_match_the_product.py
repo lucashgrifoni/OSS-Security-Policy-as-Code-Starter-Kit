@@ -316,3 +316,101 @@ def test_the_evidence_model_docs_name_only_values_the_projection_emits() -> None
         "docs/profiles/overview.md documents evidence-model values the kit does not produce: "
         f"{wrong}. A consumer parses `evaluation-report.json` from this page."
     )
+
+
+# ---------------------------------------------------------------------------------------
+# Ratios, not just counts.
+#
+# The counts above are derived and guarded; the PERCENTAGES beside them were not, and both
+# drifted. `docs/profiles/cra-eu.md` said cra-eu-strict-1 was 37% evidence-backed when it had
+# been 42% since v6.0.0, and `docs/profiles/appsec-sast-sca.md` said 27% experimental when the
+# measured figure is 35%. The second page also contradicted itself in the same paragraph: it
+# named the experimental set as "the four SARIF adapters plus SAST-OSV-068", and SAST-OSV-068
+# is one of those four -- so the sentence double-counted one control and omitted the two SCA
+# ones that are actually experimental.
+#
+# A ratio is a claim a reader can check in one command, exactly like a count, so it is derived
+# here from the same two files the counts come from.
+# ---------------------------------------------------------------------------------------
+
+#: `42% evidence-backed`, `**Experimental controls:** 35%`, in either order.
+_RATIO_CLAIM = re.compile(
+    r"(\d{1,3})%\s+(evidence-backed|experimental)|(evidence-backed|experimental)[^.\n]{0,30}?(\d{1,3})%", re.I
+)
+
+#: Which catalog field each documented word is a ratio OF.
+_RATIO_FIELD = {"evidence-backed": ("assurance", "evidence-backed"), "experimental": ("lifecycle", "experimental")}
+
+
+def _catalog_by_id() -> dict[str, dict]:
+    catalog = yaml.safe_load(_CATALOG.read_text(encoding="utf-8-sig"))
+    return {control["id"]: control for control in catalog["controls"]}
+
+
+def _profile_members() -> dict[str, list[str]]:
+    members: dict[str, list[str]] = {}
+    for spec in sorted(_PROFILE_ROOT.glob("*/profile.yaml")):
+        profile = yaml.safe_load(spec.read_text(encoding="utf-8-sig"))
+        raw = profile.get("controls") or []
+        members[profile["id"]] = [c if isinstance(c, str) else (c.get("id") or c.get("control")) for c in raw]
+    return members
+
+
+def _real_ratio(profile_id: str, word: str) -> int | None:
+    """The measured percentage, rounded the way the correct prose on these pages rounds it."""
+
+    members = _profile_members().get(profile_id)
+    if not members:
+        return None
+    field, wanted = _RATIO_FIELD[word.lower()]
+    catalog = _catalog_by_id()
+    hits = [c for c in members if catalog.get(c, {}).get(field) == wanted]
+    return round(100 * len(hits) / len(members))
+
+
+def _documented_ratios() -> list[tuple[Path, int, str, str]]:
+    """`(page, claimed percent, word, profile id)` for every ratio claim we can attribute.
+
+    Attribution walks headings and remembers the last backtick-quoted profile id seen in one.
+    `_PROFILE_HEADING` is not reused: it requires two to four hashes with the id immediately
+    after them, and `docs/profiles/appsec-sast-sca.md` opens with a single-hash title that
+    carries its id in parentheses, so that pattern attributes none of that page's claims.
+    """
+
+    known = set(_profile_members())
+    found: list[tuple[Path, int, str, str]] = []
+    for page in _CURRENT_PROFILE_PAGES:
+        current: str | None = None
+        for line in page.read_text(encoding="utf-8").splitlines():
+            if line.lstrip().startswith("#"):
+                ids = [i for i in re.findall(r"`([a-z0-9][a-z0-9-]+)`", line) if i in known]
+                if ids:
+                    current = ids[-1]
+                continue
+            if current is None:
+                continue
+            for match in _RATIO_CLAIM.finditer(line):
+                pct, word = (match.group(1), match.group(2)) if match.group(1) else (match.group(4), match.group(3))
+                if pct is not None and word is not None:
+                    found.append((page, int(pct), word.lower(), current))
+    return found
+
+
+def test_a_documented_percentage_matches_the_profile_it_describes() -> None:
+    wrong: list[str] = []
+    for page, claimed, word, profile_id in _documented_ratios():
+        real = _real_ratio(profile_id, word)
+        if real is not None and real != claimed:
+            wrong.append(f"{page.relative_to(ROOT).as_posix()}: {profile_id} says {claimed}% {word}, measured {real}%")
+
+    assert not wrong, "documented ratios the data does not support: " + "; ".join(wrong)
+
+
+def test_there_are_documented_percentages_to_check() -> None:
+    """Anti-vacuum: the guard above passes on an empty list, which is how a parser rots."""
+
+    found = _documented_ratios()
+    attributed = {profile_id for _, _, _, profile_id in found}
+
+    assert len(found) >= 4, f"only {len(found)} ratio claims parsed; the attribution walk is not reading the pages"
+    assert len(attributed) >= 2, f"all claims attributed to {attributed}; heading attribution has collapsed"
