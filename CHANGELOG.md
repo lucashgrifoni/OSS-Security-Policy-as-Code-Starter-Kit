@@ -6,6 +6,20 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.24](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.23...v10.0.24) (2026-09-19)
+
+
+### Fixes
+
+* **action:** an absolute output-dir made three outputs point at nothing ([#272](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/272)) ([4212421](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/4212421bb8884dcaa1e5bba4bf935b270b0a49a5))
+* **cli:** four messages that said something other than what the tool does ([#270](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/270)) ([99bbf7a](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/99bbf7ad1c67670592980502e83a65cdf54cf7d0))
+* **container:** remove a build argument the Dockerfile never read ([#273](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/273)) ([1fdf01b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/1fdf01bf4cfd10dd6dfe726705673e4e28c1b662))
+* **deps:** two declared floors that promised an environment the CLI dies in ([#276](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/276)) ([3df2e0b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3df2e0b41be128c74afadf26705cc9b2035ebc78))
+* **init:** the scaffolded workflow enforced a gate the adopter did not choose ([#277](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/277)) ([0d11da8](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0d11da828f033b2ff112602d0f0750b4e48aa289))
+* **release:** sign the sample-reports commit through the API ([#268](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/268)) ([ecf0bd7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/ecf0bd7a52f04b92385847e9dc2f0527dfba9177))
+* **scan-sast:** say what failed when Semgrep never started ([#269](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/269)) ([b867579](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b86757927282cc63a973a8cd05453c4dd6b7d18d))
+* **security:** eleven shipped commands ran the repository they were scanning ([#275](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/275)) ([2192bac](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2192bac02a158a68b79b2e6822a26459c456b3c7))
+
 ## [10.0.23](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.22...v10.0.23) (2026-09-16)
 
 
