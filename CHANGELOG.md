@@ -6,6 +6,30 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.25](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.24...v10.0.25) (2026-09-19)
+
+
+### Fixes
+
+* **ci:** eleven expansions the shell would have run as code ([#281](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/281)) ([6a897ad](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/6a897ad370253bf37483f7e4dc0943f1af3250a7))
+* **ci:** the CHANGELOG guard crashed on the tag it was waiting for ([#280](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/280)) ([ffb3b8d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/ffb3b8df58a7e027714c98a24ba883c12d2557bb))
+* **cli:** an empty --output-dir wrote the reports into the working directory ([#292](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/292)) ([f8d58d2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/f8d58d2f3c44215a4529cf35a5e27471e345026d))
+* **controls:** four controls stated an absence they had not established ([#288](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/288)) ([410b6a5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/410b6a55bd13ca5cf52ceb243c1e71b1ebd6206e))
+* **docs:** six pages that describe a product the code stopped being ([#274](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/274)) ([8c2eafa](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/8c2eafa5c8f1a4d5f54ecb60c50c6130d1bb753e))
+* **init:** the scaffolded workflow ignored the output directory you chose ([#293](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/293)) ([d4336f7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/d4336f7ac22184478f7020caec52790c1848850b))
+* **init:** the workflow it just wrote said to copy it where it already was ([#284](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/284)) ([06089f9](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/06089f9eb957239f5844b8e32e4308db41efe8b4))
+* **packaging:** the sdist shipped eight test files and none of them could run ([#290](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/290)) ([27bb7df](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/27bb7df08fcb23d2586513981637ebbf5fae811c))
+* **profiles:** four shipped profiles began with a byte-order mark ([#291](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/291)) ([c90e40e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c90e40e4f2531c7a4e92f338e57848c58032ed67))
+* **release:** the SBOM reported six CVEs that belong to its own scaffolding ([#282](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/282)) ([0f7bfca](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/0f7bfcaa1ab95106a39294ea13637797c6129b22))
+* **reports:** a directory name closed the code span the report opened around it ([#287](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/287)) ([8556d75](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/8556d754adc8fcdc467a467ee185610ccfc906ab))
+
+
+### Notes
+
+* **ci:** the canary inherited a rationale whose premise is false there ([#279](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/279)) ([81b941a](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/81b941a6d7377773e966b948e817e709585021a1))
+* **reports:** the reading guide described the contract the kit replaced ([#286](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/286)) ([35ab4b2](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/35ab4b25e8dd7d3e17085e6ca73aa54e5fd7462e))
+* two claims about the report contract that the code does not back ([#285](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/285)) ([995c94f](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/995c94fedfd32a4a2a1e6907722581e05d067132))
+
 ## [10.0.24](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.23...v10.0.24) (2026-09-19)
 
 
