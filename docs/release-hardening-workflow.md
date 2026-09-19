@@ -79,7 +79,7 @@ not be used as release gates.
 
 ## Reading the report
 
-The report JSON (under `--output-dir`) contains a `results` array (one entry
+The report JSON (under `--output-dir`) contains a `controls` array (one entry
 per control) and a `summary_by_status` dict. Status values you should know:
 
 - `pass`, `fail`: self-explanatory.
