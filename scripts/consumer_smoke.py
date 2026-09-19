@@ -27,6 +27,10 @@ class SmokeStep:
     argv: list[str]
     exit_code: int
     expected_exit_code: int | None
+    #: First few hundred characters of stderr, kept only so a failing step can say why.
+    #: The streams were captured and thrown away before, which left a red summary naming
+    #: a step and nothing else to act on.
+    stderr_excerpt: str = ""
 
 
 @dataclass(frozen=True)
@@ -76,6 +80,20 @@ def _py_exe(venv_dir: Path) -> Path:
     if os.name == "nt":
         return venv_dir / "Scripts" / "python.exe"
     return venv_dir / "bin" / "python"
+
+
+def _console_script(venv_dir: Path) -> Path:
+    """The `oss-policy-kit` executable the wheel installs.
+
+    Every other step runs `-m oss_policy_kit`, which is not what the documentation tells an
+    adopter to type. The console script is a separate thing the wheel declares and pip
+    writes, and nothing exercised it: a broken `[project.scripts]` entry would have shipped
+    with every check green.
+    """
+
+    if os.name == "nt":
+        return venv_dir / "Scripts" / "oss-policy-kit.exe"
+    return venv_dir / "bin" / "oss-policy-kit"
 
 
 def _is_relative_to(path: Path, parent: Path) -> bool:
@@ -236,11 +254,18 @@ def resolve_wheel(repo_root: Path, wheel_glob: str | None = None) -> Path:
     return wheel
 
 
-def _run(py: Path, argv: Sequence[str], *, cwd: Path) -> int:
+def _run(py: Path, argv: Sequence[str], *, cwd: Path) -> tuple[int, str]:
+    """Run *argv* under *py* and return its exit code together with a stderr excerpt.
+
+    The excerpt exists because the summary used to print a step name and an exit code and
+    nothing else. Reading it meant re-running the command by hand to find out what had
+    happened, which is the state this script is supposed to spare a release from.
+    """
+
     proc = subprocess.run(
         _safe_subprocess_argv(py, argv), cwd=cwd, shell=False, env=_child_env(), **_CAPTURE_TEXT_KWARGS
     )
-    return int(proc.returncode)
+    return int(proc.returncode), (proc.stderr or "").strip()[:400]
 
 
 def main() -> int:
@@ -304,13 +329,63 @@ def main() -> int:
     invalid_wf = Path("tests") / "fixtures" / "repositories" / "invalid-workflow-target"
     waivers = examples_hardened / "waivers" / "waivers.yaml"
 
+    #: Where the selfcheck step writes, and what it has to leave behind. An exit code of 0
+    #: from a command that writes files says the process ended, not that it produced
+    #: anything: every check here passed for a run that wrote no report at all.
+    selfcheck_output = Path("out") / "consumer-smoke-selfcheck"
+
     steps: list[SmokeStep] = []
 
     def add(name: str, argv: list[str], expect: int | None = 0) -> None:
-        code = _run(py, argv, cwd=repo_root)
-        steps.append(SmokeStep(name=name, argv=argv, exit_code=code, expected_exit_code=expect))
+        code, stderr_excerpt = _run(py, argv, cwd=repo_root)
+        steps.append(
+            SmokeStep(
+                name=name,
+                argv=argv,
+                exit_code=code,
+                expected_exit_code=expect,
+                stderr_excerpt=stderr_excerpt,
+            )
+        )
+
+    def add_console(name: str, args: list[str], expect: int | None = 0) -> None:
+        """Same as `add`, through the executable the wheel installs.
+
+        Kept separate because `_run` prepends the interpreter: this one is the entry point
+        itself, so a missing or broken `[project.scripts]` shows up here and nowhere else.
+        """
+
+        executable = _console_script(venv_dir)
+        if not executable.is_file():
+            steps.append(
+                SmokeStep(
+                    name=name,
+                    argv=[executable.name, *args],
+                    exit_code=127,
+                    expected_exit_code=expect,
+                    stderr_excerpt=f"the wheel installed no console script at {executable.name}",
+                )
+            )
+            return
+        proc = subprocess.run(  # noqa: S603 - fixed argv from the venv, shell=False
+            [str(executable), *args],
+            cwd=repo_root,
+            shell=False,
+            env=_child_env(),
+            **_CAPTURE_TEXT_KWARGS,
+        )
+        steps.append(
+            SmokeStep(
+                name=name,
+                argv=[executable.name, *args],
+                exit_code=int(proc.returncode),
+                expected_exit_code=expect,
+                stderr_excerpt=(proc.stderr or "").strip()[:400],
+            )
+        )
 
     add("version", ["-m", "oss_policy_kit", "--version"], 0)
+    add_console("console_script_version", ["--version"], 0)
     add("help_root", ["-m", "oss_policy_kit", "--help"], 0)
     add("evaluate_help", ["-m", "oss_policy_kit", "evaluate", "--help"], 0)
     add(
@@ -324,7 +399,7 @@ def main() -> int:
             "--profile",
             "github-level-1",
             "--output-dir",
-            os.fspath(Path("out") / "consumer-smoke-selfcheck"),
+            os.fspath(selfcheck_output),
             "--format",
             "json",
         ],
@@ -428,6 +503,21 @@ def main() -> int:
             os.fspath(Path("out") / "consumer-smoke-kit-root"),
         ],
         0,
+    )
+
+    # An exit code of 0 from a command whose job is to write files says the process ended,
+    # not that it produced anything. Every check in this script passed for a run that wrote
+    # no report at all, so the artifact is now a step of its own and flows into the same
+    # verdict as the rest.
+    expected_report = repo_root / selfcheck_output / "evaluation-report.json"
+    steps.append(
+        SmokeStep(
+            name="selfcheck_wrote_a_report",
+            argv=[os.fspath(selfcheck_output / "evaluation-report.json")],
+            exit_code=0 if expected_report.is_file() else 1,
+            expected_exit_code=0,
+            stderr_excerpt="" if expected_report.is_file() else f"no report at {expected_report}",
+        )
     )
 
     mismatches = [
