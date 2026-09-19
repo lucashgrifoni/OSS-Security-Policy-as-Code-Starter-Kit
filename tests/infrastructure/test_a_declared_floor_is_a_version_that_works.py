@@ -49,16 +49,43 @@ RUNTIME_IN = ROOT / ".github" / "requirements" / "runtime-all.in"
 _RECORDED_MINIMUM: dict[str, tuple[str, str, str]] = {
     "typer": ("0.26", "typer vendors its own click, and typer.core.HAS_RICH exists from 0.19.0", "cli/common.py:18"),
     "rich": ("13.8.0", "the floor typer itself declares from 0.25; the kit uses nothing newer", "cli/common.py:16"),
+    #: Not an import-time minimum like the two above: `python-hcl2==6.1.1` imports cleanly and
+    #: has both `load` and `loads`. It is a behaviour minimum, found by running the suite at
+    #: every declared floor at once for the first time on 2026-09-19. At 6.1.0 and 6.1.1 four
+    #: Terraform controls answer `manual-review-required` where the fixture gives `pass` and
+    #: `IAC-TF-009` stops triggering on a vulnerable fixture, so the old floor produced wrong
+    #: verdicts rather than an error. Bisected: 6.1.x fails, 7.0.0 and everything after passes.
+    "python-hcl2": (
+        "7.0",
+        "6.1.x makes four IaC controls answer manual-review-required",
+        "tests/application/test_evaluators_iac.py",
+    ),
 }
 
 
 def _declared() -> dict[str, Requirement]:
+    """Base dependencies plus the ``all`` extra.
+
+    The extras were outside this guard until the `python-hcl2` floor turned out to be wrong,
+    which is a floor an adopter installs through `pip install oss-policy-kit[iac]` and is a
+    promise in exactly the same way. Where a distribution appears in both, the higher floor
+    wins, because that is the one the package actually promises.
+    """
+
     data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     out: dict[str, Requirement] = {}
-    for raw in data["project"]["dependencies"]:
+    for raw in list(data["project"]["dependencies"]) + list(data["project"]["optional-dependencies"]["all"]):
         requirement = Requirement(raw)
-        out[requirement.name.lower().replace("_", "-")] = requirement
+        key = requirement.name.lower().replace("_", "-")
+        previous = out.get(key)
+        if previous is None or _lower_bound(requirement) > _lower_bound(previous):
+            out[key] = requirement
     return out
+
+
+def _lower_bound(requirement: Requirement) -> Version:
+    floors = [Version(spec.version) for spec in requirement.specifier if spec.operator in {">=", "==", "~="}]
+    return max(floors) if floors else Version("0")
 
 
 def _runtime_closure() -> set[str]:
