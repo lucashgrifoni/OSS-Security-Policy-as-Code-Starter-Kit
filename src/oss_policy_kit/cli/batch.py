@@ -9,6 +9,7 @@ import typer
 from oss_policy_kit.adapters.local_paths import resolve_existing_dir
 from oss_policy_kit.application.batch_evaluate import run_batch_evaluation
 from oss_policy_kit.cli.common import (
+    NonEmptyPath,
     _output_child_display,
     app,
     display_path,
@@ -38,6 +39,7 @@ def evaluate_many_cmd(
         Path("out"),
         "--output-dir",
         "-o",
+        click_type=NonEmptyPath(),
         help="Directory for consolidated batch reports and per-target subfolders.",
     ),
     kit_root: Path | None = typer.Option(None, "--kit-root", "-k", help="Override bundled controls/ and profiles/."),

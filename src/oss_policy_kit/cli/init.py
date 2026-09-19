@@ -304,6 +304,16 @@ def init_cmd(
     """
 
     try:
+        if not output_dir.strip():
+            # `init` takes this one as a string, not a Path, so unlike the other commands it
+            # still has the raw value here and needs no ParamType. It also has the worse
+            # outcome: the empty value is written into `oss-policy-kit.yaml` as
+            # `output_dir: ""`, so every later run inherits "write into the working
+            # directory" from a file the adopter keeps and versions.
+            raise InvalidInputError(
+                "--output-dir was given an empty value. Pass a directory, or omit the flag "
+                "for the default; `--output-dir .` writes into the current directory."
+            )
         fmt = _normalize_format(output_format)
         # In --dry-run we accept a path that does not exist yet so the user
         # can preview the plan before creating the directory (OP-001).
