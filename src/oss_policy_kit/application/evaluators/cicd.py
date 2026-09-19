@@ -324,7 +324,7 @@ def eval_sec_codeql_010(ctx: EvalContext) -> EvalOutcome:
         return scorecard_outcome
     return EvalOutcome(
         status=ControlStatus.FAIL,
-        reason="No CodeQL (or equivalent) signal in local workflows.",
+        reason=f"No CodeQL (or equivalent) signal in local workflows.{unchecked_workflows_note(ctx.workflows)}",
         remediation="Add GitHub CodeQL workflow or equivalent SAST in CI.",
         evidence_sources=[],
         confidence="medium",
@@ -405,7 +405,10 @@ def eval_sec_secrets_050(ctx: EvalContext) -> EvalOutcome:
         )
     return EvalOutcome(
         status=ControlStatus.FAIL,
-        reason="No secret scanning tool keyword found in workflow YAML (gitleaks, trufflehog, detect-secrets, etc.).",
+        reason=(
+            "No secret scanning tool keyword found in workflow YAML (gitleaks, trufflehog, "
+            f"detect-secrets, etc.).{unchecked_workflows_note(ctx.workflows)}"
+        ),
         remediation=(
             "Add a secret scanning step to your CI workflow. Example: uses: gitleaks/gitleaks-action@v2 "
             "(pin to a commit SHA in production)."

@@ -29,6 +29,7 @@ from oss_policy_kit.application.evaluators._shared import (
     contextlib,
     json,
     preview_evidence_paths,
+    unchecked_workflows_note,
 )
 from oss_policy_kit.application.evaluators_common import capped_evidence_text
 
@@ -60,7 +61,10 @@ def eval_gh_mergeq_053(ctx: EvalContext) -> EvalOutcome:
         )
     return EvalOutcome(
         status=ControlStatus.FAIL,
-        reason="No merge queue (merge_group) or merge-queue documentation signal detected in workflows.",
+        reason=(
+            "No merge queue (merge_group) or merge-queue documentation signal detected in "
+            f"workflows.{unchecked_workflows_note(ctx.workflows)}"
+        ),
         remediation=("Enable GitHub merge queue for protected branches or document an equivalent gated merge policy."),
         evidence_sources=[],
         confidence="low",

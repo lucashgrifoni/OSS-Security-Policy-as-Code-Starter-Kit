@@ -30,6 +30,7 @@ from oss_policy_kit.application.evaluators._shared import (
     json,
     preview_evidence_paths,
     read_repo_text,
+    unchecked_workflows_note,
     unread_candidates_outcome,
 )
 
@@ -273,7 +274,10 @@ def eval_cont_image_003(ctx: EvalContext) -> EvalOutcome:
                 )
     return EvalOutcome(
         status=ControlStatus.FAIL,
-        reason="No container image scanning signal detected in CI (Trivy, Grype, Snyk, Anchore, or equivalent).",
+        reason=(
+            "No container image scanning signal detected in CI (Trivy, Grype, Snyk, Anchore, "
+            f"or equivalent).{unchecked_workflows_note(ctx.workflows)}"
+        ),
         remediation=(
             "Add an image scanning step to your CI pipeline. "
             "Example: uses: aquasecurity/trivy-action@<sha> with image-ref: <your-image>."
