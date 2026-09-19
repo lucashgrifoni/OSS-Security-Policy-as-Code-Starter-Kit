@@ -108,9 +108,14 @@ jobs:
           python -m cyclonedx_py environment .sbom-env --of JSON -o artifacts/sbom.cyclonedx.json
 
       - name: Stage provenance bundle for release assets
+        # `bundle-path` comes through `env:` for the same reason as the container summary:
+        # a `${{ }}` inside `run:` is textual substitution, so a path containing a quote
+        # would end the `cp` argument and start a new command.
+        env:
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
         run: |
           mkdir -p artifacts
-          cp "${{ steps.attest.outputs.bundle-path }}" artifacts/oss-policy-kit.intoto.jsonl
+          cp "${BUNDLE_PATH}" artifacts/oss-policy-kit.intoto.jsonl
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

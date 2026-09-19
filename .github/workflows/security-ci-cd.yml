@@ -187,7 +187,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: >
           snyk code test
-          --severity-threshold=${{ env.SNYK_SEVERITY_THRESHOLD }}
+          --severity-threshold="$SNYK_SEVERITY_THRESHOLD"
           --sarif-file-output=snyk-code.sarif
 
       - name: Upload Snyk Code SARIF
@@ -298,7 +298,7 @@ jobs:
         run: >
           snyk test
           --all-projects
-          --severity-threshold=${{ env.SNYK_SEVERITY_THRESHOLD }}
+          --severity-threshold="$SNYK_SEVERITY_THRESHOLD"
           --sarif-file-output=snyk-oss.sarif
 
       - name: Upload Snyk Open Source SARIF

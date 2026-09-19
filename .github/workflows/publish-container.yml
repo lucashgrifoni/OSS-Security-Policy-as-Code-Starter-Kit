@@ -137,12 +137,24 @@ jobs:
           push-to-registry: true
 
       - name: Summary
+        # Every value this step prints arrives through `env:` and is read as `$VAR`, never
+        # expanded into the script text. A `${{ }}` inside `run:` is substituted before bash
+        # sees the line, so a value carrying a quote or a `$(...)` would be executed rather
+        # than printed. None of these five is attacker-controlled today -- they come from
+        # earlier steps of this same workflow and from `github.repository` -- but the shape
+        # is the one `zizmor/template-injection` flags, and this repository ships a kit that
+        # tells adopters not to write it.
+        env:
+          IMAGE_TAGS: ${{ steps.tags.outputs.tags }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.version }}
+          REPO_SLUG: ${{ github.repository }}
         run: |
           {
             echo "## Published container image"
             echo ""
-            echo "- **Tags**: ${{ steps.tags.outputs.tags }}"
-            echo "- **Digest**: ${{ steps.build.outputs.digest }}"
+            echo "- **Tags**: ${IMAGE_TAGS}"
+            echo "- **Digest**: ${IMAGE_DIGEST}"
             echo "- **Cosign**: signed (keyless, Sigstore Public Good)"
             echo "- **Provenance**: GitHub Artifact Attestation pushed to registry"
             echo "- **SBOM**: attached via Buildx (sbom=true)"
@@ -151,10 +163,10 @@ jobs:
             echo "Verify locally:"
             echo ""
             echo '```bash'
-            echo "cosign verify ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.version }} \\"
-            echo "  --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.+' \\"
+            echo "cosign verify ${IMAGE_REF} \\"
+            echo "  --certificate-identity-regexp 'https://github.com/${REPO_SLUG}/.+' \\"
             echo "  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'"
-            echo "gh attestation verify oci://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.version }} \\"
-            echo "  --repo ${{ github.repository }}"
+            echo "gh attestation verify oci://${IMAGE_REF} \\"
+            echo "  --repo ${REPO_SLUG}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
