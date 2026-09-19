@@ -244,6 +244,12 @@ jobs:
       - name: Twine check
         run: python scripts/twine_check_dist.py
 
+      # Runs here because the artifact already exists. Building an sdist inside a unit test
+      # would need setuptools, which a 3.12 virtual environment no longer installs, so that
+      # test would reach the network or fail depending on the environment.
+      - name: Refuse an sdist that ships a test slice which cannot run
+        run: python scripts/check_sdist_test_slice.py
+
       # Same rule the publishing workflow follows: inventory the built distribution, not whatever
       # this runner happens to have installed. Without a path argument the generator described the
       # CI environment -- dev tooling included -- which is not what the wheel carries.

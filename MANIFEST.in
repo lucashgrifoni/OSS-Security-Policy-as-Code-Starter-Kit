@@ -1,0 +1,6 @@
+# The sdist otherwise carries the eight top-level files of tests/ and nothing else from it,
+# not by anyone's decision but by the setuptools default. `tests/conftest.py` stays behind,
+# so `from tests.conftest import ROOT` raises and pytest aborts collection: the slice cannot
+# run at all. Shipping the whole suite instead would also be defensible; shipping a part of
+# it that errors on import is not.
+prune tests
