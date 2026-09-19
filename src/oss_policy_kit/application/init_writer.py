@@ -19,6 +19,7 @@ pattern.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
@@ -48,6 +49,17 @@ _WORKFLOW_SOURCE_BY_DEST: dict[str, str] = {
     "oss-policy-check-with-waivers.yml": "github-oss-policy-check-with-waivers.yml",
     "oss-policy-check-level-2.yml": "github-oss-policy-check-level-2.yml",
 }
+
+#: One argument of a template's ``evaluate`` invocation, alone on its line.
+#:
+#: Anchored to the start of the line after its indentation, which is what keeps the rewrite off
+#: the prose. Line 3 of every template reads "Customize --profile and --fail-on to match your
+#: desired strictness"; a free-floating pattern would rewrite that sentence into nonsense. The
+#: trailing continuation is captured and restored so the shell block keeps working.
+_WORKFLOW_ARG_RE = re.compile(
+    r"^(?P<indent>[ \t]+)(?P<name>--profile|--fail-on)[ \t]+(?P<value>\S+)(?P<tail>[ \t]*\\?)$",
+    re.MULTILINE,
+)
 
 
 @dataclass(slots=True)
@@ -199,6 +211,43 @@ def _resolve_workflow_template(dest_filename: str) -> tuple[str, str]:
     )
 
 
+def _apply_workflow_settings(body: str, *, profile: str | None, fail_on: str) -> str:
+    """Put the plan's gate settings into the template's ``evaluate`` invocation.
+
+    The templates ship with working defaults because ``docs/adoption-guide.md`` tells adopters
+    to copy one by hand, so each has to run exactly as it sits on disk. That is why this
+    rewrites the body on the way out rather than turning the files into placeholders.
+
+    ``profile`` is ``None`` when the selected profile is an external path, which would not
+    resolve on a runner; the template keeps its own and the planner has already recorded a note.
+
+    A template that exposes neither argument on its own line is a packaging fault rather than
+    bad input, and it fails here rather than silently writing an un-substituted gate.
+    """
+
+    replacements = {"--fail-on": fail_on}
+    if profile is not None:
+        replacements["--profile"] = profile
+
+    seen: set[str] = set()
+
+    def _swap(match: re.Match[str]) -> str:
+        name = match.group("name")
+        seen.add(name)
+        value = replacements.get(name, match.group("value"))
+        return f"{match.group('indent')}{name} {value}{match.group('tail')}"
+
+    rewritten = _WORKFLOW_ARG_RE.sub(_swap, body)
+
+    missing = sorted({"--profile", "--fail-on"} - seen)
+    if missing:
+        raise InvalidInputError(
+            f"Workflow template does not expose {' and '.join(missing)} on its own line, "
+            "so init cannot make it enforce the configured gate.",
+        )
+    return rewritten
+
+
 def _reported_path(path: Path, root: Path) -> Path:
     """Render an artifact path the way the outcome reports it: relative to *root* (M-002).
 
@@ -280,7 +329,12 @@ def execute_init_plan(plan: InitPlan) -> InitOutcome:
     # named. Resolving first makes `init` all-or-nothing for that failure.
     workflow_body: str | None = None
     if plan.write_workflow:
-        _, workflow_body = _resolve_workflow_template(plan.workflow_filename)
+        _, template_body = _resolve_workflow_template(plan.workflow_filename)
+        workflow_body = _apply_workflow_settings(
+            template_body,
+            profile=plan.workflow_profile,
+            fail_on=plan.fail_on,
+        )
 
     if plan.write_config:
         _write_text_idempotent(
@@ -341,7 +395,8 @@ def _build_next_steps(plan: InitPlan) -> list[str]:
     if plan.write_workflow and plan.platform == "github":
         steps.append(
             f"Commit .github/workflows/{GITHUB_WORKFLOW_FILENAME} to enable continuous "
-            "baseline checks on pull requests.",
+            f"baseline checks on pull requests; it runs "
+            f"{plan.workflow_profile or "the template's own profile"} with --fail-on {plan.fail_on}.",
         )
     if plan.write_waivers:
         steps.append(

@@ -37,6 +37,8 @@ python -m oss_policy_kit init --target . --format json
 The command is idempotent: re-running without `--force` preserves any file you have edited and reports it as `skipped`. Pass `--force` only when you want to replace generated files with the latest defaults.
 
 > **Config contract.** `oss-policy-kit.yaml` is consumed by `evaluate` as a fallback: when `--profile`, `--fail-on`, `--output-dir`, or `--report-json-contract` is omitted, the value recorded in the file is used; an explicit flag always wins. The file uses a stable `schema_version` (`oss-policy-kit/config/v1`) so it can evolve safely.
+>
+> **`--with-workflow` scaffolds the gate you selected.** The workflow written under `.github/workflows/` carries the same `--profile` and `--fail-on` as the config this run records, so the pipeline enforces what you chose rather than the template's defaults. Because an explicit `evaluate` flag beats the config file, a workflow left on the template defaults would override the config rather than defer to it. One exception: when `--profile` names an external YAML path, the workflow keeps the template's own profile and `init` prints a note, because a path from your machine does not resolve on a runner. The template files themselves keep working defaults so they can still be copied by hand.
 
 The JSON output uses `schema_version: oss-policy-kit/init-result/v1` and is additive across releases.
 

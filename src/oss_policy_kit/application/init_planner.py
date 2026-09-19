@@ -20,6 +20,7 @@ a valid profile to run against.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -79,6 +80,17 @@ WAIVERS_FILENAME = "waivers.yaml"
 #: their pipeline file location is project-specific.
 GITHUB_WORKFLOW_FILENAME = "oss-policy-check.yml"
 
+#: A ``--profile`` value ``init`` is willing to write into the workflow's ``run:`` block.
+#:
+#: Every one of the bundled profile ids is lowercase letters, digits and hyphens. An external
+#: profile is a filesystem path, which is none of those things: it can hold a space, a drive
+#: letter, a backslash or a quote, and interpolating one would produce a ``run:`` line that
+#: refers to a file the runner does not have. When the selected profile fails this test the
+#: workflow keeps the template's own profile and a note says so, because a workflow that runs
+#: the wrong profile and a workflow that cannot run at all are both worse than one the adopter
+#: was told to adjust.
+WORKFLOW_SAFE_PROFILE_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+
 
 @dataclass(slots=True)
 class InitPlan:
@@ -110,6 +122,11 @@ class InitPlan:
             under ``.github/workflows/``.
         workflow_filename: Name of the workflow file to write (only used
             when ``write_workflow`` is ``True``).
+        workflow_profile: The profile id to write into the scaffolded
+            workflow's ``evaluate`` call, so the pipeline enforces the gate
+            this run recorded in the config. ``None`` when the selected
+            profile is an external path, which cannot resolve on a runner;
+            the template then keeps its own profile and ``notes`` says so.
         force: Whether existing files should be overwritten.
         dry_run: When ``True`` the writer only reports what *would* happen.
         notes: Human-facing notes propagated from the recommendation
@@ -131,6 +148,7 @@ class InitPlan:
     scaffold_evidence: bool = False
     write_workflow: bool = False
     workflow_filename: str = GITHUB_WORKFLOW_FILENAME
+    workflow_profile: str | None = None
     force: bool = False
     dry_run: bool = False
     notes: list[str] = field(default_factory=list)
@@ -391,6 +409,22 @@ def build_init_plan(
             f"{detected_platform}.",
         )
 
+    # The scaffolded workflow enforces the gate this same run just recorded in the config.
+    # It used to carry the template's hardcoded `--profile github-level-1 --fail-on fail`
+    # whatever the adopter chose, and an explicit evaluate flag beats the config file, so the
+    # pipeline overrode the config rather than merely disagreeing with it.
+    workflow_profile: str | None = None
+    if will_write_workflow:
+        if WORKFLOW_SAFE_PROFILE_RE.match(profile):
+            workflow_profile = profile
+        else:
+            extra_notes.append(
+                "The scaffolded workflow kept the template's own profile: "
+                f"{profile!r} is a path rather than a bundled profile id, and a path from this "
+                "machine would not resolve on a runner. Point the workflow at a profile "
+                "committed to the repository before relying on it.",
+            )
+
     # Evidence templates exist for github/gitlab/azure/aws. Mirror the workflow handling:
     # downgrade --with-evidence only for an unknown platform and surface a note, instead of
     # silently dropping it (which left a dangling "fill the evidence files" next-step
@@ -420,6 +454,7 @@ def build_init_plan(
         scaffold_evidence=will_scaffold_evidence,
         write_workflow=will_write_workflow,
         workflow_filename=GITHUB_WORKFLOW_FILENAME,
+        workflow_profile=workflow_profile,
         force=force,
         dry_run=dry_run,
         notes=extra_notes,
