@@ -57,9 +57,19 @@ _WORKFLOW_SOURCE_BY_DEST: dict[str, str] = {
 #: desired strictness"; a free-floating pattern would rewrite that sentence into nonsense. The
 #: trailing continuation is captured and restored so the shell block keeps working.
 _WORKFLOW_ARG_RE = re.compile(
-    r"^(?P<indent>[ \t]+)(?P<name>--profile|--fail-on)[ \t]+(?P<value>\S+)(?P<tail>[ \t]*\\?)$",
+    r"^(?P<indent>[ \t]+)(?P<name>--profile|--fail-on|--output-dir)[ \t]+(?P<value>\S+)(?P<tail>[ \t]*\\?)$",
     re.MULTILINE,
 )
+
+
+#: The `path:` of the artifact-upload step, anchored on the value the template's own
+#: `--output-dir` already carries. Both are rewritten from that one source, so they cannot
+#: drift: a job that writes one directory and uploads another fails silently, with exit 0
+#: and an empty artifact. Built per call rather than fixed, because the anchor is the old
+#: value and a bare `path:` pattern would match unrelated steps.
+def _artifact_path_re(current: str) -> re.Pattern[str]:
+    stem = re.escape(current.rstrip("/").removeprefix("./"))
+    return re.compile(rf"^(?P<indent>[ \t]+)path:[ \t]+\.?/?{stem}/?[ \t]*$", re.MULTILINE)
 
 
 @dataclass(slots=True)
@@ -256,7 +266,7 @@ def _drop_copy_instruction(body: str) -> str:
     return "".join(kept)
 
 
-def _apply_workflow_settings(body: str, *, profile: str | None, fail_on: str) -> str:
+def _apply_workflow_settings(body: str, *, profile: str | None, fail_on: str, output_dir: str) -> str:
     """Put the plan's gate settings into the template's ``evaluate`` invocation.
 
     The templates ship with working defaults because ``docs/adoption-guide.md`` tells adopters
@@ -266,29 +276,56 @@ def _apply_workflow_settings(body: str, *, profile: str | None, fail_on: str) ->
     ``profile`` is ``None`` when the selected profile is an external path, which would not
     resolve on a runner; the template keeps its own and the planner has already recorded a note.
 
-    A template that exposes neither argument on its own line is a packaging fault rather than
-    bad input, and it fails here rather than silently writing an un-substituted gate.
+    A template that exposes none of these arguments on its own line is a packaging fault
+    rather than bad input, and it fails here rather than silently writing an un-substituted
+    gate.
+
+    ``output_dir`` reaches two places, and they have to move together. The `--output-dir`
+    argument decides where the run writes; the `path:` of the upload step decides what gets
+    published. Rewriting only the first leaves a job that writes one directory and uploads
+    another, which fails as an empty artifact and an exit code of 0. The upload `name:` is
+    deliberately left alone: it is a label rather than a path, and a nested value such as
+    `out/reports` would make it invalid, because an artifact name cannot contain a slash.
     """
 
-    replacements = {"--fail-on": fail_on}
+    replacements = {"--fail-on": fail_on, "--output-dir": output_dir}
     if profile is not None:
         replacements["--profile"] = profile
 
     seen: set[str] = set()
+    previous_output_dir: str | None = None
 
     def _swap(match: re.Match[str]) -> str:
+        nonlocal previous_output_dir
         name = match.group("name")
         seen.add(name)
+        if name == "--output-dir":
+            previous_output_dir = match.group("value")
         value = replacements.get(name, match.group("value"))
         return f"{match.group('indent')}{name} {value}{match.group('tail')}"
 
     rewritten = _WORKFLOW_ARG_RE.sub(_swap, body)
 
-    missing = sorted({"--profile", "--fail-on"} - seen)
+    missing = sorted({"--profile", "--fail-on", "--output-dir"} - seen)
     if missing:
         raise InvalidInputError(
             f"Workflow template does not expose {' and '.join(missing)} on its own line, "
             "so init cannot make it enforce the configured gate.",
+        )
+
+    assert previous_output_dir is not None  # guaranteed by the `missing` check above
+    published = 0
+
+    def _swap_path(match: re.Match[str]) -> str:
+        nonlocal published
+        published += 1
+        return f"{match.group('indent')}path: {output_dir.rstrip('/')}/"
+
+    rewritten = _artifact_path_re(previous_output_dir).sub(_swap_path, rewritten)
+    if published != 1:
+        raise InvalidInputError(
+            f"Workflow template publishes {published} paths matching its own --output-dir "
+            f"({previous_output_dir}); init cannot keep the run and the upload in step.",
         )
     return rewritten
 
@@ -378,6 +415,7 @@ def execute_init_plan(plan: InitPlan) -> InitOutcome:
         workflow_body = _apply_workflow_settings(
             _drop_copy_instruction(template_body),
             profile=plan.workflow_profile,
+            output_dir=str(plan.output_dir),
             fail_on=plan.fail_on,
         )
 
