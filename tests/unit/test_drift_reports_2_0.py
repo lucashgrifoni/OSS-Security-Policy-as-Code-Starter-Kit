@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from oss_policy_kit.application.drift import compute_drift, load_report_json
+from oss_policy_kit.application.reporting import digest_for_report_payload
 from oss_policy_kit.domain.errors import InvalidInputError
 
 CONTRACT = "reports/2.0"
@@ -51,7 +52,7 @@ def _control(cid: str, state: str, title: str = "t", waiver: dict | None = None)
 
 
 def _report(controls: list[dict], *, profile: str = "github-level-1", kit: str = "10.0.5") -> dict:
-    return {
+    payload = {
         "schema_version": ("https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/reports/2.0"),
         "contract_version": CONTRACT,
         "generated_at": "2026-08-05T00:00:00Z",
@@ -61,8 +62,11 @@ def _report(controls: list[dict], *, profile: str = "github-level-1", kit: str =
         "summary_by_status": {},
         "controls_total": len(controls),
         "controls": controls,
-        "results_digest": "d",
     }
+    # The digest has to be the one these controls actually imply: since v10.0.25 the
+    # loader recomputes it, and a placeholder reads as a report somebody edited.
+    payload["results_digest"] = digest_for_report_payload(payload)[0] or ""
+    return payload
 
 
 # --- the defect itself ----------------------------------------------------------------

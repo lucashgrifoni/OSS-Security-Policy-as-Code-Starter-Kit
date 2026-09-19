@@ -12,7 +12,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path, PureWindowsPath
-from typing import Any
+from typing import Any, Literal
 
 from rich.console import Console
 from rich.table import Table
@@ -692,6 +692,115 @@ def compute_results_digest(results: list[ControlResult]) -> str:
         )
     payload = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+
+def _status_from_wire(state: str, reason: str | None) -> str | None:
+    """Recover the control status a serialised ``(state, reason)`` pair came from.
+
+    ``REPORTS_V2_STATUS_MAP`` projects nine statuses onto six wire states, so on its face
+    the projection looks lossy and the digest looks unverifiable. It is not: the map carries
+    a second element beside the wire state, and across the statuses ``ControlStatus``
+    actually has, every ``(state, reason)`` pair is distinct. Three keys in that map --
+    ``degraded``, ``error`` and ``skipped`` -- name no ``ControlStatus`` member, and two of
+    them are the only reason the projection is ever ambiguous: ``degraded`` and ``fail``
+    would both arrive as ``("FAIL", None)``. A test pins that, because adding such a member
+    would silently make this inverse guess.
+
+    Returns ``None`` when no status produces the pair, which is a report the kit did not
+    write.
+    """
+
+    real = {member.value for member in ControlStatus}
+    matches = [status for status, pair in REPORTS_V2_STATUS_MAP.items() if pair == (state, reason) and status in real]
+    if len(matches) != 1:
+        return None
+    return matches[0]
+
+
+#: What a report's ``results_digest`` turned out to say about its own verdicts.
+#:
+#: ``unverifiable`` is a separate answer from ``tampered`` on purpose, and it is the same
+#: distinction ADR-045 draws for an evaluator that cannot read its evidence: not knowing is
+#: not the same as knowing something is wrong. A report carrying no digest has not been
+#: shown to be right either, so the caller says so rather than staying quiet.
+DigestVerdict = Literal["verified", "unverifiable", "tampered"]
+
+
+def digest_for_report_payload(payload: dict[str, Any]) -> tuple[str | None, str | None]:
+    """The digest a serialised report's own controls imply, or why they imply none.
+
+    Split out of :func:`verify_results_digest` so the value can be produced as well as
+    checked: anything assembling a reports/2.0 payload -- the kit's own tests, an adopter
+    writing a report from another tool -- needs the same canonical form, and a second
+    implementation of it would drift from this one.
+    """
+
+    controls = payload.get("controls")
+    if not isinstance(controls, list):
+        return None, "the report has no controls array to recompute the digest from"
+
+    canonical: list[dict[str, Any]] = []
+    for index, control in enumerate(controls):
+        if not isinstance(control, dict):
+            return None, f"control #{index} is not an object, so the digest cannot be recomputed"
+        state = control.get("state")
+        reason = control.get("reason")
+        if not isinstance(state, str):
+            return None, f"control #{index} has no state, so the digest cannot be recomputed"
+        status = _status_from_wire(state, reason if isinstance(reason, str) else None)
+        if status is None:
+            return None, f"control #{index} carries a state this contract does not define: {state!r}"
+        canonical.append(
+            {
+                "control_id": control.get("id"),
+                "profile": control.get("profile"),
+                "status": status,
+                "lifecycle": control.get("lifecycle"),
+                "assurance": control.get("assurance"),
+                "weight": control.get("weight"),
+            }
+        )
+
+    canonical.sort(key=lambda row: (str(row["profile"]), str(row["control_id"])))
+    blob = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return "sha256:" + hashlib.sha256(blob).hexdigest(), None
+
+
+def verify_results_digest(payload: dict[str, Any]) -> tuple[DigestVerdict, str | None]:
+    """Recompute ``results_digest`` from the report's own controls.
+
+    Returns the verdict and, when it is not ``verified``, a sentence naming why. Every
+    report the kit has written carries this field and nothing read it back, so a report
+    whose ``state`` had been edited from ``FAIL`` to ``PASS`` was accepted by every
+    consumer, this kit's own ``diff-reports`` and ``export-evidence`` included.
+
+    What a ``verified`` answer establishes, and no more. The digest is unkeyed, so this
+    detects a report somebody edited and did not re-hash. It does not detect a forgery:
+    whoever changed the verdict can run the same function. It also covers only the six
+    canonical fields :func:`compute_results_digest` hashes -- ``control_id``, ``profile``,
+    ``status``, ``lifecycle``, ``assurance``, ``weight`` -- so an edited ``message`` or
+    ``remediation`` verifies, by the same deliberate choice that keeps the digest stable
+    across cosmetic refactors. Signing the report answers the forgery case; this does not.
+    """
+
+    stored = payload.get("results_digest")
+    if not isinstance(stored, str) or not stored.strip():
+        return "unverifiable", (
+            "the report carries no results_digest, so its verdicts were not checked "
+            "against one. reports/2.0 requires the field; a report without it was either "
+            "written by something other than this kit or had the field removed."
+        )
+
+    recomputed, why = digest_for_report_payload(payload)
+    if recomputed is None:
+        return "unverifiable", why
+    if recomputed != stored:
+        return "tampered", (
+            "the control verdicts do not match the digest recorded beside them "
+            f"(recorded {stored}, recomputed {recomputed}). The file was changed after the "
+            "kit wrote it."
+        )
+    return "verified", None
 
 
 def _live_collection_dict(lc: LiveCollectionMetadata | None) -> dict[str, Any] | None:

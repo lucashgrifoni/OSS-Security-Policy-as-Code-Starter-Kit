@@ -44,6 +44,7 @@ from oss_policy_kit.application.input_limits import (
     bad_input_reason,
     too_deep_reason,
 )
+from oss_policy_kit.application.reporting import verify_results_digest
 from oss_policy_kit.cli.common import app, exit_for_unexpected, markup_safe, stderr_console, write_stdout_text
 from oss_policy_kit.cli.help_text import CMD_PANEL_EXPORT
 from oss_policy_kit.domain.errors import InvalidInputError, OssPolicyKitError
@@ -248,6 +249,20 @@ def _read_report(path: Path) -> dict[str, Any]:
     # object (not a report) is rejected instead of rendering an empty
     # attestation at exit 0 (item #11).
     _reject_non_report(parsed, path)
+    # And finally check the digest the report carries against the verdicts printed beside
+    # it. This is the second of the two readers in the kit; `drift.load_report_json` is the
+    # other. Neither read the field before, so `export-evidence` would attest to a report
+    # whose FAIL had been edited to PASS, which is the surface where that matters most.
+    verdict, why = verify_results_digest(parsed)
+    if verdict == "tampered":
+        raise InvalidInputError(f"Evaluation report {label}: {why}")
+    if verdict == "unverifiable":
+        # This command attests to the report, so saying nothing here would put the kit's
+        # name on verdicts it never checked. It is a warning and not a refusal for the
+        # reason ADR-045 gives: the report has not been shown to be wrong.
+        stderr_console().print(
+            f"[yellow]Warning:[/yellow] Evaluation report {markup_safe(label)}: {markup_safe(why or '')}"
+        )
     return parsed
 
 

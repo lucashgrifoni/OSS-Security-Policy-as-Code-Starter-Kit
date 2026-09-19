@@ -37,6 +37,7 @@ from typer.testing import CliRunner
 
 from oss_policy_kit.application.engine import report_json_schema_url
 from oss_policy_kit.application.input_limits import MAX_JSON_DEPTH
+from oss_policy_kit.application.reporting import digest_for_report_payload
 from oss_policy_kit.cli import reports as rep
 from oss_policy_kit.cli.main import app
 from oss_policy_kit.domain.errors import LoadError
@@ -54,6 +55,10 @@ def _report(controls: list[dict[str, Any]] | None = None, **extra: Any) -> dict[
         "controls": controls if controls is not None else [{"id": "A", "state": "PASS", "title": "t"}],
     }
     payload.update(extra)
+    # reports/2.0 requires results_digest and the loader checks it, so a fixture without
+    # one is not a minimal report -- it is an incomplete one. `extra` still wins, which is
+    # what lets a case supply a deliberately wrong digest.
+    payload.setdefault("results_digest", digest_for_report_payload(payload)[0] or "")
     return payload
 
 
