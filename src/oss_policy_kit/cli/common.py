@@ -15,6 +15,7 @@ from typing import Any, NoReturn, cast
 import typer
 from rich.console import Console
 from rich.markup import escape as _rich_markup_escape
+from typer._click.types import ParamType
 from typer.core import HAS_RICH, TyperGroup
 
 from oss_policy_kit.adapters.local_paths import resolve_existing_dir
@@ -40,6 +41,37 @@ from oss_policy_kit.application.waivers import parse_waivers_file
 from oss_policy_kit.cli import terminal_ui
 from oss_policy_kit.cli.help_text import ROOT_CLI_EPILOG
 from oss_policy_kit.domain.errors import InvalidInputError, OssPolicyKitError
+
+
+class NonEmptyPath(ParamType):
+    """A path option that refuses an empty or whitespace-only value.
+
+    `Path("")` is `Path(".")`, so by the time a command body sees `output_dir` an empty
+    `--output-dir` is indistinguishable from a `--output-dir .` the user typed deliberately.
+    The value has to be judged before the conversion, and `Option.callback` runs after it,
+    so a `ParamType` is the only hook that still has the raw string.
+
+    Not passing the flag and passing it empty are different things. The first takes the
+    documented default; the second wrote the reports into the working directory and said
+    nothing, which in CI means into the repository being scanned. `--output-dir .` remains
+    the way to ask for that on purpose.
+
+    Subclasses the Click that Typer vendors. The top-level `click.ParamType` is a different
+    class object here and happens to work too, but the parameter is handed to Typer's copy,
+    and matching it is the answer that does not depend on that staying true.
+    """
+
+    name = "path"
+
+    def convert(self, value: Any, param: Any, ctx: Any) -> Path:
+        if isinstance(value, str) and not value.strip():
+            self.fail(
+                "was given an empty value. Pass a directory, or omit the flag for the "
+                "default; `--output-dir .` writes into the current directory.",
+                param,
+                ctx,
+            )
+        return Path(value)
 
 
 class OssPolicyKitTyperGroup(TyperGroup):

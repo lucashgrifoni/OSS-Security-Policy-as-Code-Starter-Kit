@@ -27,7 +27,7 @@ If you are writing a downstream parser or pinning a contract version, prefer `re
 
 ## Output directory hygiene
 
-The `evaluate`, `evaluate-many`, `scaffold-evidence`, and `collect-evidence` commands all accept an `--output-dir` flag (default `out/`). Two operational notes:
+The `evaluate`, `evaluate-many`, `collect-evidence`, and `init` commands accept an `--output-dir` flag. `evaluate` and `evaluate-many` default to `out/`, `init` defaults to `./oss-policy-reports`, and `collect-evidence` has no default. `scaffold-evidence` does not take the flag. Two operational notes:
 
 - The default `out/` directory is **gitignored** for this project. It is meant to hold reports and evidence emitted during local runs.
 - The CLI **does not auto-prune** `--output-dir`. Successive runs accumulate; either point each run at a unique path (for example `--output-dir ./out/<run-id>/`) or clean periodically.
