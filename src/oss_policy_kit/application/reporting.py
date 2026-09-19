@@ -362,6 +362,43 @@ def _md_line(value: str) -> str:
     return flattened.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
 
 
+#: The two shapes that give Markdown a destination to fetch. Each one is neutralised by
+#: escaping the single character that opens it, which is why neither pattern consumes the
+#: rest of the construct: a bracket with no `](` after it, and a `<` that is not opening a
+#: URI, are ordinary text and stay ordinary text.
+_MARKDOWN_LINK_OR_IMAGE = re.compile(r"!?\[(?=[^\]]*\]\()")
+_MARKDOWN_AUTOLINK = re.compile(r"<(?=[A-Za-z][A-Za-z0-9+.\-]*:[^ <>]*>|[^ <>@]+@[^ <>]+>)")
+
+
+def _md_prose(value: str, *, in_table: bool = False) -> str:
+    """Flatten *value* for Markdown prose and take away its ability to name a destination.
+
+    Used for the fields the report prints as sentences rather than as code: a control's
+    reason and remediation, the operational warnings, and a waiver's owner and
+    justification. The target chooses that text more often than it looks:
+    `evaluators/ai.py` alone interpolates `{p.name}` and `{rel}` into a dozen reasons, so a
+    file named `[click](http://somewhere)` inside a scanned repository reaches the report.
+
+    Three things were measured against a rendered report before this was written. An inline
+    link and an autolink each produced a clickable `<a href>` pointing wherever the
+    repository said. An image produced an `<img src>`, which is the worse one: it needs no
+    click at all, so opening the report reaches out to whoever wrote the filename.
+
+    What it does NOT escape is as deliberate as what it does. Backticks stay, because three
+    catalog controls quote filenames with them. A bare `[` stays, because a remediation
+    already reads ``runs-on: [self-hosted, ephemeral]`` and escaping it would show the
+    reader a backslash. A bare `<` stays, because `< 80 characters` is prose. Measured on
+    the catalog: 222 controls, zero using `](`, zero using the autolink shape.
+
+    Emphasis is still reachable, and that is an accepted difference rather than an
+    oversight. A `*` turns text italic; it does not give anyone an address.
+    """
+
+    flattened = _md_cell(value) if in_table else _md_line(value)
+    flattened = _MARKDOWN_LINK_OR_IMAGE.sub(lambda m: m.group(0).replace("[", "\\["), flattened)
+    return _MARKDOWN_AUTOLINK.sub("\\<", flattened)
+
+
 def _md_cell(value: str) -> str:
     """As :func:`_md_line`, plus the ``|`` escape a table cell additionally needs.
 
@@ -1070,7 +1107,8 @@ def _markdown_report_text(  # noqa: C901
         lines.append("## Operational warnings")
         lines.append("")
         for w in report.operational_warnings:
-            lines.append(f"- {w}")
+            # Warning text names the file that raised it, so the target picks the wording.
+            lines.append(f"- {_md_prose(str(w))}")
         lines.append("")
     lines.extend(_md_scorecard_supplemental_lines(report, include_absolute_path=include_absolute_path))
     lines.extend(_md_controls_table_lines(report))
@@ -1136,11 +1174,11 @@ def _md_controls_table_lines(report: ExecutionReport) -> list[str]:
     for r in report.results:
         # Every cell below carries evaluator- or waiver-file-supplied text, so all of
         # them are escaped — not just the two free-text columns.
-        w = f"yes ({_md_cell(r.waiver.owner)})" if r.waiver else ""
+        w = f"yes ({_md_prose(r.waiver.owner, in_table=True)})" if r.waiver else ""
         out.append(
             f"| `{_md_cell(r.control_id)}` | {_md_cell(r.category)} | {_md_cell(r.lifecycle)} |"
             f" `{_md_cell(r.assurance)}` | `{_md_cell(r.status.value)}` | {_md_cell(r.confidence)} |"
-            f" {_md_cell(r.reason)} | {_md_cell(r.remediation)} | {w} |"
+            f" {_md_prose(r.reason, in_table=True)} | {_md_prose(r.remediation, in_table=True)} | {w} |"
         )
     out.append("")
     return out
@@ -1179,8 +1217,8 @@ def _md_control_detail_lines(report: ExecutionReport, *, include_absolute_path: 
         out.append(f"- **Assurance**: `{_md_line(r.assurance)}`")
         out.append(f"- **Evidence collection method**: `{_md_line(str(r.evidence_collection_method))}`")
         out.append(f"- **Confidence**: {_md_line(r.confidence)}")
-        out.append(f"- **Reason**: {_md_line(r.reason)}")
-        out.append(f"- **Remediation**: {_md_line(r.remediation)}")
+        out.append(f"- **Reason**: {_md_prose(r.reason)}")
+        out.append(f"- **Remediation**: {_md_prose(r.remediation)}")
         if r.evidence_sources:
             out.append("- **Evidence**:")
             out.extend(
@@ -1189,8 +1227,8 @@ def _md_control_detail_lines(report: ExecutionReport, *, include_absolute_path: 
             )
         if r.waiver:
             out.append("- **Waiver**:")
-            out.append(f"  - **Owner**: {_md_line(r.waiver.owner)}")
-            out.append(f"  - **Justification**: {_md_line(r.waiver.justification)}")
+            out.append(f"  - **Owner**: {_md_prose(r.waiver.owner)}")
+            out.append(f"  - **Justification**: {_md_prose(r.waiver.justification)}")
             if r.waiver.expires_at:
                 out.append(f"  - **Expires**: {_md_line(r.waiver.expires_at.isoformat())}")
         out.append("")
