@@ -31,7 +31,7 @@ The v5.0.0 release introduces `reports/1.0` (default), Evidence Model v2, SARIF 
 - [ ] Bundled `data/schema/reports/2.0.json` and `data/schema/findings/1.0.json` are UTF-8 (no BOM); findings/1.0 is strict (`additionalProperties: false`).
 - [ ] `python scripts/check_public_hygiene.py` (see below) returns clean against tracked files.
 - [ ] Mirror clone validation per `docs/release-readiness.md` mirror block returns clean.
-- [ ] Wheel and sdist install in a clean venv (`scripts/consumer_smoke.py`).
+- [ ] Wheel installs in a clean venv and its CLI runs, through `-m` and through the published console script (`scripts/consumer_smoke.py`). The script handles the wheel only; the sdist is covered by the `Package` job, which builds it and checks what it ships.
 - [ ] `evaluate` smokes on `examples/hardened-repo` and `examples/vulnerable-repo` produce expected exit codes.
 
 ### Supply chain expectations for v5.0.0
