@@ -25,6 +25,7 @@ import importlib.util
 import os
 import subprocess
 import sys
+from pathlib import Path
 from types import ModuleType
 
 import pytest
@@ -66,43 +67,38 @@ def test_the_child_environment_keeps_everything_else(monkeypatch: pytest.MonkeyP
     assert set(os.environ) - set(env) == {"PYTHONPATH"}
 
 
-def test_a_cleaned_environment_actually_changes_which_package_a_child_imports(
-    monkeypatch: pytest.MonkeyPatch,
+def test_a_cleaned_environment_actually_changes_what_a_child_can_import(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The mechanism, end to end, rather than a property of the dict.
 
-    Without it the two cases above only say that a key was removed from a mapping. This one
-    shows the removal decides which `oss_policy_kit` a subprocess imports, which is the
-    thing the script exists to get right.
+    Deliberately a module nobody has installed. The first version of this case imported
+    `oss_policy_kit` and asserted the resolved path was not `<repo>/src`, which passed here
+    and failed on CI: CI installs the project with `pip install -e .`, so `<repo>/src` is
+    exactly where a clean environment resolves it. The assertion could not hold there, and
+    the difference was not the operating system or the Python version but which tree the
+    editable install points at. A module that exists only under `PYTHONPATH` removes the
+    question.
     """
 
-    argv = [sys.executable, "-c", "import oss_policy_kit as m; print(m.__file__)"]
-    monkeypatch.setenv("PYTHONPATH", str(ROOT / "src"))
-    polluted = dict(os.environ)
-    # Passed whole rather than merged over the polluted one: a dict merge cannot remove a
-    # key, so {**polluted, **cleaned} keeps PYTHONPATH and the case proves nothing. The
-    # first version of this test did exactly that and failed, which is how it was caught.
-    cleaned_env = _script()._child_env()
+    (tmp_path / "smoke_probe.py").write_text("VALUE = 'from PYTHONPATH'\n", encoding="utf-8")
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path))
+    argv = [sys.executable, "-c", "import smoke_probe; print(smoke_probe.VALUE)"]
 
-    with_pollution = subprocess.run(  # noqa: S603 - fixed argv, no shell
-        argv, capture_output=True, text=True, encoding="utf-8", env=polluted, check=True
-    ).stdout.strip()
-    cleaned = subprocess.run(  # noqa: S603 - fixed argv, no shell
-        argv,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        env=cleaned_env,
-        check=True,
-    ).stdout.strip()
-
-    assert with_pollution != cleaned or str(ROOT / "src") not in with_pollution, (
-        "PYTHONPATH did not change the resolved package here, so this environment cannot "
-        "demonstrate the shadowing the fix is about"
+    reachable = subprocess.run(  # noqa: S603 - fixed argv, no shell
+        argv, capture_output=True, text=True, encoding="utf-8", env=dict(os.environ), check=False
     )
-    assert str(ROOT / "src") not in cleaned, (
-        f"a child started from the cleaned environment still imported {cleaned}, which is the "
-        "tree PYTHONPATH named rather than what the venv installed"
+    hidden = subprocess.run(  # noqa: S603 - fixed argv, no shell
+        argv, capture_output=True, text=True, encoding="utf-8", env=_script()._child_env(), check=False
+    )
+
+    assert reachable.returncode == 0 and "from PYTHONPATH" in reachable.stdout, (
+        "PYTHONPATH did not reach the child at all, so this environment cannot demonstrate "
+        f"the shadowing the fix is about: {reachable.stderr!r}"
+    )
+    assert hidden.returncode != 0, (
+        "a child started from the cleaned environment still imported a module that exists "
+        "only under PYTHONPATH, so the cleaning did not take effect"
     )
 
 
