@@ -131,6 +131,20 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
+    if not _tag_exists(previous, repo):
+        # The window between merging a release PR and pushing its tag. On the transient
+        # next-version branch the newest section is the next release, so `previous` is the
+        # version that was just merged and is not tagged yet, and `git log previous..HEAD`
+        # exits 128. The crash reads as "a commit was dropped", which is the one thing this
+        # check exists to say, so it has to be told apart from it. There is no range to
+        # compare until the tag lands; the same run repeats once it does.
+        print(
+            f"{previous} is not tagged yet, so {previous}..HEAD names no range. This is the "
+            f"window between merging the {previous} release PR and pushing its tag; push the "
+            "tag and this check has something to compare. Nothing to check."
+        )
+        return 0
+
     commits = _commits(previous, "HEAD", repo)
     missing = dropped_commits(commits, changelog, types)
 
