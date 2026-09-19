@@ -21,7 +21,28 @@ classifiers = [
   "Topic :: Security",
 ]
 dependencies = [
-  "typer>=0.12.5",
+  # 0.26, not 0.12.5. `cli/common.py` imports `typer.core.HAS_RICH`, which first exists in
+  # typer 0.19.0, and every command module imports `cli/common.py`. Every resolution in the
+  # seven releases from 0.12.5 to 0.18.0 therefore produced an install pip called successful
+  # and a CLI where every command exited 1 with `ImportError: cannot import name HAS_RICH`
+  # before doing anything. It held only because pip picks the newest typer; a constraints
+  # file, a mirror, an offline index or a co-installed transitive pin all reach that range.
+  #
+  # The floor is 0.26 rather than 0.19 because `tests/cli/test_a_stream_that_is_gone_is_not_a
+  # _defect.py` asserts that the Abort typer raises is typer's own, which typer began
+  # vendoring in 0.26.0. A floor the project's own suite fails at is not a floor it supports.
+  "typer>=0.26",
+  # Imported at module scope by six shipped modules and declared nowhere until now. It reached
+  # every environment only through typer's requirements, so the kit's import-time correctness
+  # rested on a promise in someone else's metadata across a typer range with no ceiling, and
+  # typer publishes a slim distribution without rich. 13.8.0 is the floor typer itself declares
+  # from 0.25, and the kit uses nothing newer.
+  "rich>=13.8.0",
+  # Nothing under `src/` imports click, and from 0.26 typer vendors its own copy, so this line
+  # constrains neither the kit nor typer. It stays because removing it changes the closure every
+  # adopter and the published image install, which is a packaging decision rather than part of
+  # fixing a floor.
+  #
   # The ceiling is the next MAJOR, not the next minor. It used to be `<8.5`, a bound that
   # was never chosen: Dependabot walked it forward one minor at a time (`<8.4` -> `<8.5`,
   # #12) and nobody wrote down what a newer click broke, because nothing did -- the full
