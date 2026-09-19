@@ -18,6 +18,8 @@ from oss_policy_kit.application.engine import evaluate_repository
 from oss_policy_kit.application.evaluators_common import as_mapping
 from oss_policy_kit.application.loader import load_catalog, load_profile_by_id, merge_kit_root
 from oss_policy_kit.application.reporting import (
+    _md_code,
+    _md_line,
     _sanitize_target_path_for_payload,
     compute_priority_insights,
     report_to_dict,
@@ -696,8 +698,8 @@ def _batch_comparison_lines(
     worst = sorted(n for n, c in fails_by_target.items() if c == max_f)
     best = sorted(n for n, c in fails_by_target.items() if c == min_f)
     return [
-        f"- **Most failures (tie-break: lexicographic name)**: {', '.join(f'`{n}`' for n in worst)}",
-        f"- **Fewest failures**: {', '.join(f'`{n}`' for n in best)}",
+        f"- **Most failures (tie-break: lexicographic name)**: {', '.join(_md_code(n) for n in worst)}",
+        f"- **Fewest failures**: {', '.join(_md_code(n) for n in best)}",
     ]
 
 
@@ -742,7 +744,7 @@ def _batch_md_matrix_lines(rows: list[BatchRunRow]) -> list[str]:
         summary = row.summary_by_status
         other = sum(v for k, v in summary.items() if k not in {"fail", "manual-review-required", "pass"})
         out.append(
-            f"| `{row.target_name}` | `{row.profile_id}` | {summary.get('fail', 0)} | "
+            f"| {_md_code(row.target_name, in_table=True)} | `{row.profile_id}` | {summary.get('fail', 0)} | "
             f"{summary.get('manual-review-required', 0)} | {summary.get('pass', 0)} | {other} |"
         )
     out.append("")
@@ -770,7 +772,7 @@ def _batch_md_artifact_lines(
         except ValueError:
             j_show = _sanitize_target_path_for_payload(str(jp), include_absolute=include_absolute_path)
             m_show = _sanitize_target_path_for_payload(str(mp), include_absolute=include_absolute_path)
-        out.append(f"- `{row.target_name}` x `{row.profile_id}` -> `{j_show}` , `{m_show}`")
+        out.append(f"- {_md_code(row.target_name)} x `{row.profile_id}` -> {_md_code(j_show)} , {_md_code(m_show)}")
     return out
 
 
@@ -810,7 +812,7 @@ def _render_batch_markdown(
         "",
         f"- **Generated (UTC)**: `{generated_at}`",
         f"- **Kit version**: `{oss_policy_kit.__version__}`",
-        f"- **Target root**: `{target_root_display}`",
+        f"- **Target root**: {_md_code(target_root_display)}",
         f"- **Profiles**: {', '.join(f'`{p}`' for p in profile_ids)}",
         (
             f"- **Targets evaluated**: {eval_queue_len} child folder(s) x {len(profile_ids)} "
@@ -863,12 +865,12 @@ def _render_batch_markdown(
                 "",
             ]
         )
-        md_lines.extend(f"- `{f['name']}` — {f['reason']}" for f in failed_dirs)
+        md_lines.extend(f"- {_md_code(f['name'])} — {_md_line(f['reason'])}" for f in failed_dirs)
         md_lines.append("")
 
     if skipped_dirs:
         md_lines.extend(["## Skipped directories", ""])
-        md_lines.extend(f"- `{s['name']}` — {s['reason']}" for s in skipped_dirs)
+        md_lines.extend(f"- {_md_code(s['name'])} — {_md_line(s['reason'])}" for s in skipped_dirs)
         md_lines.append("")
 
     md_lines.extend(_batch_md_matrix_lines(rows))

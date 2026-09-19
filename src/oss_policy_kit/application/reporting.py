@@ -372,6 +372,36 @@ def _md_cell(value: str) -> str:
     return _md_line(value).replace("|", "\\|")
 
 
+def _md_code(value: str, *, in_table: bool = False) -> str:
+    """Render *value* as an inline code span, delimiters included, that it cannot escape.
+
+    :func:`_md_line` deliberately leaves inline Markdown alone, which is right for the prose
+    it was written for and wrong for a value wrapped in backticks by its caller. A backtick
+    inside the value closes the span early, and whatever follows stops being code:
+
+        target directory   evil`name[click](x)
+        written            `evil`name[click](x)`
+        rendered           <code>evil</code>name<a href="x">click</a>`
+
+    Measured on a real run of ``evaluate-many`` against a directory with that name: five
+    clickable anchors in one report, pointing at a destination the report's author never
+    wrote, in a file ``docs/evidence-pack.md`` presents as preserved review evidence.
+
+    CommonMark closes a code span on the first backtick run matching the opening one, so the
+    fix is the one the spec provides rather than an escape: open with a run one longer than
+    the longest run inside the value. A value that starts or ends with a backtick also needs
+    one space of padding, which the renderer strips again.
+
+    ``in_table`` additionally escapes ``|``, for the same reason :func:`_md_cell` does.
+    """
+
+    flattened = _md_cell(value) if in_table else _md_line(value)
+    longest = max((len(run) for run in re.findall(r"`+", flattened)), default=0)
+    fence = "`" * (longest + 1)
+    pad = " " if flattened.startswith("`") or flattened.endswith("`") else ""
+    return f"{fence}{pad}{flattened}{pad}{fence}"
+
+
 #: Both separators, always, and never the local ``os.sep``. ``pathlib`` on POSIX does not
 #: treat a backslash as a separator, so ``Path(...).name`` of a drive-rooted Windows path is
 #: the WHOLE string there -- this redaction silently did nothing to such a path when the
@@ -985,13 +1015,13 @@ def _markdown_report_text(  # noqa: C901
     lines.append(f"- **Generated (UTC)**: `{report.generated_at}`")
     lines.append(f"- **Kit version**: `{report.kit_version}`")
     _target_display = _sanitize_target_path_for_payload(report.target_path, include_absolute=include_absolute_path)
-    lines.append(f"- **Target**: `{_target_display}`")
+    lines.append(f"- **Target**: {_md_code(_target_display)}")
     lines.append(f"- **Profile**: `{report.profile_id}` - {report.profile_title}")
     if report.scorecard_path:
         _scorecard_display = _sanitize_target_path_for_payload(
             report.scorecard_path, include_absolute=include_absolute_path
         )
-        lines.append(f"- **Scorecard file**: `{_scorecard_display}`")
+        lines.append(f"- **Scorecard file**: {_md_code(_scorecard_display)}")
     lines.append("")
     lines.append("## Summary")
     lines.append("")
@@ -1022,7 +1052,7 @@ def _markdown_report_text(  # noqa: C901
             report.external_waiver_path, include_absolute=include_absolute_path
         )
         lines.append(
-            f"- **External waiver file loaded for this run** (`--waivers`): `{_waiver_display}`. "
+            f"- **External waiver file loaded for this run** (`--waivers`): {_md_code(_waiver_display)}. "
             "That file is **not** the same as **versioned in-repo** waiver policy."
         )
         lines.append(
@@ -1154,7 +1184,7 @@ def _md_control_detail_lines(report: ExecutionReport, *, include_absolute_path: 
         if r.evidence_sources:
             out.append("- **Evidence**:")
             out.extend(
-                f"  - `{_md_line(_md_evidence_display(e, include_absolute_path=include_absolute_path))}`"
+                f"  - {_md_code(_md_evidence_display(e, include_absolute_path=include_absolute_path))}"
                 for e in r.evidence_sources
             )
         if r.waiver:
@@ -1335,8 +1365,8 @@ def _drift_markdown(report: DriftReport) -> str:
         )
     lines.extend(
         [
-            f"- **Before**: `{report.before_path}`",
-            f"- **After**: `{report.after_path}`",
+            f"- **Before**: {_md_code(report.before_path)}",
+            f"- **After**: {_md_code(report.after_path)}",
             f"- **Kit versions**: {report.before_kit_version} → {report.after_kit_version}",
             f"- **Regressions**: {len(report.regressions)}",
             f"- **Improvements**: {len(report.improvements)}",
