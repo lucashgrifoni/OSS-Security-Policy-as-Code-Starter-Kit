@@ -38,7 +38,7 @@ jobs:
 
       - name: Evaluate OSS policy baseline
         run: |
-          python -m oss_policy_kit evaluate \
+          python -P -m oss_policy_kit evaluate \
             --target . \
             --profile github-level-1 \
             --fail-on fail \

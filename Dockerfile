@@ -181,6 +181,14 @@ RUN /usr/local/bin/python3 -m pip uninstall --yes pip \
 # "Cannot write to --output-dir 'out': Permission denied" and exit 2. It went unnoticed
 # because a Docker Desktop bind mount is world-writable, so the failure only appears where
 # the docs say to use this image -- Linux, CI, a Kubernetes Job.
+# /work is the adopter's repository, bind-mounted, and it is the working directory for every
+# command below. `-P` in the ENTRYPOINT and HEALTHCHECK argv keeps it off sys.path for the two
+# commands this file declares; PYTHONSAFEPATH covers the ones it does not -- an operator who
+# runs `docker run --entrypoint python <image> -m oss_policy_kit ...` supplies their own argv,
+# and the flag would be gone with it. Without either, an `oss_policy_kit.py` at the root of the
+# mounted repository runs as `__main__` instead of the kit.
+ENV PYTHONSAFEPATH=1
+
 WORKDIR /work
 RUN chown appuser:appuser /work
 USER appuser
@@ -197,7 +205,7 @@ LABEL org.opencontainers.image.title="oss-policy-kit" \
 # documents a working entrypoint and satisfies HEALTHCHECK posture checks
 # (Trivy DS-0026 / KICS). A long interval keeps it effectively free.
 HEALTHCHECK --interval=1h --timeout=10s --retries=1 \
-    CMD ["python", "-m", "oss_policy_kit", "--version"]
+    CMD ["python", "-P", "-m", "oss_policy_kit", "--version"]
 
-ENTRYPOINT ["python", "-m", "oss_policy_kit"]
+ENTRYPOINT ["python", "-P", "-m", "oss_policy_kit"]
 CMD ["--help"]
