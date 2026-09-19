@@ -47,6 +47,18 @@ _WORKFLOWS = ROOT / ".github" / "workflows"
 _GENERATOR = re.compile(r"cyclonedx_py\s+environment(?P<rest>[^\n]*)")
 
 
+def _executable_lines(script: str) -> str:
+    """*script* without the lines the shell will not run.
+
+    A `run:` block is a shell script, so a line whose first non-blank character is `#` is
+    a comment and never executes. Reading the block as raw text lets a commented-out
+    command stand in as proof that the command is there, which is how a guard ends up
+    passing over a step that does nothing. Everything below matches against this instead.
+    """
+
+    return "\n".join(line for line in script.splitlines() if not line.lstrip().startswith("#"))
+
+
 def _sbom_steps() -> list[tuple[str, str]]:
     """(workflow name, run script) for every step that generates a CycloneDX SBOM."""
 
@@ -55,7 +67,7 @@ def _sbom_steps() -> list[tuple[str, str]]:
         document = yaml.safe_load(path.read_text(encoding="utf-8"))
         for job in (document.get("jobs") or {}).values():
             for step in job.get("steps") or []:
-                script = str(step.get("run", ""))
+                script = _executable_lines(str(step.get("run", "")))
                 if _GENERATOR.search(script):
                     found.append((path.name, script))
     return found
@@ -97,7 +109,15 @@ def test_an_sbom_step_inventories_the_distribution_not_the_build_tools(workflow:
     # environment FROM OUTSIDE it, which this file's own docstring already called for, is
     # spelled `pip --python <interpreter> install`, and a pattern requiring the two words to be
     # adjacent rejected exactly the shape it was asking for.
-    assert re.search(r"\bpip\s+(?:--?\S+(?:\s+\S+)?\s+)*install\b[^\n]*dist/", script), (
+    #
+    # Every repetition has to begin with a literal `-`, and the optional value that follows a
+    # flag has to begin with something that is neither `-` nor whitespace. That is what keeps
+    # the split unique: no run of tokens can be divided between iterations in two ways, so the
+    # engine has nothing to backtrack over. The obvious `(?:--?\S+(?:\s+\S+)?\s+)*` spelling is
+    # ambiguous in exactly that way and runs in exponential time -- measured on ` -! ` repeated,
+    # it went from 0.11ms at 14 repetitions to 4.75ms at 22, while this one stays at 0.004ms and
+    # is still under 10ms at 20000.
+    assert re.search(r"\bpip\s+(?:-\S*\s+(?:[^-\s]\S*\s+)?)*install\b[^\n]*dist/", script), (
         f"{workflow}: nothing installs the built distribution before the SBOM is generated, so "
         "whatever environment is inventoried cannot contain the artifact this SBOM claims to "
         "describe."
