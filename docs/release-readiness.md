@@ -105,14 +105,14 @@ See `docs/packaging-and-release.md` for exact commands.
 
 ## Product smoke
 
-- [ ] `python -m oss_policy_kit evaluate --target ./examples/vulnerable-repo --profile github-level-1 --output-dir ./out/vulnerable`
-- [ ] `python -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile github-level-1 --output-dir ./out/hardened`
-- [ ] `python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck`
-- [ ] `python -m oss_policy_kit evaluate --target ./examples/vulnerable-repo --profile github-level-1 --output-dir ./out/gate --fail-on fail` exits with code `1`
-- [ ] optional parser smoke: `python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/summary --summary-only --format json`
-- [ ] `python -m oss_policy_kit profiles` and `python -m oss_policy_kit profiles --format json`
-- [ ] optional: `python -m oss_policy_kit recommend-profile --target ./examples/hardened-repo`
-- [ ] optional: `python -m oss_policy_kit scaffold-evidence --target . --platform github` in a throwaway directory, then delete artifacts
+- [ ] `python -P -m oss_policy_kit evaluate --target ./examples/vulnerable-repo --profile github-level-1 --output-dir ./out/vulnerable`
+- [ ] `python -P -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile github-level-1 --output-dir ./out/hardened`
+- [ ] `python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck`
+- [ ] `python -P -m oss_policy_kit evaluate --target ./examples/vulnerable-repo --profile github-level-1 --output-dir ./out/gate --fail-on fail` exits with code `1`
+- [ ] optional parser smoke: `python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/summary --summary-only --format json`
+- [ ] `python -P -m oss_policy_kit profiles` and `python -P -m oss_policy_kit profiles --format json`
+- [ ] optional: `python -P -m oss_policy_kit recommend-profile --target ./examples/hardened-repo`
+- [ ] optional: `python -P -m oss_policy_kit scaffold-evidence --target . --platform github` in a throwaway directory, then delete artifacts
 
 ## Claims hygiene
 

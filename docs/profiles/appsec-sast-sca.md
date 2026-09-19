@@ -27,7 +27,7 @@ The companion `emit-vex` subcommand reads the OSV-Scanner SARIF and produces a C
 
 ```bash
 osv-scanner --format sarif --recursive . > .oss-policy-kit/evidence/sast/osv-scanner.sarif.json
-python -m oss_policy_kit emit-vex \
+python -P -m oss_policy_kit emit-vex \
     --osv-sarif .oss-policy-kit/evidence/sast/osv-scanner.sarif.json \
     --waivers waivers/waivers.yaml \
     --validate \
@@ -48,11 +48,11 @@ osv-scanner --format sarif --recursive . > .oss-policy-kit/evidence/sast/osv-sca
 gitleaks detect --report-format sarif --report-path .oss-policy-kit/evidence/sast/gitleaks.sarif.json
 
 # 2. Gate the release with all four controls active
-python -m oss_policy_kit evaluate --target . --profile appsec-sast-sca-1 \
+python -P -m oss_policy_kit evaluate --target . --profile appsec-sast-sca-1 \
     --fail-on fail --output-dir oss-policy-reports
 
 # 3. Emit a VEX document for the SCA findings
-python -m oss_policy_kit emit-vex \
+python -P -m oss_policy_kit emit-vex \
     --osv-sarif .oss-policy-kit/evidence/sast/osv-scanner.sarif.json \
     --waivers waivers/waivers.yaml --validate \
     -o oss-policy-reports/vex.cdx.json

@@ -59,7 +59,7 @@ Use this matrix as an operator shortcut (derived from current bundled profile in
 
 ## `maturity_label` glossary and recommended `--fail-on`
 
-`python -m oss_policy_kit profiles --format json` exposes a `maturity_label` field per profile. The label is a stable operator-facing string; the table below maps each label to the gate we recommend you actually wire in CI.
+`python -P -m oss_policy_kit profiles --format json` exposes a `maturity_label` field per profile. The label is a stable operator-facing string; the table below maps each label to the gate we recommend you actually wire in CI.
 
 | `maturity_label` | Example profiles | Recommended `--fail-on` | Evidence expectation |
 | --- | --- | --- | --- |
@@ -190,7 +190,7 @@ Starting in v5.4.0 the kit also ships **bundled framework alignment profiles** (
 | gitlab-release-hardening-2 | 29 | release ladder | no | 15 / 13 / 1 |
 | gitlab-release-hardening-3 | 36 | release hard-gate (extreme) | **yes** | 15 / 15 / 6 |
 
-> **Source for counts**: `python -m oss_policy_kit profiles --format json` (`controls` and `assurance_mix`) against the bundled catalog in this revision. Counts evolve as new controls are folded into existing profiles; the JSON output is the canonical source of truth for any given build.
+> **Source for counts**: `python -P -m oss_policy_kit profiles --format json` (`controls` and `assurance_mix`) against the bundled catalog in this revision. Counts evolve as new controls are folded into existing profiles; the JSON output is the canonical source of truth for any given build.
 
 ### Framework alignment profiles (v5.4.0)
 
@@ -243,7 +243,7 @@ The hardened fixture is strong for the single-platform extreme tracks, but it is
 
 Extreme profiles (`*-level-3`, `*-release-hardening-3`) intentionally embed evidence-backed controls so that a `pass` on a hard gate reflects something more than clone-visible signals. The trade-off is that **without `collect-evidence` (or hand-filled evidence files matching the bundled schemas), some controls will land on `manual-review-required`, `not-applicable`, or stay at lower confidence**. That is not a defect — it is the difference between *clone-visible* checks and *evidence-backed* checks.
 
-The proportion of evidence-backed controls per extreme profile (source: `python -m oss_policy_kit profiles --format json` against the bundled catalog in this revision):
+The proportion of evidence-backed controls per extreme profile (source: `python -P -m oss_policy_kit profiles --format json` against the bundled catalog in this revision):
 
 | Profile | Total controls | Evidence-backed | % evidence-backed |
 | --- | ---: | ---: | ---: |

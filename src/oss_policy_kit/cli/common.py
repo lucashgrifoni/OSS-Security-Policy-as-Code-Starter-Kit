@@ -118,9 +118,9 @@ app = typer.Typer(
     help=(
         "Evaluate a local repository clone against bundled OSS security profiles.\n\n"
         "Preferred usage:\n"
-        "  python -m oss_policy_kit evaluate --target <repo> --profile <profile>\n\n"
+        "  python -P -m oss_policy_kit evaluate --target <repo> --profile <profile>\n\n"
         "Compatibility usage:\n"
-        "  python -m oss_policy_kit --target <repo> --profile <profile>"
+        "  python -P -m oss_policy_kit --target <repo> --profile <profile>"
     ),
     epilog=ROOT_CLI_EPILOG,
 )

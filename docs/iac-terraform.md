@@ -33,8 +33,8 @@ All 12 rules ship as `lifecycle: experimental` for v5.5. Promotion to `stable` i
 
 ```bash
 pip install 'oss-policy-kit[iac]'                                  # one-time, brings python-hcl2
-python -m oss_policy_kit scan-iac --target .                       # writes evidence
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit scan-iac --target .                       # writes evidence
+python -P -m oss_policy_kit evaluate \
   --target . \
   --profile iac-terraform-baseline-1 \
   --output-dir ./out/iac-baseline \

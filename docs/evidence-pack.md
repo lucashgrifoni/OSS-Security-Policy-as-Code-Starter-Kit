@@ -7,7 +7,7 @@ This document is a practical walkthrough for reproducing text evidence, opening 
 To populate **`.oss-policy-kit/evidence/`** with real GitHub API data instead of manual templates, install the **`[github]`** extra, set **`GITHUB_TOKEN`**, then run:
 
 ```powershell
-python -m oss_policy_kit collect-evidence --target . --platform github --repo org/repo
+python -P -m oss_policy_kit collect-evidence --target . --platform github --repo org/repo
 ```
 
 The **`org/repo`** slug can be omitted when the repository **`origin`** points to **github.com**.
@@ -17,7 +17,7 @@ The **`org/repo`** slug can be omitted when the repository **`origin`** points t
 Install **`oss-policy-kit[azure]`** or **`httpx`**. Set **`AZURE_DEVOPS_ORG`** and **`AZURE_DEVOPS_TOKEN`** with Code, Build, and Project read access. Pass **`--repo ProjectName/repoName`** because automatic slug detection from git is not available yet.
 
 ```powershell
-python -m oss_policy_kit collect-evidence --target . --platform azure --repo MyProject/my-repo
+python -P -m oss_policy_kit collect-evidence --target . --platform azure --repo MyProject/my-repo
 ```
 
 ## AWS (`collect-evidence --platform aws`)
@@ -27,7 +27,7 @@ Install **`oss-policy-kit[aws]`** or **`boto3`**. Use default AWS credentials an
 ```powershell
 $env:AWS_CODEBUILD_PROJECT = "my-build"
 $env:AWS_CODEPIPELINE_NAME = "my-pipe"
-python -m oss_policy_kit collect-evidence --target . --platform aws
+python -P -m oss_policy_kit collect-evidence --target . --platform aws
 ```
 
 ## Token scopes
@@ -51,7 +51,7 @@ Controls **AZ-ARTSBOM-058**, **AZ-ARTPRV-059**, **AWS-SBOMART-058**, and **AWS-P
 
 ## Dry-run security contract
 
-`python -m oss_policy_kit collect-evidence --platform {github|gitlab|azure|aws} --dry-run` is safe to run in public CI logs and transcripts. It contracts itself to printing only:
+`python -P -m oss_policy_kit collect-evidence --platform {github|gitlab|azure|aws} --dry-run` is safe to run in public CI logs and transcripts. It contracts itself to printing only:
 
 - the resolved target and output directory
 - the repository slug, when available
@@ -84,12 +84,12 @@ Run each command from the repository root. After each command:
 | Step | Command | Expected result | Text evidence to keep |
 |---|---|---|---|
 | Test suite | `python -m pytest tests -k "not integration" -q` | Green summary for the selected test scope and exit code `0`. | Final pytest summary, exit code, and any skipped or deselected scope. |
-| CLI help | `python -m oss_policy_kit --help` | Usage, command list, options, and exit-code contract are printed. | `Usage`, `Commands`, `Options`, and `Exit Codes` sections. |
-| Hardened fixture | `python -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile github-level-1 --output-dir ./out/evidence/hardened` | Report generated successfully; current fixture is expected to pass all active `github-level-1` controls. | stdout summary plus `out/evidence/hardened/evaluation-report.md` and `.json`. |
-| Vulnerable fixture | `python -m oss_policy_kit evaluate --target ./examples/vulnerable-repo --profile github-level-1 --output-dir ./out/evidence/vulnerable` | Report generated successfully; fixture emits multiple non-pass controls by design. | stdout summary, top gaps, and the `Controls` and `Detail` sections from the generated Markdown report. |
-| Repository self-check | `python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/evidence/selfcheck-root` | Current repository is evaluated successfully. | stdout summary and generated Markdown/JSON reports for the exact revision. |
-| CI gate behavior | `python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/evidence/selfcheck-gated --fail-on fail` | Reports are written before the process exits according to the selected threshold. | stdout, stderr, exit code, and report directory. |
-| JSON summary | `python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/evidence/selfcheck-summary --summary-only --format json` | Compact JSON is printed. | Full JSON line, `summary_by_status`, `controls_total`, and exit code. |
+| CLI help | `python -P -m oss_policy_kit --help` | Usage, command list, options, and exit-code contract are printed. | `Usage`, `Commands`, `Options`, and `Exit Codes` sections. |
+| Hardened fixture | `python -P -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile github-level-1 --output-dir ./out/evidence/hardened` | Report generated successfully; current fixture is expected to pass all active `github-level-1` controls. | stdout summary plus `out/evidence/hardened/evaluation-report.md` and `.json`. |
+| Vulnerable fixture | `python -P -m oss_policy_kit evaluate --target ./examples/vulnerable-repo --profile github-level-1 --output-dir ./out/evidence/vulnerable` | Report generated successfully; fixture emits multiple non-pass controls by design. | stdout summary, top gaps, and the `Controls` and `Detail` sections from the generated Markdown report. |
+| Repository self-check | `python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/evidence/selfcheck-root` | Current repository is evaluated successfully. | stdout summary and generated Markdown/JSON reports for the exact revision. |
+| CI gate behavior | `python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/evidence/selfcheck-gated --fail-on fail` | Reports are written before the process exits according to the selected threshold. | stdout, stderr, exit code, and report directory. |
+| JSON summary | `python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/evidence/selfcheck-summary --summary-only --format json` | Compact JSON is printed. | Full JSON line, `summary_by_status`, `controls_total`, and exit code. |
 | Package build | `python -m build` | Source distribution and wheel are built. | Build log tail, `dist/` file names, and SHA-256 digests of produced artifacts. |
 | Installed wheel smoke test | `python -m venv out/evidence/venv-wheel-smoke` followed by install and evaluate commands | The wheel installs in an isolated environment and the installed CLI runs successfully. | Install log, CLI version, evaluation summary, generated reports, and exit code. |
 

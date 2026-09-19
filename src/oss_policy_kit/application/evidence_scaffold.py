@@ -347,7 +347,7 @@ posture when platform signals are not visible in the clone.
 
 1. Fill in `attested_by`, dates, and repository/project names.
 2. Adjust `posture` / `protections` booleans to match real configuration.
-3. Re-run: `python -m oss_policy_kit evaluate --target . --profile <your-release-hardening>`.
+3. Re-run: `python -P -m oss_policy_kit evaluate --target . --profile <your-release-hardening>`.
 
 ## Safe re-runs
 

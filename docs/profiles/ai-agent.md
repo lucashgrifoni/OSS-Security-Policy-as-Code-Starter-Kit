@@ -66,7 +66,7 @@ and shows the expected shape:
 Run:
 
 ```bash
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
   --target examples/ai-agent-baseline-repo \
   --profile ai-agent-baseline-1 \
   --fail-on degraded

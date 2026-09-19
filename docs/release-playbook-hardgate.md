@@ -17,12 +17,12 @@ Hybrid profiles `github-aws-level-2` and `github-azure-level-2` remain advisory-
 From the repository root you want to gate:
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-release-hardening-3 --output-dir ./out/release-gate --fail-on fail
+python -P -m oss_policy_kit evaluate --target . --profile github-release-hardening-3 --output-dir ./out/release-gate --fail-on fail
 ```
 
 Adjust `--profile` to `aws-release-hardening-3` or `azure-release-hardening-3` when AWS CodeBuild/CodePipeline or Azure DevOps is the CI/CD source of truth.
 
-Other supported flags for this workflow include `--format`, `--summary-only`, and `--output-dir` as documented in `python -m oss_policy_kit evaluate --help`.
+Other supported flags for this workflow include `--format`, `--summary-only`, and `--output-dir` as documented in `python -P -m oss_policy_kit evaluate --help`.
 
 ## Legacy profile id (GitHub) — removed in v5.0.0
 
@@ -45,10 +45,10 @@ Treat this as a real signal in CI:
 When you have credentials configured for the target platform:
 
 ```bash
-python -m oss_policy_kit collect-evidence --target . --platform github
+python -P -m oss_policy_kit collect-evidence --target . --platform github
 ```
 
-Platforms: `github`, `azure`, or `aws` (each requires the matching credentials; see `python -m oss_policy_kit collect-evidence --help`).
+Platforms: `github`, `azure`, or `aws` (each requires the matching credentials; see `python -P -m oss_policy_kit collect-evidence --help`).
 
 Use `--dry-run` to preview which evidence files would be written without calling remote APIs.
 
@@ -57,11 +57,11 @@ Evidence is written under `<target>/.oss-policy-kit/evidence/` unless you pass `
 ## Choose a profile interactively
 
 ```bash
-python -m oss_policy_kit recommend-profile --target . --format human
+python -P -m oss_policy_kit recommend-profile --target . --format human
 ```
 
 ```bash
-python -m oss_policy_kit profiles --format json
+python -P -m oss_policy_kit profiles --format json
 ```
 
 ## Interpret results for release decisions

@@ -24,7 +24,7 @@ oss-policy-kit --version
 ```
 
 Expected output: the installed version, printed on its own line. If
-`oss-policy-kit` is not on `PATH`, use `python -m oss_policy_kit` instead
+`oss-policy-kit` is not on `PATH`, use `python -P -m oss_policy_kit` instead
 (works identically on every command below).
 
 ## 2. Run the hardened example (2 minutes)
@@ -145,7 +145,7 @@ locally.
 ## When something fails
 
 - `oss-policy-kit --version` works but `oss-policy-kit` is not on
-  `PATH`: use `python -m oss_policy_kit` everywhere instead.
+  `PATH`: use `python -P -m oss_policy_kit` everywhere instead.
 - `pip install oss-policy-kit` complains about Python version: the kit
   requires Python 3.12+. Earlier versions are not supported.
 - `evaluate` finishes but every control says `manual-review-required`:

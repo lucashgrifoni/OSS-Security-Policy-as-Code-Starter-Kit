@@ -16,12 +16,12 @@ This walkthrough intentionally uses text output, report paths, and structured ta
 
 | Step | Command or artifact | Use it when | Text evidence to keep |
 | --- | --- | --- | --- |
-| Understand the CLI | `python -m oss_policy_kit --help` | You want to see the supported commands, flags, and exit codes before wiring the tool into scripts or CI. | Copy the `Usage`, `Commands`, and `Exit Codes` sections into a text evidence file. |
-| Discover profiles | `python -m oss_policy_kit profiles` | You need to choose the right platform and strictness level before running an evaluation. | Record the selected profile id, platform, level, and control count. |
-| Compare baseline outcomes | `python -m oss_policy_kit evaluate --target ./examples/... --summary-only` | You want a fast contrast between a stronger fixture and a weaker fixture under the same profile. | Preserve the summary lines for `Outcome`, `Controls`, and `Weighted score`. |
-| Self-check the current repo | `python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck` | You want to validate the current repository revision using the same kit it ships. | Keep `evaluation-report.md` and `evaluation-report.json` from the exact revision being evaluated. |
-| Compare fixtures | `python -m oss_policy_kit evaluate --target ./examples/...` | You want a stable passing fixture and a stable failing fixture for demos, tests, or onboarding. | Compare the generated `Summary`, `Controls`, and `Detail` sections. |
-| Gate CI | `python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck-ci --fail-on fail` | You want reports written first and the pipeline blocked only when the chosen threshold is violated. | Preserve stdout, stderr, exit code, and the generated report directory. |
+| Understand the CLI | `python -P -m oss_policy_kit --help` | You want to see the supported commands, flags, and exit codes before wiring the tool into scripts or CI. | Copy the `Usage`, `Commands`, and `Exit Codes` sections into a text evidence file. |
+| Discover profiles | `python -P -m oss_policy_kit profiles` | You need to choose the right platform and strictness level before running an evaluation. | Record the selected profile id, platform, level, and control count. |
+| Compare baseline outcomes | `python -P -m oss_policy_kit evaluate --target ./examples/... --summary-only` | You want a fast contrast between a stronger fixture and a weaker fixture under the same profile. | Preserve the summary lines for `Outcome`, `Controls`, and `Weighted score`. |
+| Self-check the current repo | `python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck` | You want to validate the current repository revision using the same kit it ships. | Keep `evaluation-report.md` and `evaluation-report.json` from the exact revision being evaluated. |
+| Compare fixtures | `python -P -m oss_policy_kit evaluate --target ./examples/...` | You want a stable passing fixture and a stable failing fixture for demos, tests, or onboarding. | Compare the generated `Summary`, `Controls`, and `Detail` sections. |
+| Gate CI | `python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck-ci --fail-on fail` | You want reports written first and the pipeline blocked only when the chosen threshold is violated. | Preserve stdout, stderr, exit code, and the generated report directory. |
 
 ## 1. Learn The CLI Surface
 
@@ -33,14 +33,14 @@ Start with the help output. This is the right command to use when you are integr
 - the exit-code contract used by local scripts and CI
 
 ```bash
-python -m oss_policy_kit --help
+python -P -m oss_policy_kit --help
 ```
 
 Expected contract:
 
 | Section | What to confirm |
 | --- | --- |
-| `Usage` | `python -m oss_policy_kit [OPTIONS] COMMAND [ARGS]...` is present. |
+| `Usage` | `python -P -m oss_policy_kit [OPTIONS] COMMAND [ARGS]...` is present. |
 | `Commands` | `evaluate`, `profiles`, `recommend-profile`, `evaluate-many`, `scaffold-evidence`, `collect-evidence`, `export-evidence`, `diff-reports`, `emit-vex`, `emit-insights`, and scanner helpers are listed. |
 | `Options` | `--profile`, `--target`, `--output-dir`, `--format`, `--summary-only`, `--fail-on`, `--sarif-output`, and `--report-json-contract` are documented. |
 | `Exit Codes` | `0`, `1`, `2`, and `3` keep the meanings documented in the CLI reference. |
@@ -49,18 +49,18 @@ Expected contract:
 
 Before evaluating a repository, choose the profile that matches the platform and the desired assurance level. The canonical command is:
 
-- `python -m oss_policy_kit profiles` prints the compact bundled profile table
-- `python -m oss_policy_kit profiles --format detailed` prints the same table with full audience and description text
-- `python -m oss_policy_kit profiles --format json` returns the listing as JSON (`oss-policy-kit/profile-list/v2`) for automation
+- `python -P -m oss_policy_kit profiles` prints the compact bundled profile table
+- `python -P -m oss_policy_kit profiles --format detailed` prints the same table with full audience and description text
+- `python -P -m oss_policy_kit profiles --format json` returns the listing as JSON (`oss-policy-kit/profile-list/v2`) for automation
 
-(`python -m oss_policy_kit --show-profiles` is a deprecated alias. It still works but emits a deprecation warning. Prefer the subcommand above.)
+(`python -P -m oss_policy_kit --show-profiles` is a deprecated alias. It still works but emits a deprecation warning. Prefer the subcommand above.)
 
 Use `level-1` when you are starting with the baseline and want honest clone-only checks. Move to higher levels or `release-hardening-*` profiles when you want stricter controls and are ready to provide supporting evidence for release posture.
 
 ```bash
-python -m oss_policy_kit profiles
-python -m oss_policy_kit profiles --format detailed
-python -m oss_policy_kit profiles --format json
+python -P -m oss_policy_kit profiles
+python -P -m oss_policy_kit profiles --format detailed
+python -P -m oss_policy_kit profiles --format json
 ```
 
 Profile selection checklist:
@@ -81,7 +81,7 @@ When you want the fastest practical explanation of what the kit does, compare th
 Run the hardened fixture:
 
 ```bash
-python -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile github-level-1 --summary-only
+python -P -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile github-level-1 --summary-only
 ```
 
 Representative summary on this repository revision:
@@ -96,7 +96,7 @@ Weighted score: 28/28 (100.0%)
 Run the vulnerable fixture:
 
 ```bash
-python -m oss_policy_kit evaluate --target ./examples/vulnerable-repo --profile github-level-1 --summary-only
+python -P -m oss_policy_kit evaluate --target ./examples/vulnerable-repo --profile github-level-1 --summary-only
 ```
 
 Representative summary on this repository revision:
@@ -136,7 +136,7 @@ Text evidence to keep:
 Then run a maintainer self-check when you want to know whether the repository itself satisfies the chosen baseline in its current revision:
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck
 ```
 
 Representative summary on this repository revision:
@@ -157,13 +157,13 @@ The bundled example repositories are the clearest way to understand what the too
 Use the hardened example when you want to show the target baseline outcome:
 
 ```bash
-python -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile github-level-1 --output-dir ./out/hardened
+python -P -m oss_policy_kit evaluate --target ./examples/hardened-repo --profile github-level-1 --output-dir ./out/hardened
 ```
 
 Use the vulnerable example when you want to prove that the kit is not a cosmetic report generator and that obvious repository weaknesses really do surface as non-pass states:
 
 ```bash
-python -m oss_policy_kit evaluate --target ./examples/vulnerable-repo --profile github-level-1 --output-dir ./out/vulnerable
+python -P -m oss_policy_kit evaluate --target ./examples/vulnerable-repo --profile github-level-1 --output-dir ./out/vulnerable
 ```
 
 Generated artifacts to compare:
@@ -181,7 +181,7 @@ After you see a fixture pass or fail at the summary level, inspect the generated
 Use the vulnerable fixture for this walkthrough because it produces a mix of governance, CI/CD, release, and supply-chain findings:
 
 ```bash
-python -m oss_policy_kit evaluate --target ./examples/vulnerable-repo --profile github-level-1 --output-dir ./out/vulnerable
+python -P -m oss_policy_kit evaluate --target ./examples/vulnerable-repo --profile github-level-1 --output-dir ./out/vulnerable
 ```
 
 Open `./out/vulnerable/evaluation-report.md` and scroll past the summary sections. The `## Controls` table is the compact triage view: one row per control, with the control id, category, lifecycle, status, confidence, short reason, remediation hint, and waiver column.
@@ -215,7 +215,7 @@ Detail block checklist:
 Once the report content makes sense locally, the same evaluation can be used as a pipeline gate. The key flag is `--fail-on`, which turns result thresholds into exit-code policy:
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck-ci --fail-on fail
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck-ci --fail-on fail
 ```
 
 `--fail-on` modes:
@@ -239,11 +239,11 @@ You can reproduce both the pass and fail paths locally to confirm the exit-code 
 
 ```bash
 # Pass path against the current repository
-python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck-pass --fail-on fail
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck-pass --fail-on fail
 echo "exit=$?"   # 0 when no control fails
 
 # Fail path against the bundled vulnerable fixture
-python -m oss_policy_kit evaluate --target examples/vulnerable-repo --profile github-level-1 --output-dir ./out/selfcheck-fail --fail-on fail
+python -P -m oss_policy_kit evaluate --target examples/vulnerable-repo --profile github-level-1 --output-dir ./out/selfcheck-fail --fail-on fail
 echo "exit=$?"   # 1 when at least one control fails
 ```
 

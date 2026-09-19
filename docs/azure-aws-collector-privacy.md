@@ -87,7 +87,7 @@ This keeps evidence-backed evaluation honest without leaking private tenant data
 Before sharing evidence files or a SARIF log, run a privacy spot-check:
 
 ```bash
-python -m oss_policy_kit evaluate --target . --profile github-level-1 \
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1 \
   --output-dir ./out/privacy-check --sarif-output evaluation-report.sarif
 gitleaks detect --source ./out/privacy-check --redact --no-banner
 ```

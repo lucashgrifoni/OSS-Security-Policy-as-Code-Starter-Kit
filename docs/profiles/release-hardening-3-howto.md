@@ -38,14 +38,14 @@ Created by `scaffold-evidence --target . --platform github`:
 
 ```bash
 # 1. Scaffold (idempotent; existing files preserved unless --force is set).
-python -m oss_policy_kit scaffold-evidence --target . --platform github
+python -P -m oss_policy_kit scaffold-evidence --target . --platform github
 
 # 2. Either fill the JSONs by hand, or:
 export GITHUB_TOKEN=ghp_<token-with-admin:org-and-repo-read>
-python -m oss_policy_kit collect-evidence --target . --platform github --repo "<org>/<repo>"
+python -P -m oss_policy_kit collect-evidence --target . --platform github --repo "<org>/<repo>"
 
 # 3. Evaluate as a release gate.
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
   --target . \
   --profile github-release-hardening-3 \
   --output-dir ./oss-policy-reports \
@@ -71,13 +71,13 @@ python -m oss_policy_kit evaluate \
 ### Suggested flow
 
 ```bash
-python -m oss_policy_kit scaffold-evidence --target . --platform azure
+python -P -m oss_policy_kit scaffold-evidence --target . --platform azure
 
 export AZURE_DEVOPS_ORG=<org>
 export AZURE_DEVOPS_TOKEN=<PAT-with-Code-and-Build-read>
-python -m oss_policy_kit collect-evidence --target . --platform azure --repo "<Project>/<Repo>"
+python -P -m oss_policy_kit collect-evidence --target . --platform azure --repo "<Project>/<Repo>"
 
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
   --target . \
   --profile azure-release-hardening-3 \
   --output-dir ./oss-policy-reports \
@@ -103,16 +103,16 @@ The Azure collector reaches fewer endpoints than the GitHub one. Several artifac
 ### Suggested flow
 
 ```bash
-python -m oss_policy_kit scaffold-evidence --target . --platform aws
+python -P -m oss_policy_kit scaffold-evidence --target . --platform aws
 
 # Configure AWS credentials via the boto3 default chain
 export AWS_REGION=us-east-1
 export AWS_PROFILE=<profile>
 export AWS_CODEBUILD_PROJECT=<project>
 export AWS_CODEPIPELINE_NAME=<pipeline>
-python -m oss_policy_kit collect-evidence --target . --platform aws
+python -P -m oss_policy_kit collect-evidence --target . --platform aws
 
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
   --target . \
   --profile aws-release-hardening-3 \
   --output-dir ./oss-policy-reports \

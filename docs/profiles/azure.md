@@ -100,10 +100,10 @@ collector help. A typical sequence:
 
 ```bash
 # only with valid credentials; verify minimum permissions first
-python -m oss_policy_kit collect-evidence \
+python -P -m oss_policy_kit collect-evidence \
   --target . --platform azure --repo MyProject/my-repo
 
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
   --target . --profile azure-release-hardening-3 \
   --fail-on fail --summary-only
 ```

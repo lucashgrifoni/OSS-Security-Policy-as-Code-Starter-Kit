@@ -29,8 +29,8 @@ This page keeps the detailed capability snapshot out of the root README so the f
 
 ```bash
 python -m pip install oss-policy-kit
-python -m oss_policy_kit profiles
-python -m oss_policy_kit evaluate --target . --profile github-level-1
+python -P -m oss_policy_kit profiles
+python -P -m oss_policy_kit evaluate --target . --profile github-level-1
 ```
 
 For the guided adopter flow, use [tutorial-first-pr-gate.md](tutorial-first-pr-gate.md).

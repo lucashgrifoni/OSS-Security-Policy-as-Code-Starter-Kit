@@ -48,11 +48,11 @@ These are organizational and operational concerns outside the kit's static-analy
 
 ```bash
 # 1. Bootstrap the evidence file
-python -m oss_policy_kit scaffold-evidence --target . --platform github
+python -P -m oss_policy_kit scaffold-evidence --target . --platform github
 # Then fill .oss-policy-kit/evidence/disclosure-policy.json with real SLAs.
 
 # 2. Evaluate as an advisory check
-python -m oss_policy_kit evaluate --target . --profile cra-eu-reporting-1 \
+python -P -m oss_policy_kit evaluate --target . --profile cra-eu-reporting-1 \
     --fail-on degraded --output-dir oss-policy-reports
 ```
 

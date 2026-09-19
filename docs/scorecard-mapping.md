@@ -14,7 +14,7 @@ S2C2F, OSPS, CIS SSCS, AWS Well-Architected, Azure DevOps Security), see
 Optional input on `evaluate`:
 
 ```bash
-python -m oss_policy_kit evaluate \
+python -P -m oss_policy_kit evaluate \
   --target ./repo \
   --profile github-level-1 \
   --scorecard-json ./scorecard.json
