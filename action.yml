@@ -208,7 +208,15 @@ runs:
         if [ -n "${INPUT_SARIF_OUTPUT}" ]; then
           args+=(--sarif-output "${INPUT_SARIF_OUTPUT}")
         fi
-        python -m oss_policy_kit "${args[@]}"
+        # `-P` for the same reason as the version check above, and for a larger one. The
+        # workspace is the repository being evaluated, so without it that repository sits
+        # first on sys.path: a root-level `oss_policy_kit.py` committed to a repo this action
+        # scans runs as `__main__`, with the job's token in the environment, before any
+        # control does -- and `rc=$?` below then makes its exit status the gate's verdict. A
+        # measured run of that decoy reported exit_code=0 with no evaluation. Above, the
+        # mechanism shadows a version assertion; here it executes what the scanned repository
+        # chose to put there.
+        python -P -m oss_policy_kit "${args[@]}"
         rc=$?
         # Resolve output-dir ONCE, honouring an absolute path. The kit resolves --output-dir
         # itself, so an absolute one (`${{ runner.temp }}/reports`, for instance) is written

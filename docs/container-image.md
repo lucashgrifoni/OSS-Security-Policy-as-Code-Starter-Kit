@@ -21,7 +21,7 @@ docker build --build-arg KIT_VERSION=6.4.0 -t oss-policy-kit:6.4.0 .
 
 ## Run
 
-The image runs as a non-root user (uid 10001, container-baseline-1 expectation) with `python -m oss_policy_kit` as the entrypoint. Mount your repository at `/work`:
+The image runs as a non-root user (uid 10001, container-baseline-1 expectation) with `python -P -m oss_policy_kit` as the entrypoint. Mount your repository at `/work`:
 
 ```bash
 docker run --rm \

@@ -16,7 +16,7 @@
 - id: oss-policy-kit-evaluate
   name: oss-policy-kit evaluate (clone-visible)
   description: Run a clone-visible OSS security baseline evaluation. Fails the commit on `--fail-on fail` results. Defaults to the project's persisted profile from oss-policy-kit.yaml when present.
-  entry: python -m oss_policy_kit evaluate --target . --fail-on fail --summary-only
+  entry: python -P -m oss_policy_kit evaluate --target . --fail-on fail --summary-only
   language: python
   pass_filenames: false
   always_run: true
@@ -25,7 +25,7 @@
 - id: oss-policy-kit-evaluate-degraded
   name: oss-policy-kit evaluate (advisory profile, --fail-on degraded)
   description: Same as oss-policy-kit-evaluate but with --fail-on degraded — the right setting for advisory profiles (cra-*, osps-*, slsa-*, ssdf-*, cis-*, owasp-*, s2c2f-*, IaC/K8s/container baselines, webhook-security-1).
-  entry: python -m oss_policy_kit evaluate --target . --fail-on degraded --summary-only
+  entry: python -P -m oss_policy_kit evaluate --target . --fail-on degraded --summary-only
   language: python
   pass_filenames: false
   always_run: true
