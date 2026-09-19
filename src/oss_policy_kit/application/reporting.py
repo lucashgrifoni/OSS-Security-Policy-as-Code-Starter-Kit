@@ -1053,7 +1053,7 @@ def _markdown_report_text(  # noqa: C901
     lines.append(f"- **Kit version**: `{report.kit_version}`")
     _target_display = _sanitize_target_path_for_payload(report.target_path, include_absolute=include_absolute_path)
     lines.append(f"- **Target**: {_md_code(_target_display)}")
-    lines.append(f"- **Profile**: `{report.profile_id}` - {report.profile_title}")
+    lines.append(f"- **Profile**: {_md_code(report.profile_id)} - {_md_prose(report.profile_title)}")
     if report.scorecard_path:
         _scorecard_display = _sanitize_target_path_for_payload(
             report.scorecard_path, include_absolute=include_absolute_path
@@ -1123,15 +1123,15 @@ def _md_prioritization_lines(report: ExecutionReport) -> list[str]:
     out: list[str] = ["## Prioritization (structural causes)", "", "### Top structural buckets", ""]
     for row in insights["top_structural_causes"][:5]:
         b, n = row["bucket"], row["count"]
-        out.append(f"- **{b}** — {n} control(s) failing or requiring manual review in this bucket.")
+        out.append(f"- **{_md_prose(str(b))}** — {n} control(s) failing or requiring manual review in this bucket.")
     if not insights["top_structural_causes"]:
         out.append("- (no aggregated structural findings in this run)")
     out.extend(["", "### Recommended next actions", ""])
-    out.extend(f"- {item}" for item in insights["recommended_actions"][:5])
+    out.extend(f"- {_md_prose(str(item))}" for item in insights["recommended_actions"][:5])
     out.extend(["", "### Failing controls by category", ""])
     if insights["failing_controls_by_category"]:
         for cat, ids in sorted(insights["failing_controls_by_category"].items()):
-            out.append(f"- **{cat}**: {', '.join(f'`{i}`' for i in ids)}")
+            out.append(f"- **{_md_prose(str(cat))}**: {', '.join(_md_code(str(i)) for i in ids)}")
     else:
         out.append("- (no controls in `fail` or `manual-review-required`)")
     out.append("")
@@ -1146,7 +1146,7 @@ def _md_scorecard_supplemental_lines(report: ExecutionReport, *, include_absolut
     ss = _sanitize_scorecard_supplemental(report.scorecard_supplemental, include_absolute=include_absolute_path) or {}
     influenced = ss.get("influenced_control_ids") or []
     influenced_line = (
-        f"- **Influenced controls**: {', '.join(f'`{c}`' for c in influenced)}"
+        f"- **Influenced controls**: {', '.join(_md_code(str(c)) for c in influenced)}"
         if influenced
         else "- **Influenced controls**: (none in this run)"
     )
@@ -1157,7 +1157,7 @@ def _md_scorecard_supplemental_lines(report: ExecutionReport, *, include_absolut
         f"- **Check count**: {ss.get('check_count')}",
         influenced_line,
         f"- **Workflows satisfied CodeQL signal**: `{ss.get('workflows_satisfied_codeql_signal')}`",
-        f"- **Explanation**: {ss.get('explanation', '')}",
+        f"- **Explanation**: {_md_prose(str(ss.get('explanation', '')))}",
         "",
     ]
 
@@ -1396,7 +1396,8 @@ def _drift_markdown(report: DriftReport) -> str:
         lines.extend(
             [
                 "> **Note:** Before profile "
-                f"(`{report.before_profile_id}`) differs from after profile (`{report.after_profile_id}`). "
+                f"({_md_code(str(report.before_profile_id))}) differs from after profile "
+                f"({_md_code(str(report.after_profile_id))}). "
                 "New or removed controls may reflect profile scope change, not posture change.",
                 "",
             ]
@@ -1405,7 +1406,7 @@ def _drift_markdown(report: DriftReport) -> str:
         [
             f"- **Before**: {_md_code(report.before_path)}",
             f"- **After**: {_md_code(report.after_path)}",
-            f"- **Kit versions**: {report.before_kit_version} → {report.after_kit_version}",
+            f"- **Kit versions**: {_md_code(report.before_kit_version)} → {_md_code(report.after_kit_version)}",
             f"- **Regressions**: {len(report.regressions)}",
             f"- **Improvements**: {len(report.improvements)}",
             f"- **Other status changes**: {len(report.other_changes)}",
@@ -1436,13 +1437,13 @@ def _drift_markdown(report: DriftReport) -> str:
         lines.extend(_drift_row(d) for d in report.other_changes)
     if report.new_controls:
         lines.extend(["", "## New controls in after", ""])
-        lines.extend(f"- `{c}`" for c in report.new_controls)
+        lines.extend(f"- {_md_code(str(c))}" for c in report.new_controls)
     if report.removed_controls:
         lines.extend(["", "## Removed controls (present only in before)", ""])
-        lines.extend(f"- `{c}`" for c in report.removed_controls)
+        lines.extend(f"- {_md_code(str(c))}" for c in report.removed_controls)
     if report.expired_waivers:
         lines.extend(["", "## Expired waivers", ""])
-        lines.extend(f"- `{c}`" for c in report.expired_waivers)
+        lines.extend(f"- {_md_code(str(c))}" for c in report.expired_waivers)
     return "\n".join(lines) + "\n"
 
 

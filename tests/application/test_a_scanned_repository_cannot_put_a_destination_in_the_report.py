@@ -29,7 +29,8 @@ import re
 import pytest
 from markdown_it import MarkdownIt
 
-from oss_policy_kit.application.reporting import _markdown_report_text
+from oss_policy_kit.application.drift import DriftReport
+from oss_policy_kit.application.reporting import _drift_markdown, _markdown_report_text
 from oss_policy_kit.domain.models import ControlResult, ControlStatus, ExecutionReport
 
 #: Anything a reader's browser would follow or fetch, clicked or not.
@@ -44,6 +45,11 @@ _WORKING_VECTORS = [
     pytest.param("<someone@evil.invalid>", id="autolink-bare-email"),
 ]
 
+#: The lists below are printed as code spans, so the plain vectors are already inert there.
+#: A payload carrying its own backtick is not: it ends the span and what follows is markup
+#: again. Measured on the commit before this one, all three fields rendered the image.
+_ESCAPES_A_CODE_SPAN = pytest.param("WAIVER`-1 ![q](http://evil.invalid/q.png) `z", id="backtick-closes-the-span")
+
 #: Text the kit itself writes. Every one of these has to survive byte for byte.
 _LEGITIMATE = [
     pytest.param("`SECURITY.md` not found at repository root.", id="backticks"),
@@ -53,7 +59,14 @@ _LEGITIMATE = [
 ]
 
 
-def _report(*, reason: str = "r", remediation: str = "x", warning: str | None = None) -> ExecutionReport:
+def _report(
+    *,
+    reason: str = "r",
+    remediation: str = "x",
+    warning: str | None = None,
+    profile_id: str = "github-level-1",
+    profile_title: str = "GitHub level 1",
+) -> ExecutionReport:
     result = ControlResult(
         control_id="GOV-SEC-001",
         title="Security policy present",
@@ -70,8 +83,8 @@ def _report(*, reason: str = "r", remediation: str = "x", warning: str | None = 
         generated_at="2026-09-19T00:00:00Z",
         kit_version="10.0.24",
         target_path="repo",
-        profile_id="github-level-1",
-        profile_title="GitHub level 1",
+        profile_id=profile_id,
+        profile_title=profile_title,
         summary_by_status={"fail": 1},
         results=[result],
         operational_warnings=[warning] if warning else [],
@@ -148,3 +161,172 @@ def test_the_sarif_rule_help_cannot_give_a_viewer_a_destination(payload: str, tm
         assert not _DESTINATION.search(MarkdownIt("commonmark").render(markdown)), (
             f"the SARIF rule help renders a destination from {payload!r}"
         )
+
+
+# --------------------------------------------------------------------------------------
+# The header. Same defect, a route the first pass did not cover.
+#
+# `--profile` takes a path to a YAML file, and when the flag is omitted the profile comes
+# from `oss-policy-kit.yaml` inside the target, resolved against the target. So
+# `evaluate --target <cloned repo>` with no flags lets the repository choose both of the
+# values below. Measured on the commit before this one, against a repository carrying its
+# own config and profile: the rendered report held two `<img src>` beacons and two
+# `<a href>` links. The id is the second of each pair, because a value the caller wraps in
+# backticks closes its own span on the first backtick it contains.
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("payload", _WORKING_VECTORS)
+def test_a_profile_title_cannot_give_the_report_a_destination(payload: str) -> None:
+    html = _rendered(_report(profile_title=payload))
+
+    assert not _DESTINATION.search(html), (
+        f"a profile title of {payload!r} put a destination in the report. The title comes "
+        "from the profile file, which a scanned repository can ship and select through its "
+        "own oss-policy-kit.yaml."
+    )
+
+
+@pytest.mark.parametrize("payload", [*_WORKING_VECTORS, _ESCAPES_A_CODE_SPAN])
+def test_a_profile_id_cannot_give_the_report_a_destination(payload: str) -> None:
+    assert not _DESTINATION.search(_rendered(_report(profile_id=payload)))
+
+
+def test_a_profile_id_cannot_escape_the_code_span_it_is_printed_in() -> None:
+    """The header prints the id as code, and a backtick inside it used to end that."""
+
+    hostile = "ai`-baseline ![z](http://evil.invalid/z.png) `x"
+
+    html = _rendered(_report(profile_id=hostile))
+
+    assert not _DESTINATION.search(html), "the id closed its span and the image rendered"
+    assert "<code>" in html, "the id stopped being rendered as code, which is a separate regression"
+
+
+# --------------------------------------------------------------------------------------
+# The drift report. Control ids and waiver ids come out of the two report files `drift`
+# is given, and expired waiver ids originate in the scanned repository's waiver file.
+# --------------------------------------------------------------------------------------
+
+
+def _drift(**kwargs: object) -> DriftReport:
+    base: dict[str, object] = {
+        "before_path": "before.json",
+        "after_path": "after.json",
+        "before_kit_version": "10.0.23",
+        "after_kit_version": "10.0.24",
+    }
+    base.update(kwargs)
+    return DriftReport(**base)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("field_name", ["new_controls", "removed_controls", "expired_waivers"])
+@pytest.mark.parametrize("payload", [*_WORKING_VECTORS, _ESCAPES_A_CODE_SPAN])
+def test_a_drift_list_cannot_give_the_report_a_destination(field_name: str, payload: str) -> None:
+    html = MarkdownIt("commonmark").render(_drift_markdown(_drift(**{field_name: [payload]})))
+
+    assert not _DESTINATION.search(html), f"{field_name} carried {payload!r} through to a destination"
+
+
+@pytest.mark.parametrize("payload", _WORKING_VECTORS)
+def test_a_drift_profile_mismatch_line_cannot_give_the_report_a_destination(payload: str) -> None:
+    report = _drift(profile_mismatch=True, before_profile_id=payload, after_profile_id="after")
+
+    assert not _DESTINATION.search(MarkdownIt("commonmark").render(_drift_markdown(report)))
+
+
+# --------------------------------------------------------------------------------------
+# The guard that finds the next one. A list of known sinks is what missed these; this
+# derives the list from the module instead, and fails on anything new that is not
+# justified here by name.
+# --------------------------------------------------------------------------------------
+
+#: Interpolations into Markdown-shaped strings that legitimately need no escaping, with
+#: the reason each one cannot carry target-chosen text. Anything not on this list has to
+#: go through an `_md_*` helper.
+_NEEDS_NO_ESCAPING = {
+    # The kit's own clock and version, neither read from the target.
+    "report.generated_at",
+    "report.kit_version",
+    # A ControlStatus value and an integer count.
+    "k",
+    "v",
+    # Numbers.
+    "ws.earned",
+    "ws.possible",
+    "ws.percent",
+    "n",
+    "len(report.regressions)",
+    "len(report.improvements)",
+    "len(report.other_changes)",
+    "ss.get('check_count')",
+    # Booleans the engine computes.
+    "ss.get('loaded')",
+    "ss.get('workflows_satisfied_codeql_signal')",
+    # Already an escaped composition: `w` is built one line above from
+    # `_md_prose(r.waiver.owner, in_table=True)`.
+    "w",
+    # Not the report at all: an OSError message. It matches only because the sentence
+    # contains "-- evaluation-report.json".
+    "detail",
+}
+
+
+def test_no_markdown_sink_interpolates_an_unescaped_value() -> None:
+    """Derived from the module, so a sink added tomorrow is caught without a list edit."""
+
+    import ast
+    import inspect
+
+    from oss_policy_kit.application import reporting
+
+    tree = ast.parse(inspect.getsource(reporting))
+    helpers = {"_md_prose", "_md_code", "_md_cell", "_md_line"}
+
+    def is_escaped(node: ast.AST) -> bool:
+        return any(
+            isinstance(d, ast.Call) and isinstance(d.func, ast.Name) and d.func.id in helpers for d in ast.walk(node)
+        )
+
+    unescaped: dict[str, int] = {}
+    for joined in ast.walk(tree):
+        if not isinstance(joined, ast.JoinedStr):
+            continue
+        literal = "".join(v.value for v in joined.values if isinstance(v, ast.Constant) and isinstance(v.value, str))
+        if not any(marker in literal for marker in ("**", "| ", "- ", "`", "# ")):
+            continue
+        for value in joined.values:
+            if isinstance(value, ast.FormattedValue) and not is_escaped(value.value):
+                unescaped.setdefault(ast.unparse(value.value), value.lineno)
+
+    unexpected = {expr: line for expr, line in unescaped.items() if expr not in _NEEDS_NO_ESCAPING}
+
+    assert not unexpected, (
+        "a Markdown-shaped string interpolates a value that no _md_* helper escaped: "
+        + ", ".join(f"{expr!r} (line {line})" for expr, line in sorted(unexpected.items()))
+        + ". Route it through _md_prose (prose) or _md_code (a code span), or add it to "
+        "_NEEDS_NO_ESCAPING with the reason it cannot carry text the target chose."
+    )
+
+
+def test_the_guard_above_would_notice_a_new_sink() -> None:
+    """A guard nobody has seen fail is decorative. This is the mutation, run in-process."""
+
+    import ast
+
+    source = 'lines.append(f"- **Profile**: {report.profile_title}")'
+    tree = ast.parse(source)
+    helpers = {"_md_prose", "_md_code", "_md_cell", "_md_line"}
+    found = [
+        ast.unparse(v.value)
+        for j in ast.walk(tree)
+        if isinstance(j, ast.JoinedStr)
+        for v in j.values
+        if isinstance(v, ast.FormattedValue)
+        and not any(
+            isinstance(d, ast.Call) and isinstance(d.func, ast.Name) and d.func.id in helpers for d in ast.walk(v.value)
+        )
+    ]
+
+    assert found == ["report.profile_title"], "the detection the test above relies on does not fire"
+    assert "report.profile_title" not in _NEEDS_NO_ESCAPING, "the allowlist would swallow the very sink this PR fixes"
