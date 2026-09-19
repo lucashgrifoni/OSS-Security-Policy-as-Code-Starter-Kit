@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from oss_policy_kit.application.evidence_projection import project_evidence
-from oss_policy_kit.application.reporting import _atomic_write_text
+from oss_policy_kit.application.reporting import _atomic_write_text, _md_prose
 from oss_policy_kit.domain.models import ControlResult, ControlStatus, ExecutionReport
 
 _SRCROOT = "%SRCROOT%"
@@ -135,7 +135,11 @@ def _rule_for_result(result: ControlResult) -> dict[str, Any]:
         "helpUri": _TOOL_INFORMATION_URI,
         "help": {
             "text": result.remediation,
-            "markdown": f"**Remediation:** {result.remediation}",
+            # SARIF says this field is Markdown, so a conforming viewer renders it, and the
+            # remediation carries names read out of the scanned repository. Same treatment
+            # as the report's own prose: the `text` sibling above is not Markdown and stays
+            # exactly as the evaluator wrote it.
+            "markdown": f"**Remediation:** {_md_prose(result.remediation)}",
         },
         "properties": {
             "category": result.category,

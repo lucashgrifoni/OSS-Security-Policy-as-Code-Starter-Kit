@@ -23,6 +23,7 @@ filenames with them. A bare `[` still works, because a shipped remediation reads
 
 from __future__ import annotations
 
+import json
 import re
 
 import pytest
@@ -120,3 +121,30 @@ def test_the_vectors_that_do_not_work_are_recorded_as_checked() -> None:
 
     assert not _DESTINATION.search(_rendered(_report(reason="http://evil.invalid")))
     assert not _DESTINATION.search(_rendered(_report(reason="[click][r]\n\n[r]: http://evil.invalid")))
+
+
+@pytest.mark.parametrize("payload", _WORKING_VECTORS)
+def test_the_sarif_rule_help_cannot_give_a_viewer_a_destination(payload: str, tmp_path) -> None:
+    """SARIF carries a second Markdown surface, and it is outside the report entirely.
+
+    `help.markdown` on the rule is Markdown by the SARIF specification, and it is built from
+    the same remediation. A fix that covered only the report would leave the class open
+    wherever the SARIF is uploaded.
+    """
+
+    from oss_policy_kit.application.sarif_writer import write_sarif_report
+
+    destination = tmp_path / "out.sarif"
+    write_sarif_report(_report(remediation=payload), destination)
+    document = json.loads(destination.read_text(encoding="utf-8"))
+    helps = [
+        str((rule.get("help") or {}).get("markdown", ""))
+        for run in document["runs"]
+        for rule in run["tool"]["driver"].get("rules", [])
+    ]
+
+    assert helps, "the SARIF carried no rule help, so this case asserts nothing"
+    for markdown in helps:
+        assert not _DESTINATION.search(MarkdownIt("commonmark").render(markdown)), (
+            f"the SARIF rule help renders a destination from {payload!r}"
+        )
