@@ -23,6 +23,7 @@ than recommend it.
 
 from __future__ import annotations
 
+import ast
 import os
 import subprocess
 import sys
@@ -37,6 +38,9 @@ _EXPLAINS_RATHER_THAN_ADVISES = (
     "run from inside a repository imports an",
     "would otherwise steal ``evaluate`` as a",
     "instead of repeating ``python -m oss_policy_kit`` on every line.",
+    # `consumer_smoke.py` records what its own docstring used to claim; the sentence is
+    # quoted there to be corrected, not offered as advice.
+    "the docs taught `python -m` 201 times",
 )
 
 _ADVICE_FILES = [
@@ -206,3 +210,51 @@ def test_the_published_page_bundle_carries_what_its_sources_say() -> None:
         f"the sources carry {in_sources} safe invocations and the bundle carries "
         f"{text.count('python -P -m oss_policy_kit')}; the committed bundle is stale"
     )
+
+
+# --------------------------------------------------------------------------------------
+# `scripts/` needs its own detection. The guard above matches the literal phrase
+# `python -m oss_policy_kit`, and `consumer_smoke.py` never writes it: the argv is a list,
+# `["-m", "oss_policy_kit", ...]`, and a helper prepends the interpreter. Adding the
+# directory to `_ADVICE_FILES` passed the mutation, which is how that was found.
+# --------------------------------------------------------------------------------------
+
+
+def _module_argv_lists(tree: ast.AST) -> list[tuple[int, list[str]]]:
+    """Every list literal that runs this package as a module, with its leading flags."""
+
+    found: list[tuple[int, list[str]]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.List):
+            continue
+        items = [e.value if isinstance(e, ast.Constant) and isinstance(e.value, str) else None for e in node.elts]
+        for index in range(len(items) - 1):
+            if items[index] == "-m" and items[index + 1] == "oss_policy_kit":
+                found.append((node.lineno, [i for i in items[:index] if i is not None]))
+    return found
+
+
+def test_every_script_invocation_keeps_the_cwd_off_sys_path() -> None:
+    """`consumer_smoke.py` proves the installed wheel works; `-m` alone undermines that."""
+
+    offenders: list[str] = []
+    for path in sorted((ROOT / "scripts").glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for lineno, flags in _module_argv_lists(tree):
+            if "-P" not in flags:
+                offenders.append(f"{path.name}:{lineno} (flags before -m: {flags})")
+
+    assert not offenders, (
+        "these argv lists run the package as a module with the current directory still on "
+        f'sys.path: {", ".join(offenders)}. Put "-P" before "-m".'
+    )
+
+
+def test_the_argv_detection_would_notice_a_bare_list() -> None:
+    """The mutation, in-process. The first version of this guard passed it and was useless."""
+
+    bare = ast.parse('run(["-m", "oss_policy_kit", "--version"])')
+    hardened = ast.parse('run(["-P", "-m", "oss_policy_kit", "--version"])')
+
+    assert [flags for _, flags in _module_argv_lists(bare)] == [[]]
+    assert [flags for _, flags in _module_argv_lists(hardened)] == [["-P"]]
