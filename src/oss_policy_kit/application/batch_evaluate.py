@@ -16,6 +16,7 @@ from oss_policy_kit.application.cli_output import FailOnPolicy, fail_on_violated
 from oss_policy_kit.application.clock import report_generated_at
 from oss_policy_kit.application.engine import evaluate_repository
 from oss_policy_kit.application.evaluators_common import as_mapping
+from oss_policy_kit.application.input_limits import long_path_note
 from oss_policy_kit.application.loader import load_catalog, load_profile_by_id, merge_kit_root
 from oss_policy_kit.application.reporting import (
     _md_code,
@@ -116,7 +117,10 @@ def _ensure_batch_dir(directory: Path) -> None:
     try:
         directory.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
-        raise InvalidInputError(f"Cannot write to --output-dir: {exc.strerror or 'filesystem error'}") from exc
+        raise InvalidInputError(
+            f"Cannot write to --output-dir: {exc.strerror or 'filesystem error'}"
+            f"{long_path_note(exc.filename or directory, winerror=getattr(exc, 'winerror', None))}"
+        ) from exc
 
 
 def _write_batch_artifact(path: Path, content: str) -> None:
@@ -148,7 +152,8 @@ def _write_batch_artifact(path: Path, content: str) -> None:
         path.write_text(content, encoding="utf-8")
     except OSError as exc:
         raise InvalidInputError(
-            f"Cannot write {path.name} to --output-dir: {exc.strerror or 'filesystem error'}. "
+            f"Cannot write {path.name} to --output-dir: {exc.strerror or 'filesystem error'}"
+            f"{long_path_note(exc.filename or path, winerror=getattr(exc, 'winerror', None))}. "
             "The two consolidated files there now describe different runs; delete both "
             "before reading either."
         ) from exc
@@ -428,6 +433,7 @@ def _execute_one_run(
     except OSError as exc:
         raise InvalidInputError(
             f"Cannot write the report for '{target.name}': {exc.strerror or 'filesystem error'}"
+            f"{long_path_note(exc.filename or md_path, winerror=getattr(exc, 'winerror', None))}"
         ) from exc
     target_path_display = _sanitize_target_path_for_payload(str(repo.resolve()), include_absolute=include_absolute_path)
     json_report_display = _sanitize_target_path_for_payload(

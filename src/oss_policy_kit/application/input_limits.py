@@ -303,6 +303,46 @@ def oversize_reason(path: Path, max_bytes: int, *, label: str) -> str | None:
     )
 
 
+#: Measured on Windows 11, not read out of documentation. A directory whose full path
+#: reaches 248 characters is refused, and Windows answers with one of two codes. From 248
+#: it is ERROR_FILENAME_EXCED_RANGE, whose message already says the name is too long. From
+#: 260, when a long final component is what pushes it over, it is ERROR_PATH_NOT_FOUND,
+#: whose message says the path was not found and so names the wrong cause. Only the second
+#: one leaves the reader without the fact they need. Enabling long-path support raises the
+#: ceiling and is off by default on Windows.
+WINDOWS_LONG_PATH_FLOOR = 248
+
+#: ERROR_PATH_NOT_FOUND. Windows returns it for a path refused for its length and also for
+#: a parent that genuinely is not there, which is why the clause below says "may be".
+_ERROR_PATH_NOT_FOUND = 3
+
+
+def long_path_note(path: str | Path, *, winerror: int | None) -> str:
+    """A clause naming the path's length, for the one write failure that misreports itself.
+
+    Returns `""` for everything else: a different error code, a path short enough that
+    length cannot be the reason, and every platform other than Windows, where `OSError`
+    carries no `winerror` and the caller passes `None`.
+
+    It appends to the operating system's own message instead of replacing it, and it
+    hedges, because ERROR_PATH_NOT_FOUND is also what a genuinely missing parent looks
+    like and asserting the wrong cause is the defect being fixed here. The length is the
+    one fact the message was missing, so the length is all this adds -- never the path
+    itself, which would leak the absolute path the caller is careful not to print (M-002).
+    """
+
+    if winerror != _ERROR_PATH_NOT_FOUND:
+        return ""
+    length = len(str(path))
+    if length < WINDOWS_LONG_PATH_FLOOR:
+        return ""
+    return (
+        f" The path is {length} characters, and Windows refuses paths from "
+        f"{WINDOWS_LONG_PATH_FLOOR} characters unless long-path support is enabled, so the "
+        "length may be the reason rather than a missing directory."
+    )
+
+
 def read_text_capped(
     path: Path,
     max_bytes: int,

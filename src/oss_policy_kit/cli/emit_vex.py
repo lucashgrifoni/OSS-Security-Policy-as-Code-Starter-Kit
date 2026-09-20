@@ -44,6 +44,7 @@ from oss_policy_kit.application.input_limits import (
     MAX_SARIF_BYTES,
     bad_input_detail,
     bad_input_reason,
+    long_path_note,
     oversize_reason,
     too_deep_reason,
 )
@@ -812,7 +813,10 @@ def _write_vex_output(
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(payload, encoding="utf-8")
     except OSError as exc:
-        raise InvalidInputError(f"Cannot write to --output '{output}': {exc}") from exc
+        raise InvalidInputError(
+            f"Cannot write to --output '{output}': {exc}"
+            f"{long_path_note(exc.filename or output, winerror=getattr(exc, 'winerror', None))}"
+        ) from exc
     applied = sum(1 for vid in vuln_ids if vid in vuln_waivers)
     # markup_safe on the path: Rich reads `[dev]` as a style tag and deletes it, so
     # `--output "[dev]-out.json"` was confirmed back to the operator as `-out.json` — the

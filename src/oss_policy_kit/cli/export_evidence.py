@@ -43,6 +43,7 @@ from oss_policy_kit.application.input_limits import (
     BAD_INPUT_ERRORS,
     MAX_EVIDENCE_BYTES,
     bad_input_reason,
+    long_path_note,
     oversize_reason,
     too_deep_reason,
 )
@@ -1093,7 +1094,10 @@ def _run_export_evidence(target: Path, fmt: str, output: Path, report: Path | No
     except OSError as exc:
         # A filesystem error on a user-supplied --output path is a usage error
         # (exit 2), not an internal crash (exit 3). Use exc.strerror, not the path.
-        raise InvalidInputError(f"Cannot write --output: {exc.strerror or 'filesystem error'}") from exc
+        raise InvalidInputError(
+            f"Cannot write --output: {exc.strerror or 'filesystem error'}"
+            f"{long_path_note(exc.filename or output, winerror=getattr(exc, 'winerror', None))}"
+        ) from exc
     if fmt == "chainloop":
         c = stderr_console()
         c.print(
