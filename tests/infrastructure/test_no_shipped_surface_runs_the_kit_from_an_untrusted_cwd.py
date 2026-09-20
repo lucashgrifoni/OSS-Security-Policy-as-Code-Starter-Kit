@@ -53,7 +53,11 @@ _SWEPT: tuple[Path, ...] = (
 #: are asserted to still match something below, because a waiver that covers nothing is a rule
 #: nobody follows any more, left behind to be trusted later.
 _TRUSTED_CWD: dict[str, str] = {
-    ".github/workflows": "the kit's own CI, which already installs and tests the checkout it runs in",
+    # ".github/workflows" was waived here until 2026-09-19, on the grounds that the kit's own
+    # CI already installs and tests the checkout it runs in. That was true and it is gone:
+    # every invocation in those files now carries -P, so the waiver covered nothing, and a
+    # waiver that covers nothing is a rule nobody follows any more. Removing it also makes
+    # this guard refuse the next unhardened one rather than excusing it.
     "pipelines": "the kit's own Azure mirror of that CI: same tree, same trust",
 }
 

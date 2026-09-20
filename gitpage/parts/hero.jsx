@@ -205,7 +205,7 @@ function PolicyCube() {
 
 function TerminalReport() {
   const lines = [
-    { d: "$ ", v: "python -m oss_policy_kit evaluate --target . --profile github-level-1", c: "text-mist" },
+    { d: "$ ", v: "python -P -m oss_policy_kit evaluate --target . --profile github-level-1", c: "text-mist" },
     { d: "→ ", v: "loading profile bundle... github-level-1", c: "text-slate" },
     { d: "→ ", v: "scanning .github/workflows ... 3 workflow files", c: "text-slate" },
     { d: "→ ", v: "evaluating 14 controls", c: "text-slate" },

@@ -164,8 +164,8 @@ jobs:
           fi
           echo "Using SOURCE_DATE_EPOCH=${epoch} from docs/sample-reports/README.md"
           export SOURCE_DATE_EPOCH="${epoch}"
-          python -m oss_policy_kit evaluate --target ./examples/hardened-repo             --profile github-level-1 --output-dir ./docs/sample-reports/hardened --summary-only
-          python -m oss_policy_kit evaluate --target ./examples/vulnerable-repo             --profile github-level-1 --output-dir ./docs/sample-reports/vulnerable --summary-only
+          python -P -m oss_policy_kit evaluate --target ./examples/hardened-repo             --profile github-level-1 --output-dir ./docs/sample-reports/hardened --summary-only
+          python -P -m oss_policy_kit evaluate --target ./examples/vulnerable-repo             --profile github-level-1 --output-dir ./docs/sample-reports/vulnerable --summary-only
 
       # Written through the GitHub API rather than with `git commit` + `git push`, because a
       # runner has no signing key and the `Default Master` ruleset requires signatures. An

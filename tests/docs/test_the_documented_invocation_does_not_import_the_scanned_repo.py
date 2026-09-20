@@ -46,6 +46,18 @@ _ADVICE_FILES = [
     ROOT / "src" / "oss_policy_kit" / "cli" / "common.py",
     ROOT / "src" / "oss_policy_kit" / "cli" / "evaluate.py",
     ROOT / "src" / "oss_policy_kit" / "application" / "evidence_scaffold.py",
+    # The workflows run the kit against this repository from this repository's checkout,
+    # which is the same shape as the case the docs now warn about. Nothing here is
+    # currently shadowed, because the package lives under `src/` and there is no
+    # `oss_policy_kit.py` at the root; the flag is here so that stays a fact rather than
+    # a thing someone has to keep being true.
+    *sorted((ROOT / ".github" / "workflows").glob("*.yml")),
+    # The landing page hands a visitor a command to paste. `bundle.js` is generated from
+    # these by `node build-js.mjs`, and is checked separately below, because a source
+    # that carries the flag and a bundle that does not is a stale build rather than bad
+    # advice, and the two deserve different messages.
+    *sorted((ROOT / "gitpage" / "parts").glob("*.jsx")),
+    ROOT / "gitpage" / "app.jsx",
 ]
 
 
@@ -166,3 +178,31 @@ def test_the_cli_note_says_why_too() -> None:
 
     assert "-P" in ROOT_WINDOWS_NOTE
     assert "current directory" in ROOT_WINDOWS_NOTE
+
+
+def test_the_published_page_bundle_carries_what_its_sources_say() -> None:
+    """`gitpage/bundle.js` is generated, and GitHub Pages serves the committed copy.
+
+    A `.jsx` that teaches the safe form and a bundle that still teaches the old one is a
+    stale build, not bad advice, so this counts rather than searching: every occurrence in
+    the sources has to appear in the bundle. Rebuild with `node build-js.mjs` from
+    `gitpage/` after editing a `.jsx`.
+    """
+
+    bundle = ROOT / "gitpage" / "bundle.js"
+    if not bundle.is_file():
+        pytest.skip("no built bundle in this checkout")
+
+    sources = sorted((ROOT / "gitpage" / "parts").glob("*.jsx")) + [ROOT / "gitpage" / "app.jsx"]
+    in_sources = sum(
+        path.read_text(encoding="utf-8").count("python -P -m oss_policy_kit") for path in sources if path.is_file()
+    )
+    text = bundle.read_text(encoding="utf-8")
+
+    assert text.count("python -m oss_policy_kit") == 0, (
+        "the published bundle still teaches the bare form; rebuild it from the sources"
+    )
+    assert text.count("python -P -m oss_policy_kit") == in_sources, (
+        f"the sources carry {in_sources} safe invocations and the bundle carries "
+        f"{text.count('python -P -m oss_policy_kit')}; the committed bundle is stale"
+    )

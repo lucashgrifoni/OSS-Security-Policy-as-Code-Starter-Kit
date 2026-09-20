@@ -143,7 +143,7 @@ const FLOW_STEPS = [
   {
     icon: "merge",
     title: "Point the CLI at a clone",
-    body: "Run `python -m oss_policy_kit evaluate --target <repo> --profile <profile>` against the working tree you want to inspect.",
+    body: "Run `python -P -m oss_policy_kit evaluate --target <repo> --profile <profile>` against the working tree you want to inspect.",
   },
   {
     icon: "radar",
@@ -224,28 +224,28 @@ const QS_STEPS = [
   {
     icon: "folder",
     title: "List bundled profiles",
-    cmd: "python -m oss_policy_kit profiles",
+    cmd: "python -P -m oss_policy_kit profiles",
     note: "This build ships 56 profiles across GitHub, GitLab, Azure, and AWS, including baseline and release-hardening tracks.",
   },
   {
     icon: "check",
     title: "Run a self-check",
-    cmd: "python -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck",
+    cmd: "python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/selfcheck",
     note: "The run writes evaluation-report.json and evaluation-report.md before you decide what to fix next.",
   },
   {
     icon: "check2",
     title: "Turn it into a CI gate",
-    cmd: "python -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on fail",
+    cmd: "python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on fail",
     note: "Reports are still written first; the CI step fails only after evidence is available for review.",
   },
 ];
 
 const QS_EXTRAS = [
-  "python -m oss_policy_kit recommend-profile --target .",
-  "python -m oss_policy_kit evaluate-many --target-root ./apps --profiles github-level-1",
-  "python -m oss_policy_kit scaffold-evidence --target . --platform github",
-  "python -m oss_policy_kit evaluate --target . --profile github-level-1 --summary-only --format json",
+  "python -P -m oss_policy_kit recommend-profile --target .",
+  "python -P -m oss_policy_kit evaluate-many --target-root ./apps --profiles github-level-1",
+  "python -P -m oss_policy_kit scaffold-evidence --target . --platform github",
+  "python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --summary-only --format json",
 ];
 
 function CommandBlock({ cmd, copyable = true }) {

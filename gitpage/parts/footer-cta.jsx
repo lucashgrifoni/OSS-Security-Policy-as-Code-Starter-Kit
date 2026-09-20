@@ -35,7 +35,7 @@ function CTASection() {
               <p className="mt-6 text-base leading-relaxed text-slate md:text-lg">
                 Start with{" "}
                 <code className="rounded bg-ink-deep/80 px-1.5 py-0.5 font-mono text-sm text-signal">
-                  python -m oss_policy_kit profiles
+                  python -P -m oss_policy_kit profiles
                 </code>
                 , then evaluate your clone with{" "}
                 <code className="rounded bg-ink-deep/80 px-1.5 py-0.5 font-mono text-sm text-signal">

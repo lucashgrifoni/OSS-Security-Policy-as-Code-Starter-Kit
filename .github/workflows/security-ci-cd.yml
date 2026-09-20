@@ -844,11 +844,11 @@ jobs:
         # and exits 0 even with nothing to report, which is what a repo with no
         # IaC looks like.
         run: |
-          python -m oss_policy_kit scan-iac --target . || true
-          python -m oss_policy_kit scan-k8s --target . || true
-          python -m oss_policy_kit scan-cfn --target . || true
-          python -m oss_policy_kit scan-pulumi --target . || true
-          python -m oss_policy_kit scan-bicep --target . || true
+          python -P -m oss_policy_kit scan-iac --target . || true
+          python -P -m oss_policy_kit scan-k8s --target . || true
+          python -P -m oss_policy_kit scan-cfn --target . || true
+          python -P -m oss_policy_kit scan-pulumi --target . || true
+          python -P -m oss_policy_kit scan-bicep --target . || true
 
       - name: Correlate findings
         # Not a gate. --fail-on-severity is deliberately unset: this job exists to
@@ -856,7 +856,7 @@ jobs:
         # artifact, not to block a merge on a scanner's opinion of a workflow file.
         # Turning it into a gate is a separate decision with its own threshold.
         run: |
-          python -m oss_policy_kit correlate-findings \
+          python -P -m oss_policy_kit correlate-findings \
             --target . \
             --output .oss-policy-kit/findings.json \
             --format human
