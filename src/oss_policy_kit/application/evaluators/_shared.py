@@ -124,6 +124,26 @@ _REQUIRED_BRANCH_PROTECTION_FLAGS = (
 EVIDENCE_PREVIEW_LIMIT = 5
 
 
+def unchecked_workflow_paths(workflows: Any) -> list[str]:
+    """The workflows :func:`unchecked_workflows_note` names, as evidence references.
+
+    The note is prose. A control that says "this run could not read ci.yml" and hands back
+    no evidence reference has told a human and not told a consumer, and the consumer is who
+    the JSON and the SARIF are for. `CI-PIN-008` carries the path in exactly this case;
+    the four controls that keep a FAIL and append the note did not.
+
+    Reads the same two lists as the note, in the same order, so the sentence and the
+    references cannot drift apart. A test asserts they name the same files.
+    """
+
+    paths = [p for p, _ in getattr(workflows, "parse_errors", ()) or ()]
+    paths += list(getattr(workflows, "unread_paths", ()) or ())
+    seen: dict[str, None] = {}
+    for path in sorted(paths, key=lambda p: p.name):
+        seen.setdefault(str(path.resolve()), None)
+    return list(seen)
+
+
 def unchecked_workflows_note(workflows: Any) -> str:
     """A clause naming the workflows a run could not read, to append to an absence claim.
 
@@ -3692,6 +3712,7 @@ __all__ = [
     "json",
     "load_evidence_schema",
     "load_yaml_file",
+    "unchecked_workflow_paths",
     "unread_workflow_degradation",
     "re",
 ]

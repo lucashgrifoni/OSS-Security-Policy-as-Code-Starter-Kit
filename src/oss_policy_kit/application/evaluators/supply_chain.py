@@ -30,6 +30,7 @@ from oss_policy_kit.application.evaluators._shared import (
     json,
     preview_evidence_paths,
     read_repo_text,
+    unchecked_workflow_paths,
     unchecked_workflows_note,
     unread_candidates_outcome,
 )
@@ -282,7 +283,7 @@ def eval_cont_image_003(ctx: EvalContext) -> EvalOutcome:
             "Add an image scanning step to your CI pipeline. "
             "Example: uses: aquasecurity/trivy-action@<sha> with image-ref: <your-image>."
         ),
-        evidence_sources=[],
+        evidence_sources=unchecked_workflow_paths(ctx.workflows),
         confidence="medium",
     )
 
