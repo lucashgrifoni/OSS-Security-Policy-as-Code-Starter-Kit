@@ -137,11 +137,21 @@ def test_the_sentence_and_the_references_name_the_same_file(controls: dict[str, 
 
     for control_id in ("SEC-CODEQL-010", "SEC-DEPREV-011"):
         control = controls[control_id]
-        references = {Path(str(r["value"])).name for r in (control.get("evidence") or {}).get("references") or []}  # type: ignore[union-attr]
+        # Matched on the tail of the string rather than through `Path(...).name`. The
+        # reference is a redacted token, not a path: it reads `<redacted-absolute>/ci.yml`
+        # on Windows and `<redacted-absolute>ci.yml` on Linux, so `Path(...).name` answers
+        # "ci.yml" on one and the whole token on the other. That difference passed here and
+        # failed the ubuntu leg.
+        references = [str(r["value"]) for r in (control.get("evidence") or {}).get("references") or []]  # type: ignore[union-attr]
         message = str(control.get("message") or "")
         named = {word.strip(".,") for word in message.split() if word.strip(".,").endswith((".yml", ".yaml"))}
 
-        assert named == references, f"{control_id}: prose names {named}, references name {references}"
+        assert named, f"{control_id}: the scope clause names no file: {message}"
+        unreferenced = {name for name in named if not any(value.endswith(name) for value in references)}
+        assert not unreferenced, f"{control_id}: prose names {sorted(unreferenced)} and the references are {references}"
+        assert len(references) == len(named), (
+            f"{control_id}: {len(named)} file(s) named in prose, {len(references)} reference(s): {references}"
+        )
 
 
 def test_every_control_that_appends_the_note_also_hands_back_the_paths() -> None:
