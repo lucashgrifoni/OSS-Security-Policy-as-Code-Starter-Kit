@@ -93,8 +93,24 @@ What to expect:
 
 | Release | Wheel | Source distribution |
 |---|---|---|
-| Anything published after v10.0.20 | Identical hash | Identical file contents; the gzip header and the mtimes of the generated `egg-info` members still carry build time |
+| Anything published after v10.0.20 | Identical hash, when the build backend matches (see below) | Identical file contents, different hash |
 | v10.0.20 and earlier | Identical contents, all 231 entries; different hash | Identical file contents, different hash |
+
+**The epoch is one input, not the only one.** Pinning it removes the runner's clock, which
+was what made the older wheels unreproducible by anyone. It does not make the wheel
+reproducible from the tag alone: the Python version, the platform and the build backend
+version also decide the bytes, and the backend version is written into the artifact as
+`Generator: setuptools (<version>)` in `.dist-info/WHEEL`. The recipe above pins
+`python:3.12-slim` and then runs `pip install build`, which resolves whatever setuptools is
+current that day, so a rebuild months later can differ for that reason alone. Read
+`.dist-info/WHEEL` in the published wheel and install the same backend version if you need
+the hash to match.
+
+**The sdist is content-reproducible and nothing more.** An earlier version of this table
+said its source entries are pinned and only the generated `egg-info` members and the gzip
+header carry build time. Measured on a build with `SOURCE_DATE_EPOCH` exported: 0 of 237
+file members carry the epoch and all 237 carry the checkout's mtime. Compare sdists by
+content, never by hash.
 
 The split is deliberate rather than a caveat about tooling. Through v10.0.20 the build did
 not set `SOURCE_DATE_EPOCH`, so every timestamp inside the wheel was the runner's clock at
