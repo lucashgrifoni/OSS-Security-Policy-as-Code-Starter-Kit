@@ -44,7 +44,7 @@ from oss_policy_kit.application.evaluators._shared import (
     _max_json_nesting_depth,
     _sarif_rule_levels,
 )
-from oss_policy_kit.application.input_limits import MAX_SARIF_BYTES, oversize_reason
+from oss_policy_kit.application.input_limits import MAX_SARIF_BYTES, bad_input_detail, oversize_reason
 from oss_policy_kit.domain.findings import (
     FindingLocation,
     FindingSource,
@@ -153,7 +153,7 @@ def _load_runs(path: Path) -> tuple[list[Any] | None, str | None]:
     try:
         raw = path.read_text(encoding="utf-8-sig")
     except OSError as exc:
-        return None, f"Could not read SARIF file: {exc}"
+        return None, f"Could not read SARIF file: {bad_input_detail(exc)}."
     except UnicodeDecodeError as exc:
         return None, f"Could not decode SARIF file as UTF-8: {exc}"
     if _max_json_nesting_depth(raw) > _MAX_SARIF_JSON_DEPTH:
