@@ -22,6 +22,7 @@ from typing import Any
 
 import yaml
 
+from oss_policy_kit.application.input_limits import bad_input_detail
 from oss_policy_kit.application.loader import (
     ControlSpec,
     bundled_kit_root,
@@ -128,7 +129,7 @@ def _load_raw(path: Path) -> dict[str, Any]:
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     except OSError as exc:  # pragma: no cover - filesystem failure is not unit-testable here
-        raise LoadError(f"Could not read OSPS coverage map at {path}: {exc}") from exc
+        raise LoadError(f"Could not read OSPS coverage map at {path}: {bad_input_detail(exc)}") from exc
     except yaml.YAMLError as exc:
         raise LoadError(f"OSPS coverage map at {path} is not valid YAML: {exc}") from exc
     if not isinstance(raw, dict):

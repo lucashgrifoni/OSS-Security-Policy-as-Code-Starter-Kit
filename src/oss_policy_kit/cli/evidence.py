@@ -420,7 +420,7 @@ def collect_evidence_cmd(
             raise InvalidInputError(str(exc)) from exc
         _write_collected_evidence(rows, plat=plat, output_dir=output_dir, repo=repo, target_display=str(target))
     except OSError as exc:
-        stderr_console().print(f"[red]Error:[/red] {markup_safe(exc)}")
+        stderr_console().print(f"[red]Error:[/red] {markup_safe(exc.strerror or exc)}")
         raise typer.Exit(code=2) from exc
     except OssPolicyKitError as exc:
         stderr_console().print(f"[red]Error:[/red] {markup_safe(exc.message)}")

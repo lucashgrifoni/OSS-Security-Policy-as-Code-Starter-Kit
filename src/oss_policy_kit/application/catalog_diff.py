@@ -21,7 +21,7 @@ import dataclasses
 from pathlib import Path
 from typing import Any
 
-from oss_policy_kit.application.input_limits import MAX_EVIDENCE_BYTES, load_capped_document
+from oss_policy_kit.application.input_limits import MAX_EVIDENCE_BYTES, bad_input_detail, load_capped_document
 from oss_policy_kit.application.loader import ControlSpec, load_catalog
 from oss_policy_kit.domain.errors import InvalidInputError, LoadError
 
@@ -177,7 +177,7 @@ def load_snapshot(path: Path, *, label: str) -> CatalogSnapshot:
     try:
         resolved = path.expanduser().resolve()
     except OSError as exc:  # pragma: no cover - resolve rarely raises here
-        raise InvalidInputError(f"Invalid {label} path {path}: {exc}") from exc
+        raise InvalidInputError(f"Invalid {label} path {path}: {bad_input_detail(exc)}") from exc
     if resolved.is_dir():
         catalog_path = resolved / "controls" / "catalog.yaml"
         profiles_dir = resolved / "profiles"

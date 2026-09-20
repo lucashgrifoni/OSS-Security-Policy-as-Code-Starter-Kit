@@ -814,7 +814,7 @@ def _write_vex_output(
         output.write_text(payload, encoding="utf-8")
     except OSError as exc:
         raise InvalidInputError(
-            f"Cannot write to --output '{output}': {exc}"
+            f"Cannot write to --output '{output}': {exc.strerror or 'filesystem error'}"
             f"{long_path_note(exc.filename or output, winerror=getattr(exc, 'winerror', None))}"
         ) from exc
     applied = sum(1 for vid in vuln_ids if vid in vuln_waivers)
