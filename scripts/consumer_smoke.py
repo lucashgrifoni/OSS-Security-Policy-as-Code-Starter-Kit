@@ -47,6 +47,10 @@ class ProjectDist:
 #: The point of the script is to run the wheel it just installed into a throwaway venv. It
 #: runs the CLI from inside the checkout, because the steps evaluate `examples/hardened-repo`
 #: and the fixtures by relative path, and that on its own is harmless: there is no top-level
+#: Every step also runs the interpreter with `-P`, which drops the current directory from
+#: `sys.path` outright. The environment scrub below and the flag answer the same question
+#: from two sides, and the flag is the stronger of the two because it does not depend on
+#: knowing which variables matter.
 #: `oss_policy_kit` package at the repo root, only `src/oss_policy_kit`. `PYTHONPATH` is the
 #: one thing that changes the answer. An operator who happens to have it pointing at a `src/`
 #: gets a run that installs the artifact and then exercises the working tree, finishes green,
@@ -85,10 +89,15 @@ def _py_exe(venv_dir: Path) -> Path:
 def _console_script(venv_dir: Path) -> Path:
     """The `oss-policy-kit` executable the wheel installs.
 
-    Every other step runs `-m oss_policy_kit`, which is not what the documentation tells an
-    adopter to type. The console script is a separate thing the wheel declares and pip
-    writes, and nothing exercised it: a broken `[project.scripts]` entry would have shipped
-    with every check green.
+    Every other step runs `-P -m oss_policy_kit`. The console script is a separate thing the
+    wheel declares and pip writes, and nothing exercised it: a broken `[project.scripts]`
+    entry would have shipped with every check green.
+
+    An earlier version of this docstring said the console script is "what the documentation
+    tells an adopter to type". Counted afterwards, the docs taught `python -m` 201 times
+    against 52 for the console script, so the sentence was wrong; the step is worth having
+    for the smaller reason above. The same wrong sentence was corrected in the test beside
+    this script in #300 and survived here, which is what a copy of a claim does.
     """
 
     if os.name == "nt":
@@ -296,7 +305,7 @@ def main() -> int:
         _remove_virtualenv(venv_containment, venv_dir)
 
     subprocess.run(
-        [sys.executable, "-m", "venv", str(venv_dir)],
+        [sys.executable, "-P", "-m", "venv", str(venv_dir)],
         cwd=repo_root,
         shell=False,
         env=_child_env(),
@@ -305,7 +314,7 @@ def main() -> int:
     py = _safe_python_exe(venv_dir)
 
     subprocess.run(
-        _safe_subprocess_argv(py, ["-m", "pip", "install", "--upgrade", "pip", str(wheel)]),
+        _safe_subprocess_argv(py, ["-P", "-m", "pip", "install", "--upgrade", "pip", str(wheel)]),
         cwd=repo_root,
         shell=False,
         env=_child_env(),
@@ -397,13 +406,14 @@ def main() -> int:
             )
         )
 
-    add("version", ["-m", "oss_policy_kit", "--version"], 0)
+    add("version", ["-P", "-m", "oss_policy_kit", "--version"], 0)
     add_console("console_script_version", ["--version"], 0)
-    add("help_root", ["-m", "oss_policy_kit", "--help"], 0)
-    add("evaluate_help", ["-m", "oss_policy_kit", "evaluate", "--help"], 0)
+    add("help_root", ["-P", "-m", "oss_policy_kit", "--help"], 0)
+    add("evaluate_help", ["-P", "-m", "oss_policy_kit", "evaluate", "--help"], 0)
     add(
         "selfcheck",
         [
+            "-P",
             "-m",
             "oss_policy_kit",
             "evaluate",
@@ -421,6 +431,7 @@ def main() -> int:
     add(
         "hardened",
         [
+            "-P",
             "-m",
             "oss_policy_kit",
             "evaluate",
@@ -436,6 +447,7 @@ def main() -> int:
     add(
         "vulnerable",
         [
+            "-P",
             "-m",
             "oss_policy_kit",
             "evaluate",
@@ -451,6 +463,7 @@ def main() -> int:
     add(
         "vulnerable_fail_on_fail",
         [
+            "-P",
             "-m",
             "oss_policy_kit",
             "evaluate",
@@ -471,6 +484,7 @@ def main() -> int:
         add(
             "invalid_fail_on_degraded",
             [
+                "-P",
                 "-m",
                 "oss_policy_kit",
                 "evaluate",
@@ -488,6 +502,7 @@ def main() -> int:
     add(
         "waivers",
         [
+            "-P",
             "-m",
             "oss_policy_kit",
             "evaluate",
@@ -505,6 +520,7 @@ def main() -> int:
     add(
         "kit_root_override",
         [
+            "-P",
             "-m",
             "oss_policy_kit",
             "evaluate",
