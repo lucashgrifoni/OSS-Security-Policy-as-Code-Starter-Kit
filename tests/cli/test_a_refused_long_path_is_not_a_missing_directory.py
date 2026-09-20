@@ -36,10 +36,18 @@ import pytest
 
 from oss_policy_kit.application.input_limits import WINDOWS_LONG_PATH_FLOOR, long_path_note
 
-#: ERROR_PATH_NOT_FOUND, the code whose own message names the wrong cause.
+#: ERROR_PATH_NOT_FOUND, "the system cannot find the path specified". What this Windows
+#: 11 build returns for a long final component.
 _PATH_NOT_FOUND = 3
+#: ERROR_INVALID_NAME, "the filename, directory name, or volume label syntax is
+#: incorrect". What the CI runner returns for the same shape. Found by the Windows leg
+#: going red while both Linux legs passed, which is the whole reason that leg exists.
+_INVALID_NAME = 123
 #: ERROR_FILENAME_EXCED_RANGE, the code that already says the name is too long.
 _FILENAME_TOO_LONG = 206
+#: The two that name the wrong cause. Kept here as a literal rather than imported, so a
+#: change to the product's set has to be made deliberately in both places.
+_MISLEADING = (_PATH_NOT_FOUND, _INVALID_NAME)
 
 
 class _RefusedForLength(OSError):
@@ -62,8 +70,9 @@ class _RefusedForLength(OSError):
 # --- the clause itself --------------------------------------------------------------
 
 
-def test_the_refused_length_is_named() -> None:
-    note = long_path_note("x" * 318, winerror=_PATH_NOT_FOUND)
+@pytest.mark.parametrize("winerror", _MISLEADING)
+def test_the_refused_length_is_named(winerror: int) -> None:
+    note = long_path_note("x" * 318, winerror=winerror)
     assert "318 characters" in note
     assert f"{WINDOWS_LONG_PATH_FLOOR} characters" in note
 
@@ -74,16 +83,18 @@ def test_the_floor_is_the_measured_one() -> None:
     assert WINDOWS_LONG_PATH_FLOOR == 248
 
 
+@pytest.mark.parametrize("winerror", _MISLEADING)
 @pytest.mark.parametrize("length", [WINDOWS_LONG_PATH_FLOOR, WINDOWS_LONG_PATH_FLOOR + 1, 400])
-def test_at_or_past_the_floor_the_length_is_reported(length: int) -> None:
-    assert f"{length} characters" in long_path_note("x" * length, winerror=_PATH_NOT_FOUND)
+def test_at_or_past_the_floor_the_length_is_reported(length: int, winerror: int) -> None:
+    assert f"{length} characters" in long_path_note("x" * length, winerror=winerror)
 
 
+@pytest.mark.parametrize("winerror", _MISLEADING)
 @pytest.mark.parametrize("length", [0, 1, 100, WINDOWS_LONG_PATH_FLOOR - 1])
-def test_below_the_floor_nothing_is_added(length: int) -> None:
+def test_below_the_floor_nothing_is_added(length: int, winerror: int) -> None:
     """A short path that cannot be found is a missing path, and saying otherwise misleads."""
 
-    assert long_path_note("x" * length, winerror=_PATH_NOT_FOUND) == ""
+    assert long_path_note("x" * length, winerror=winerror) == ""
 
 
 def test_the_code_that_already_explains_itself_is_left_alone() -> None:
@@ -92,8 +103,8 @@ def test_the_code_that_already_explains_itself_is_left_alone() -> None:
     assert long_path_note("x" * 400, winerror=_FILENAME_TOO_LONG) == ""
 
 
-@pytest.mark.parametrize("winerror", [None, 0, 2, 13, 206, 5])
-def test_only_one_error_code_gets_the_clause(winerror: int | None) -> None:
+@pytest.mark.parametrize("winerror", [None, 0, 2, 13, 206, 5, 4, 32, 267])
+def test_no_other_error_code_gets_the_clause(winerror: int | None) -> None:
     assert long_path_note("x" * 400, winerror=winerror) == ""
 
 
@@ -198,12 +209,17 @@ def test_the_message_an_operator_reads_names_the_length(tmp_path: Path, monkeypa
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="the refusal being described is Windows'")
-def test_windows_still_answers_a_long_component_with_the_misleading_code(tmp_path: Path) -> None:
-    """If Windows ever starts naming the length itself, this fails and the clause is stale.
+def test_windows_refuses_a_long_component_without_naming_the_length(tmp_path: Path) -> None:
+    """The premise the clause rests on, asserted as a property rather than one code.
 
-    Asserts the premise rather than the message: that a directory whose final component is
-    long is refused with ERROR_PATH_NOT_FOUND, whose text talks about a path that cannot be
-    found rather than one that is too long.
+    An earlier version of this test pinned the code to 3, which is what this Windows 11
+    build returns. The CI runner returns 123 for the same shape, so the test went red on
+    one leg of the matrix and told me the product was too narrow as well: keyed to 3
+    alone, the clause would never have appeared on that machine.
+
+    What actually has to hold is weaker and more durable. Windows refuses the path, and
+    the reason it gives does not mention the length. If a build ever starts saying so
+    itself, this fails and the clause is stale for that code.
     """
 
     target = tmp_path / ("a" * 270)
@@ -212,5 +228,11 @@ def test_windows_still_answers_a_long_component_with_the_misleading_code(tmp_pat
     with pytest.raises(OSError) as caught:
         target.mkdir(parents=True, exist_ok=True)
 
-    assert caught.value.winerror == _PATH_NOT_FOUND, f"winerror was {caught.value.winerror}"
-    assert "too long" not in (caught.value.strerror or "").lower()
+    reason = (caught.value.strerror or "").lower()
+    assert "too long" not in reason, f"Windows now names the length itself: {reason!r}"
+    assert caught.value.winerror in _MISLEADING, (
+        f"winerror {caught.value.winerror} refuses a long path and is not in the set the "
+        f"clause fires on, so an operator on this build gets {reason!r} and no length"
+    )
+    # The clause has to actually appear for this build's code, not merely be reachable.
+    assert f"{len(str(target))} characters" in long_path_note(target, winerror=caught.value.winerror)
