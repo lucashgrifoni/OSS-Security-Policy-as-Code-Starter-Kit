@@ -22,7 +22,7 @@ from typing import Any
 
 import yaml
 
-from oss_policy_kit.application.input_limits import bad_input_detail
+from oss_policy_kit.application.input_limits import MAX_CONFIG_BYTES, bad_input_detail, oversize_reason
 from oss_policy_kit.application.loader import (
     ControlSpec,
     bundled_kit_root,
@@ -126,6 +126,11 @@ def _data_path(kit_root: Path) -> Path:
 
 
 def _load_raw(path: Path) -> dict[str, Any]:
+    # `kit_root` is operator-supplied, so the coverage map is not necessarily the one
+    # this package ships. Check the size before the read rather than after the parse.
+    too_big = oversize_reason(path, MAX_CONFIG_BYTES, label="OSPS coverage map")
+    if too_big is not None:
+        raise LoadError(too_big)
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     except OSError as exc:  # pragma: no cover - filesystem failure is not unit-testable here

@@ -36,6 +36,7 @@ from oss_policy_kit.application.init_planner import (
     WAIVERS_FILENAME,
     InitPlan,
 )
+from oss_policy_kit.application.input_limits import MAX_CONFIG_BYTES, oversize_reason
 from oss_policy_kit.domain.errors import InvalidInputError
 from oss_policy_kit.domain.models import utc_now
 
@@ -212,8 +213,15 @@ def _resolve_workflow_template(dest_filename: str) -> tuple[str, str]:
     except (ModuleNotFoundError, FileNotFoundError):
         pass
 
+    # This fallback resolves against the working directory, so when the packaged
+    # templates are missing it reads `templates/workflows/` out of whatever repository
+    # `init` was run in. That file is not ours, so it gets the same bound as any other
+    # document this package did not write.
     repo_local = _WORKFLOW_TEMPLATE_REPO_PATH / source
     if repo_local.is_file():
+        too_big = oversize_reason(repo_local, MAX_CONFIG_BYTES, label="Workflow template")
+        if too_big is not None:
+            raise InvalidInputError(too_big)
         return source, repo_local.read_text(encoding="utf-8")
 
     raise InvalidInputError(
