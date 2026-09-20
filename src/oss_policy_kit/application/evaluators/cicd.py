@@ -32,6 +32,7 @@ from oss_policy_kit.application.evaluators._shared import (
     contextlib,
     load_yaml_file,
     preview_evidence_paths,
+    unchecked_workflow_paths,
     unchecked_workflows_note,
     unread_workflow_degradation,
 )
@@ -326,7 +327,7 @@ def eval_sec_codeql_010(ctx: EvalContext) -> EvalOutcome:
         status=ControlStatus.FAIL,
         reason=f"No CodeQL (or equivalent) signal in local workflows.{unchecked_workflows_note(ctx.workflows)}",
         remediation="Add GitHub CodeQL workflow or equivalent SAST in CI.",
-        evidence_sources=[],
+        evidence_sources=unchecked_workflow_paths(ctx.workflows),
         confidence="medium",
     )
 
@@ -358,7 +359,7 @@ def eval_sec_deprev_011(ctx: EvalContext) -> EvalOutcome:
             "Add GitHub Dependency Review to pull request workflows."
             + (" Fix the unreadable workflow first, so this control can see all of them." if unchecked else "")
         ),
-        evidence_sources=[],
+        evidence_sources=unchecked_workflow_paths(ctx.workflows),
         confidence="low" if unchecked else "medium",
     )
 
@@ -413,7 +414,7 @@ def eval_sec_secrets_050(ctx: EvalContext) -> EvalOutcome:
             "Add a secret scanning step to your CI workflow. Example: uses: gitleaks/gitleaks-action@v2 "
             "(pin to a commit SHA in production)."
         ),
-        evidence_sources=[],
+        evidence_sources=unchecked_workflow_paths(ctx.workflows),
         confidence="medium",
     )
 
