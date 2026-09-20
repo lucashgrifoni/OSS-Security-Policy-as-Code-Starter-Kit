@@ -27,6 +27,7 @@ from oss_policy_kit.application.input_limits import (
     MAX_EVIDENCE_BYTES,
     bad_input_detail,
     is_bad_input,
+    long_path_note,
     oversize_reason,
 )
 from oss_policy_kit.application.insights_evidence import load_insights_evidence
@@ -919,7 +920,10 @@ def _write_eval_reports(  # type: ignore[no-untyped-def]
     try:
         return write_reports(report, out, include_absolute_path=req.include_absolute_path, extensions=extensions)
     except OSError as exc:
-        raise InvalidInputError(f"Cannot write to --output-dir '{req.output_dir}': {exc.strerror or exc}") from exc
+        raise InvalidInputError(
+            f"Cannot write to --output-dir '{req.output_dir}': {exc.strerror or exc}"
+            f"{long_path_note(exc.filename or out, winerror=getattr(exc, 'winerror', None))}"
+        ) from exc
 
 
 def _output_child_display(out_display: str, path: Path) -> str:
@@ -941,7 +945,10 @@ def _maybe_write_sarif(report, req: EvaluateRequest, out: Path, out_display: str
         # read-only location) is a usage error, not an internal crash. Map it to
         # exit 2 and echo only exc.strerror so the absolute path / username is
         # never leaked (M-002), matching the report write in _write_eval_reports.
-        raise InvalidInputError(f"Cannot write --sarif-output: {exc.strerror or 'filesystem error'}") from exc
+        raise InvalidInputError(
+            f"Cannot write --sarif-output: {exc.strerror or 'filesystem error'}"
+            f"{long_path_note(exc.filename or sarif_path, winerror=getattr(exc, 'winerror', None))}"
+        ) from exc
     if not req.summary_only and req.output_format != "json":
         # Composed from the two pieces the user typed, so a relative --output-dir and a
         # relative --sarif-output come back as the same relative path they went in as.

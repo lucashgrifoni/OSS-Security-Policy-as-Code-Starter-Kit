@@ -37,6 +37,7 @@ from pathlib import Path
 
 import typer
 
+from oss_policy_kit.application.input_limits import long_path_note
 from oss_policy_kit.application.loader import (
     ControlSpec,
     ProfileSpec,
@@ -283,7 +284,10 @@ def _run_export_policy(profile: str, fmt: str, output: Path | None, kit_root: Pa
         # location) is a usage error, not an internal crash. Map it to exit 2 and
         # echo only exc.strerror so the absolute path / username is never leaked
         # (M-002), mirroring emit-insights / correlate-findings / export-evidence.
-        raise InvalidInputError(f"Cannot write --output: {exc.strerror or 'filesystem error'}") from exc
+        raise InvalidInputError(
+            f"Cannot write --output: {exc.strerror or 'filesystem error'}"
+            f"{long_path_note(exc.filename or out_path, winerror=getattr(exc, 'winerror', None))}"
+        ) from exc
     control_count = len(_sorted_profile_control_ids(prof))
     write_stdout_text(
         f"export-policy: wrote {out_path} (format={fmt_norm}, profile={prof.id}, controls={control_count})\n"
