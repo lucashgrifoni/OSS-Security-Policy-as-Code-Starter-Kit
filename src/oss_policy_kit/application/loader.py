@@ -12,7 +12,13 @@ import yaml
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
-from oss_policy_kit.application.input_limits import BAD_INPUT_ERRORS, bad_input_detail, too_deep_reason
+from oss_policy_kit.application.input_limits import (
+    BAD_INPUT_ERRORS,
+    MAX_CONFIG_BYTES,
+    bad_input_detail,
+    oversize_reason,
+    too_deep_reason,
+)
 from oss_policy_kit.domain.errors import LoadError, ProfileLoadError
 
 REMOVED_CONTROL_IDS: frozenset[str] = frozenset({"SEC-AUDIT-016", "CI-SBOM-017"})
@@ -52,6 +58,13 @@ def _load_kit_yaml(path: Path, *, label: str) -> Any:
     """
 
     try:
+        # Before the read, not after: a depth check cannot help with a file that is
+        # too big to hold, and `oversize_reason` reads no content. Its message names
+        # `path.name` only, which is the same M-002 rule the rest of this function
+        # follows.
+        too_big = oversize_reason(path, MAX_CONFIG_BYTES, label=label)
+        if too_big is not None:
+            raise LoadError(too_big)
         text = path.read_text(encoding="utf-8")
         too_deep = too_deep_reason(text, label=f"{label} '{path.name}'")
         if too_deep is not None:
