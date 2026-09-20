@@ -77,11 +77,23 @@ def test_the_adopter_facing_doc_says_it_too(phrase: str) -> None:
 
 
 def test_the_wheel_row_no_longer_promises_an_unqualified_hash() -> None:
-    """The row is the part a reader acts on, so it carries the condition."""
+    """The row is the part a reader acts on, so it carries a condition.
+
+    This asserted the literal phrase "when the build backend matches" until the backend
+    condition was itself measured insufficient: at v10.0.24 with the same setuptools on
+    both sides, a Windows rebuild still differs in METADATA and RECORD. Pinning the
+    sentence made the guard fail on a correction rather than on a regression, which is
+    backwards, so it now asserts what the row has to carry instead of how it is worded.
+    The defect it was written for, an unqualified "Identical hash", still fails it.
+    """
 
     doc = _collapsed(_DOC)
+    lines = _DOC.read_text(encoding="utf-8").splitlines()
+    row = next((line for line in lines if "Anything published after v10.0.20" in line), "")
 
-    assert "Identical hash, when the build backend matches" in doc
+    assert row, "the expectations table lost its post-v10.0.20 row"
+    assert "Identical hash" in row, "the wheel row no longer states the hash expectation at all"
+    assert "when the" in row, f"the wheel row promises a hash with no condition attached: {row}"
     assert "| Identical hash |" not in doc, "the unqualified promise is back in the table"
 
 

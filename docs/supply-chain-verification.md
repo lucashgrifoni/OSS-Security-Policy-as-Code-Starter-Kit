@@ -93,7 +93,7 @@ What to expect:
 
 | Release | Wheel | Source distribution |
 |---|---|---|
-| Anything published after v10.0.20 | Identical hash, when the build backend matches (see below) | Identical file contents, different hash |
+| Anything published after v10.0.20 | Identical hash, when the rebuild runs on Linux with the same build backend (see below) | Identical file contents, different hash |
 | v10.0.20 and earlier | Identical contents, all 231 entries; different hash | Identical file contents, different hash |
 
 **The epoch is one input, not the only one.** Pinning it removes the runner's clock, which
@@ -105,6 +105,25 @@ version also decide the bytes, and the backend version is written into the artif
 current that day, so a rebuild months later can differ for that reason alone. Read
 `.dist-info/WHEEL` in the published wheel and install the same backend version if you need
 the hash to match.
+
+**A Windows rebuild differs in two entries, and only in line endings.** Measured at
+v10.0.24 against the published wheel, with the epoch taken from the release commit and
+`Generator: setuptools (84.0.0)` on both sides, so the backend condition above was met:
+
+| entries | result |
+|---|---|
+| 229 of 231 | byte for byte identical |
+| `dist-info/METADATA` | 13,637 bytes against 13,384; 253 CRLF lines against 253 LF lines, and no other difference |
+| `dist-info/RECORD` | differs because it carries METADATA's hash |
+
+setuptools generates METADATA, and on Windows it is written with CRLF. `.gitattributes`
+normalises files as they are checked out, so it cannot reach one the build itself writes,
+which is why the catch-all that fixed LICENSE and NOTICE did not fix this.
+
+Rebuild on Linux if you want the hash to match. If you have to verify from Windows,
+compare entry by entry rather than by file hash, and treat a METADATA difference as a
+match when the two are equal after converting CRLF to LF. A difference in any other entry
+is a real difference.
 
 **The sdist is content-reproducible and nothing more.** An earlier version of this table
 said its source entries are pinned and only the generated `egg-info` members and the gzip
