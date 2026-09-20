@@ -9,7 +9,9 @@ from typing import Any
 
 from oss_policy_kit.application.input_limits import (
     BAD_INPUT_ERRORS,
+    MAX_EVIDENCE_BYTES,
     bad_input_reason,
+    oversize_reason,
     too_deep_reason,
 )
 from oss_policy_kit.domain.errors import InvalidInputError
@@ -359,6 +361,16 @@ def load_report_json(path: Path, *, label: str = "Report") -> dict[str, Any]:
     file came from, so ``--before`` and ``--after`` cannot produce byte-identical
     rejections the way they did through v10.0.6.
     """
+
+    # Size before content. The depth guard below runs on a string, so without this the
+    # whole file is already in memory by the time anything checks it, and every other
+    # reader of an operator-supplied document in this kit is bounded. A report is about
+    # 1.3 KB per control measured on the shipped samples, and the largest shipped profile
+    # has 39 controls, so 5 MiB leaves room for a report over a hundred times larger than
+    # any the kit writes.
+    oversize = oversize_reason(path, MAX_EVIDENCE_BYTES, label=label)
+    if oversize is not None:
+        raise InvalidInputError(oversize)
 
     try:
         # ``utf-8-sig`` matches every other reader of an operator-supplied document: it strips a

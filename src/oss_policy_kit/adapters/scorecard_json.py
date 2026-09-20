@@ -95,6 +95,13 @@ def _coerce_date(value: Any) -> str | None:
 def load_scorecard_json(path: Path) -> ScorecardBundle:
     """Load Scorecard JSON (common CLI export shapes)."""
 
+    # Same ceiling and the same call the YAML loader below already makes. Only the JSON
+    # path was missing it, so the depth guard underneath ran on a document that had
+    # already been read into memory in full.
+    reason = oversize_reason(path, MAX_EVIDENCE_BYTES, label="Scorecard JSON")
+    if reason is not None:
+        raise LoadError(reason)
+
     try:
         text = path.read_text(encoding="utf-8")
         # Depth is checked before parsing, not left to RecursionError: the C JSON scanner

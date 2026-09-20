@@ -41,7 +41,9 @@ import typer
 
 from oss_policy_kit.application.input_limits import (
     BAD_INPUT_ERRORS,
+    MAX_EVIDENCE_BYTES,
     bad_input_reason,
+    oversize_reason,
     too_deep_reason,
 )
 from oss_policy_kit.application.reporting import verify_results_digest
@@ -196,6 +198,11 @@ def _read_report(path: Path) -> dict[str, Any]:
     auditor's cwd/home/username into a shared terminal or a CI log (M-002).
     """
     label = _report_label(path)
+    # The other reader of this same artifact is `drift.load_report_json`, and both were
+    # unbounded: the depth guard further down measures a string that is already in memory.
+    oversize = oversize_reason(path, MAX_EVIDENCE_BYTES, label=f"Evaluation report {label}")
+    if oversize is not None:
+        raise InvalidInputError(oversize)
     try:
         raw = path.read_text(encoding="utf-8")
     except OSError as exc:
