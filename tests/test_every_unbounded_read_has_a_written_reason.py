@@ -124,7 +124,7 @@ def test_no_reason_outlives_the_read_it_excused() -> None:
 
 
 def test_every_reason_says_something() -> None:
-    """"Deferred" is not a reason. Each entry has to carry the argument."""
+    """A one-word exemption is not an argument. Each entry has to carry the reason."""
 
     thin = sorted(k for k, v in ALLOWED.items() if len(v.split()) < 20)
     assert not thin, f"these exemptions do not explain themselves: {thin}"

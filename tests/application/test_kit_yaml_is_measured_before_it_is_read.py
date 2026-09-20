@@ -43,9 +43,7 @@ def _forbid_reads(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Path, "read_bytes", _boom)
 
 
-def test_an_oversize_catalog_is_refused_without_being_read(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_an_oversize_catalog_is_refused_without_being_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from oss_policy_kit.application import loader
 
     catalog = _oversize(tmp_path / "controls" / "catalog.yaml")
