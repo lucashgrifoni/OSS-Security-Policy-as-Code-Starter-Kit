@@ -134,7 +134,7 @@ jobs:
 
       - name: Upload Semgrep SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           sarif_file: semgrep.sarif
           category: semgrep
@@ -192,7 +192,7 @@ jobs:
 
       - name: Upload Snyk Code SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           sarif_file: snyk-code.sarif
           category: snyk-code
@@ -236,15 +236,15 @@ jobs:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/autobuild@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           category: "/language:${{ matrix.language }}"
 
@@ -303,7 +303,7 @@ jobs:
 
       - name: Upload Snyk Open Source SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           sarif_file: snyk-oss.sarif
           category: snyk-oss
@@ -348,7 +348,7 @@ jobs:
 
       - name: Upload Trivy dependency SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           sarif_file: trivy-deps.sarif
           category: trivy-deps
@@ -437,7 +437,7 @@ jobs:
 
       - name: Upload Trivy base-image SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           sarif_file: trivy-base-image.sarif
           category: trivy-base-image
@@ -480,7 +480,7 @@ jobs:
 
       - name: Upload Trivy IaC SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           sarif_file: trivy-iac.sarif
           category: trivy-iac
@@ -535,7 +535,7 @@ jobs:
 
       - name: Upload KICS SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           sarif_file: kics-results/results.sarif
           category: kics
@@ -578,7 +578,7 @@ jobs:
 
       - name: Upload Trivy secrets SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           sarif_file: trivy-secrets.sarif
           category: trivy-secrets
@@ -877,7 +877,7 @@ jobs:
       # 14-day retention, so zizmor contributed nothing to the code-scanning backlog that the
       # other eight scanners in this workflow feed. A finding nobody is shown is not a finding.
       - name: Upload zizmor SARIF to code scanning
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         if: always()
         with:
           sarif_file: .oss-policy-kit/evidence/sast/zizmor.sarif.json
