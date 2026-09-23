@@ -15,11 +15,10 @@
 # tag (e.g. `@v10.0.15`) or -- recommended for production -- the commit SHA of one.
 # Override with the `kit-version` input, or set it to `latest` to opt out of pinning.
 #
-# A major-line pin such as `@v10` RESOLVES correctly if you create that tag, but this
-# repository does not publish one, so nobody can actually use it. This comment used to
-# offer it as a supported option. A rolling major tag is deliberately not published:
-# it has to be moved on every release, and a release that forgets leaves everyone
-# pinned to it silently on an old version -- the opposite of what pinning is for.
+# A major-line pin such as `@v10` does not resolve: this repository publishes no rolling
+# major tag, deliberately. It would have to be moved on every release, and a release that
+# forgets leaves everyone pinned to it silently on an old version -- the opposite of what
+# pinning is for.
 
 name: 'OSS Security Policy as Code'
 description: 'Evaluate a repository against bundled OSS security baselines (governance, CI/CD, supply chain).'
