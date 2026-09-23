@@ -29,7 +29,7 @@ from oss_policy_kit import __version__ as _KIT_VERSION
 from oss_policy_kit.application.finding_normalization import NORMALIZED_SEVERITIES
 from oss_policy_kit.application.findings_report import build_findings_report
 from oss_policy_kit.application.findings_sarif_export import render_findings_sarif
-from oss_policy_kit.application.input_limits import MAX_EVIDENCE_BYTES, oversize_reason
+from oss_policy_kit.application.input_limits import MAX_EVIDENCE_BYTES, long_path_note, oversize_reason
 from oss_policy_kit.cli.common import app, exit_for_unexpected, markup_safe, stderr_console, write_stdout_text
 from oss_policy_kit.cli.help_text import CMD_PANEL_EXPORT
 from oss_policy_kit.domain.errors import InvalidInputError, OssPolicyKitError
@@ -158,7 +158,10 @@ def _write_artifact(report: dict[str, Any], output: Path) -> None:
         output.write_text(payload, encoding="utf-8")
     except OSError as exc:
         # strerror only: never leak the absolute path / username (v9.0.2 M-002).
-        raise InvalidInputError(f"cannot write --output ({exc.strerror or 'filesystem error'})") from exc
+        raise InvalidInputError(
+            f"cannot write --output ({exc.strerror or 'filesystem error'})"
+            f"{long_path_note(exc.filename or output, winerror=getattr(exc, 'winerror', None))}"
+        ) from exc
 
 
 def _gate_tripped(report: dict[str, Any], fail_on_severity: str | None, fail_on_kev: bool) -> str | None:
