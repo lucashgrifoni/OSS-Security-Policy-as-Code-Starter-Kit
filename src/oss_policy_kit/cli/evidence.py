@@ -13,6 +13,7 @@ from rich.table import Table
 
 from oss_policy_kit.adapters.local_paths import resolve_existing_dir
 from oss_policy_kit.application.evidence_scaffold import scaffold_evidence_files
+from oss_policy_kit.application.input_limits import long_path_note
 from oss_policy_kit.cli import terminal_ui
 from oss_policy_kit.cli.common import (
     NonEmptyPath,
@@ -201,6 +202,7 @@ def scaffold_evidence_cmd(
                 raise InvalidInputError(
                     f"Could not create --target directory {display_path(candidate)}: "
                     f"{exc.strerror or 'filesystem error'}"
+                    f"{long_path_note(exc.filename or candidate, winerror=getattr(exc, 'winerror', None))}"
                 ) from exc
             stderr_console().print(
                 f"[yellow]Note:[/yellow] created missing --target directory: {markup_safe(display_path(candidate))}"

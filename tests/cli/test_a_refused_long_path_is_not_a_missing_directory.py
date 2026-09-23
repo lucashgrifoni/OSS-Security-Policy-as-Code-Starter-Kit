@@ -14,10 +14,15 @@ command had just been asked to create, which sends the reader hunting for a miss
 parent that is not missing. Run against the parent commit the same invocation printed no
 length at all; against this one it prints both the measured length and the limit.
 
-Eight raisers report a failed write to an operator-supplied output path and every one of
-them can be handed winerror 3, so the sweep below is derived from the source rather than
-from a list -- a ninth raiser added later is held to the same rule without anyone
-remembering to add it here.
+Ten raisers report a failed write to an operator-supplied path and every one of them can be
+handed winerror 3, so the sweep below is derived from the source rather than from a list.
+
+It said eight, and it said "derived", and the second claim was only half true. It found a
+raiser by the phrase "Cannot write" in its message, so two with the same defect and
+different wording were invisible to it: `correlate-findings` says "cannot write --output",
+lowercase, and `scaffold-evidence` says "Could not create --target directory". The sweep
+now finds a raiser by what its `try` does, a write, and not by what its message says. That
+finds exactly the eight it found before and exactly the two it missed, and nothing else.
 
 What the clause deliberately does not do: assert a cause. ERROR_PATH_NOT_FOUND really is
 also what a genuinely missing parent looks like, so the wording says the length "may be"
@@ -29,6 +34,7 @@ messages go to some trouble to keep.
 from __future__ import annotations
 
 import ast
+import re
 import sys
 from pathlib import Path
 
@@ -133,34 +139,118 @@ def test_the_clause_never_carries_the_path() -> None:
 # --- every raiser in the family, derived from the source ------------------------------
 
 
-def _write_failure_raises() -> list[tuple[str, int, str]]:
-    """Every ``raise InvalidInputError`` for a failed write, found by reading the source.
+#: The calls that write to the filesystem. A `try` that makes one of them is guarding a
+#: write, whatever its handler's message happens to say.
+_WRITES = frozenset(
+    {
+        "write_text",
+        "write_bytes",
+        "mkdir",
+        "makedirs",
+        "touch",
+        "replace",
+        "rename",
+        "copyfile",
+        "copy2",
+        "_atomic_write_text",
+        "write_reports",
+        "write_sarif_report",
+        "write_markdown_report",
+    }
+)
 
-    Scoped to raises that sit inside a handler catching ``OSError``, which is what a
-    failed write looks like everywhere in this package.
+
+def _open_modes(call: ast.Call) -> list[ast.expr]:
+    """Where a mode can sit: second for ``open(path, mode)``, first for ``path.open(mode)``."""
+
+    positional = call.args[1:2] if isinstance(call.func, ast.Name) else call.args[:2]
+    return [*positional, *(kw.value for kw in call.keywords if kw.arg == "mode")]
+
+
+def _is_a_write_mode(node: ast.expr) -> bool:
+    # A mode string and nothing else: "tax.json" has an x in it and opens nothing for writing.
+    return (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and re.fullmatch(r"[rwaxbt+]+", node.value) is not None
+        and bool(set(node.value) & set("wax"))
+    )
+
+
+def _performs_a_write(body: list[ast.stmt]) -> bool:
+    for node in ast.walk(ast.Module(body=body, type_ignores=[])):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
+        if name in _WRITES:
+            return True
+        if name == "open" and any(_is_a_write_mode(mode) for mode in _open_modes(node)):
+            return True
+    return False
+
+
+def _write_failure_raises() -> list[tuple[str, int, str]]:
+    """Every ``raise InvalidInputError`` a failed write can reach, found by reading the source.
+
+    A raise counts when it sits in a handler catching ``OSError`` on a ``try`` whose body
+    writes. The message is deliberately not consulted: the first version of this matched
+    "Cannot write" and could not see two raisers that phrase the same failure differently.
     """
 
     src = Path(__file__).resolve().parents[2] / "src" / "oss_policy_kit"
     found: list[tuple[str, int, str]] = []
     for path in sorted(src.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        for handler in (n for n in ast.walk(tree) if isinstance(n, ast.ExceptHandler)):
-            caught = ast.unparse(handler.type) if handler.type else ""
-            if "OSError" not in caught:
+        for block in (n for n in ast.walk(tree) if isinstance(n, ast.Try)):
+            if not _performs_a_write(block.body):
                 continue
-            for node in ast.walk(handler):
-                if not isinstance(node, ast.Raise) or node.exc is None:
+            for handler in block.handlers:
+                if not handler.type or "OSError" not in ast.unparse(handler.type):
                     continue
-                text = ast.unparse(node)
-                if "InvalidInputError" in text and "Cannot write" in text:
-                    found.append((path.name, node.lineno, text))
+                for node in ast.walk(handler):
+                    if isinstance(node, ast.Raise) and node.exc is not None:
+                        text = ast.unparse(node)
+                        if "InvalidInputError" in text:
+                            found.append((path.name, node.lineno, text))
     return found
+
+
+@pytest.mark.parametrize(
+    ("source", "writes"),
+    [
+        ("open(p, 'w')", True),
+        ("open(p, mode='x')", True),
+        ("p.open('a')", True),
+        ("p.open(mode='wb')", True),
+        ("io.open(p, 'w')", True),
+        ("p.write_text(s)", True),
+        ("open(p)", False),
+        ("p.open('r')", False),
+        ("open('tax.json')", False),
+        ("io.open('tax.json')", False),
+        ("p.open(encoding='utf-8')", False),
+        ("p.read_text()", False),
+    ],
+)
+def test_the_sweep_knows_a_write_when_it_sees_one(source: str, writes: bool) -> None:
+    """``path.open("w")`` carries its mode first, and the first version only looked second."""
+
+    assert _performs_a_write(ast.parse(source).body) is writes
 
 
 def test_the_sweep_finds_the_family() -> None:
     """A sweep that matches nothing passes for the wrong reason."""
 
-    assert len(_write_failure_raises()) >= 8
+    assert len(_write_failure_raises()) >= 10
+
+
+def test_the_sweep_does_not_depend_on_how_a_message_is_worded() -> None:
+    """The two raisers the phrase-matching version missed are in the family by structure."""
+
+    found = {name for name, _line, _text in _write_failure_raises()}
+
+    assert {"correlate_findings.py", "evidence.py"} <= found, found
 
 
 def test_every_write_failure_can_name_the_length() -> None:
@@ -203,6 +293,58 @@ def test_the_message_an_operator_reads_names_the_length(tmp_path: Path, monkeypa
     assert f"{len(long_name)} characters" in message
     assert f"{WINDOWS_LONG_PATH_FLOOR} characters" in message
     assert "a" * 8 not in message, "the path itself must not reach the operator (M-002)"
+
+
+def test_correlate_findings_names_the_length_of_an_output_it_could_not_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One of the two the phrase-matching sweep missed: it says "cannot write", lowercase."""
+
+    from oss_policy_kit.cli import correlate_findings
+    from oss_policy_kit.domain.errors import InvalidInputError
+
+    long_name = "C:/o/" + "b" * 313
+
+    def _boom(*_args: object, **_kwargs: object) -> int:
+        raise _RefusedForLength(long_name)
+
+    monkeypatch.setattr(Path, "write_text", _boom)
+
+    with pytest.raises(InvalidInputError) as caught:
+        correlate_findings._write_artifact({}, tmp_path / "out.json")
+
+    message = str(caught.value)
+    assert "cannot write --output" in message
+    assert f"{len(long_name)} characters" in message
+    assert "b" * 8 not in message, "the path itself must not reach the operator (M-002)"
+
+
+def test_scaffold_evidence_names_the_length_of_a_target_it_could_not_create(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other: it says "Could not create --target directory", and the sweep never read it."""
+
+    from typer.testing import CliRunner
+
+    from oss_policy_kit.cli.main import app
+
+    missing = tmp_path / "not-there-yet"
+    long_name = "C:/o/" + "c" * 313
+    real_mkdir = Path.mkdir
+
+    def _refuse_only_the_target(self: Path, *args: object, **kwargs: object) -> None:
+        if self == missing:
+            raise _RefusedForLength(long_name)
+        real_mkdir(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Path, "mkdir", _refuse_only_the_target)
+
+    result = CliRunner().invoke(app, ["scaffold-evidence", "--target", str(missing), "--platform", "github"])
+
+    output = " ".join(result.output.split())
+    assert result.exit_code == 2, result.output
+    assert "Could not create --target directory" in output
+    assert f"{len(long_name)} characters" in output
 
 
 # --- the premise the constant rests on ------------------------------------------------
