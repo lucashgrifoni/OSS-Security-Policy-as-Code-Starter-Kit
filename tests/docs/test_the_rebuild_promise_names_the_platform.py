@@ -30,7 +30,10 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import yaml
+
 DOC = Path(__file__).resolve().parents[2] / "docs" / "supply-chain-verification.md"
+PUBLISH = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "publish-pypi.yml"
 
 
 def _text() -> str:
@@ -73,3 +76,17 @@ def test_the_page_tells_a_windows_verifier_what_to_do() -> None:
     body = _text()
     assert "Rebuild on Linux" in body, "the page no longer gives the remedy for the hash to match"
     assert "entry by entry" in body, "the page no longer tells a Windows verifier how to compare"
+
+
+def test_the_published_wheel_is_built_where_the_page_says_to_rebuild() -> None:
+    """The promise has two ends. "Rebuild on Linux" matches only a wheel built on Linux.
+
+    Nothing pinned the other end. A publish job moved to a Windows runner would ship
+    METADATA with CRLF, every Linux rebuild the page recommends would then differ in
+    METADATA and RECORD, and the identical hash the page promises would not exist.
+    """
+
+    workflow = yaml.safe_load(PUBLISH.read_text(encoding="utf-8"))
+    runner = str(workflow["jobs"]["build"]["runs-on"])
+
+    assert runner.startswith("ubuntu-"), f"the published wheel is built on {runner}, and the page promises Linux"
