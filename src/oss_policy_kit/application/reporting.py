@@ -362,12 +362,81 @@ def _md_line(value: str) -> str:
     return flattened.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
 
 
-#: The two shapes that give Markdown a destination to fetch. Each one is neutralised by
-#: escaping the single character that opens it, which is why neither pattern consumes the
-#: rest of the construct: a bracket with no `](` after it, and a `<` that is not opening a
-#: URI, are ordinary text and stay ordinary text.
+#: A link or an image, the destination Markdown gives through its own syntax. Neutralised
+#: by escaping the bracket that opens it, which is why the pattern does not consume the
+#: rest: a bracket with no `](` after it is ordinary text and stays ordinary text.
 _MARKDOWN_LINK_OR_IMAGE = re.compile(r"!?\[(?=[^\]]*\]\()")
-_MARKDOWN_AUTOLINK = re.compile(r"<(?=[A-Za-z][A-Za-z0-9+.\-]*:[^ <>]*>|[^ <>@]+@[^ <>]+>)")
+
+#: A `<` the renderer reads as markup rather than as a less-than sign. A tag name starts
+#: with a letter, a closing tag with `/`, a comment or declaration with `!`, a processing
+#: instruction with `?`, and an autolink with a URI scheme (a letter) or an email local
+#: part. A `<` followed by anything else, `< 80` or `<=`, can start none of them and is left
+#: exactly as written.
+#:
+#: The literal `<` at the front is what keeps this linear, and it has to stay there even
+#: though the only caller already stands on a `<`. Without it the pattern is a bare
+#: lookahead, which a search tries at every position, and the email branch scans forward
+#: from each one: measured at twelve times the cost for four times the input. With it, a
+#: search starts only at a `<`, and the scan stops at the next one.
+_MARKUP_OPENER = re.compile(r"<(?=[A-Za-z/!?]|[^ <>@]+@[^ <>]+>)")
+
+
+def _closing_backtick_run(text: str, start: int, run: int) -> int | None:
+    """Where the next run of exactly *run* backticks begins, or ``None`` if there is none."""
+
+    position = start
+    while True:
+        position = text.find("`", position)
+        if position < 0:
+            return None
+        end = position
+        while end < len(text) and text[end] == "`":
+            end += 1
+        if end - position == run:
+            return position
+        position = end
+
+
+def _escape_markup_openers(text: str) -> str:
+    """Escape every `<` that would open markup, and leave code spans exactly as they are.
+
+    Outside a code span an unescaped opener is a tag, and CommonMark allows raw HTML inline.
+    Inside one the renderer prints `<` literally, so escaping there would show the reader a
+    backslash in the middle of a command the kit wrote itself: twenty-four such spans exist,
+    ``harden-runner@<sha>`` and ``cosign sign --yes <image>@<digest>`` among them.
+
+    The span has to be found the way the renderer finds it, because the difference between
+    the two readings is exactly where an attack would live. A run of N backticks opens a
+    span only when a later run of exactly N closes it; a backtick with no partner is literal
+    text; a backslash-escaped character opens nothing. The walk is left to right, as the
+    renderer's is, so a `<` that comes before a backtick is escaped before any span can
+    claim it. Where the reading is unclear this escapes: one escape too many costs a visible
+    backslash, one too few costs a live tag.
+    """
+
+    out: list[str] = []
+    i, n = 0, len(text)
+    while i < n:
+        char = text[i]
+        if char == "\\" and i + 1 < n:
+            out.append(text[i : i + 2])
+            i += 2
+            continue
+        if char == "`":
+            end = i
+            while end < n and text[end] == "`":
+                end += 1
+            close = _closing_backtick_run(text, end, end - i)
+            if close is None:
+                out.append(text[i:end])
+                i = end
+            else:
+                out.append(text[i : close + (end - i)])
+                i = close + (end - i)
+            continue
+        out.append("\\<" if char == "<" and _MARKUP_OPENER.match(text, i) else char)
+        i += 1
+    return "".join(out)
 
 
 def _md_prose(value: str, *, in_table: bool = False) -> str:
@@ -379,16 +448,20 @@ def _md_prose(value: str, *, in_table: bool = False) -> str:
     `evaluators/ai.py` alone interpolates `{p.name}` and `{rel}` into a dozen reasons, so a
     file named `[click](http://somewhere)` inside a scanned repository reaches the report.
 
-    Three things were measured against a rendered report before this was written. An inline
-    link and an autolink each produced a clickable `<a href>` pointing wherever the
-    repository said. An image produced an `<img src>`, which is the worse one: it needs no
-    click at all, so opening the report reaches out to whoever wrote the filename.
+    Four things were measured against a rendered report. An inline link and an autolink
+    each produced a clickable `<a href>` pointing wherever the repository said. An image
+    produced an `<img src>`, which is the worse one: it needs no click, so opening the
+    report reaches out to whoever wrote the filename. And raw HTML, which the first version
+    of this function did not consider at all: CommonMark allows it inline, so the same
+    `<img src>` arrived as a tag rather than as Markdown syntax, twelve times in one report,
+    from fields a JSON evidence file inside the scanned repository could fill.
 
     What it does NOT escape is as deliberate as what it does. Backticks stay, because three
     catalog controls quote filenames with them. A bare `[` stays, because a remediation
     already reads ``runs-on: [self-hosted, ephemeral]`` and escaping it would show the
-    reader a backslash. A bare `<` stays, because `< 80 characters` is prose. Measured on
-    the catalog: 222 controls, zero using `](`, zero using the autolink shape.
+    reader a backslash. A `<` that cannot open markup stays, because `< 80 characters` is
+    prose; one that can is escaped, except inside a code span, where the renderer already
+    prints it literally. Measured on the catalog: 222 controls, zero using `](`.
 
     Emphasis is still reachable, and that is an accepted difference rather than an
     oversight. A `*` turns text italic; it does not give anyone an address.
@@ -396,7 +469,7 @@ def _md_prose(value: str, *, in_table: bool = False) -> str:
 
     flattened = _md_cell(value) if in_table else _md_line(value)
     flattened = _MARKDOWN_LINK_OR_IMAGE.sub(lambda m: m.group(0).replace("[", "\\["), flattened)
-    return _MARKDOWN_AUTOLINK.sub("\\<", flattened)
+    return _escape_markup_openers(flattened)
 
 
 def _md_cell(value: str) -> str:
@@ -1285,8 +1358,10 @@ def _md_controls_table_lines(report: ExecutionReport) -> list[str]:
         # them are escaped — not just the two free-text columns.
         w = f"yes ({_md_prose(r.waiver.owner, in_table=True)})" if r.waiver else ""
         out.append(
-            f"| `{_md_cell(r.control_id)}` | {_md_cell(r.category)} | {_md_cell(r.lifecycle)} |"
-            f" `{_md_cell(r.assurance)}` | `{_md_cell(r.status.value)}` | {_md_cell(r.confidence)} |"
+            f"| {_md_code(r.control_id, in_table=True)} | {_md_prose(r.category, in_table=True)} |"
+            f" {_md_prose(r.lifecycle, in_table=True)} |"
+            f" {_md_code(r.assurance, in_table=True)} | {_md_code(r.status.value, in_table=True)} |"
+            f" {_md_prose(r.confidence, in_table=True)} |"
             f" {_md_prose(r.reason, in_table=True)} | {_md_prose(r.remediation, in_table=True)} | {w} |"
         )
     out.append("")
@@ -1319,13 +1394,13 @@ def _md_control_detail_lines(report: ExecutionReport, *, include_absolute_path: 
     # section announcing that everything passed.
     out: list[str] = ["## Detail", ""]
     for r in report.results:
-        out.append(f"### `{_md_line(r.control_id)}` - {_md_line(r.title)}")
+        out.append(f"### {_md_code(r.control_id)} - {_md_prose(r.title)}")
         out.append("")
-        out.append(f"- **Status**: `{_md_line(r.status.value)}`")
-        out.append(f"- **Lifecycle**: {_md_line(r.lifecycle)}")
-        out.append(f"- **Assurance**: `{_md_line(r.assurance)}`")
-        out.append(f"- **Evidence collection method**: `{_md_line(str(r.evidence_collection_method))}`")
-        out.append(f"- **Confidence**: {_md_line(r.confidence)}")
+        out.append(f"- **Status**: {_md_code(r.status.value)}")
+        out.append(f"- **Lifecycle**: {_md_prose(r.lifecycle)}")
+        out.append(f"- **Assurance**: {_md_code(r.assurance)}")
+        out.append(f"- **Evidence collection method**: {_md_code(str(r.evidence_collection_method))}")
+        out.append(f"- **Confidence**: {_md_prose(r.confidence)}")
         out.append(f"- **Reason**: {_md_prose(r.reason)}")
         out.append(f"- **Remediation**: {_md_prose(r.remediation)}")
         if r.evidence_sources:
@@ -1339,7 +1414,7 @@ def _md_control_detail_lines(report: ExecutionReport, *, include_absolute_path: 
             out.append(f"  - **Owner**: {_md_prose(r.waiver.owner)}")
             out.append(f"  - **Justification**: {_md_prose(r.waiver.justification)}")
             if r.waiver.expires_at:
-                out.append(f"  - **Expires**: {_md_line(r.waiver.expires_at.isoformat())}")
+                out.append(f"  - **Expires**: {_md_prose(r.waiver.expires_at.isoformat())}")
         out.append("")
     return out
 
@@ -1494,7 +1569,10 @@ def render_drift_report(report: DriftReport, fmt: str, *, color: bool = True) ->
 def _drift_row(d: ControlDelta) -> str:
     """One Markdown row of the drift table, with every cell escaped."""
 
-    return f"| `{_md_cell(d.control_id)}` | `{_md_cell(d.before_status)}` | `{_md_cell(d.after_status)}` |"
+    return (
+        f"| {_md_code(d.control_id, in_table=True)} | {_md_code(d.before_status, in_table=True)} |"
+        f" {_md_code(d.after_status, in_table=True)} |"
+    )
 
 
 def _drift_markdown(report: DriftReport) -> str:
