@@ -3,7 +3,7 @@
   "contract_version": "reports/2.0",
   "evidence_provenance_version": "evidence/2.0",
   "generated_at": "2026-08-06T00:00:00+00:00",
-  "kit_version": "10.0.24",
+  "kit_version": "10.0.25",
   "target_path": "vulnerable-repo",
   "profile": {
     "id": "github-level-1",
@@ -467,8 +467,8 @@
       "assurance": "deterministic",
       "confidence": "medium",
       "weight": 1,
-      "message": "No versioned waiver policy file found in repository. If waivers are not applicable, create a waivers/ directory with a documented policy statement or use an empty waivers file.",
-      "remediation": "Create waivers/policy.yaml or waivers/README.md documenting the waiver governance approach.",
+      "message": "No versioned waivers file found in repository. This control reads `waivers.yaml`, `waivers.yml`, `waivers/waivers.yaml` and `.oss-policy-kit/waivers.yaml`.",
+      "remediation": "Commit `waivers.yaml` holding `waivers: []` when no waiver is active (`oss-policy-kit init --with-waivers` writes one), or keep the file at `waivers.yml`, `waivers/waivers.yaml` or `.oss-policy-kit/waivers.yaml`.",
       "evidence": {
         "source_type": "manual_review",
         "trust_level": "inferred",
