@@ -79,6 +79,18 @@ _TALKS_THE_DETECTOR_OUT_OF_IT = [
     pytest.param('<img src="http://evil.invalid/b3.png" alt="`">`', id="tag-comes-before-the-backtick"),
     pytest.param('`x` <img src="http://evil.invalid/b4.png"> `y`', id="between-two-real-spans"),
     pytest.param('`unclosed <img src="http://evil.invalid/b5.png">', id="backtick-with-no-partner"),
+    # Found by the property test during the 10.0.25 release validation, after #322 merged. The
+    # pair is a real code span, and the renderer still read the tag inside it as a tag: the
+    # `[` makes markdown-it look ahead for a link label, the lookahead meets the unpaired
+    # backtick and caches that no closer exists, and the cached answer then undoes the pair.
+    pytest.param(
+        '[see `<img src="http://evil.invalid/b7.png">` for `details', id="an-unpaired-backtick-undoes-an-earlier-pair"
+    ),
+    # The same with an unpaired run of two: escaping only its first backtick leaves a raw
+    # run of one with no partner, which poisons the cache exactly as before.
+    pytest.param(
+        '[see `<img src="http://evil.invalid/b8.png">` for ``details', id="an-unpaired-run-of-two-undoes-it-too"
+    ),
 ]
 
 #: The lists below are printed as code spans, so the plain vectors are already inert there.

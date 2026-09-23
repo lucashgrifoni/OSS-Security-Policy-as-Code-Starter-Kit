@@ -21,6 +21,11 @@ two of them: a complete comment, and a run of one backtick followed later by a r
 two. Those are pinned with `@example`, so they run on every execution instead of when the
 draw happens to line up. A comment opens no destination, which is why no destination test
 saw it go missing; it is still markup the value was never meant to become.
+
+A third was found by the draw itself, on the full run for the 10.0.25 release: a code
+span followed by a backtick with no partner, after a `[`. The escaper read the span as
+code, as the specification does, and markdown-it read the tag inside it as a tag.
+It is pinned the same way.
 """
 
 from __future__ import annotations
@@ -98,6 +103,9 @@ def _markup_tokens(markdown: str) -> list[str]:
 @example("<![CDATA[x]]>")
 @example("</a>")
 @example('`<img src="u">``')
+@example("<![CDATA[`</a>`<`")
+@example('[`<img src="u">` `')
+@example('[`<img src="u">` ``')
 def test_prose_never_becomes_markup(value: str) -> None:
     for markdown in (
         f"- **Reason**: {_md_prose(value)}",

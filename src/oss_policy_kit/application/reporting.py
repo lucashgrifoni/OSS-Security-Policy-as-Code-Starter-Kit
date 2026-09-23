@@ -412,6 +412,14 @@ def _escape_markup_openers(text: str) -> str:
     renderer's is, so a `<` that comes before a backtick is escaped before any span can
     claim it. Where the reading is unclear this escapes: one escape too many costs a visible
     backslash, one too few costs a live tag.
+
+    A backtick with no partner is escaped too, although the specification already makes it
+    literal. markdown-it caches the result of a failed search for a closing run. A `[` makes
+    it read ahead for a link label, the lookahead reaches the unpaired backtick first, and
+    when it comes back to an earlier pair the cache says no closer exists, so the pair is
+    read as text and the `<` between them as a tag. ``[see `<img src=u>` for `details``
+    rendered a live ``<img src>`` that way, and the preview in VS Code is markdown-it.
+    Escaped, the backtick prints exactly as before and no search for its partner ever runs.
     """
 
     out: list[str] = []
@@ -428,7 +436,7 @@ def _escape_markup_openers(text: str) -> str:
                 end += 1
             close = _closing_backtick_run(text, end, end - i)
             if close is None:
-                out.append(text[i:end])
+                out.append(("\\" + "`") * (end - i))
                 i = end
             else:
                 out.append(text[i : close + (end - i)])
