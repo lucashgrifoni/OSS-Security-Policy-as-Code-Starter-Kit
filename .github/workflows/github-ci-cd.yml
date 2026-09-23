@@ -238,6 +238,11 @@ jobs:
         run: |
           rm -rf dist build src/*.egg-info
 
+      # Bytecode for the exclusion rule to leave out. A fresh checkout has none, so the
+      # check after the build would otherwise pass on an empty question.
+      - name: Compile the source tree the build reads
+        run: python -m compileall -q src/oss_policy_kit
+
       - name: Build sdist and wheel
         run: python -m build
 
@@ -249,6 +254,9 @@ jobs:
       # test would reach the network or fail depending on the environment.
       - name: Refuse an sdist that ships a test slice which cannot run
         run: python scripts/check_sdist_test_slice.py
+
+      - name: Refuse a distribution that ships bytecode
+        run: python scripts/check_dist_ships_no_bytecode.py
 
       # Same rule the publishing workflow follows: inventory the built distribution, not whatever
       # this runner happens to have installed. Without a path argument the generator described the
