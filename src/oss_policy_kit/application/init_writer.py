@@ -364,6 +364,14 @@ def _record_dry_run_action(path: Path, root: Path, force: bool, outcome: InitOut
         outcome.skipped.append(reported)
 
 
+def _record_scaffold(scaffold: ScaffoldEvidenceResult, root: Path, outcome: InitOutcome) -> None:
+    """Sort the evidence files into the outcome, relative to *root*, for a run or a preview."""
+
+    outcome.created.extend(_reported_path(p, root) for p in scaffold.created)
+    outcome.skipped.extend(_reported_path(p, root) for p in scaffold.skipped)
+    outcome.overwritten.extend(_reported_path(p, root) for p in scaffold.overwritten)
+
+
 def _write_text_idempotent(
     *,
     path: Path,
@@ -396,7 +404,6 @@ def execute_init_plan(plan: InitPlan) -> InitOutcome:
 
     config_path = plan.target / CONFIG_FILENAME
     waivers_path = plan.target / WAIVERS_FILENAME
-    evidence_dir = plan.target / ".oss-policy-kit" / "evidence"
     workflow_path = plan.target / ".github" / "workflows" / plan.workflow_filename
 
     if plan.dry_run:
@@ -404,8 +411,12 @@ def execute_init_plan(plan: InitPlan) -> InitOutcome:
             _record_dry_run_action(config_path, plan.target, plan.force, outcome)
         if plan.write_waivers:
             _record_dry_run_action(waivers_path, plan.target, plan.force, outcome)
-        if plan.scaffold_evidence:
-            outcome.created.append(_reported_path(evidence_dir, plan.target))
+        if plan.scaffold_evidence and plan.platform in EVIDENCE_PLATFORMS:
+            _record_scaffold(
+                scaffold_evidence_files(plan.target, plan.platform, force=plan.force, dry_run=True),
+                plan.target,
+                outcome,
+            )
         if plan.write_workflow:
             _record_dry_run_action(workflow_path, plan.target, plan.force, outcome)
         outcome.next_steps = _build_next_steps(plan)
@@ -451,9 +462,7 @@ def execute_init_plan(plan: InitPlan) -> InitOutcome:
         # are relativized here rather than there so ``scaffold-evidence``'s own output
         # contract is untouched by this change.
         outcome.evidence_outcome = scaffold
-        outcome.created.extend(_reported_path(p, plan.target) for p in scaffold.created)
-        outcome.skipped.extend(_reported_path(p, plan.target) for p in scaffold.skipped)
-        outcome.overwritten.extend(_reported_path(p, plan.target) for p in scaffold.overwritten)
+        _record_scaffold(scaffold, plan.target, outcome)
 
     if plan.write_workflow:
         assert workflow_body is not None  # resolved above, before any write

@@ -538,7 +538,7 @@ def test_init_dry_run_previews_relative_paths_too(tmp_path: Path) -> None:
     paths = _all_action_paths(outcome)
     assert paths
     assert not [p for p in paths if p.is_absolute()]
-    assert ".oss-policy-kit/evidence" in {p.as_posix() for p in paths}
+    assert any(p.as_posix().startswith(".oss-policy-kit/evidence/") for p in paths), paths
     assert not (repo / "oss-policy-kit.yaml").exists(), "a dry run wrote to disk"
 
     # The other two dry-run buckets render through the same helper: preview an
@@ -568,6 +568,36 @@ def test_init_reports_skipped_and_overwritten_relatively_on_a_second_run(tmp_pat
     assert replaced.overwritten, "--force should report overwritten files"
     assert not [p for p in replaced.overwritten if p.is_absolute()]
     assert "oss-policy-kit.yaml" in {p.as_posix() for p in replaced.overwritten}
+
+
+def _tree(root: Path) -> dict[str, bytes]:
+    # Directories too: an empty directory left behind by a preview is still a write.
+    return {q.relative_to(root).as_posix(): q.read_bytes() if q.is_file() else b"" for q in sorted(root.rglob("*"))}
+
+
+@pytest.mark.parametrize("force", [False, True], ids=["kept", "forced"])
+@pytest.mark.parametrize("initialised", [False, True], ids=["fresh", "initialised"])
+def test_a_dry_run_lists_exactly_what_the_run_then_does(tmp_path: Path, initialised: bool, force: bool) -> None:
+    """The preview named the evidence directory, never the files in it.
+
+    ``init --with-evidence --force --dry-run`` on an initialised repository printed
+    ``+ .oss-policy-kit/evidence`` as if it were about to be created, and said nothing about
+    the eight evidence files the same command without ``--dry-run`` replaces. An adopter
+    reads the preview to learn what ``--force`` will destroy, and it hid exactly that.
+    """
+
+    repo = _github_repo(tmp_path / "acme-service")
+    if initialised:
+        execute_init_plan(_plan(repo))
+    before = _tree(repo)
+
+    preview = execute_init_plan(_plan(repo, force=force, dry_run=True))
+    assert _tree(repo) == before, "a dry run changed the target"
+
+    run = execute_init_plan(_plan(repo, force=force))
+    for bucket in ("created", "skipped", "overwritten"):
+        assert sorted(getattr(preview, bucket)) == sorted(getattr(run, bucket)), bucket
+    assert any(q.as_posix().startswith(".oss-policy-kit/evidence/") for q in _all_action_paths(preview))
 
 
 def test_a_path_outside_the_target_degrades_to_its_name_not_to_an_absolute_path(tmp_path: Path) -> None:
