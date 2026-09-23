@@ -371,6 +371,7 @@ def scaffold_evidence_files(
     *,
     force: bool = False,
     today: date | None = None,
+    dry_run: bool = False,
 ) -> ScaffoldEvidenceResult:
     """Create `.oss-policy-kit/evidence/` with JSON templates for *platform* (github, gitlab, azure, aws).
 
@@ -378,6 +379,9 @@ def scaffold_evidence_files(
     For automatic evidence collection via platform APIs, use ``collect-evidence`` instead.
 
     Unless *force* is True, existing files are left unchanged and listed under ``skipped``.
+    With *dry_run* nothing is created or written, and every file is still sorted into the
+    bucket a real run would put it in: ``init --dry-run`` previews through this same code,
+    so the preview cannot drift from the write.
     """
 
     attested = scaffold_attested_date_yyyy_mm_dd(today=today)
@@ -385,12 +389,13 @@ def scaffold_evidence_files(
 
     result = ScaffoldEvidenceResult()
     ev = repo_root / ".oss-policy-kit" / "evidence"
-    ev.mkdir(parents=True, exist_ok=True)
+    if not dry_run:
+        ev.mkdir(parents=True, exist_ok=True)
 
     for name, payload in templates.items():
         text = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
-        _write_scaffold_file(ev / name, text, force=force, result=result)
-    _write_scaffold_file(ev / "README.md", _README_BODY, force=force, result=result)
+        _write_scaffold_file(ev / name, text, force=force, result=result, dry_run=dry_run)
+    _write_scaffold_file(ev / "README.md", _README_BODY, force=force, result=result, dry_run=dry_run)
     return result
 
 
@@ -408,12 +413,15 @@ def _select_evidence_templates(plat: str, attested: str) -> dict[str, Any]:
     raise InvalidInputError("platform must be one of: github, gitlab, azure, aws")
 
 
-def _write_scaffold_file(dest: Path, text: str, *, force: bool, result: ScaffoldEvidenceResult) -> None:
+def _write_scaffold_file(
+    dest: Path, text: str, *, force: bool, result: ScaffoldEvidenceResult, dry_run: bool = False
+) -> None:
     """Write one scaffold file, recording it under created/overwritten/skipped on ``result``."""
 
     if dest.is_file() and not force:
         result.skipped.append(dest)
         return
     bucket = result.overwritten if dest.is_file() else result.created
-    dest.write_text(text, encoding="utf-8")
+    if not dry_run:
+        dest.write_text(text, encoding="utf-8")
     bucket.append(dest)
