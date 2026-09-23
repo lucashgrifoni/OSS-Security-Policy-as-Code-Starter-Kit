@@ -19,10 +19,20 @@ What the fix leaves reachable is deliberate. Emphasis still works: a `*` turns t
 and gives nobody an address. Backticks still work, because three catalog controls quote
 filenames with them. A bare `[` still works, because a shipped remediation reads
 ``runs-on: [self-hosted, ephemeral]`` and escaping it would show the reader a backslash.
+
+The first version of this file measured three shapes and missed a fourth: raw HTML.
+CommonMark allows it inline, so `<img src="...">` in a reason is a tag rather than
+Markdown syntax, and every case above passed while twelve beacons rendered from the same
+fields. Two things let that through. The corpus held only syntax shapes, and the counter
+looked for `<a href` and `<img ... src` alone, so a `<video src>` would not have been
+counted even had it been tried. Both are wider now. So is one correction to the sweep:
+`_md_line` and `_md_cell` handle line structure and `|`, and neutralise no destination,
+yet the sweep counted them as escaping. Seventeen interpolations relied on that.
 """
 
 from __future__ import annotations
 
+import inspect
 import json
 import re
 
@@ -31,10 +41,15 @@ from markdown_it import MarkdownIt
 
 from oss_policy_kit.application.drift import DriftReport
 from oss_policy_kit.application.reporting import _drift_markdown, _markdown_report_text
-from oss_policy_kit.domain.models import ControlResult, ControlStatus, ExecutionReport
+from oss_policy_kit.domain.models import ControlResult, ControlStatus, ExecutionReport, WaiverRecord
 
-#: Anything a reader's browser would follow or fetch, clicked or not.
-_DESTINATION = re.compile(r"<a href|<img[^>]*src")
+#: Anything a reader's browser would follow or fetch, clicked or not: a rendered tag carrying
+#: an attribute that takes an address, or an event handler, which needs no address to act.
+#: The report renders no tag with any attribute at all, so none of these is ever its own.
+_DESTINATION = re.compile(
+    r"<[A-Za-z][^>]*\s(?:src|href|srcset|poster|data|action|formaction|background|xlink:href|on[a-z]+)\s*=",
+    re.IGNORECASE,
+)
 
 #: Shapes that were measured producing a destination before the fix.
 _WORKING_VECTORS = [
@@ -43,6 +58,27 @@ _WORKING_VECTORS = [
     pytest.param("<http://evil.invalid>", id="autolink-http"),
     pytest.param("<mailto:someone@evil.invalid>", id="autolink-mailto"),
     pytest.param("<someone@evil.invalid>", id="autolink-bare-email"),
+    pytest.param('<img src="http://evil.invalid/raw.png">', id="raw-html-img"),
+    pytest.param('<a href="http://evil.invalid">click</a>', id="raw-html-anchor"),
+    pytest.param('<iframe src="http://evil.invalid/f"></iframe>', id="raw-html-iframe"),
+    pytest.param('<video src="http://evil.invalid/v.mp4"></video>', id="raw-html-video"),
+    pytest.param('<svg><image href="http://evil.invalid/s.png"/></svg>', id="raw-html-svg-image"),
+    pytest.param("<IMG SRC=http://evil.invalid/u.png>", id="raw-html-uppercase-unquoted"),
+    pytest.param('<svg onload="fetch(1)">', id="raw-html-event-handler"),
+]
+
+#: Aimed at the code-span detector rather than at the renderer. Each one tries to make a tag
+#: look as though it sits inside a code span, where an escape is not applied.
+_TALKS_THE_DETECTOR_OUT_OF_IT = [
+    pytest.param('\\`<img src="http://evil.invalid/b1.png">\\`', id="escaped-backticks-around-a-tag"),
+    pytest.param('``<img src="http://evil.invalid/b2.png">`', id="backtick-runs-of-different-length"),
+    # The inverse, and the one that tells an exact match from "at least as long". A run of
+    # one is not closed by a run of two, so the renderer reads the tag as a tag; a detector
+    # that closed on any longer run would read it as code and leave it unescaped.
+    pytest.param('`<img src="http://evil.invalid/b6.png">``', id="a-run-of-one-is-not-closed-by-two"),
+    pytest.param('<img src="http://evil.invalid/b3.png" alt="`">`', id="tag-comes-before-the-backtick"),
+    pytest.param('`x` <img src="http://evil.invalid/b4.png"> `y`', id="between-two-real-spans"),
+    pytest.param('`unclosed <img src="http://evil.invalid/b5.png">', id="backtick-with-no-partner"),
 ]
 
 #: The lists below are printed as code spans, so the plain vectors are already inert there.
@@ -56,6 +92,10 @@ _LEGITIMATE = [
     pytest.param("Add `ephemeral` to the list (e.g. `runs-on: [self-hosted, ephemeral]`)", id="bare-brackets"),
     pytest.param("the value must be < 80 characters", id="bare-less-than"),
     pytest.param("SBOM-like file(s) found but format not confirmed: a.json, b.json.", id="parentheses"),
+    # A `<` that opens a tag, but inside a code span, where the renderer prints it as
+    # written. Twenty-four spans in the kit's own text have this shape.
+    pytest.param("Add `uses: step-security/harden-runner@<sha>` as the first step", id="placeholder-in-a-span"),
+    pytest.param("Add signing (`cosign sign --yes <image>@<digest>`) or provenance", id="two-placeholders-one-span"),
 ]
 
 
@@ -66,7 +106,21 @@ def _report(
     warning: str | None = None,
     profile_id: str = "github-level-1",
     profile_title: str = "GitHub level 1",
+    waiver_owner: str | None = None,
+    waiver_justification: str = "accepted",
 ) -> ExecutionReport:
+    waiver = (
+        WaiverRecord(
+            control_id="GOV-SEC-001",
+            justification=waiver_justification,
+            owner=waiver_owner,
+            status="active",
+            expires_at=None,
+            applies_to=None,
+        )
+        if waiver_owner is not None
+        else None
+    )
     result = ControlResult(
         control_id="GOV-SEC-001",
         title="Security policy present",
@@ -77,6 +131,7 @@ def _report(
         confidence="high",
         reason=reason,
         remediation=remediation,
+        waiver=waiver,
     )
     return ExecutionReport(
         schema_version="https://x/reports/2.0",
@@ -272,6 +327,14 @@ _NEEDS_NO_ESCAPING = {
 }
 
 
+#: The helpers that take a destination away, as opposed to the ones that only keep a value
+#: on one line. `_md_prose` escapes what would open a link, an image, an autolink or a tag;
+#: `_md_code` prints the value as code, where none of those is parsed. `_md_line` and
+#: `_md_cell` were in this set until the sweep was found trusting them with a job they never
+#: had: they strip newlines and escape `|`, and a tag passes through both untouched.
+_NEUTRALISES_DESTINATIONS = frozenset({"_md_prose", "_md_code"})
+
+
 def test_no_markdown_sink_interpolates_an_unescaped_value() -> None:
     """Derived from the module, so a sink added tomorrow is caught without a list edit."""
 
@@ -281,7 +344,7 @@ def test_no_markdown_sink_interpolates_an_unescaped_value() -> None:
     from oss_policy_kit.application import reporting
 
     tree = ast.parse(inspect.getsource(reporting))
-    helpers = {"_md_prose", "_md_code", "_md_cell", "_md_line"}
+    helpers = _NEUTRALISES_DESTINATIONS
 
     def is_escaped(node: ast.AST) -> bool:
         return any(
@@ -320,9 +383,9 @@ def test_the_guard_above_would_notice_a_new_sink() -> None:
 
     import ast
 
-    source = 'lines.append(f"- **Profile**: {report.profile_title}")'
+    source = 'lines.append(f"- **Profile**: {report.profile_title}")\nout.append(f"### {_md_line(r.title)}")'
     tree = ast.parse(source)
-    helpers = {"_md_prose", "_md_code", "_md_cell", "_md_line"}
+    helpers = _NEUTRALISES_DESTINATIONS
     found = [
         ast.unparse(v.value)
         for j in ast.walk(tree)
@@ -334,5 +397,70 @@ def test_the_guard_above_would_notice_a_new_sink() -> None:
         )
     ]
 
-    assert found == ["report.profile_title"], "the detection the test above relies on does not fire"
+    assert found == ["report.profile_title", "_md_line(r.title)"], (
+        "the detection the test above relies on does not fire, or it counts a structure-only "
+        f"helper as protection again: {found}"
+    )
     assert "report.profile_title" not in _NEEDS_NO_ESCAPING, "the allowlist would swallow the very sink this PR fixes"
+
+
+# --------------------------------------------------------------------------------------
+# Raw HTML, the shape the first version never tried, and the fields it was measured in.
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("payload", _WORKING_VECTORS)
+@pytest.mark.parametrize("field", ["owner", "justification"])
+def test_a_waiver_cannot_give_the_report_a_destination(payload: str, field: str) -> None:
+    """A waivers file can live inside the scanned repository, and both fields print as prose."""
+
+    report = (
+        _report(waiver_owner=payload) if field == "owner" else _report(waiver_owner="o", waiver_justification=payload)
+    )
+
+    assert not _DESTINATION.search(_rendered(report)), f"a waiver {field} of {payload!r} rendered a destination"
+
+
+@pytest.mark.parametrize("payload", _TALKS_THE_DETECTOR_OUT_OF_IT)
+def test_the_code_span_detector_cannot_be_talked_out_of_escaping(payload: str) -> None:
+    """The escape skips code spans, so each of these tries to make a tag look like one.
+
+    The detector has to read backticks the way the renderer does. Where it reads a span that
+    the renderer does not, a tag goes through unescaped, which is why every shape here is
+    one where the two readings could plausibly part.
+    """
+
+    html = _rendered(_report(reason=payload))
+
+    assert not _DESTINATION.search(html), f"{payload!r} put a tag past the escape: {html}"
+
+
+def test_a_placeholder_inside_a_code_span_is_printed_as_written() -> None:
+    """The other side of skipping spans: the reader sees `<sha>`, with no backslash in it."""
+
+    html = _rendered(_report(remediation="Add `uses: step-security/harden-runner@<sha>` as the first step"))
+
+    assert "<code>uses: step-security/harden-runner@&lt;sha&gt;</code>" in html, html
+    assert "\\" not in html, "an escape was applied inside a code span, where it shows as a backslash"
+
+
+def test_the_two_remediations_that_lost_their_placeholder_now_show_it() -> None:
+    """Two shipped remediations wrote a placeholder outside a code span.
+
+    To the renderer `<platform>` was a tag, which the browser drops, so the reader was told
+    to record provenance in `.oss-policy-kit/evidence/-provenance-artifact.json` and to run
+    `scorecard --repo=/ --format=json`. Both are code spans now, which keeps the placeholder
+    and reads as the command and path they are.
+    """
+
+    from oss_policy_kit.application.evaluators import governance
+
+    source = inspect.getsource(governance)
+
+    assert "`scorecard --repo=<org>/<repo> --format=json`" in source
+    assert "`.oss-policy-kit/evidence/<platform>-provenance-artifact.json`" in source
+    for remediation, expected in (
+        ("Run `scorecard --repo=<org>/<repo> --format=json` now", "--repo=&lt;org&gt;/&lt;repo&gt;"),
+        ("record it in `.oss-policy-kit/evidence/<platform>-x.json`", "&lt;platform&gt;-x.json"),
+    ):
+        assert expected in _rendered(_report(remediation=remediation))

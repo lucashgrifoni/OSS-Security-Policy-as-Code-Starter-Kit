@@ -641,7 +641,7 @@ def eval_oss_scorecard_001(ctx: EvalContext) -> EvalOutcome:
             status=ControlStatus.NOT_EVALUATED,
             reason="No OpenSSF Scorecard JSON provided; cannot evaluate scorecard score.",
             remediation=(
-                "Generate a Scorecard report via 'scorecard --repo=<org>/<repo> --format=json' "
+                "Generate a Scorecard report via `scorecard --repo=<org>/<repo> --format=json` "
                 "and pass it with --scorecard-json."
             ),
             evidence_sources=[],
@@ -1336,7 +1336,7 @@ def eval_prov_verify_061(ctx: EvalContext) -> EvalOutcome:
             ),
             remediation=(
                 "Run `gh attestation verify` (or `cosign verify-bundle`) against the release artifact "
-                "and record the result in .oss-policy-kit/evidence/<platform>-provenance-artifact.json "
+                "and record the result in `.oss-policy-kit/evidence/<platform>-provenance-artifact.json` "
                 "under the verification field."
             ),
             evidence_sources=[],
