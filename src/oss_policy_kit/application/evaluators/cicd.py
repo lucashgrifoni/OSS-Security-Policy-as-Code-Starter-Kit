@@ -582,13 +582,31 @@ def eval_ci_wfcallsha_055(ctx: EvalContext) -> EvalOutcome:
         )
 
     acc = _WfCallShaScan()
+    unread = set(ctx.workflows.unread_paths)
     for path in ctx.workflows.workflow_paths:
-        _scan_wfcallsha_path(path, acc)
+        # A workflow the parser could not read is skipped, not read again here. This read
+        # sat outside any guard, so a `ci.yml` that is a directory raised past the control
+        # and ended the run with exit 2 and no report, in the nine bundled profiles that
+        # carry this control. The parser already recorded the file; the verdict below
+        # refuses to claim anything about it.
+        if path not in unread:
+            _scan_wfcallsha_path(path, acc)
     parse_warns = acc.parse_warns
     call_paths = acc.call_paths
     bad_paths = acc.bad_paths
     bad_evidence_sources = acc.bad_evidence_sources
 
+    # A pin missing from a file that WAS read is a finding whatever the unread file holds,
+    # so the failure is decided first. Both answers below it are statements about absence,
+    # no unpinned call and no call at all, and an unread workflow can hold either (ADR-045).
+    if not bad_paths:
+        degraded = unread_workflow_degradation(
+            ctx.workflows,
+            claim="Full SHA pins on every reusable workflow call",
+            remediation="Make every workflow under .github/workflows readable, then re-run evaluation.",
+        )
+        if degraded is not None:
+            return degraded
     if not call_paths:
         return EvalOutcome(
             status=ControlStatus.NOT_APPLICABLE,
