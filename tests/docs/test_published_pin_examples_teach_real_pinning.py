@@ -82,9 +82,8 @@ def test_a_pin_example_comes_from_a_release_that_pins(rel: Path, sha: str, versi
 def test_no_document_offers_a_major_line_tag_that_is_not_published() -> None:
     """`action.yml` told adopters they could pin `@v10`. No such tag or branch exists.
 
-    A rolling major tag is deliberately not published -- it must be moved on every release,
-    and a release that forgets leaves everyone pinned to it silently on an old version. So the
-    offer had to go, not the tag be created.
+    The tag is deliberately not published, for the reason `action.yml` gives beside its
+    versioning note, so the offer had to go rather than the tag be created.
     """
 
     # Scoped to THIS action. My first version matched any `@vN` and flagged
