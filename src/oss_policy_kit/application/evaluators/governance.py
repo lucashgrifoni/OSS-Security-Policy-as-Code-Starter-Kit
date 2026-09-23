@@ -334,11 +334,18 @@ def eval_gov_waiv_014(ctx: EvalContext) -> EvalOutcome:
             )
     return EvalOutcome(
         status=ControlStatus.MANUAL_REVIEW_REQUIRED,
+        # The remediation used to name `waivers/policy.yaml` and `waivers/README.md`, which
+        # are not among the paths above: an adopter who did exactly what it said stayed here.
+        # It names the files this control reads, so following it is what clears it.
         reason=(
-            "No versioned waiver policy file found in repository. If waivers are not applicable, create a waivers/ "
-            "directory with a documented policy statement or use an empty waivers file."
+            "No versioned waivers file found in repository. This control reads `waivers.yaml`, `waivers.yml`, "
+            "`waivers/waivers.yaml` and `.oss-policy-kit/waivers.yaml`."
         ),
-        remediation="Create waivers/policy.yaml or waivers/README.md documenting the waiver governance approach.",
+        remediation=(
+            "Commit `waivers.yaml` holding `waivers: []` when no waiver is active "
+            "(`oss-policy-kit init --with-waivers` writes one), or keep the file at `waivers.yml`, "
+            "`waivers/waivers.yaml` or `.oss-policy-kit/waivers.yaml`."
+        ),
         evidence_sources=[],
         confidence="medium",
     )
