@@ -99,8 +99,16 @@ def test_hostile_evidence_inside_the_repo_is_exit_2(label: str, body: str, phras
     assert str(tmp_path) not in combined.replace("\\\\", "\\"), "the message leaked the host path"
 
 
-def test_unreadable_ci_file_is_exit_2(tmp_path: Path) -> None:
-    """A directory named like a workflow used to end the whole evaluation at exit 3."""
+def test_an_unreadable_ci_file_is_neither_a_defect_nor_the_end_of_the_run(tmp_path: Path) -> None:
+    """A directory named like a workflow used to end the whole evaluation at exit 3.
+
+    This asserted exit 2 until FINAL-13, and exit 2 was the defect: under github-level-3,
+    CI-WFCALLSHA-055 read the directory a second time outside any guard, after the parser
+    had recorded it as unread, and the bad-input handler ended the run with no report. One
+    unreadable file inside a repository degrades the controls that needed it and the run
+    finishes (ADR-045, and `test_one_unreadable_file_does_not_end_the_run.py`). What this
+    test owns is unchanged: the answer is never exit 3 and never a traceback.
+    """
 
     repo = tmp_path / "repo"
     (repo / ".github" / "workflows" / "adir.yml").mkdir(parents=True)
@@ -110,7 +118,7 @@ def test_unreadable_ci_file_is_exit_2(tmp_path: Path) -> None:
     result = _run(repo, tmp_path / "out")
 
     combined = result.stdout + result.stderr
-    assert result.returncode == 2, f"exit={result.returncode}\n{combined}"
+    assert result.returncode in {0, 1}, f"exit={result.returncode}\n{combined}"
     assert "Unexpected error" not in combined
     assert "Traceback" not in combined
 
