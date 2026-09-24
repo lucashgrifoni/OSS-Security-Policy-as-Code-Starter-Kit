@@ -266,7 +266,7 @@ If you are not copying the full recommended bundle yet, prioritize:
 
 If something cannot be fixed immediately:
 
-- Use a **waiver** (`waivers/waivers.example.yaml`) with justification, owner, expiry, and scope.
+- Use a **waiver** (`waivers/waivers.example.yaml`) with justification, owner, expiry, and scope, and run `evaluate` with `--waivers` pointing at the file: a waiver applies only to a run that is given it.
 - For platform-only controls, plan a **manual review** cadence (for example quarterly).
 
 ### `--waivers` (operational input) vs `GOV-WAIV-014` (governance control)
@@ -276,7 +276,9 @@ These two are **not** the same thing and intentionally stay independent:
 - `evaluate --waivers <file>` is an **operational** mechanism. It loads an external YAML file for the current run so waivers can be applied (for example, a central waivers registry consumed by many repos). The file path is not required to live inside the repository being evaluated.
 - `GOV-WAIV-014` is a **governance control**. It checks that the repository **itself** versions a waivers policy (typically `waivers/waivers.yaml` committed in-repo) so exceptions are reviewable via normal PR/CODEOWNERS flow.
 
-Loading an external waivers file with `--waivers` does **not** satisfy `GOV-WAIV-014`: the CLI prints an explicit "Waiver note" when both paths are in play. To turn `GOV-WAIV-014` green, commit `templates/waivers/waivers.yaml` (or an equivalent policy file) into the repository under review; use `--waivers` only to evaluate the run against a specific waiver set without modifying the repo's committed policy.
+Loading an external waivers file with `--waivers` does **not** satisfy `GOV-WAIV-014`: the CLI prints an explicit "Waiver note" when both paths are in play. To turn `GOV-WAIV-014` green, commit `templates/waivers/waivers.yaml` (or an equivalent policy file) into the repository under review.
+
+Committing the file is not what applies its entries. `evaluate` waives a control only in a run that is given a waivers file with `--waivers`, the committed one included, so a CI gate that should honour the committed waivers passes it explicitly, for example `--waivers ./waivers/waivers.yaml` in its evaluate step. The workflow `init --with-workflow` generates does not pass the flag. A separate `--waivers` file stays useful for evaluating a run against a specific waiver set without modifying the repo's committed policy.
 
 ## Optional: add Scorecard JSON as supplemental evidence
 

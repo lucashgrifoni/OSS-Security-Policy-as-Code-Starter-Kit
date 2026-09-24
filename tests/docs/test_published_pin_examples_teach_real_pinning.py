@@ -13,6 +13,11 @@ that period. Reading `action.yml` at each of those revisions confirms it: both e
 Nothing noticed, because an example is only wrong relative to a fix that landed later, and
 nothing re-reads examples after a fix.
 
+The floor moved to v10.0.27 for a second reason. Before it, a composite step running under
+`-e` stopped on the kit's non-zero exit, so a tripped gate left every output empty and wrote
+no job summary; the docs' SARIF upload, conditioned on the `sarif` output, was skipped in
+exactly the runs that had findings. The examples then pinned v10.0.15, which carries that.
+
 This checks the trailing tag comment rather than resolving the SHA through git: CI checks out
 shallow, so `git show <old-sha>` and `git tag` are not reliably available. The comment is
 already the repository's convention for recording which tag a SHA belongs to, which makes it
@@ -28,8 +33,9 @@ import pytest
 
 from tests.conftest import ROOT
 
-#: The release that made a SHA pin resolve to the wheel that revision ships.
-MINIMUM = (10, 0, 14)
+#: The oldest release an example may pin: v10.0.14 made a SHA pin resolve to the wheel that
+#: revision ships, and v10.0.27 made the action's outputs survive a tripped gate.
+MINIMUM = (10, 0, 27)
 
 #: `uses: <owner>/<this action>@<40-hex sha>  # vX.Y.Z`
 _SELF_PIN = re.compile(
@@ -74,8 +80,9 @@ def test_there_are_pin_examples_to_check() -> None:
 def test_a_pin_example_comes_from_a_release_that_pins(rel: Path, sha: str, version: tuple[int, ...]) -> None:
     assert version >= MINIMUM, (
         f"{rel} pins this action at {sha[:7]} (v{'.'.join(map(str, version))}), from before "
-        f"v{'.'.join(map(str, MINIMUM))} -- at that revision a SHA pin installed an UNPINNED "
-        "wheel, so the example teaches the opposite of what the surrounding text promises."
+        f"v{'.'.join(map(str, MINIMUM))} -- below that floor a SHA pin installed an UNPINNED wheel "
+        "(before v10.0.14) or a tripped gate left the action's outputs empty (before v10.0.27), "
+        "so the example teaches the opposite of what the surrounding text promises."
     )
 
 

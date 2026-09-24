@@ -16,7 +16,7 @@ A release tag is readable, but it is still mutable. For maximum supply-chain ass
 release tag and let Dependabot bump it:
 
 ```yaml
-- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@f2e4992f755d83cd7666e2bd288e0e8b4bcaa7f5 # v10.0.15
+- uses: lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit@df313baee3ec568d23f8d64ae75f2c10713557d2 # v10.0.27
   with:
     profile: github-level-1
     fail-on: fail
@@ -24,20 +24,24 @@ release tag and let Dependabot bump it:
 
 That is the form used in [`templates/workflows/oss-policy-kit-marketplace-action.yml`](../templates/workflows/oss-policy-kit-marketplace-action.yml).
 
-**Pin to v10.0.14 or later.** Before that release a SHA-pinned reference fell through to an
-empty version and the action ran `pip install oss-policy-kit` with no pin at all, taking
-whatever was newest on PyPI. Following the advice on this page therefore produced a *less*
-reproducible install than ignoring it, and the two SHAs this page and the template used to
-show were both from that period. Since v10.0.14 the action reads its version out of its own
-checkout, so every pinning style resolves to the exact wheel that revision ships.
+**Pin to v10.0.27 or later.** Two fixes set that floor.
 
-The example above pins v10.0.15, which was current when this page was written and is not the
-current release now. That is deliberate rather than stale: a SHA pin is an exact revision, so
-bumping the example every release would churn this page and the template for no gain to a
-reader who is going to pin their own. What matters is the floor, and v10.0.15 clears it. Pin
-whichever release you are adopting, and check the [CHANGELOG](../CHANGELOG.md) for what it
-contains; a guard in `tests/docs/` holds every self-referencing pin on this page at or above
-v10.0.14 so the example can never drift back below the floor.
+- Before v10.0.14 a SHA-pinned reference fell through to an empty version and the action ran
+  `pip install oss-policy-kit` with no pin at all, taking whatever was newest on PyPI.
+  Following the advice on this page therefore produced a *less* reproducible install than
+  ignoring it. Since v10.0.14 the action reads its version out of its own checkout, so every
+  pinning style resolves to the exact wheel that revision ships.
+- Before v10.0.27, a run where the kit exited non-zero, which is every run where the gate
+  trips, left `exit-code`, `report-json`, `report-markdown` and `sarif` empty and wrote no
+  job summary or annotations. The composite step runs with `-e`, and it stopped on the kit's
+  exit before writing any of them. The SARIF upload in the example further down is
+  conditioned on the `sarif` output, so it was skipped in exactly the runs that had findings.
+
+The example above pins v10.0.27. A SHA pin is an exact revision, so this page does not bump it
+every release; what matters is the floor. Pin whichever release you are adopting, and check the
+[CHANGELOG](../CHANGELOG.md) for what it contains; a guard in `tests/docs/` holds every
+self-referencing pin on this page at or above v10.0.27 so the example can never drift back
+below the floor.
 
 ## Inputs
 
@@ -68,7 +72,9 @@ After each run the action writes a **GitHub Actions job summary** (a Markdown ta
 counts plus the failing controls) to the workflow run page, and emits **inline annotations** —
 `::error` for each `fail` and `::warning` for each manual-review (`UNKNOWN`) control — so findings
 surface directly on the pull request's Checks tab. This is best-effort and never changes the exit
-code the action forwards: `fail-on` still decides whether the check passes or fails.
+code the action forwards: `fail-on` still decides whether the check passes or fails. From v10.0.27
+it also happens when the gate trips; earlier releases skipped the summary, the annotations and every
+output whenever the kit exited non-zero.
 
 ## Permissions
 
