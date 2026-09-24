@@ -55,6 +55,12 @@ _DESTINATION = re.compile(
 _WORKING_VECTORS = [
     pytest.param("[click](http://evil.invalid)", id="inline-link"),
     pytest.param("![i](http://evil.invalid/beacon.png)", id="image-beacon"),
+    # Brackets inside the label. The pattern that escapes the opening bracket stops at the
+    # first `]`, which here is followed by `]` rather than `(`. Found by the property test
+    # during the 10.0.26 release validation; already live in 10.0.25.
+    pytest.param("![a[]](http://evil.invalid/nested-image.png)", id="image-with-brackets-in-its-label"),
+    pytest.param("[click[]](http://evil.invalid/nested-link)", id="link-with-brackets-in-its-label"),
+    pytest.param("[[a]](http://evil.invalid/bracketed-label)", id="link-whose-whole-label-is-bracketed"),
     pytest.param("<http://evil.invalid>", id="autolink-http"),
     pytest.param("<mailto:someone@evil.invalid>", id="autolink-mailto"),
     pytest.param("<someone@evil.invalid>", id="autolink-bare-email"),

@@ -106,6 +106,8 @@ def _markup_tokens(markdown: str) -> list[str]:
 @example("<![CDATA[`</a>`<`")
 @example('[`<img src="u">` `')
 @example('[`<img src="u">` ``')
+@example("<![CDATA[]]()")
+@example("![a[]](u)")
 def test_prose_never_becomes_markup(value: str) -> None:
     for markdown in (
         f"- **Reason**: {_md_prose(value)}",
@@ -116,6 +118,7 @@ def test_prose_never_becomes_markup(value: str) -> None:
 
 @settings(max_examples=200, deadline=None)
 @given(st.text(alphabet=st.characters(blacklist_characters="<[`\\\r\n", blacklist_categories=("Cc", "Cf", "Cs"))))
+@example("a](b")
 def test_text_with_nothing_to_escape_is_left_exactly_as_written(value: str) -> None:
     """The other side. With no character that can open markup, the escape changes nothing."""
 

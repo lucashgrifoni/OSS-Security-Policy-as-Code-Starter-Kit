@@ -365,6 +365,11 @@ def _md_line(value: str) -> str:
 #: A link or an image, the destination Markdown gives through its own syntax. Neutralised
 #: by escaping the bracket that opens it, which is why the pattern does not consume the
 #: rest: a bracket with no `](` after it is ordinary text and stays ordinary text.
+#:
+#: It does not see a label with brackets inside it, `![a[]](url)`: the first `]` after the
+#: opening bracket is followed by another `]`, not by `(`. `_escape_markup_openers` closes
+#: that case by breaking the `](` itself; this one stays so simple links keep the output
+#: they always had.
 _MARKDOWN_LINK_OR_IMAGE = re.compile(r"!?\[(?=[^\]]*\]\()")
 
 #: A `<` the renderer reads as markup rather than as a less-than sign. A tag name starts
@@ -420,10 +425,17 @@ def _escape_markup_openers(text: str) -> str:
     read as text and the `<` between them as a tag. ``[see `<img src=u>` for `details``
     rendered a live ``<img src>`` that way, and the preview in VS Code is markdown-it.
     Escaped, the backtick prints exactly as before and no search for its partner ever runs.
+
+    Every inline link and image needs a `]` immediately followed by `(`. Once a `[` has
+    opened, that `]` is escaped, which is what stops a label with brackets inside it:
+    ``![a[]](url)`` rendered a live ``<img src>`` because the pattern that escapes the
+    opening bracket stops at the first `]`. With no `[` before it a `](` can open nothing,
+    so it is left alone and ``a](b`` still reads as written.
     """
 
     out: list[str] = []
     i, n = 0, len(text)
+    opened = False  # an unescaped `[` outside a code span has been seen
     while i < n:
         char = text[i]
         if char == "\\" and i + 1 < n:
@@ -442,7 +454,13 @@ def _escape_markup_openers(text: str) -> str:
                 out.append(text[i : close + (end - i)])
                 i = close + (end - i)
             continue
-        out.append("\\<" if char == "<" and _MARKUP_OPENER.match(text, i) else char)
+        if char == "<" and _MARKUP_OPENER.match(text, i):
+            out.append("\\<")
+        elif char == "]" and opened and text.startswith("(", i + 1):
+            out.append("\\]")
+        else:
+            opened = opened or char == "["
+            out.append(char)
         i += 1
     return "".join(out)
 
