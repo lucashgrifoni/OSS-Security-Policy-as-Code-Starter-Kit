@@ -6,6 +6,19 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.26](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.25...v10.0.26) (2026-09-24)
+
+
+### Fixes
+
+* **cli:** two error messages printed Python's words, not the kit's ([#333](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/333)) ([1f2f76a](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/1f2f76a6eb3d1e9834580d3b2462bfe14ebec544))
+* **reporting:** brackets inside a label let a link past the escaper ([#335](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/335)) ([42d650d](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/42d650d2c1ad8ef5857af34cc555ea8eb6553c4c))
+
+
+### Notes
+
+* verify the image by digest, against its own release identity ([#332](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/332)) ([94559df](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/94559dfd6372e9f0d62e81bcd19d777b20b8e289))
+
 ## [10.0.25](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.24...v10.0.25) (2026-09-23)
 
 
