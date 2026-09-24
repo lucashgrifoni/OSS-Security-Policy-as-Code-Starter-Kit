@@ -71,15 +71,18 @@ The `publish-container` workflow handles the release flow on `v*` tag pushes:
 - **Reproducible-ish**: pinned base image (`python:3.12-slim-bookworm`), pinned action SHAs, and a source-tree install from the release tag, which is what fixes the version in the image.
 - **Tags**: `<version>` and `latest` on tagged releases; `edge` on manual `workflow_dispatch` runs.
 
-To verify a published image:
+To verify a published image, by digest and against the identity of its own release run.
+A GHCR tag can be moved to another image; [supply-chain-verification.md](supply-chain-verification.md)
+explains why the identity has to end in the release tag.
 
 ```bash
-cosign verify ghcr.io/<owner>/oss-policy-kit:<version> \
-  --certificate-identity-regexp 'https://github.com/<owner>/.+' \
+cosign verify ghcr.io/<owner>/oss-policy-kit@<digest> \
+  --certificate-identity 'https://github.com/<owner>/OSS-Security-Policy-as-Code-Starter-Kit/.github/workflows/publish-container.yml@refs/tags/v<version>' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
 
-gh attestation verify oci://ghcr.io/<owner>/oss-policy-kit:<version> \
-  --repo <owner>/OSS-Security-Policy-as-Code-Starter-Kit
+gh attestation verify oci://ghcr.io/<owner>/oss-policy-kit@<digest> \
+  --repo <owner>/OSS-Security-Policy-as-Code-Starter-Kit \
+  --cert-identity 'https://github.com/<owner>/OSS-Security-Policy-as-Code-Starter-Kit/.github/workflows/publish-container.yml@refs/tags/v<version>'
 ```
 
 ## When to use this image

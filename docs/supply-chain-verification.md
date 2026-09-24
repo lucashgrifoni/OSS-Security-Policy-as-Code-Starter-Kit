@@ -48,20 +48,39 @@ prove that the source code is vulnerability-free.
 
 ## Verifying container images
 
-Verify the cosign keyless signature:
+A tag in the GitHub Container Registry can be moved to another image, and a digest cannot.
+GHCR has no setting that makes a tag immutable, so verify by digest, against the identity
+of the one release you want.
+
+Resolve the tag to a digest once:
 
 ```bash
-cosign verify ghcr.io/lucashgrifoni/oss-policy-kit:<version> \
-  --certificate-identity-regexp 'https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/.+' \
+docker buildx imagetools inspect ghcr.io/lucashgrifoni/oss-policy-kit:<version> --format '{{.Manifest.Digest}}'
+```
+
+Verify the cosign keyless signature. The identity is the workflow run of that release and
+ends in its tag, so a signature made for any other release fails, including the signature
+of an older image the tag was moved to:
+
+```bash
+cosign verify ghcr.io/lucashgrifoni/oss-policy-kit@<digest> \
+  --certificate-identity 'https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/.github/workflows/publish-container.yml@refs/tags/v<version>' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
 ```
 
-Verify the GitHub Artifact Attestation attached to the OCI image:
+Verify the GitHub Artifact Attestation, SLSA provenance attached to the OCI image, with the
+same identity:
 
 ```bash
-gh attestation verify oci://ghcr.io/lucashgrifoni/oss-policy-kit:<version> \
-  --repo lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit
+gh attestation verify oci://ghcr.io/lucashgrifoni/oss-policy-kit@<digest> \
+  --repo lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit \
+  --cert-identity 'https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/.github/workflows/publish-container.yml@refs/tags/v<version>'
 ```
+
+Then pull and run the image by that digest. Measured on 10.0.25: against the published
+digest, both commands pass with `v10.0.25` in the identity and fail with `v10.0.24`. The
+earlier form of these commands matched any workflow in the repository and took the tag as
+given, so it passed for a moved tag.
 
 The container workflow builds from the checked-out release tag instead of installing from PyPI. That removes the release race where the GHCR build starts before the PyPI package is visible.
 
