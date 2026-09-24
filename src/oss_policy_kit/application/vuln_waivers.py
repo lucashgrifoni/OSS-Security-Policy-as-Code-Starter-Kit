@@ -17,6 +17,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application.input_limits import path_free_error_text
 from oss_policy_kit.domain.models import utc_today
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
@@ -384,7 +385,9 @@ def load_vuln_waivers(path: Path) -> tuple[dict[str, VulnWaiver], list[str]]:
     except Exception as exc:  # noqa: BLE001
         # basename only: the warning lands verbatim in the shareable findings/1.0
         # extensions.waiver_warnings; never leak the absolute path / username (M-002).
-        warnings.append(f"Could not read waivers file {path.name}: {exc}")
+        # The basename alone did not keep that promise: an OSError's own text ends with
+        # the path it opened, which correlate-findings resolves under --target first.
+        warnings.append(f"Could not read waivers file {path.name}: {path_free_error_text(exc)}")
         return {}, warnings
     if not isinstance(raw, dict):
         warnings.append(f"Waivers file {path.name} is not a YAML mapping; ignoring.")

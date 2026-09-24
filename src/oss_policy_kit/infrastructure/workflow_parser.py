@@ -13,6 +13,7 @@ from oss_policy_kit.application.input_limits import (
     MAX_CI_CONFIG_BYTES,
     bad_input_detail,
     oversize_reason,
+    path_free_error_text,
 )
 from oss_policy_kit.infrastructure.source_text import decode_source_detail
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
@@ -726,7 +727,9 @@ def _analyze_one_composite_action(path: Path, result: WorkflowAnalysis) -> None:
     try:
         data: Any = load_yaml_file(path)
     except Exception as exc:  # noqa: BLE001  # an unreadable action is recorded, never assumed empty
-        result.parse_errors.append((path, str(exc)))
+        # Not ``str(exc)``: for an unreadable action that ends with the resolved path, and
+        # this reason is published in the report (M-002), exactly as for workflows below.
+        result.parse_errors.append((path, path_free_error_text(exc)))
         return
     if not isinstance(data, dict):
         result.parse_errors.append((path, "composite action root must be a mapping"))
@@ -1015,7 +1018,9 @@ def _analyze_one_workflow(path: Path, result: WorkflowAnalysis, signal_acc: set[
     try:
         data: Any = load_yaml_file(path)
     except Exception as exc:  # noqa: BLE001 - surface parse error without crashing engine
-        result.parse_errors.append((path, str(exc)))
+        # The second read of the same file; it can still fail, and then the reason must not
+        # carry the path the first one was careful to keep out.
+        result.parse_errors.append((path, path_free_error_text(exc)))
         _scan_uses_for_mutable(raw, path, result.mutable_action_refs)
         return
     if not isinstance(data, dict):

@@ -26,7 +26,7 @@ from typing import Any
 import yaml
 
 from oss_policy_kit.application.clock import report_generated_at
-from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
+from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, bad_input_detail, oversize_reason
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
 from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
 from oss_policy_kit.infrastructure.scan_deadline import TIMEOUT_DIAGNOSTIC, ScanDeadline
@@ -332,7 +332,9 @@ def _index_manifests(
         try:
             raw = path.read_bytes()
         except OSError as exc:
-            parse_errors.append({"file": _normalize_target(repo_root, path), "error": str(exc)})
+            # `file` was made relative for M-002 and `str(exc)` put the absolute path back: an
+            # OSError's text ends with the filename, and this evidence file gets committed.
+            parse_errors.append({"file": _normalize_target(repo_root, path), "error": bad_input_detail(exc)})
             continue
         # YAML 1.2 REQUIRES a processor to accept UTF-8, UTF-16 and UTF-32 with a BOM, so a
         # UTF-16 manifest is one `kubectl apply` would install -- not a broken file. Reading

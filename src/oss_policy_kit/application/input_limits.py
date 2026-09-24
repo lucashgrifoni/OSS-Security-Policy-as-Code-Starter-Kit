@@ -455,6 +455,20 @@ def bad_input_reason(exc: BaseException, *, label: str, name: str) -> str:
     return f"{label} '{name}' was rejected: {bad_input_detail(exc)}."
 
 
+def path_free_error_text(exc: BaseException) -> str:
+    """Return ``str(exc)`` for a failure the output records, without the path it opened.
+
+    ``str(OSError)`` ends with the filename the caller opened, and these callers open paths
+    under the resolved repository root. So a file the kit could not read put the auditor's
+    home directory and OS username into shareable output (M-002). Measured on 10.0.26: the
+    evaluation report (GitLab CI, composite actions, CodePipeline exports), the IaC and
+    Kubernetes evidence files, and findings/1.0. Every other exception keeps its own words,
+    because a YAML error's line and column are what the adopter needs to fix the file.
+    """
+
+    return bad_input_detail(exc) if isinstance(exc, OSError) else str(exc)
+
+
 def load_capped_document(
     path: Path,
     max_bytes: int,
