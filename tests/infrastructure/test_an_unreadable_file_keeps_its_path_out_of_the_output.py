@@ -10,7 +10,8 @@ on Windows, with every path on the command line relative:
 
 in the evaluation report, and the same shape for a composite action and a CodePipeline export,
 in the Kubernetes, CloudFormation, Bicep and Pulumi evidence files, and in findings/1.0
-(`correlate-findings --waivers`).
+(`correlate-findings --waivers`). The Terraform evidence file carried it too, but only where
+the `iac` extra is installed, which the clean PyPI install used for that run was not.
 
 The suite already refused reads in these places and never saw it, because its fake error
 carried no filename: `PermissionError(13, "Permission denied")` prints without a path, the
@@ -33,6 +34,7 @@ from oss_policy_kit.application.input_limits import path_free_error_text
 from oss_policy_kit.application.vuln_waivers import load_vuln_waivers
 from oss_policy_kit.infrastructure import aws_ci_parser, azure_pipeline_parser, workflow_parser
 from oss_policy_kit.infrastructure.gitlab_ci_parser import analyze_gitlab_ci
+from oss_policy_kit.infrastructure.iac import scanner as terraform
 from oss_policy_kit.infrastructure.iac.bicep import scanner as bicep
 from oss_policy_kit.infrastructure.iac.cfn import scanner as cfn
 from oss_policy_kit.infrastructure.iac.pulumi import scanner as pulumi
@@ -51,6 +53,7 @@ POD = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: p\nspec:\n  containers:\n  
 CFN = "AWSTemplateFormatVersion: '2010-09-09'\nResources:\n  B:\n    Type: AWS::S3::Bucket\n"
 BICEP = "resource sa 'Microsoft.Storage/storageAccounts@2023-01-01' = {\n  name: 'demo'\n}\n"
 PULUMI = "import pulumi\nimport pulumi_aws as aws\nbucket = aws.s3.Bucket('b')\n"
+TERRAFORM = 'resource "aws_s3_bucket" "b" {\n  bucket = "demo"\n}\n'
 
 
 def _ci_reasons(result: object) -> list[str]:
@@ -82,6 +85,7 @@ READ_CASES: dict[str, tuple[dict[str, str], str, Callable[[Path], list[str]]]] =
         "__main__.py",
         lambda r: _scan_reasons(pulumi.run_scan(r)),
     ),
+    "terraform-file": ({"main.tf": TERRAFORM}, "main.tf", lambda r: _scan_reasons(terraform.run_scan(r))),
     "vuln-waivers": (
         {"waivers.yaml": "waivers: []\n"},
         "waivers.yaml",
@@ -158,6 +162,8 @@ def _assert_reported_without_the_path(reasons: list[str], raised: list[str]) -> 
 def test_an_unreadable_file_is_reported_without_its_path(
     case: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    if case == "terraform-file":
+        pytest.importorskip("hcl2")  # without the iac extra the loader refuses before it reads
     files, locked, read = READ_CASES[case]
     _write(tmp_path, files)
     raised = _deny_read(monkeypatch, tmp_path / locked)
@@ -219,7 +225,7 @@ def test_a_helm_that_cannot_be_run_is_reported_without_its_path(
     )
 
     reasons = [entry["error"] for entry in outcome.render_errors]
-    assert reasons == ["helm could not be run (No such file or directory)"]
+    assert reasons == ["No such file or directory"]
     assert helm_bin not in reasons[0]
 
 
@@ -232,10 +238,7 @@ def test_every_other_exception_keeps_its_own_words() -> None:
     assert path_free_error_text(NotAnOSError("line 3, column 7: mapping values are not allowed")) == (
         "line 3, column 7: mapping values are not allowed"
     )
-    assert (
-        path_free_error_text(_refusal("/home/someone/repo/.gitlab-ci.yml"))
-        == "it could not be read (Permission denied)"
-    )
+    assert path_free_error_text(_refusal("/srv/checkout/.gitlab-ci.yml")) == "it could not be read (Permission denied)"
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="chmod does not deny read on Windows; ACLs do")

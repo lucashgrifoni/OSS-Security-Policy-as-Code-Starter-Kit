@@ -146,11 +146,10 @@ def _render_one_chart(
         outcome.render_errors.append({"chart": rel, "error": f"helm template timed out after {timeout_per_chart}s"})
         return
     except OSError as exc:
-        # Not `str(exc)`: on POSIX it ends with the resolved helm binary, which sits under the
-        # user's home as often as not, and this lands in the committed k8s evidence (M-002).
-        outcome.render_errors.append(
-            {"chart": rel, "error": f"helm could not be run ({exc.strerror or type(exc).__name__})"}
-        )
+        # Not `str(exc)` alone: on POSIX the operating system's error ends with the resolved
+        # helm binary, which sits under the user's home as often as not, and this lands in the
+        # committed k8s evidence (M-002). Such an error always carries `strerror`.
+        outcome.render_errors.append({"chart": rel, "error": exc.strerror or str(exc)})
         return
     if proc.returncode != 0:
         stderr = (proc.stderr or "").strip()
