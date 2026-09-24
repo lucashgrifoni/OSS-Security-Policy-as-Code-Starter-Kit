@@ -128,6 +128,43 @@ def test_the_waived_control_is_one_the_documented_profile_evaluates() -> None:
     )
 
 
+def _evaluate_args(run_block: str) -> list[str]:
+    """The arguments of the `evaluate` call in a workflow step's shell block."""
+
+    command = run_block.replace("\\\n", " ")
+    words = shlex.split(command[command.index("evaluate") :], posix=True)
+    return words[1:]
+
+
+def test_the_workflow_edit_is_the_generated_step_plus_the_step_4_waivers(tmp_path: Path) -> None:
+    """Step 5 says CI evaluates the same waivers. It does only with the edit Step 4 prints.
+
+    The workflow `init` writes has no `--waivers`, and `evaluate` applies a waivers file only
+    when it is handed one, so a waiver that worked locally failed the gate in CI. The printed
+    edit must be exactly the generated step plus that flag, pointing at the file Step 4 runs
+    with -- or the reader pastes a step that differs from both.
+    """
+
+    repo = _github_repo(tmp_path)
+    argv = [arg if arg != "." else str(repo) for arg in _bootstrap_argv()]
+    assert CliRunner().invoke(app, argv, catch_exceptions=False).exit_code == 0
+    generated = yaml.safe_load((repo / ".github" / "workflows" / "oss-policy-check.yml").read_text(encoding="utf-8"))
+    step = next(s for s in generated["jobs"]["oss-policy-check"]["steps"] if "evaluate" in str(s.get("run", "")))
+
+    snippet = next(
+        block for block in re.findall(r"```yaml\n(.*?)```", _tutorial_text(), flags=re.DOTALL) if "evaluate" in block
+    )
+    printed = yaml.safe_load(snippet)[0]
+    local = re.search(r"^python -P -m oss_policy_kit evaluate .*--waivers (\S+)$", _tutorial_text(), flags=re.MULTILINE)
+    assert local is not None, "Step 4 no longer runs evaluate with --waivers"
+
+    assert printed["name"] == step["name"]
+    printed_args = _evaluate_args(printed["run"])
+    waivers_at = printed_args.index("--waivers")
+    assert printed_args[waivers_at + 1] == local.group(1)
+    assert printed_args[:waivers_at] + printed_args[waivers_at + 2 :] == _evaluate_args(step["run"])
+
+
 def test_the_stdout_claim_names_the_flag_that_prints_the_score() -> None:
     """`evaluate` prints the weighted score under `--summary-only`; the default table does not.
 

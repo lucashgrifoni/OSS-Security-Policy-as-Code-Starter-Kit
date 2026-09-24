@@ -124,6 +124,21 @@ python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --waive
 
 The report still shows the control, now as `waived`, with its owner, justification, and expiry.
 
+A waiver applies only to a run that is given the file. The workflow `init` wrote in Step 1 runs
+without `--waivers`, so in CI the same control would still fail. Add the flag to its evaluate
+step in `.github/workflows/oss-policy-check.yml` before you commit:
+
+```yaml
+      - name: Evaluate OSS policy baseline
+        run: |
+          python -P -m oss_policy_kit evaluate \
+            --target . \
+            --profile github-level-1 \
+            --fail-on fail \
+            --waivers ./waivers/waivers.yaml \
+            --output-dir ./oss-policy-reports
+```
+
 Expected report change after the fix:
 
 | Before | After |
@@ -139,7 +154,8 @@ git commit -m "chore: add OSS security policy gate"
 git push origin feature/oss-policy-gate
 ```
 
-Open a pull request. The generated workflow evaluates the same profile that you ran locally.
+Open a pull request. The generated workflow evaluates the same profile that you ran locally, and
+with the flag from Step 4, the same waivers.
 
 ## Step 6 - See the gate in action (3 min)
 

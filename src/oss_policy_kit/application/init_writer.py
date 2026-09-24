@@ -180,17 +180,25 @@ def _render_config_yaml(plan: InitPlan) -> str:
 def _render_waivers_stub() -> str:
     """Return a minimal ``waivers.yaml`` stub compatible with the parser."""
 
+    # The stub used to say that waived findings "stop tripping --fail-on", with no word about
+    # how. They do only in a run handed this file with --waivers, and the workflow `init`
+    # writes next to it does not pass one, so an adopter who filled this in saw CI fail on
+    # the very control they had waived. The example named GH-PIN-007, which is not in the
+    # catalog; uncommented, it waived nothing and produced a warning instead.
     return (
         "# oss-policy-kit waivers\n"
         "# Each entry must have: control_id, owner, justification, expires_at (YYYY-MM-DD).\n"
-        "# Waived findings remain visible in reports but stop tripping --fail-on.\n"
+        "# An entry applies only to a run given this file: evaluate --waivers waivers.yaml.\n"
+        "# The workflow `init --with-workflow` writes does not pass that flag; add it to the\n"
+        "# evaluate step for these waivers to apply in CI.\n"
+        "# A waived finding stays visible in the report but stops tripping --fail-on.\n"
         "# Remove or update entries before the expires_at date.\n"
         "\n"
         "waivers: []\n"
         "\n"
         "# Example (uncomment and adjust):\n"
         "# waivers:\n"
-        "#   - control_id: GH-PIN-007\n"
+        "#   - control_id: CI-PIN-008\n"
         "#     owner: appsec-team\n"
         "#     justification: Pinned-by-tag is acceptable for internal-only repository.\n"
         "#     expires_at: 2026-12-31\n"
@@ -499,8 +507,12 @@ def _build_next_steps(plan: InitPlan) -> list[str]:
             f"{plan.workflow_profile or "the template's own profile"} with --fail-on {plan.fail_on}.",
         )
     if plan.write_waivers:
+        applies = "They apply only to a run given --waivers waivers.yaml"
+        if plan.write_workflow and plan.platform == "github":
+            applies += f"; add that flag to the evaluate step in .github/workflows/{GITHUB_WORKFLOW_FILENAME}"
         steps.append(
-            "Add real entries to waivers.yaml (owner, justification, expires_at) only when remediation is deferred.",
+            "Add real entries to waivers.yaml (owner, justification, expires_at) only when remediation is deferred. "
+            f"{applies}.",
         )
     if plan.platform == "unknown":
         steps.append(
