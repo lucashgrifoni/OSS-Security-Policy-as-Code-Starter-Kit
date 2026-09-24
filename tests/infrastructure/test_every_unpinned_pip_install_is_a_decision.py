@@ -259,8 +259,7 @@ def test_the_accepted_installs_are_documented_in_the_security_policy() -> None:
     for (path, _), count in _ACCEPTED_UNPINNED.items():
         accepted[path] += count
     documented = Counter(
-        match.group(1)
-        for match in re.finditer(r"^\| `([^`]+\.yml)` \| `python -m pip install", policy, re.MULTILINE)
+        match.group(1) for match in re.finditer(r"^\| `([^`]+\.yml)` \| `python -m pip install", policy, re.MULTILINE)
     )
     assert documented == accepted, (
         f"SECURITY.md lists {dict(documented)} unpinned installs per workflow, and this test accepts "
