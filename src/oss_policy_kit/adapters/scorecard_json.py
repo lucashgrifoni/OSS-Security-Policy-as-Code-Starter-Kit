@@ -114,8 +114,9 @@ def load_scorecard_json(path: Path) -> ScorecardBundle:
         data = json.loads(text)
     except UnicodeDecodeError as exc:
         # UTF-16/non-UTF-8 input: surface a clean LoadError (-> exit 2) instead of an exit-3
-        # crash.
-        raise LoadError(f"Scorecard JSON {path.name} could not be decoded as UTF-8: {exc}") from exc
+        # crash, in the kit's words. `{exc}` printed the codec's own ("'utf-8' codec can't
+        # decode byte 0x80 in position 0"), which names nothing an adopter can act on.
+        raise LoadError(bad_input_reason(exc, label="Scorecard JSON", name=path.name)) from exc
     except json.JSONDecodeError:
         # Ordinary malformed JSON keeps propagating to the evaluate-path handler
         # (cli/common.py), which renders the friendly "could not be parsed

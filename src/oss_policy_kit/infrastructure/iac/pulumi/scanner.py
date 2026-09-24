@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from oss_policy_kit.application.clock import report_generated_at
-from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
+from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, bad_input_detail, oversize_reason
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
 from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
 from oss_policy_kit.infrastructure.scan_deadline import TIMEOUT_DIAGNOSTIC, ScanDeadline
@@ -519,7 +519,8 @@ def _read_candidate(repo_root: Path, path: Path) -> tuple[bytes, dict[str, str] 
     try:
         return path.read_bytes(), None
     except OSError as exc:
-        return b"", {"file": _normalize_target(repo_root, path), "error": str(exc)}
+        # `str(exc)` ends with the absolute path that `file` keeps out (M-002).
+        return b"", {"file": _normalize_target(repo_root, path), "error": bad_input_detail(exc)}
 
 
 def run_scan(

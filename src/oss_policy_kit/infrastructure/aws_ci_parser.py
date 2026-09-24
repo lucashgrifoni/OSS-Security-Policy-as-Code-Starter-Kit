@@ -13,6 +13,7 @@ from oss_policy_kit.application.input_limits import (
     MAX_CI_CONFIG_BYTES,
     bad_input_detail,
     oversize_reason,
+    path_free_error_text,
 )
 from oss_policy_kit.infrastructure.source_text import decode_source_detail
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
@@ -257,7 +258,9 @@ def analyze_aws_ci(repo_root: Path) -> AwsCiAnalysis:
             data = load_yaml_file(path)
             _merge_structured_env_signals(data, path, result)
         except Exception as exc:  # noqa: BLE001
-            result.parse_errors.append((path, str(exc)))
+            # A second read of the file; if it fails, the reason must not carry the resolved
+            # path the first read kept out of the report (M-002).
+            result.parse_errors.append((path, path_free_error_text(exc)))
             _raw_env_fallback(path, raw_lower, result)
 
     for path in result.codepipeline_paths:
@@ -283,7 +286,8 @@ def _scan_codepipeline_export(path: Path, result: AwsCiAnalysis) -> None:
         else:
             load_yaml_file(path)
     except Exception as exc:  # noqa: BLE001 - record parse failure and skip this export
-        result.parse_errors.append((path, str(exc)))
+        # Published in the report; an unreadable export's `str(exc)` ends with its path (M-002).
+        result.parse_errors.append((path, path_free_error_text(exc)))
         return
     ok, _msg = committed_codepipeline_export_is_minimal(path)
     if not ok:

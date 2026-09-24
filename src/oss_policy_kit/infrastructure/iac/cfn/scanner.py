@@ -29,7 +29,7 @@ from typing import Any
 import yaml
 
 from oss_policy_kit.application.clock import report_generated_at
-from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason
+from oss_policy_kit.application.input_limits import MAX_CI_CONFIG_BYTES, oversize_reason, path_free_error_text
 from oss_policy_kit.application.reporting import _sanitize_target_path_for_payload
 from oss_policy_kit.infrastructure.fs_walk import walk_matching_files
 from oss_policy_kit.infrastructure.scan_deadline import TIMEOUT_DIAGNOSTIC, ScanDeadline
@@ -640,7 +640,9 @@ def run_scan(
         try:
             tpl = _load_cfn(f)
         except (OSError, CfnParseError) as exc:
-            entry = {"file": _normalize_target(repo_root, f), "error": str(exc)}
+            # Not `str(exc)`: for the OSError it ends with the absolute path `file` was just
+            # made relative to keep out of this committed evidence file (M-002).
+            entry = {"file": _normalize_target(repo_root, f), "error": path_free_error_text(exc)}
             if isinstance(exc, CfnParseError):
                 # `_load_cfn` raises this only when `_looks_like_cfn_text` held, so the file
                 # was read and read as a template. An OSError is the other case: nothing was

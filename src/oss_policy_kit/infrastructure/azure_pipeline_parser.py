@@ -11,6 +11,7 @@ from oss_policy_kit.application.input_limits import (
     MAX_CI_CONFIG_BYTES,
     bad_input_detail,
     oversize_reason,
+    path_free_error_text,
 )
 from oss_policy_kit.infrastructure.source_text import decode_source_detail
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
@@ -173,7 +174,9 @@ def analyze_azure_pipelines(repo_root: Path) -> AzurePipelineAnalysis:
         try:
             data: Any = load_yaml_file(path)
         except Exception as exc:  # noqa: BLE001 - record parse failure and continue
-            result.parse_errors.append((path, str(exc)))
+            # A second read of the file; if it fails, the reason must not carry the resolved
+            # path the first read kept out of the report (M-002).
+            result.parse_errors.append((path, path_free_error_text(exc)))
             continue
         _scan_azure_parsed(data, path, result)
 

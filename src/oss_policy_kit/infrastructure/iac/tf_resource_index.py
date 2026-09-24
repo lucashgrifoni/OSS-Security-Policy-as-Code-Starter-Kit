@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application.input_limits import path_free_error_text
 from oss_policy_kit.infrastructure.scan_deadline import ScanDeadline
 
 from .hcl_loader import HclLoadError, load_hcl_file
@@ -106,7 +107,9 @@ def build_index(files: Iterable[Path], *, deadline: ScanDeadline | None = None) 
         try:
             parsed = load_hcl_file(path)
         except HclLoadError as exc:
-            index.parse_errors.append((path, str(exc.original)))
+            # `exc.original` is the OSError for a file that could not be read, and its text
+            # ends with the resolved path; this lands in the committed iac evidence (M-002).
+            index.parse_errors.append((path, path_free_error_text(exc.original)))
             continue
         index.files_parsed.append(path)
         index.raw_files[path] = parsed

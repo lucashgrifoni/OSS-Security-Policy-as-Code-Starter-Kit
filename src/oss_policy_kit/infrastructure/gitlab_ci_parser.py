@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application.input_limits import path_free_error_text
 from oss_policy_kit.infrastructure.yaml_io import load_yaml_file
 
 
@@ -281,7 +282,9 @@ def analyze_gitlab_ci(repo_root: Path) -> GitLabCiAnalysis:
         try:
             doc = load_yaml_file(path)
         except Exception as exc:  # noqa: BLE001
-            out.parse_errors.append((path, str(exc)))
+            # The report publishes this reason; `str(exc)` of an unreadable file ends with its
+            # resolved path (M-002).
+            out.parse_errors.append((path, path_free_error_text(exc)))
             continue
         if not isinstance(doc, dict):
             out.parse_errors.append((path, "Top-level YAML is not a mapping"))
