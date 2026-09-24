@@ -1,7 +1,7 @@
 # OSS Policy Kit - evaluation report
 
 - **Generated (UTC)**: `2026-08-06T00:00:00+00:00`
-- **Kit version**: `10.0.24`
+- **Kit version**: `10.0.25`
 - **Target**: `vulnerable-repo`
 - **Profile**: `github-level-1` - GitHub OSS starter baseline (level 1)
 
@@ -64,7 +64,7 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 | `SEC-DEPREV-011` | supply_chain | stable | `deterministic` | `fail` | medium | No dependency-review-action detected in workflows. | Add GitHub Dependency Review to pull request workflows. |  |
 | `REL-CHANGE-012` | release | stable | `deterministic` | `fail` | high | No CHANGELOG-style file detected. | Add CHANGELOG.md and reference it from releases. |  |
 | `GOV-DISC-013` | governance | stable | `signal` | `fail` | high | Disclosure reporting mechanism not implemented (SECURITY.md missing at repository root). | Add SECURITY.md with a clear reporting channel (email or form). |  |
-| `GOV-WAIV-014` | governance | stable | `deterministic` | `manual-review-required` | medium | No versioned waiver policy file found in repository. If waivers are not applicable, create a waivers/ directory with a documented policy statement or use an empty waivers file. | Create waivers/policy.yaml or waivers/README.md documenting the waiver governance approach. |  |
+| `GOV-WAIV-014` | governance | stable | `deterministic` | `manual-review-required` | medium | No versioned waivers file found in repository. This control reads `waivers.yaml`, `waivers.yml`, `waivers/waivers.yaml` and `.oss-policy-kit/waivers.yaml`. | Commit `waivers.yaml` holding `waivers: []` when no waiver is active (`oss-policy-kit init --with-waivers` writes one), or keep the file at `waivers.yml`, `waivers/waivers.yaml` or `.oss-policy-kit/waivers.yaml`. |  |
 
 ## Detail
 
@@ -213,5 +213,5 @@ This evaluation only observes what is visible in a local clone (plus optional ev
 - **Assurance**: `deterministic`
 - **Evidence collection method**: `static`
 - **Confidence**: medium
-- **Reason**: No versioned waiver policy file found in repository. If waivers are not applicable, create a waivers/ directory with a documented policy statement or use an empty waivers file.
-- **Remediation**: Create waivers/policy.yaml or waivers/README.md documenting the waiver governance approach.
+- **Reason**: No versioned waivers file found in repository. This control reads `waivers.yaml`, `waivers.yml`, `waivers/waivers.yaml` and `.oss-policy-kit/waivers.yaml`.
+- **Remediation**: Commit `waivers.yaml` holding `waivers: []` when no waiver is active (`oss-policy-kit init --with-waivers` writes one), or keep the file at `waivers.yml`, `waivers/waivers.yaml` or `.oss-policy-kit/waivers.yaml`.
