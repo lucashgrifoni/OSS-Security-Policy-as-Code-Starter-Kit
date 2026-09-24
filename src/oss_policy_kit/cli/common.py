@@ -225,7 +225,11 @@ def exit_for_unexpected(exc: BaseException) -> NoReturn:
     """
 
     if is_bad_input(exc):
-        stderr_console().print(f"[red]Error:[/red] input could not be read: {markup_safe(bad_input_detail(exc))}")
+        # `bad_input_detail` is a clause that already says what went wrong ("it could not be
+        # read (Permission denied)", "it is invalid YAML (...)"), so the prefix names the
+        # class and nothing else. It said "input could not be read:" and printed the
+        # same verb twice for every unreadable file.
+        stderr_console().print(f"[red]Error:[/red] bad input: {markup_safe(bad_input_detail(exc))}")
         raise typer.Exit(code=2) from exc
     stderr_console().print(f"[red]Unexpected error:[/red] {markup_safe(exc)}")
     raise typer.Exit(code=3) from exc

@@ -77,7 +77,9 @@ def test_a_blocked_artifact_is_reported_as_a_write_failure(blocked: str, tmp_pat
         f"the run reported {output!r}. The input was read fine -- the batch got as far as a "
         "complete payload -- and this sentence sends the operator to the wrong place."
     )
-    assert "input could not be read" not in output
+    # The shape of a read failure, whatever prefix the handler puts in front of it. Asserting
+    # the handler's exact wording would pass for any rewording of that prefix.
+    assert "could not be read" not in output
 
 
 @pytest.mark.parametrize("blocked", _ARTIFACTS)
