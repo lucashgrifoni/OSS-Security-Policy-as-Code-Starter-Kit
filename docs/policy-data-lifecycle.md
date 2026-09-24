@@ -14,7 +14,7 @@ informed decisions about which controls to gate on.
 
 ## Current catalog summary
 
-As of **v10.0.22**, the bundled catalog contains **222** controls: **70** are `lifecycle: stable` and **152** are `lifecycle: experimental`. There are no `deprecated` controls in the current catalog.
+As of **v10.0.27**, the bundled catalog contains **222** controls: **70** are `lifecycle: stable` and **152** are `lifecycle: experimental`. There are no `deprecated` controls in the current catalog.
 
 The large experimental share reflects the families added across v6.0.0–v6.4.0 (AI/LLM, EU AI Act, `WORM-*`, MCP, OWASP Agentic ASI, EU CRA, SLSA Source, and GitLab parity). Experimental semantics may change between minor releases, so pin the exact kit version before gating a strict CI pipeline on them. The two YAML-heuristic controls below were carried as **deprecated** through **v3.x** and **removed** as part of the **v4.0.0** preparation.
 

@@ -111,7 +111,7 @@ python -P -m oss_policy_kit evaluate --target . --profile iac-terraform-baseline
 1. **First run**: install the package, then `python -P -m oss_policy_kit profiles` (or `--show-profiles`) to pick a ladder, and `python -P -m oss_policy_kit recommend-profile --target .` for a quick hint.
 2. **Local maintainer loop**: `python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --output-dir ./out/latest` before tagging or opening a release PR; open `evaluation-report.md` for the narrative view.
 3. **Multi-app / monorepo**: `python -P -m oss_policy_kit evaluate-many --target-root ./apps --profiles github-level-1 --output-dir ./out/batch` — read `evaluation-batch.md` first (consolidated totals, repeated gaps, relative paths to per-repo reports).
-4. **Waivers**: keep versioned waivers in-repo for `GOV-WAIV-014`; use `--waivers path.yaml` only for temporary or CI-local exceptions and treat them as explicitly out-of-band from versioned policy.
+4. **Waivers**: keep versioned waivers in-repo for `GOV-WAIV-014`, and pass that same file with `--waivers` in the runs that should apply it: a waiver changes a result only in a run given the file. A separate `--waivers path.yaml` suits temporary or CI-local exceptions kept out of the versioned policy.
 5. **Release-hardening + evidence**: run `scaffold-evidence` once, fill `.oss-policy-kit/evidence/*.json`, then evaluate with `github-release-hardening-*` (or Azure/AWS equivalents). Re-run scaffold **without** `--force` to preserve hand-edited JSON; use `--force` only when you intend to replace templates.
 6. **Interpreting scope**: read [results-guide.md](results-guide.md) when results look similar across apps — the kit measures clone-visible posture, not application logic flaws.
 
@@ -289,6 +289,7 @@ The **human** `--summary-only` mode prints a short, action-oriented recap (count
 
 - **`--waivers`**: external YAML loaded for **this run only**; may set specific controls to `waived`. The report states the waiver file's basename under `external_waiver_path` by default (privacy-by-default, M-002); pass `--include-absolute-path` to keep the full absolute path.
 - **`GOV-WAIV-014`**: checks for a **versioned** waiver policy file **inside the clone** (for example `waivers/waivers.yaml`). Using `--waivers` does **not** satisfy that control by design; the Markdown report explains both mechanisms side by side.
+- **Committing the file does not apply it**: the versioned file waives a control only when the run is given it with `--waivers`. The workflow `init --with-workflow` writes runs without the flag; add `--waivers ./waivers.yaml` (or wherever the file lives) to its evaluate step for CI to honour the committed waivers.
 
 ### When the `--waivers` path cannot be read
 

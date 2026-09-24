@@ -237,16 +237,31 @@ def test_the_unpinned_installs_are_exactly_the_accepted_ones() -> None:
             "an accepted unpinned install is pinned now, or no longer exists:\n"
             f"{listing}\n\n"
             "Good news, but the acceptance has to go too: remove it from _ACCEPTED_UNPINNED "
-            "here and from the 'Findings that are open on purpose' section of SECURITY.md. An "
+            "here and from the 'Findings dismissed on purpose' section of SECURITY.md. An "
             "exception that outlives its reason is worse than one never granted."
         )
 
 
 def test_the_accepted_installs_are_documented_in_the_security_policy() -> None:
-    """The list above is a decision; SECURITY.md is where a reader looks for the reason."""
+    """The list above is a decision; SECURITY.md is where a reader looks for the reason.
+
+    This used to check only that the section's heading existed, and the table under it said
+    three while five were accepted here: the dependency-floors job and the live collector
+    canary each added one, and the prose never moved. So the table is counted too, per file.
+    """
 
     policy = (_REPO_ROOT / "SECURITY.md").read_text(encoding="utf-8")
-    assert "Findings that are open on purpose" in policy, (
+    assert "Findings dismissed on purpose" in policy, (
         "SECURITY.md no longer has the section that explains the accepted findings, but "
         f"{sum(_ACCEPTED_UNPINNED.values())} unpinned pip installs are still accepted here."
+    )
+    accepted: Counter[str] = Counter()
+    for (path, _), count in _ACCEPTED_UNPINNED.items():
+        accepted[path] += count
+    documented = Counter(
+        match.group(1) for match in re.finditer(r"^\| `([^`]+\.yml)` \| `python -m pip install", policy, re.MULTILINE)
+    )
+    assert documented == accepted, (
+        f"SECURITY.md lists {dict(documented)} unpinned installs per workflow, and this test accepts "
+        f"{dict(accepted)}. The contract is one table row per accepted install, naming its job."
     )

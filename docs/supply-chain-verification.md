@@ -77,8 +77,8 @@ gh attestation verify oci://ghcr.io/lucashgrifoni/oss-policy-kit@<digest> \
   --cert-identity 'https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/.github/workflows/publish-container.yml@refs/tags/v<version>'
 ```
 
-Then pull and run the image by that digest. Measured on 10.0.25: against the published
-digest, both commands pass with `v10.0.25` in the identity and fail with `v10.0.24`. The
+Then pull and run the image by that digest. Measured on 10.0.27: against the published
+digest, both commands pass with `v10.0.27` in the identity and fail with `v10.0.26`. The
 earlier form of these commands matched any workflow in the repository and took the tag as
 given, so it passed for a moved tag.
 
