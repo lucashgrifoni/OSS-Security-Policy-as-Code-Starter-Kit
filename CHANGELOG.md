@@ -6,6 +6,13 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.28](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.27...v10.0.28) (2026-09-24)
+
+
+### Notes
+
+* align the action pin, waivers, SECURITY.md and version stamps with 10.0.27 ([#341](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/341)) ([2990ea7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2990ea7f6bef2667e37c6481c93b9863f777f1bf))
+
 ## [10.0.27](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.26...v10.0.27) (2026-09-24)
 
 
