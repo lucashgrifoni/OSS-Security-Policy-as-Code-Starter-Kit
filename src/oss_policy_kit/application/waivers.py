@@ -7,6 +7,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
+from oss_policy_kit.application.input_limits import bad_input_detail, is_bad_input
 from oss_policy_kit.application.vuln_waivers import (
     ACTIVE_WAIVER_STATUSES,
     DEFAULT_WAIVER_STATUS,
@@ -64,7 +65,11 @@ def parse_waivers_file(path: Path) -> WaiverParseOutcome:  # noqa: C901
     try:
         raw = load_yaml_file(path)
     except Exception as exc:  # noqa: BLE001
-        raise LoadError(f"Failed to read waivers file {path}: {exc}") from exc
+        # In the words the rest of the CLI uses for a bad input. `str(exc)` put Python's
+        # "maximum recursion depth exceeded" in front of an operator whose waivers file was
+        # nested 600 levels deep, and an OSError's text repeats the path already printed.
+        reason = bad_input_detail(exc) if is_bad_input(exc) else str(exc)
+        raise LoadError(f"Failed to read waivers file {path}: {reason}") from exc
 
     warnings: list[str] = []
     by_control: dict[str, WaiverRecord] = {}
