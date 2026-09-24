@@ -211,12 +211,18 @@ runs:
         # workspace is the repository being evaluated, so without it that repository sits
         # first on sys.path: a root-level `oss_policy_kit.py` committed to a repo this action
         # scans runs as `__main__`, with the job's token in the environment, before any
-        # control does -- and `rc=$?` below then makes its exit status the gate's verdict. A
+        # control does -- and the `rc` captured below then makes its exit status the gate's verdict. A
         # measured run of that decoy reported exit_code=0 with no evaluation. Above, the
         # mechanism shadows a version assertion; here it executes what the scanned repository
         # chose to put there.
-        python -P -m oss_policy_kit "${args[@]}"
-        rc=$?
+        #
+        # `|| rc=$?`, not a bare call followed by `rc=$?`. A composite step with `shell: bash`
+        # runs as `bash --noprofile --norc -e -o pipefail`, so a bare non-zero exit ended the
+        # script on this line: no exit-code, report-json or report-markdown output, and no job
+        # summary or annotations, in exactly the run where the gate tripped. Measured on
+        # 10.0.26 on a real runner: all three outputs empty for exit 1 and exit 2.
+        rc=0
+        python -P -m oss_policy_kit "${args[@]}" || rc=$?
         # Resolve output-dir ONCE, honouring an absolute path. The kit resolves --output-dir
         # itself, so an absolute one (`${{ runner.temp }}/reports`, for instance) is written
         # exactly where it says. Joining it onto the workspace anyway produced
