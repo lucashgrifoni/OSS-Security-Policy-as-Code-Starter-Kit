@@ -141,14 +141,19 @@ jobs:
         # expanded into the script text. A `${{ }}` inside `run:` is substituted before bash
         # sees the line, so a value carrying a quote or a `$(...)` would be executed rather
         # than printed. None of these five is attacker-controlled today -- they come from
-        # earlier steps of this same workflow and from `github.repository` -- but the shape
+        # earlier steps of this same workflow and from `github.repository` and
+        # `github.workflow_ref` -- but the shape
         # is the one `zizmor/template-injection` flags, and this repository ships a kit that
         # tells adopters not to write it.
         env:
           IMAGE_TAGS: ${{ steps.tags.outputs.tags }}
           IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
-          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.version }}
+          # By digest: a GHCR tag can be moved to another image, a digest cannot.
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           REPO_SLUG: ${{ github.repository }}
+          # The certificate identity of THIS run, ending in its ref. The earlier regexp matched
+          # any workflow in the repository, so a moved tag verified against the wrong release.
+          SIGNER: ${{ github.server_url }}/${{ github.workflow_ref }}
         run: |
           {
             echo "## Published container image"
@@ -164,9 +169,10 @@ jobs:
             echo ""
             echo '```bash'
             echo "cosign verify ${IMAGE_REF} \\"
-            echo "  --certificate-identity-regexp 'https://github.com/${REPO_SLUG}/.+' \\"
+            echo "  --certificate-identity '${SIGNER}' \\"
             echo "  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'"
             echo "gh attestation verify oci://${IMAGE_REF} \\"
-            echo "  --repo ${REPO_SLUG}"
+            echo "  --repo ${REPO_SLUG} \\"
+            echo "  --cert-identity '${SIGNER}'"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
