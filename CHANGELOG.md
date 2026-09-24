@@ -6,6 +6,15 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.27](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.26...v10.0.27) (2026-09-24)
+
+
+### Fixes
+
+* **action:** a tripped gate left the outputs and the job summary empty ([#338](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/338)) ([78955bc](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/78955bc41876d312cd96cce81ed6fa95cba1f8f5))
+* **init:** the waivers stub promised what only --waivers delivers ([#337](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/337)) ([71fe68e](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/71fe68e9cda180683547950462212c5aa7127c64))
+* **privacy:** an unreadable file put its absolute path into the report ([#336](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/336)) ([8ba8dc3](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/8ba8dc36b4e9259f055cb8bc39f26f3ae1b44d4a))
+
 ## [10.0.26](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.25...v10.0.26) (2026-09-24)
 
 
