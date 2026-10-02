@@ -20,8 +20,10 @@ For new adopters, `init` is the fastest path from "fresh clone" to a working bas
 # Minimum: detect platform, pick a profile, write oss-policy-kit.yaml
 python -P -m oss_policy_kit init --target .
 
-# Full bootstrap in one shot (config + waivers stub + evidence skeleton + workflow)
-python -P -m oss_policy_kit init --target . \
+# Full bootstrap in one shot (config + waivers stub + evidence skeleton + workflow).
+# Name the platform: detection reads CI files in the clone, so a repository with no
+# workflow yet is `unknown`, and the evidence and workflow flags are skipped for it.
+python -P -m oss_policy_kit init --target . --platform github \
   --with-waivers --with-evidence --with-workflow
 
 # Preview without touching the filesystem

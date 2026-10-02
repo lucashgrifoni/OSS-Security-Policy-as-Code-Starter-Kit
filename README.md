@@ -36,7 +36,7 @@ A control that fires wrongly is worse than one that does not exist. False-positi
 
 ```bash
 python -m pip install oss-policy-kit
-python -P -m oss_policy_kit init --target . --with-evidence --with-workflow
+python -P -m oss_policy_kit init --target . --platform github --with-evidence --with-workflow
 python -P -m oss_policy_kit evaluate --target . --profile github-level-1 --fail-on fail
 ```
 
