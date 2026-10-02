@@ -85,6 +85,8 @@ Everything shipped to a user *is* hash-pinned — the container image installs f
 
 These alerts were dismissed rather than closed by a fix, and it is worth being precise about why, because it is not the reason that applies to pip. They are raised against the *base* image by digest, so no change in this repository moves them — including the fix that already shipped. Refreshing the pin does not help either: scanned directly from the registry on 2026-09-13, the current upstream `python:3.12-slim-bookworm` tag carries the identical twelve, `10.42-1` included. The consequence is that the alert list cannot be used to tell whether this is handled, so `tests/infrastructure/test_the_runtime_stage_keeps_the_base_image_cves_out.py` is what holds the two runtime commands in place. Deleting either one would put these CVEs back into the published image without changing a single alert.
 
+**Update, 2026-10-02.** By then the upstream tag had been rebuilt, and refreshing the pin did help. The old digest also carried `openssl` and `libssl3 3.0.20-1~deb12u2`, with twelve open alerts against them. The rebuilt image has `3.0.22-1~deb12u1` and `libpcre2-8-0 10.42-1+deb12u1`, and Trivy against it reports only the six `pip` CVEs above. The `Dockerfile` now pins that digest. The `apt-get upgrade` stays, because the next Debian advisory will again arrive before the next upstream rebuild.
+
 **Two secret-scanning settings that stay off, and cannot be turned on from the API.**
 `secret_scanning_validity_checks` and `secret_scanning_non_provider_patterns` are both
 `disabled`. Secret scanning itself and push protection are enabled.
