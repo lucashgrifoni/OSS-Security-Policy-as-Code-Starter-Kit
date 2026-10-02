@@ -6,6 +6,22 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.28](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.27...v10.0.28) (2026-10-02)
+
+
+### Fixes
+
+* **container:** pin the rebuilt base image that carries the openssl fixes ([#350](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/350)) ([3843db5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3843db5cb41ff823830b758ca491c1201085fc5b))
+
+
+### Notes
+
+* align the action pin, waivers, SECURITY.md and version stamps with 10.0.27 ([#341](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/341)) ([2990ea7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2990ea7f6bef2667e37c6481c93b9863f777f1bf))
+* clear the red Security CI/CD run and the PyJWT and urllib3 advisories ([#349](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/349)) ([6af3f7c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/6af3f7ccd476e75feb8ea1a05074afd07f9d69a0))
+* **deps-dev:** bump ruff from 0.16.8 to 0.16.9 ([#343](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/343)) ([95adb8b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/95adb8bcf53bcabd12bb397dc2d915f515fe4905))
+* **deps:** bump the codeql-action group with 4 updates ([#347](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/347)) ([affd594](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/affd5947cac1ac0a225ad9a42ac127892e964cd7))
+* refresh the sample reports even when release-please reports no change ([#353](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/353)) ([b2a10eb](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b2a10eb1793694a686128e91c8baf7c18bdd1049))
+
 ## [10.0.27](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.26...v10.0.27) (2026-09-24)
 
 
