@@ -6,6 +6,13 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.29](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.28...v10.0.29) (2026-10-02)
+
+
+### Notes
+
+* every documented bootstrap names its platform, and a guard runs them all ([#355](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/355)) ([6b50aa0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/6b50aa0d876f6d80c8f4516dea6fa3beeee2f8b4))
+
 ## [10.0.28](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.27...v10.0.28) (2026-10-02)
 
 
