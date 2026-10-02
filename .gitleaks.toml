@@ -19,4 +19,9 @@ regexes = [
   # role bindings has a real id to fire on. `generic-api-key` matches it on entropy and on
   # the label that precedes it; it is documented Azure platform data, not a credential.
   '''18d7d88d-d35e-4fb5-a5c3-7773c20a72d9''',
+  # The alphabet in order, quoted as a fake buildspec variable in
+  # tests/infrastructure/test_aws_ci_parser_signals.py so the AWS parser has a long literal to
+  # flag. gitleaks 8.24.3, the version the CI action installs, reports it as `generic-api-key`
+  # on entropy alone; 8.30.1 does not. It is a fixture, not a credential.
+  '''abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcd''',
 ]
