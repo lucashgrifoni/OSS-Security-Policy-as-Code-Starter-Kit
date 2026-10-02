@@ -63,7 +63,7 @@ jobs:
       contents: read # write scopes are supplied by the App token, not GITHUB_TOKEN
     outputs:
       # Empty when there is no open release PR, which is what gates the job below.
-      release_branch: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).headBranchName || '' }}
+      release_branch: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).headBranchName || steps.open-pr.outputs.branch || '' }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -94,6 +94,24 @@ jobs:
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
           token: ${{ steps.app-token.outputs.token }}
+
+      # The action reports the release PR only in a run that created or changed it. On
+      # 2026-10-02 two pushes landed seconds apart: the first run rewrote the release branch,
+      # dropping the refreshed sample reports, and was then cancelled by the second, which
+      # found the PR already current, reported nothing, and skipped the refresh. The 10.0.28
+      # PR then sat with a red Quality check that no later run would fix, and a dispatch gave
+      # the same skip. When the action is silent, find the open release PR by its label.
+      - name: Find the open release PR when this run did not touch it
+        id: open-pr
+        if: ${{ !steps.release.outputs.pr }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          branch="$(gh pr list --repo "${GITHUB_REPOSITORY}" --state open --label 'autorelease: pending' \
+            --json headRefName --jq '[.[] | select(.headRefName | startswith("release-please--"))][0].headRefName // ""')"
+          echo "Open release PR branch: ${branch:-none}"
+          echo "branch=${branch}" >> "${GITHUB_OUTPUT}"
 
   # The version-stamp guard in tests/docs/test_sample_reports_match_the_shipped_contract.py
   # requires the checked-in sample reports to carry the version of the tree they sit in.
