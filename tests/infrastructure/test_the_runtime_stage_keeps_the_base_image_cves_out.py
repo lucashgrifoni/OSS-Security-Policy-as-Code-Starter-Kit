@@ -6,7 +6,11 @@ accurate about that image and none of them can be closed by editing this reposit
 scanned directly from the registry on 2026-09-13, the current upstream
 `python:3.12-slim-bookworm` tag carries the identical twelve, so refreshing the pin
 clears nothing. It was eleven until 2026-09-12, when five `libpcre2` advisories arrived
-at once -- a count written into prose goes stale on somebody else's schedule.
+at once -- a count written into prose goes stale on somebody else's schedule. It went
+stale again by 2026-10-02, the other way: the upstream tag had been rebuilt with the
+libpcre2 and openssl fixes, so the pin was refreshed and the base now reports only the six
+`pip` CVEs. The two runtime commands stay guarded, because the base will fall behind
+Debian again.
 
 What keeps them out of the image this project *publishes* is two lines in the runtime
 stage, and nothing else:
