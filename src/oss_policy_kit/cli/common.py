@@ -810,7 +810,17 @@ def _config_output_dir(raw: str, repo_root: Path) -> Path:
     """
 
     candidate = Path(raw)
-    return candidate if candidate.is_absolute() else (repo_root / candidate)
+    if candidate.is_absolute():
+        return candidate
+    anchored = repo_root / candidate
+    # A relative value means "inside this repository", so one that climbs out with ``..`` is
+    # refused rather than followed. Absolute values stay PATH-01b's question, as above.
+    if not anchored.resolve().is_relative_to(repo_root.resolve()):
+        raise InvalidInputError(
+            "output_dir in oss-policy-kit.yaml is relative but leaves the repository. "
+            "Use a path inside the repository, an absolute path, or pass --output-dir.",
+        )
+    return anchored
 
 
 def _resolve_eval_settings(req: EvaluateRequest, repo_root: Path) -> _EffectiveEvalSettings:

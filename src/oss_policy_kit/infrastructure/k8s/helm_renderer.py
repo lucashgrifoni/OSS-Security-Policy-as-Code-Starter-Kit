@@ -24,6 +24,7 @@ locally before scanning if they want subchart coverage).
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import tempfile
@@ -38,6 +39,22 @@ _SKIP_DIRS: Final[frozenset[str]] = frozenset(
 
 #: Wall-clock budget per individual ``helm template`` invocation.
 HELM_RENDER_TIMEOUT_SECONDS: Final[int] = 60
+
+#: Helm's own release-name rule. A chart directory whose name breaks it renders as ``chart``.
+_RELEASE_NAME: Final[re.Pattern[str]] = re.compile(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*")
+
+
+def _release_name(chart_dir: Path) -> str:
+    """The chart directory's name when Helm accepts it as a release name, else ``chart``.
+
+    The name comes from the repository being scanned. Before ``--`` was added, a directory
+    named ``--set=m=PWN`` was read by ``helm template`` as a flag and changed the render.
+    ``--`` stops that, but Helm then rejects such a name and the chart is not rendered at all,
+    so a name Helm would refuse is replaced rather than passed through.
+    """
+
+    name = chart_dir.name
+    return name if len(name) <= 53 and _RELEASE_NAME.fullmatch(name) else "chart"
 
 
 @dataclass(slots=True)
@@ -132,9 +149,10 @@ def _render_one_chart(
     out_dir = tmp_root / (rel.replace("/", "__").replace("\\", "__") or "root")
     out_dir.mkdir(parents=True, exist_ok=True)
     try:
-        # Controlled subprocess: no shell, resolved helm binary, fixed args.
+        # Controlled subprocess: no shell, resolved helm binary, fixed flags. The release name and
+        # chart path come from the scanned repository, so they follow ``--`` and are never flags.
         proc = subprocess.run(  # noqa: S603
-            [helm_bin, "template", chart_dir.name or "chart", str(chart_dir), "--output-dir", str(out_dir)],
+            [helm_bin, "template", "--output-dir", str(out_dir), "--", _release_name(chart_dir), str(chart_dir)],
             capture_output=True,
             encoding="utf-8",
             errors="replace",

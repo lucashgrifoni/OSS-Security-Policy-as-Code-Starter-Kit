@@ -230,3 +230,33 @@ def test_render_charts_no_manifests_diagnostic(tmp_path: Path, monkeypatch: pyte
         import shutil as _sh
 
         _sh.rmtree(outcome.tmp_root, ignore_errors=True)
+
+
+@pytest.mark.parametrize(
+    ("dirname", "expected"),
+    [("app", "app"), ("my-chart.v2", "my-chart.v2"), ("--set=m=PWN", "chart"), ("App", "chart"), ("a" * 54, "chart")],
+)
+def test_release_name_is_the_directory_only_when_helm_accepts_it(tmp_path: Path, dirname: str, expected: str) -> None:
+    assert hr._release_name(tmp_path / dirname) == expected
+
+
+def test_a_chart_directory_named_like_a_flag_is_never_a_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A chart folder named `--set=m=PWN` was read by `helm template` as a flag and changed the render."""
+
+    repo = tmp_path / "repo"
+    chart = _make_chart(repo, "--set=m=PWN")
+    tmp_root = tmp_path / "out"
+    tmp_root.mkdir()
+    seen: list[list[str]] = []
+
+    def _run(argv: list[str], **_k: Any) -> _FakeProc:
+        seen.append(argv)
+        return _FakeProc(returncode=0)
+
+    monkeypatch.setattr(hr.subprocess, "run", _run)
+    hr._render_one_chart(chart.resolve(), repo, tmp_root, "/usr/bin/helm", 60, hr.HelmRenderOutcome(available=True))
+
+    argv = seen[0]
+    separator = argv.index("--")
+    assert argv[separator + 1 :] == ["chart", str(chart.resolve())]
+    assert not any(arg.startswith("--set") for arg in argv[:separator])

@@ -12,8 +12,10 @@ here is non-fatal (the caller invokes it with ``|| true``).
 
 from __future__ import annotations
 
+import html
 import json
 import os
+import re
 import sys
 from collections import Counter
 from typing import Any
@@ -30,8 +32,40 @@ def _state(control: dict[str, Any]) -> str:
 def _reason(control: dict[str, Any]) -> str:
     # reports/2.0 carries the failure reason in `message`; `title` is the control's purpose.
     text = control.get("message") or control.get("reason") or control.get("detail") or control.get("title") or ""
-    # Pipe would break the Markdown table; collapse newlines for the annotation.
-    return str(text).replace("|", "/").replace("\n", " ").strip()
+    return str(text).strip()
+
+
+#: Markdown punctuation that could turn repository text into a link, image, or emphasis.
+_MD_SPECIAL = re.compile(r"([\\`*_\[\]!~#])")
+
+
+def _md_cell(text: str) -> str:
+    """Repository text as plain words in a summary table cell.
+
+    Messages quote the scanned repository (a workflow job name, for one), and GitHub renders the
+    summary as Markdown with inline HTML. Tags and Markdown punctuation are escaped so that text
+    shows as written instead of becoming a link or an image; ``|`` and line breaks would end the
+    table row.
+    """
+
+    flat = " ".join(text.replace("|", "/").split())
+    return _MD_SPECIAL.sub(r"\\\1", html.escape(flat, quote=False))
+
+
+def _command_value(text: str) -> str:
+    """Escape a workflow-command message the way GitHub's toolkit does.
+
+    The runner splits commands on line breaks, including a bare ``\\r``, so an unescaped one in a
+    message starts a new command. ``%`` is escaped first because it is the escape character.
+    """
+
+    return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def _command_property(text: str) -> str:
+    """Escape a workflow-command property, which also ends at ``:`` or ``,``."""
+
+    return _command_value(text).replace(":", "%3A").replace(",", "%2C")
 
 
 def build_summary(report: dict[str, Any]) -> str:
@@ -47,17 +81,18 @@ def build_summary(report: dict[str, Any]) -> str:
     failing = [c for c in controls if _state(c) in _FAIL_STATES]
     if failing:
         lines += ["", "### Failing controls", "", "| Control | Reason |", "|---|---|"]
-        lines += [f"| `{c.get('id')}` | {_reason(c)} |" for c in failing]
+        lines += [f"| `{c.get('id')}` | {_md_cell(_reason(c))} |" for c in failing]
     return "\n".join(lines) + "\n"
 
 
 def emit_annotations(report: dict[str, Any], out: Any) -> None:
     for c in report.get("controls") or report.get("results") or []:
         st = _state(c)
+        title = _command_property(str(c.get("id")))
         if st in _FAIL_STATES:
-            out.write(f"::error title={c.get('id')}::{_reason(c) or 'control failed'}\n")
+            out.write(f"::error title={title}::{_command_value(_reason(c) or 'control failed')}\n")
         elif st in _REVIEW_STATES:
-            out.write(f"::warning title={c.get('id')}::{_reason(c) or 'manual review required'}\n")
+            out.write(f"::warning title={title}::{_command_value(_reason(c) or 'manual review required')}\n")
 
 
 def main(argv: list[str]) -> int:
