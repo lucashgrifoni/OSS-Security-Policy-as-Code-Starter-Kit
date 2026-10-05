@@ -1,0 +1,162 @@
+# AppSec review record for this repository against the AppSec Rules Pack baseline
+# (https://github.com/lucashgrifoni/AppSec-Rules-Pack). `.github/workflows/appsec-review.yml`
+# checks it with `appsec-rules review --fail-on-warnings` and fails on any open critical or
+# high rule. Update this record in the same pull request as a change that affects a rule,
+# and when the pinned baseline version moves.
+#
+# Paths in evidence and notes are relative to the repository root; `src/` means
+# src/oss_policy_kit/.
+review:
+  pack: appsec-baseline
+  pack_version: 0.6.0
+  subject: OSS Security Policy as Code Starter Kit (CLI and GitHub Action)
+  reviewer: lucashgrifoni (assisted review)
+  date: 2026-10-05
+  scope: >-
+    oss-policy-kit after 10.0.29 with the fixes from pull request 360: src/oss_policy_kit (CLI,
+    evaluators, config and profile loaders, GitHub/GitLab/Azure/AWS collectors, Semgrep and
+    Helm subprocesses, report writers), action.yml, scripts/action_summary.py, Dockerfile,
+    .github/workflows and dependabot.yml.
+
+results:
+  - rule: APPSEC-AUTHZ-001
+    status: not-applicable
+    notes: >-
+      No server, API, or user-scoped objects. The kit is a local CLI and composite Action;
+      the evidence collectors read remote settings with the operator's own token, so object
+      authorization is enforced by GitHub, GitLab, Azure DevOps, and AWS.
+
+  - rule: APPSEC-INPUT-001
+    status: met
+    evidence:
+      - src/application/input_limits.py caps evidence, SARIF, config, and CI files by size and caps nesting depth and alias expansion; load_capped_document is the single capped yaml.safe_load path.
+      - src/application/config_loader.py reads oss-policy-kit.yaml field by field with allowlisted schema_version and fail_on values.
+      - src/application/loader.py validates external profiles with Draft202012Validator; src/infrastructure/collectors/github_collector.py allowlists repo slugs.
+      - tests/application/test_a_small_file_cannot_buy_unbounded_work.py and tests/infrastructure/test_a_repo_slug_cannot_steer_the_url.py.
+
+  - rule: APPSEC-INJECT-001
+    status: met
+    evidence:
+      - src/infrastructure/k8s/helm_renderer.py:155 passes repository-derived arguments after `--`, and _release_name (:47) replaces a chart directory name Helm would refuse.
+      - scripts/action_summary.py:55-68 escapes workflow-command messages and properties (%25, %0D, %0A, %3A, %2C) before :91-95 writes annotations.
+      - Semgrep runs with an argv list and shell=False (src/infrastructure/scanners/semgrep_adapter.py).
+      - tests/application/test_helm_renderer_full.py::test_a_chart_directory_named_like_a_flag_is_never_a_flag and tests/infrastructure/test_action_summary.py::test_a_carriage_return_cannot_start_a_second_workflow_command.
+
+  - rule: APPSEC-SSRF-001
+    status: met
+    evidence:
+      - src/infrastructure/collectors/github_collector.py fixes the host to https://api.github.com; azure_collector.py fixes https://dev.azure.com/{org}.
+      - The GitLab base URL comes only from the operator's GITLAB_URL environment variable (src/cli/evidence.py), never from the scanned repository.
+      - Repo slugs read from the target's .git/config are allowlisted before reaching a path (tests/infrastructure/test_a_repo_slug_cannot_steer_the_url.py).
+
+  - rule: APPSEC-AUTHN-001
+    status: not-applicable
+    notes: >-
+      No login, credential verification, session, or token issuance. Outbound API tokens are
+      read from the environment (src/cli/evidence.py) and are reviewed under
+      APPSEC-SECRETS-001.
+
+  - rule: APPSEC-SECRETS-001
+    status: met
+    evidence:
+      - Tokens come only from the environment (src/cli/evidence.py); a missing token raises an error, with no default value.
+      - The dry-run preview reports only set/not set; tests/cli/test_collect_evidence_branches.py asserts the token value is never echoed.
+      - CI scans for secrets with Trivy and Gitleaks over git history (.github/workflows/security-ci-cd.yml).
+
+  - rule: APPSEC-FILE-001
+    status: excepted
+    evidence:
+      - src/cli/common.py:818 refuses a relative output_dir from the target's oss-policy-kit.yaml that leaves the repository.
+      - tests/cli/test_a_repository_does_not_choose_where_the_report_lands.py::test_a_relative_config_output_dir_cannot_leave_the_target.
+      - Reports are written atomically under fixed names (src/application/reporting.py).
+    exception:
+      owner: lucashgrifoni
+      justification: >-
+        An absolute output_dir in a scanned repository's oss-policy-kit.yaml is still honoured,
+        because init writes that file for the adopter's own repository and a shared report
+        folder is a supported flow. Whether an untrusted repository may point outside itself
+        is the open product decision PATH-01b.
+      expires_at: 2026-11-04
+      compensating_control: >-
+        The Action always passes --output-dir, so the config value never applies there
+        (action.yml); report file names are fixed and writes are atomic, so the config cannot
+        choose a file name.
+
+  - rule: APPSEC-LOG-001
+    status: met
+    evidence:
+      - src/domain/models.py strips control and format characters (ANSI escapes, bidi overrides) from report text taken from the audited repository.
+      - Absolute host paths are redacted by default (src/application/evidence_projection.py).
+      - The last-resort error handler prints no paths (src/cli/common.py); token values are never logged (src/cli/evidence.py).
+    notes: >-
+      There are no authentication events; the security-relevant record is the per-control
+      verdict in evaluation-report.json. Workflow-command output of the Action is covered
+      under APPSEC-INJECT-001.
+
+  - rule: APPSEC-DEP-001
+    status: met
+    evidence:
+      - .github/dependabot.yml watches pip at / and at /.github/requirements (the hashed locks CI and the image install).
+      - pip-audit gates CI on any known vulnerability (.github/workflows/security-ci-cd.yml); dependency-review and Trivy SCA also run.
+      - The image installs only hash-pinned locks (Dockerfile, --require-hashes on .github/requirements/runtime-all.txt).
+
+  - rule: APPSEC-CONFIG-001
+    status: met
+    evidence:
+      - Dockerfile runs as non-root appuser (uid 10001); PYTHONSAFEPATH and `python -P` keep the mounted repository off sys.path.
+      - action.yml defaults fail-on to fail, leaves SARIF off by default, always passes --fail-on and --output-dir, and runs `python -P`.
+      - Semgrep runs with --metrics=off and shell=False (src/infrastructure/scanners/semgrep_adapter.py).
+    notes: No HTTP server, so CORS does not apply.
+
+  - rule: APPSEC-SESSION-001
+    status: not-applicable
+    notes: No sessions or cookies; the kit is a one-shot CLI with no server side.
+
+  - rule: APPSEC-XSS-001
+    status: met
+    evidence:
+      - scripts/action_summary.py:42-52 escapes tags and Markdown punctuation in repository text before :84 writes it to the job summary table.
+      - The Markdown report escapes the same text (src/application/reporting.py, _escape_markup_openers).
+      - tests/infrastructure/test_action_summary.py::test_repository_text_in_the_summary_is_shown_not_rendered.
+
+  - rule: APPSEC-CSRF-001
+    status: not-applicable
+    notes: No HTTP server and no cookie-authenticated, state-changing requests.
+
+  - rule: APPSEC-ENUM-001
+    status: not-applicable
+    notes: No login, registration, password-reset, or account-lookup flows.
+
+  - rule: APPSEC-MSGAUTH-001
+    status: not-applicable
+    notes: >-
+      The kit receives no webhooks or signed messages; it only makes outbound API calls. Its
+      webhook-security profiles evaluate other repositories' handlers.
+
+  - rule: APPSEC-DATAEXPO-001
+    status: not-applicable
+    notes: >-
+      No API responses. The closest surface is the report, which redacts host paths by
+      default (src/application/evidence_projection.py) unless --include-absolute-path is
+      given.
+
+  - rule: APPSEC-MASSASSIGN-001
+    status: not-applicable
+    notes: >-
+      No request-to-object binding. Config and profile files are read field by field with
+      allowlisted keys and values (src/application/config_loader.py, src/application/loader.py).
+
+  - rule: APPSEC-REDIRECT-001
+    status: not-applicable
+    notes: No HTTP redirects or user-supplied navigation targets.
+
+  - rule: APPSEC-RATELIMIT-001
+    status: not-applicable
+    notes: >-
+      No endpoints to rate-limit. Work on untrusted input is bounded instead by size, depth,
+      and expansion caps (src/application/input_limits.py) and --timeout deadlines
+      (src/infrastructure/scan_deadline.py).
+
+  - rule: APPSEC-PWSTORE-001
+    status: not-applicable
+    notes: The kit stores no passwords or password-equivalents.
