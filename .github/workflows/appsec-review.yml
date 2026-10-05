@@ -1,0 +1,114 @@
+# AppSec review record
+#
+# Checks reviews/*.yaml against a pinned, verified release of the AppSec Rules Pack baseline
+# (https://github.com/lucashgrifoni/AppSec-Rules-Pack), then fails on any open critical,
+# high, or blocking rule. The record is written by a person; this job keeps it honest:
+# a rule with no result, an expired exception, or a record for another baseline version
+# fails the job.
+#
+# Supply-chain hardening:
+#   - Actions are pinned to commit SHAs; the CLI comes from a hash-locked requirements file
+#     (.github/requirements/appsec-rules.txt).
+#   - The baseline file is downloaded from the matching GitHub Release and its build
+#     provenance is verified before use.
+#
+# Secrets: none (the short-lived GITHUB_TOKEN reads the public release).
+
+name: AppSec review record
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appsec-review-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APPSEC_RULES_VERSION: "0.6.0"
+
+jobs:
+  review:
+    name: AppSec review record
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
+            tuf-repo-cdn.sigstore.dev:443
+            tuf-repo.github.com:443
+
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install the pinned CLI
+        run: |
+          python -m pip install --require-hashes --only-binary :all: \
+            -r .github/requirements/appsec-rules.txt
+          installed="$(python -c 'import appsec_rules_pack; print(appsec_rules_pack.__version__)')"
+          test "$installed" = "$APPSEC_RULES_VERSION"
+
+      - name: Download and verify the pinned baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v${APPSEC_RULES_VERSION}"
+          gh release download "$tag" --repo lucashgrifoni/AppSec-Rules-Pack \
+            --pattern appsec-baseline.yaml --dir "${RUNNER_TEMP}/appsec-rules"
+          gh attestation verify "${RUNNER_TEMP}/appsec-rules/appsec-baseline.yaml" \
+            --repo lucashgrifoni/AppSec-Rules-Pack \
+            --signer-workflow lucashgrifoni/AppSec-Rules-Pack/.github/workflows/publish-pypi.yml \
+            --source-ref "refs/tags/$tag"
+
+      - name: Check review records
+        run: |
+          shopt -s nullglob
+          records=(reviews/*.yaml)
+          test "${#records[@]}" -gt 0
+          mkdir -p "${RUNNER_TEMP}/appsec-reports"
+          for record in "${records[@]}"; do
+            name="$(basename "$record" .yaml)"
+            appsec-rules review "${RUNNER_TEMP}/appsec-rules/appsec-baseline.yaml" "$record" \
+              --fail-on-warnings --format json > "${RUNNER_TEMP}/appsec-reports/$name.json"
+          done
+
+      - name: Gate on open rules
+        run: |
+          python - <<'PY'
+          import json, os, pathlib, sys
+
+          failed = False
+          for path in sorted(pathlib.Path(os.environ["RUNNER_TEMP"], "appsec-reports").glob("*.json")):
+              summary = json.loads(path.read_text())["summary"]
+              blocking = summary["open_by_enforcement"].get("blocking", 0)
+              critical = summary["open_by_severity"].get("critical", 0)
+              high = summary["open_by_severity"].get("high", 0)
+              print(f"{path.stem}: open blocking={blocking} critical={critical} high={high}")
+              if blocking or critical or high:
+                  failed = True
+          sys.exit(1 if failed else 0)
+          PY
