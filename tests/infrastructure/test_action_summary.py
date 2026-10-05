@@ -66,3 +66,37 @@ def test_main_writes_to_github_step_summary(tmp_path: Path, monkeypatch: pytest.
 def test_main_is_non_fatal_on_missing_report(tmp_path: Path) -> None:
     # A missing/unreadable report must not crash the Action (returns 0).
     assert action_summary.main(["action_summary.py", str(tmp_path / "nope.json")]) == 0
+
+
+def test_a_carriage_return_cannot_start_a_second_workflow_command() -> None:
+    """The runner splits commands on a bare CR too; a job name carrying one forged an annotation."""
+
+    report = {"controls": [{"id": "CICD-1", "state": "FAIL", "message": "job x\r::warning::forged %0A"}]}
+    buf = io.StringIO()
+    action_summary.emit_annotations(report, buf)
+    out = buf.getvalue()
+
+    assert out.count("\n") == 1
+    assert "\r" not in out
+    assert out == "::error title=CICD-1::job x%0D::warning::forged %250A\n"
+
+
+def test_a_title_property_cannot_end_early() -> None:
+    report = {"controls": [{"id": "A,b:c", "state": "UNKNOWN"}]}
+    buf = io.StringIO()
+    action_summary.emit_annotations(report, buf)
+    assert buf.getvalue().startswith("::warning title=A%2Cb%3Ac::")
+
+
+def test_repository_text_in_the_summary_is_shown_not_rendered() -> None:
+    """Job names come from the scanned repository; tags and links in them must stay text."""
+
+    message = 'job <img src="https://x.test/p.png"> [login](https://x.test) | col\nnext'
+    summary = action_summary.build_summary({"controls": [{"id": "B", "state": "FAIL", "message": message}]})
+    row = next(line for line in summary.splitlines() if line.startswith("| `B`"))
+
+    assert "<img" not in row
+    assert "&lt;img" in row
+    assert "](" not in row.replace("\\](", "")
+    assert "\\[login\\]" in row
+    assert row.count("|") == 3  # the pipe and the newline did not add or end a cell
