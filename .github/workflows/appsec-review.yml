@@ -54,6 +54,7 @@ jobs:
             files.pythonhosted.org:443
             tuf-repo-cdn.sigstore.dev:443
             tuf-repo.github.com:443
+            tmaproduction.blob.core.windows.net:443
 
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
