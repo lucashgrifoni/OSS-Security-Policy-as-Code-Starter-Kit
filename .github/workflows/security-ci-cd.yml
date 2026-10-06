@@ -419,6 +419,13 @@ jobs:
       # the six pip CVEs below. When the openssl or libpcre2 count grows again, check the live
       # tag first: a refreshed digest may clear it.
       #
+      # It happened again by 2026-10-06: fourteen open alerts, thirteen on `perl-base
+      # 5.36.0-7+deb12u3` (three critical) and one on `libpcre2-8-0 10.42-1+deb12u1`. The
+      # upstream tag had been rebuilt with `perl-base 5.36.0-7+deb12u4` and `libpcre2-8-0
+      # 10.42-1+deb12u2`, and Trivy against it, at this job's severities, reports only five
+      # pip CVEs. The pin moved again. The published 10.0.30 image already carried both fixed
+      # versions through `apt-get upgrade`, so this closes alerts, not exposure.
+      #
       # Neither set reaches the published image, by two different routes: the runtime stage
       # uninstalls pip from both interpreters, and `apt-get upgrade` takes `libpcre2-8-0` to
       # `10.42-1+deb12u1` -- the fixed version named by all six advisories, the five new ones

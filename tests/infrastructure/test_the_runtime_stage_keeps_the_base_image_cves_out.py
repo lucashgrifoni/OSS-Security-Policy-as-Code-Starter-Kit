@@ -10,7 +10,8 @@ at once -- a count written into prose goes stale on somebody else's schedule. It
 stale again by 2026-10-02, the other way: the upstream tag had been rebuilt with the
 libpcre2 and openssl fixes, so the pin was refreshed and the base now reports only the six
 `pip` CVEs. The two runtime commands stay guarded, because the base will fall behind
-Debian again.
+Debian again. It did by 2026-10-06, with thirteen `perl-base` advisories and one more on
+`libpcre2`, and a rebuilt upstream tag cleared them the same way.
 
 What keeps them out of the image this project *publishes* is two lines in the runtime
 stage, and nothing else:
