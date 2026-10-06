@@ -11,7 +11,6 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ### Fixes
 
-* keep text from the scanned repository out of helm flags, workflow commands, and the job summary ([158bc72](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/158bc72ddfd2961b456350daa484d07fd98c1cb2))
 * keep text from the scanned repository out of helm flags, workflow commands, and the job summary ([0363345](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/03633454f4b11b50f17dd67a5daa8b417b8e575b))
 
 
