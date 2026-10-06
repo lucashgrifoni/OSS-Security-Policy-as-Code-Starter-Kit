@@ -31,7 +31,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  APPSEC_RULES_VERSION: "0.6.0"
+  APPSEC_RULES_VERSION: "0.7.0"
 
 jobs:
   review:

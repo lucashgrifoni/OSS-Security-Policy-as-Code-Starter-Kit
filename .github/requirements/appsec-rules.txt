@@ -4,9 +4,9 @@ annotated-doc==0.0.5 \
     --hash=sha256:117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101 \
     --hash=sha256:c7e58ce09192557605d8bbd92836d7e1d520ac9580096042c0bfd197efacf1bb
     # via typer
-appsec-rules-pack==0.6.0 \
-    --hash=sha256:28ad899625960fc2d2014817edded93635003151acfcca0e2e9226f196d9d13c \
-    --hash=sha256:bce4402c17dfb6d7746318b4479402e2975707bbd5051b6e791ecb39facda6cf
+appsec-rules-pack==0.7.0 \
+    --hash=sha256:1c3a001b61912b5963547dbf2fceab8d08d524a2ff880a02dd166bef7847d60c \
+    --hash=sha256:bb51d83da0cb616df511df983eaa6c547d71f76a62088d29c3b6d7cc049f0142
     # via -r .github/requirements/appsec-rules.in
 attrs==26.1.0 \
     --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309 \
