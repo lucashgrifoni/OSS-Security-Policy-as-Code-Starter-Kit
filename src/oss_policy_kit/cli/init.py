@@ -319,6 +319,17 @@ def init_cmd(
         # can preview the plan before creating the directory (OP-001).
         target_path = _resolve_target(target, allow_missing=dry_run)
         target_pre_existed = Path(target).expanduser().exists()
+        # `evaluate` refuses a config output_dir that lands outside the repository (PATH-01b), so
+        # writing one here would hand the adopter a config that fails on its first run.
+        configured_out = Path(output_dir).expanduser()
+        if not configured_out.is_absolute():
+            configured_out = target_path / configured_out
+        if not configured_out.resolve().is_relative_to(target_path.resolve()):
+            raise InvalidInputError(
+                "--output-dir must be inside the target: it is stored in oss-policy-kit.yaml, "
+                "and evaluate only accepts a directory inside the repository from that file. "
+                "To write reports elsewhere, pass --output-dir to evaluate instead."
+            )
 
         # Interactive prompt path (v5.9.0). Only fires when:
         # - --interactive is set

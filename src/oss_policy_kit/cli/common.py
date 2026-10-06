@@ -775,8 +775,9 @@ def _config_profile_ref(raw: str, repo_root: Path) -> str:
     - a bundled id (``github-level-1``) has no YAML suffix, and must stay an id rather than
       becoming a filename looked up inside the repository. This is the only thing keeping bundled
       ids working, so it is load-bearing rather than merely defensive;
-    - an absolute path is left to PATH-01b, the open question of whether a repository nobody
-      audited may point the kit outside itself -- not something to settle in a path helper.
+    - an absolute path is left alone. PATH-01b was settled on 2026-10-06 for ``output_dir`` only
+      (see :func:`_config_output_dir`); whether a config may name a profile file outside the
+      repository is a separate question, not decided here.
 
     A third guard was written here and then removed, recorded because the reasoning was wrong
     rather than merely unnecessary. It passed the raw value through when the anchored file did not
@@ -802,23 +803,21 @@ def _config_output_dir(raw: str, repo_root: Path) -> Path:
     beside the operator's other projects -- nowhere near the repository being scanned, and
     dependent on where the operator happened to stand -- and exited 0.
 
-    An ABSOLUTE value is left alone. `init` writes this file for the adopter's own repository and
-    `test_config_output_dir_used_when_flag_omitted` pins that an absolute path outside the repo is
-    honoured, which is a legitimate "put my reports in the shared folder" flow. Whether a config
-    should be allowed to point outside AT ALL when the repository is untrusted is a product
-    decision, not one to make inside a path helper -- recorded as PATH-01b.
+    The same file is what an operator scans when the repository is not theirs -- a fork, a PR
+    branch, a vendor drop -- so it does not get to choose a destination outside the repository
+    either. PATH-01b asked whether an ABSOLUTE value should still be honoured for the "put my
+    reports in a shared folder" flow; decided on 2026-10-06: no. That flow belongs to
+    ``--output-dir``, which is the operator speaking. An absolute path that lands inside the
+    repository is still accepted, because it names the same place a relative one would.
     """
 
     candidate = Path(raw)
-    if candidate.is_absolute():
-        return candidate
-    anchored = repo_root / candidate
-    # A relative value means "inside this repository", so one that climbs out with ``..`` is
-    # refused rather than followed. Absolute values stay PATH-01b's question, as above.
+    anchored = candidate if candidate.is_absolute() else repo_root / candidate
     if not anchored.resolve().is_relative_to(repo_root.resolve()):
         raise InvalidInputError(
-            "output_dir in oss-policy-kit.yaml is relative but leaves the repository. "
-            "Use a path inside the repository, an absolute path, or pass --output-dir.",
+            "output_dir in oss-policy-kit.yaml points outside the repository. The config lives in "
+            "the repository being scanned, so it can only name a directory inside it; to write "
+            "the reports elsewhere, pass --output-dir.",
         )
     return anchored
 

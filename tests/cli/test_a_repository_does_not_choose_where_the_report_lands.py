@@ -17,12 +17,12 @@ to stand".
 A relative value that climbs out of the target with `..` is refused: by the same reading it would
 have to mean "inside the target", and it cannot.
 
-The other half -- whether an ABSOLUTE value may point outside the repository -- is NOT settled here.
-`test_v10_0_1_config_init.py::test_config_output_dir_used_when_flag_omitted` pins the opposite,
-deliberately using an absolute path outside the repo, because `init` writes this file for the
-adopter's OWN repository and "put my reports in the shared folder" is a real flow. The kit cannot
-tell from the config alone whether the repository is the adopter's or a stranger's. That is a
-product decision, recorded as PATH-01b, not something to settle inside a path helper.
+The other half -- whether an ABSOLUTE value may point outside the repository -- was left open as
+PATH-01b, because `init` writes this file for the adopter's OWN repository and "put my reports in
+the shared folder" was a real flow, while the kit cannot tell from the config alone whether the
+repository is the adopter's or a stranger's. Decided on 2026-10-06: an absolute value outside the
+repository is refused too. The shared-folder flow moves to `--output-dir`, which is the operator
+speaking; an absolute path that lands inside the repository is still accepted.
 """
 
 from __future__ import annotations
@@ -116,5 +116,45 @@ def test_a_relative_config_output_dir_cannot_leave_the_target(tmp_path: Path, es
     result = runner.invoke(app, ["evaluate", "--target", str(target)])
 
     assert result.exit_code == 2, result.output
-    assert "leaves the repository" in result.output
+    assert "points outside the repository" in result.output
     assert not list(tmp_path.rglob("evaluation-report.json"))
+
+
+def test_an_absolute_config_output_dir_outside_the_target_is_refused(tmp_path: Path) -> None:
+    """PATH-01b: a scanned repository does not choose a destination outside itself, even absolute."""
+
+    outside = tmp_path / "shared-reports"
+    target = _target(tmp_path / "target", outside.as_posix())
+
+    result = runner.invoke(app, ["evaluate", "--target", str(target)])
+
+    assert result.exit_code == 2, result.output
+    assert "points outside the repository" in result.output
+    assert "--output-dir" in result.output
+    assert not outside.exists()
+    assert not list(tmp_path.rglob("evaluation-report.json"))
+
+
+def test_an_absolute_config_output_dir_inside_the_target_is_kept(tmp_path: Path) -> None:
+    """An absolute path that names a directory inside the repository is the same place, so it stays."""
+
+    root = tmp_path / "target"
+    inside = root / "reports"
+    target = _target(root, inside.as_posix())
+
+    result = runner.invoke(app, ["evaluate", "--target", str(target)])
+
+    assert result.exit_code in (0, 1), result.output
+    assert (inside / "evaluation-report.json").is_file()
+
+
+def test_the_shared_folder_flow_still_works_through_the_flag(tmp_path: Path) -> None:
+    """What PATH-01b took from the config, `--output-dir` still gives the operator."""
+
+    outside = tmp_path / "shared-reports"
+    target = _target(tmp_path / "target", outside.as_posix())
+
+    result = runner.invoke(app, ["evaluate", "--target", str(target), "--output-dir", str(outside)])
+
+    assert result.exit_code in (0, 1), result.output
+    assert (outside / "evaluation-report.json").is_file()
