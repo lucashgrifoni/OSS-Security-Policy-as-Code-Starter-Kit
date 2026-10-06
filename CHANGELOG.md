@@ -6,6 +6,19 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.30](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.29...v10.0.30) (2026-10-06)
+
+
+### Fixes
+
+* keep text from the scanned repository out of helm flags, workflow commands, and the job summary ([158bc72](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/158bc72ddfd2961b456350daa484d07fd98c1cb2))
+* keep text from the scanned repository out of helm flags, workflow commands, and the job summary ([0363345](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/03633454f4b11b50f17dd67a5daa8b417b8e575b))
+
+
+### Notes
+
+* check the AppSec review record against a verified baseline release ([#361](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/361)) ([6378e88](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/6378e881568874fc7e44d6a88a2d82a1f8807dd8))
+
 ## [10.0.29](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.28...v10.0.29) (2026-10-02)
 
 
