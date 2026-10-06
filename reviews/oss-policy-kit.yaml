@@ -8,7 +8,7 @@
 # src/oss_policy_kit/.
 review:
   pack: appsec-baseline
-  pack_version: 0.6.0
+  pack_version: 0.7.0
   subject: OSS Security Policy as Code Starter Kit (CLI and GitHub Action)
   reviewer: lucashgrifoni (assisted review)
   date: 2026-10-05
@@ -16,7 +16,8 @@ review:
     oss-policy-kit after 10.0.29 with the fixes from pull request 360: src/oss_policy_kit (CLI,
     evaluators, config and profile loaders, GitHub/GitLab/Azure/AWS collectors, Semgrep and
     Helm subprocesses, report writers), action.yml, scripts/action_summary.py, Dockerfile,
-    .github/workflows and dependabot.yml.
+    .github/workflows and dependabot.yml. The four rules added in baseline 0.7.0 were reviewed
+    on 2026-10-06 against release 10.0.32.
 
 results:
   - rule: APPSEC-AUTHZ-001
@@ -149,3 +150,26 @@ results:
   - rule: APPSEC-PWSTORE-001
     status: not-applicable
     notes: The kit stores no passwords or password-equivalents.
+
+  - rule: APPSEC-AUTHZ-002
+    status: not-applicable
+    notes: >-
+      No server, roles, or privileged functions. The CLI and the Action run with the
+      permissions of whoever invokes them, and the collectors call remote APIs with the
+      operator's own token, so there is no function the tool itself has to restrict.
+
+  - rule: APPSEC-LLM-001
+    status: not-applicable
+    notes: >-
+      The kit never calls a language model. LLM SDK names in src/ are patterns the AI
+      evaluators look for in the audited repository (src/application/evaluators/ai.py).
+
+  - rule: APPSEC-LLM-002
+    status: not-applicable
+    notes: The kit never calls a language model, so it has no model-invoked tools or retrieval.
+
+  - rule: APPSEC-LOG-002
+    status: not-applicable
+    notes: >-
+      The kit stores no sensitive records. It reads repository files and settings during a run
+      and writes reports to the output directory the operator chose.
