@@ -37,7 +37,9 @@
 # real and was not. This comment previously claimed Dependabot refreshed the
 # digest; it never has.
 #
-# Until something watches it, refresh by hand and check what it buys:
+# .github/workflows/base-image-freshness.yml now watches it: every Monday it compares this
+# digest with the live tag and opens an issue when the live tag clears findings. The pin
+# still moves by hand. Refresh it and check what it buys:
 #   docker buildx imagetools inspect python:3.12-slim-bookworm --format '{{.Manifest.Digest}}'
 #   trivy image --severity CRITICAL,HIGH --ignore-unfixed python@<digest>
 FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS builder

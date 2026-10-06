@@ -1,0 +1,127 @@
+# Base image freshness
+#
+# The Dockerfile pins python:3.12-slim-bookworm by digest, and nothing moves that pin: the tag
+# never changes name, so Dependabot has no newer tag to propose (see the comment above the FROM
+# lines). The weekly "Base image - Trivy" job in security-ci-cd.yml already reports what the
+# pinned digest carries. This job answers the question that job cannot: has upstream rebuilt the
+# tag so that refreshing the pin would clear findings? When it has, it opens an issue, or
+# comments on the open one, with both counts. It never edits the Dockerfile.
+#
+# Severities match the base-image job: MEDIUM, HIGH and CRITICAL, fixed versions only.
+
+name: Base image freshness
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: base-image-freshness
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    name: Compare the pinned base image with the live tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Resolve the pinned and the live digest
+        id: digests
+        run: |
+          set -euo pipefail
+          pinned="$(grep -m1 -oE 'python:[0-9.]+-slim-bookworm@sha256:[0-9a-f]{64}' Dockerfile)"
+          if [ -z "${pinned}" ]; then
+            echo "::error::Could not read the pinned base image from Dockerfile." >&2
+            exit 1
+          fi
+          tag="${pinned%@*}"
+          live_digest="$(docker buildx imagetools inspect "${tag}" --format '{{json .Manifest}}' | jq -r .digest)"
+          {
+            echo "tag=${tag}"
+            echo "pinned=${pinned}"
+            echo "live=${tag}@${live_digest}"
+            if [ "${pinned#*@}" = "${live_digest}" ]; then echo "same=true"; else echo "same=false"; fi
+          } >> "${GITHUB_OUTPUT}"
+          echo "Pinned: ${pinned}"
+          echo "Live:   ${tag}@${live_digest}"
+
+      - name: Scan the pinned digest
+        if: steps.digests.outputs.same == 'false'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ steps.digests.outputs.pinned }}
+          scanners: vuln
+          severity: MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+          format: json
+          output: pinned.json
+
+      - name: Scan the live tag
+        if: steps.digests.outputs.same == 'false'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ steps.digests.outputs.live }}
+          scanners: vuln
+          severity: MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+          format: json
+          output: live.json
+          skip-setup-trivy: true
+
+      - name: Open or update the issue when the live tag clears findings
+        if: steps.digests.outputs.same == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PINNED: ${{ steps.digests.outputs.pinned }}
+          LIVE: ${{ steps.digests.outputs.live }}
+        run: |
+          set -euo pipefail
+          count() { jq '[.Results[]?.Vulnerabilities[]?] | length' "$1"; }
+          by_severity() { jq -r '[.Results[]?.Vulnerabilities[]?.Severity] | group_by(.) | map("\(.[0]) \(length)") | join(", ")' "$1"; }
+          pinned_n="$(count pinned.json)"
+          live_n="$(count live.json)"
+          echo "Pinned digest: ${pinned_n} findings ($(by_severity pinned.json))" | tee -a "${GITHUB_STEP_SUMMARY}"
+          echo "Live tag:      ${live_n} findings ($(by_severity live.json))" | tee -a "${GITHUB_STEP_SUMMARY}"
+          if [ "${live_n}" -ge "${pinned_n}" ]; then
+            echo "The live tag clears nothing; no issue." | tee -a "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          title="Base image: a rebuilt upstream tag clears findings in the pinned digest"
+          body="$(printf '%s\n' \
+            "The weekly freshness check found a newer \`${LIVE%@*}\` digest with fewer findings than the one pinned in the Dockerfile (MEDIUM, HIGH and CRITICAL, fixed versions only)." \
+            "" \
+            "| | Digest | Findings |" \
+            "|---|---|---|" \
+            "| Pinned | \`${PINNED#*@}\` | ${pinned_n} ($(by_severity pinned.json)) |" \
+            "| Live tag | \`${LIVE#*@}\` | ${live_n} ($(by_severity live.json)) |" \
+            "" \
+            "Refresh both FROM lines in the Dockerfile to the live digest, as in #350 and #365, and check the built image before merging." \
+            "" \
+            "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")"
+          existing="$(gh issue list --state open --search "in:title \"${title}\"" --json number --jq '.[0].number // empty')"
+          if [ -n "${existing}" ]; then
+            gh issue comment "${existing}" --body "${body}"
+          else
+            gh issue create --title "${title}" --body "${body}"
+          fi
