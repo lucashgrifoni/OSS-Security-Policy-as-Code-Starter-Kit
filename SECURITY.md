@@ -87,6 +87,8 @@ These alerts were dismissed rather than closed by a fix, and it is worth being p
 
 **Update, 2026-10-02.** By then the upstream tag had been rebuilt, and refreshing the pin did help. The old digest also carried `openssl` and `libssl3 3.0.20-1~deb12u2`, with twelve open alerts against them. The rebuilt image has `3.0.22-1~deb12u1` and `libpcre2-8-0 10.42-1+deb12u1`, and Trivy against it reports only the six `pip` CVEs above. The `Dockerfile` now pins that digest. The `apt-get upgrade` stays, because the next Debian advisory will again arrive before the next upstream rebuild.
 
+**Update, 2026-10-06.** It did. Fourteen alerts opened against the pinned digest: thirteen on `perl-base 5.36.0-7+deb12u3`, three of them critical, and one on `libpcre2-8-0 10.42-1+deb12u1`. The upstream tag had been rebuilt with `perl-base 5.36.0-7+deb12u4` and `libpcre2-8-0 10.42-1+deb12u2`, and the `Dockerfile` now pins that digest. The published 10.0.30 image was not exposed: built without cache, it already had both fixed versions from `apt-get upgrade`, and Trivy reported no fixable critical or high finding in it.
+
 **Two secret-scanning settings that stay off, and cannot be turned on from the API.**
 `secret_scanning_validity_checks` and `secret_scanning_non_provider_patterns` are both
 `disabled`. Secret scanning itself and push protection are enabled.
