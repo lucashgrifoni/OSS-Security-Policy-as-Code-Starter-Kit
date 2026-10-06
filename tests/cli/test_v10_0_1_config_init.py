@@ -157,11 +157,12 @@ def test_config_output_dir_used_when_flag_omitted(tmp_path: Path) -> None:
     """``output_dir`` from the config is used when ``--output-dir`` is not passed.
 
     An absolute path is written into the config so the assertion is independent of
-    the (in-process) CliRunner working directory.
+    the (in-process) CliRunner working directory. It points inside the repository: since
+    PATH-01b (2026-10-06) a config output_dir outside it is refused.
     """
 
     repo = _vuln_copy(tmp_path)
-    config_out = tmp_path / "config-out"
+    config_out = repo / "config-out"
     _write_config(repo, fail_on="none", output_dir=str(config_out))
 
     runner = CliRunner()
@@ -361,3 +362,33 @@ def test_report_contract_non_2_0_value_exits_2(tmp_path: Path) -> None:
         ),
     )
     assert result.exit_code == 2, result.output
+
+
+def test_init_refuses_an_output_dir_outside_the_target(tmp_path: Path) -> None:
+    """``init`` must not write a config output_dir that ``evaluate`` would refuse (PATH-01b)."""
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    runner = CliRunner()
+    for outside in (str(tmp_path / "shared"), "../shared"):
+        result = runner.invoke(
+            app,
+            prepare_cli_args(["init", "--target", str(repo), "--output-dir", outside, "--force"]),
+        )
+        assert result.exit_code == 2, result.output
+        assert "must be inside the target" in result.output
+        assert not (repo / "oss-policy-kit.yaml").exists()
+
+
+def test_init_keeps_an_output_dir_inside_the_target(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    result = CliRunner().invoke(
+        app,
+        prepare_cli_args(["init", "--target", str(repo), "--output-dir", "./reports", "--force"]),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "reports" in (repo / "oss-policy-kit.yaml").read_text(encoding="utf-8")

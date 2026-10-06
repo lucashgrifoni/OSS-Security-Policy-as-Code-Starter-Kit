@@ -64,23 +64,12 @@ results:
       - CI scans for secrets with Trivy and Gitleaks over git history (.github/workflows/security-ci-cd.yml).
 
   - rule: APPSEC-FILE-001
-    status: excepted
+    status: met
     evidence:
-      - src/cli/common.py:818 refuses a relative output_dir from the target's oss-policy-kit.yaml that leaves the repository.
-      - tests/cli/test_a_repository_does_not_choose_where_the_report_lands.py::test_a_relative_config_output_dir_cannot_leave_the_target.
+      - src/cli/common.py:816 refuses an output_dir from the target's oss-policy-kit.yaml, relative or absolute, that resolves outside the repository (PATH-01b).
+      - src/cli/init.py:327 refuses to write such an output_dir into the config.
+      - tests/cli/test_a_repository_does_not_choose_where_the_report_lands.py covers relative and absolute escapes and the --output-dir path.
       - Reports are written atomically under fixed names (src/application/reporting.py).
-    exception:
-      owner: lucashgrifoni
-      justification: >-
-        An absolute output_dir in a scanned repository's oss-policy-kit.yaml is still honoured,
-        because init writes that file for the adopter's own repository and a shared report
-        folder is a supported flow. Whether an untrusted repository may point outside itself
-        is the open product decision PATH-01b.
-      expires_at: 2026-11-04
-      compensating_control: >-
-        The Action always passes --output-dir, so the config value never applies there
-        (action.yml); report file names are fixed and writes are atomic, so the config cannot
-        choose a file name.
 
   - rule: APPSEC-LOG-001
     status: met

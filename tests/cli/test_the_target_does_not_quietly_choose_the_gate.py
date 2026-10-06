@@ -23,9 +23,9 @@ branch -- and omitting the flag. The fix here changes no exit code and no docume
 It only makes the decision visible, which is the part that was actually wrong.
 
 `output_dir` and `report_json_contract` come from the same config and are still announced by
-nothing. They are not covered here: `output_dir` is the subject of an open product decision
-(PATH-01b) about whether a target may point it outside the repository at all, and pre-empting
-that with a message would decide it sideways.
+nothing. They are not covered here: `output_dir` was the subject of a product decision
+(PATH-01b, settled on 2026-10-06) that now refuses any config value outside the repository, so
+it cannot send the reports anywhere a message would need to warn about.
 """
 
 from __future__ import annotations

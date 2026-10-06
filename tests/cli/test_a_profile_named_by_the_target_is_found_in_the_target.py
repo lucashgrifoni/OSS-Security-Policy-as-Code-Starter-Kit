@@ -17,9 +17,9 @@ its point of view it had simply used "the profile the config named".
 
 This is the same defect `output_dir` had (PATH-01) and the same half is fixed here: a relative
 value in a file that lives in the target is measured from the target. An ABSOLUTE value is left
-alone on purpose -- whether a repository nobody audited may point the kit at a file outside
-itself is the open product question recorded as PATH-01b, and settling it inside a path helper
-would decide it sideways.
+alone on purpose -- whether a repository nobody audited may point the kit at a profile file
+outside itself is still open. PATH-01b settled the same question for `output_dir` only (refused,
+2026-10-06), and settling it for profiles inside a path helper would decide it sideways.
 
 A first version of the fix kept a third guard -- pass the raw value through when the anchored
 file does not exist -- justified as avoiding an M-002 host-path leak in the resulting error. Two
