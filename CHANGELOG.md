@@ -6,6 +6,13 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.31](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.30...v10.0.31) (2026-10-06)
+
+
+### Fixes
+
+* **container:** pin the rebuilt base image that carries the perl-base and libpcre2 fixes ([#365](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/365)) ([d89371c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/d89371cf63888ca5e02a78cb41c32f8ee98076ee))
+
 ## [10.0.30](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.29...v10.0.30) (2026-10-06)
 
 
