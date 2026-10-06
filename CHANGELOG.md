@@ -6,6 +6,21 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.32](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.31...v10.0.32) (2026-10-06)
+
+
+### Fixes
+
+* **config:** an output_dir in a scanned repository's config must stay inside it ([#368](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/368)) ([de0b860](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/de0b86027a3ba27cc79188e928782c61015bfa59))
+
+
+### Notes
+
+* **deps-dev:** bump ruff from 0.16.9 to 0.16.10 ([#358](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/358)) ([5726c5c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/5726c5c49a7c69723483bf9c60a4ccdef7991e95))
+* **deps-dev:** bump source-map-js from 1.2.1 to 1.2.2 in /gitpage ([#363](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/363)) ([c6aad06](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c6aad06b54db98f2d908a3d491e92da6c3514886))
+* **deps:** bump cyclonedx-bom from 7.4.0 to 7.5.0 in the build-tools lock ([#369](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/369)) ([ab098e5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/ab098e56919ff5b7b9eba44dbe9d6f2089cc0e31))
+* open an issue when a rebuilt base image tag would clear findings ([#370](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/370)) ([731e459](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/731e459840fdaf98832c92b0a6fae6812857648d))
+
 ## [10.0.31](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.30...v10.0.31) (2026-10-06)
 
 
