@@ -8,16 +8,17 @@
 # src/oss_policy_kit/.
 review:
   pack: appsec-baseline
-  pack_version: 0.7.0
+  pack_version: 0.9.0
   subject: OSS Security Policy as Code Starter Kit (CLI and GitHub Action)
   reviewer: lucashgrifoni (assisted review)
-  date: 2026-10-05
+  date: 2026-10-07
   scope: >-
     oss-policy-kit after 10.0.29 with the fixes from pull request 360: src/oss_policy_kit (CLI,
     evaluators, config and profile loaders, GitHub/GitLab/Azure/AWS collectors, Semgrep and
     Helm subprocesses, report writers), action.yml, scripts/action_summary.py, Dockerfile,
-    .github/workflows and dependabot.yml. The four rules added in baseline 0.7.0 were reviewed
-    on 2026-10-06 against release 10.0.32.
+    .github/workflows and dependabot.yml. Rules added in baseline 0.7.0 were reviewed on
+    2026-10-06 (release 10.0.32), and those added or widened in 0.9.0 on 2026-10-07 (master
+    after pull requests 374 and 376).
 
 results:
   - rule: APPSEC-AUTHZ-001
@@ -40,8 +41,11 @@ results:
     evidence:
       - src/infrastructure/k8s/helm_renderer.py:155 passes repository-derived arguments after `--`, and _release_name (:47) replaces a chart directory name Helm would refuse.
       - scripts/action_summary.py:55-68 escapes workflow-command messages and properties (%25, %0D, %0A, %3A, %2C) before :91-95 writes annotations.
-      - Semgrep runs with an argv list and shell=False (src/infrastructure/scanners/semgrep_adapter.py).
-      - tests/application/test_helm_renderer_full.py::test_a_chart_directory_named_like_a_flag_is_never_a_flag and tests/infrastructure/test_action_summary.py::test_a_carriage_return_cannot_start_a_second_workflow_command.
+      - Semgrep runs with an argv list and shell=False (src/infrastructure/scanners/semgrep_adapter.py:290-293).
+      - Semgrep's target is the resolved absolute --target path (src/adapters/local_paths.py), so it cannot start with `-`; rulesets come only from the operator's --rulesets flag.
+      - tests/application/test_helm_renderer_full.py::test_a_chart_directory_named_like_a_flag_is_never_a_flag covers eight flag-shaped chart names.
+      - tests/infrastructure/test_action_summary.py::test_a_carriage_return_cannot_start_a_second_workflow_command.
+      - tests/cli/test_reading_the_remote_runs_nothing_the_repository_configures.py shows `git remote get-url` runs no fsmonitor or hook from the scanned repository's config.
 
   - rule: APPSEC-SSRF-001
     status: met
@@ -175,3 +179,36 @@ results:
     notes: >-
       The kit stores no sensitive records. It reads repository files and settings during a run
       and writes reports to the output directory the operator chose.
+
+  - rule: APPSEC-AUTHN-002
+    status: not-applicable
+    notes: >-
+      No federated sign-in. The kit has no login and never receives an OIDC or SAML response;
+      the collectors call remote APIs with the operator's own token (src/cli/evidence.py).
+
+  - rule: APPSEC-AUTHN-003
+    status: not-applicable
+    notes: >-
+      The kit issues no tokens or API keys. The tokens it reads come from the operator's
+      environment and are reviewed under APPSEC-SECRETS-001.
+
+  - rule: APPSEC-AUTHZ-003
+    status: not-applicable
+    notes: >-
+      No approval workflow. The kit reports per-control verdicts; approving a merge or a
+      release happens on the platform the operator uses.
+
+  - rule: APPSEC-DATAREST-001
+    status: not-applicable
+    notes: >-
+      The kit stores no sensitive data and serves no responses. Reports go to the output
+      directory the operator chose, with host paths redacted by default
+      (src/application/evidence_projection.py), and token values are never written.
+
+  - rule: APPSEC-DESER-001
+    status: met
+    evidence:
+      - src/application/input_limits.py:477 parses YAML with yaml.safe_load by default in load_capped_document, the capped read for config, evidence, and CI files.
+      - src/infrastructure/iac/cfn/scanner.py:239 loads templates with _CfnSafeLoader (:128), a SafeLoader subclass whose only added constructors turn CloudFormation intrinsics into plain dicts.
+      - Every other format is data-only (json, tomllib, hcl2); src/ has no pickle, marshal, or XML parser.
+      - tests/application/test_a_yaml_tag_cannot_build_an_object.py shows both loaders refusing a python/object/apply tag without building anything.
