@@ -92,7 +92,12 @@ def test_an_id_that_climbs_out_of_the_kit_is_refused(tmp_path: Path) -> None:
     # Both sides resolved: on Windows the temporary directory may come as an 8.3 short name,
     # and a relative path between a short and a long form does not land anywhere.
     outside = _outside_profile(tmp_path).parent.resolve()
-    climb = os.path.relpath(outside, bundled_kit_root().resolve() / "profiles")
+    try:
+        climb = os.path.relpath(outside, bundled_kit_root().resolve() / "profiles")
+    except ValueError:
+        # Windows CI keeps the checkout on D: and the temporary directory on C:. No relative
+        # path crosses drives, so an id cannot climb there and there is nothing to reproduce.
+        pytest.skip("the kit and the temporary directory are on different drives")
     if not (bundled_kit_root() / "profiles" / climb / "profile.yaml").is_file():
         # The unnormalised path can pass Windows' MAX_PATH when the checkout is deep; the loader
         # could not open it either, so there is nothing to reproduce here. CI runs it on Linux.
