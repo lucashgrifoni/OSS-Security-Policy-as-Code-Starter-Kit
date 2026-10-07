@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sys
 import textwrap
 from collections.abc import Callable
@@ -760,6 +761,11 @@ def _announce_gate_policy_from_config(fail_on: str, config_name: str) -> None:
     )
 
 
+# Bundled profile ids are directory names under <kit>/profiles: letters, digits, dots,
+# underscores, and hyphens. No separator, so a config value cannot name a path.
+_CONFIG_PROFILE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+
+
 def _config_profile_ref(raw: str, repo_root: Path) -> str:
     """Anchor a relative profile FILE named by the target's config to the target.
 
@@ -770,14 +776,17 @@ def _config_profile_ref(raw: str, repo_root: Path) -> str:
     with a ``perfil.yaml`` in each place, the operator's file was loaded and the verdict computed
     from a profile the target never named. Same defect ``output_dir`` had, same half fixed.
 
-    Two values pass through untouched, each for its own reason:
+    A bundled id (``github-level-1``) has no YAML suffix, and must stay an id rather than
+    becoming a filename looked up inside the repository. This is the only thing keeping bundled
+    ids working, so it is load-bearing rather than merely defensive. It must also BE an id: the
+    loader joins it into ``<kit>/profiles/<id>/profile.yaml``, so a value such as
+    ``../../elsewhere`` walked out of the kit and loaded whatever ``profile.yaml`` sat there.
 
-    - a bundled id (``github-level-1``) has no YAML suffix, and must stay an id rather than
-      becoming a filename looked up inside the repository. This is the only thing keeping bundled
-      ids working, so it is load-bearing rather than merely defensive;
-    - an absolute path is left alone. PATH-01b was settled on 2026-10-06 for ``output_dir`` only
-      (see :func:`_config_output_dir`); whether a config may name a profile file outside the
-      repository is a separate question, not decided here.
+    The config lives in the repository under evaluation, which may not be the operator's, so a
+    profile FILE it names has to be inside that repository, absolute or relative. Decided on
+    2026-10-07 with the same reasoning as PATH-01b for ``output_dir`` (see
+    :func:`_config_output_dir`): a profile from anywhere else is the operator's choice, made with
+    ``--profile``.
 
     A third guard was written here and then removed, recorded because the reasoning was wrong
     rather than merely unnecessary. It passed the raw value through when the anchored file did not
@@ -789,9 +798,21 @@ def _config_profile_ref(raw: str, repo_root: Path) -> str:
     """
 
     candidate = Path(raw)
-    if candidate.is_absolute() or candidate.suffix.lower() not in {".yaml", ".yml"}:
+    if candidate.suffix.lower() not in {".yaml", ".yml"}:
+        if not _CONFIG_PROFILE_ID.fullmatch(raw):
+            raise InvalidInputError(
+                "profile in oss-policy-kit.yaml must be a bundled profile id or a YAML profile file "
+                "inside the repository. To use a profile from elsewhere, pass --profile.",
+            )
         return raw
-    return str(repo_root / candidate)
+    anchored = candidate if candidate.is_absolute() else repo_root / candidate
+    if not anchored.resolve().is_relative_to(repo_root.resolve()):
+        raise InvalidInputError(
+            "profile in oss-policy-kit.yaml points to a file outside the repository. The config "
+            "lives in the repository being scanned, so it can only name a profile inside it or a "
+            "bundled profile id; to use a profile file from elsewhere, pass --profile.",
+        )
+    return str(anchored)
 
 
 def _config_output_dir(raw: str, repo_root: Path) -> Path:
