@@ -92,16 +92,20 @@ def test_the_default_run_still_scaffolds_the_default_gate(tmp_path: Path) -> Non
 
 
 def test_an_external_profile_path_leaves_the_workflow_alone_and_says_so(tmp_path: Path) -> None:
-    """A path is not a bundled id. Interpolating one would write a line that cannot run in CI."""
+    """A path is not a bundled id. Interpolating one would write a line that cannot run in CI.
 
-    external = tmp_path / "My Profiles"
+    The profile file sits inside the repository: since 2026-10-07 `init` refuses one outside
+    it, because `evaluate` would refuse the config that records it.
+    """
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    external = repo / "My Profiles"
     external.mkdir()
     source = Path(iw.__file__).resolve().parents[1] / "data" / "profiles" / "github-level-1" / "profile.yaml"
     profile = external / "p.yaml"
     profile.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
 
-    repo = tmp_path / "repo"
-    repo.mkdir()
     result = _init(repo, "--profile", str(profile))
     assert result.exit_code == 0, result.output
 

@@ -198,6 +198,23 @@ def _build_json_payload(
     }
 
 
+def _refuse_profile_file_outside_target(profile: str | None, target_path: Path) -> None:
+    """Refuse to record a profile FILE that lies outside the target.
+
+    `evaluate` refuses such a value from the config (the file lives in the repository being
+    scanned, as with output_dir under PATH-01b), so recording it would fail the first run.
+    """
+
+    if profile is None or Path(profile).suffix.lower() not in {".yaml", ".yml"}:
+        return
+    if not Path(profile).expanduser().resolve().is_relative_to(target_path.resolve()):
+        raise InvalidInputError(
+            "--profile names a file outside the target: it is stored in oss-policy-kit.yaml, "
+            "and evaluate only accepts a profile file inside the repository from that file. "
+            "Copy the profile into the repository, or pass --profile to evaluate instead."
+        )
+
+
 @app.command("init", rich_help_panel=CMD_PANEL_DISCOVER)
 def init_cmd(
     target: str = typer.Option(
@@ -392,6 +409,8 @@ def init_cmd(
                 )
                 raise typer.Exit(code=2) from exc
             chosen_profile = response.strip() or recommended
+
+        _refuse_profile_file_outside_target(chosen_profile, target_path)
 
         plan = build_init_plan(
             target=target_path,

@@ -16,10 +16,9 @@ The verdict was computed from the wrong profile, and the announcement gave no hi
 its point of view it had simply used "the profile the config named".
 
 This is the same defect `output_dir` had (PATH-01) and the same half is fixed here: a relative
-value in a file that lives in the target is measured from the target. An ABSOLUTE value is left
-alone on purpose -- whether a repository nobody audited may point the kit at a profile file
-outside itself is still open. PATH-01b settled the same question for `output_dir` only (refused,
-2026-10-06), and settling it for profiles inside a path helper would decide it sideways.
+value in a file that lives in the target is measured from the target. Whether the config may
+name a profile file OUTSIDE the target was decided on 2026-10-07, the same way PATH-01b decided
+it for `output_dir`: no. Those cases live in `test_a_config_profile_cannot_leave_the_target.py`.
 
 A first version of the fix kept a third guard -- pass the raw value through when the anchored
 file does not exist -- justified as avoiding an M-002 host-path leak in the resulting error. Two
