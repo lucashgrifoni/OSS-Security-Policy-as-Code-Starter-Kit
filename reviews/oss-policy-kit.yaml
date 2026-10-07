@@ -67,9 +67,11 @@ results:
   - rule: APPSEC-FILE-001
     status: met
     evidence:
-      - src/cli/common.py:816 refuses an output_dir from the target's oss-policy-kit.yaml, relative or absolute, that resolves outside the repository (PATH-01b).
-      - src/cli/init.py:327 refuses to write such an output_dir into the config.
+      - src/cli/common.py:837 refuses an output_dir from the target's oss-policy-kit.yaml, relative or absolute, that resolves outside the repository (PATH-01b).
+      - src/cli/init.py:344 refuses to write such an output_dir into the config.
       - tests/cli/test_a_repository_does_not_choose_where_the_report_lands.py covers relative and absolute escapes and the --output-dir path.
+      - src/cli/common.py:801 and :809 do the same for a profile named by the config. A suffix-less value must be a bundled id, and a YAML file must resolve inside the repository; src/cli/init.py:210 refuses to record one outside the target.
+      - tests/cli/test_a_config_profile_cannot_leave_the_target.py covers absolute, relative and id-shaped escapes and the --profile path.
       - Reports are written atomically under fixed names (src/application/reporting.py).
 
   - rule: APPSEC-LOG-001
