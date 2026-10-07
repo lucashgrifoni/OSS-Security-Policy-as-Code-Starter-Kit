@@ -6,6 +6,20 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.33](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.32...v10.0.33) (2026-10-07)
+
+
+### Fixes
+
+* **config:** a profile in a scanned repository's config must stay inside it ([#374](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/374)) ([a9c94b0](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/a9c94b0b5724f2e913bbec05943f73a103ed0aa4))
+
+
+### Notes
+
+* check the review record against AppSec Rules Pack 0.7.0 ([#372](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/372)) ([b5bb8a7](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/b5bb8a7ace4acd31a4fbf05d660b7623dade713a))
+* check the review record against AppSec Rules Pack 0.9.0 ([#378](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/378)) ([2cb4e00](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2cb4e00d7acc439a4ed1d113fb4b1d752da88f54))
+* **gitpage:** override @parcel/watcher to 2.6.0 to drop braces (GHSA-vfj7-8cjw-p6xm) ([#375](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/375)) ([9d9be75](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9d9be75bc1db9925d8b3b6631f8a8f19dcbcf8ce))
+
 ## [10.0.32](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.31...v10.0.32) (2026-10-06)
 
 
