@@ -240,11 +240,30 @@ def test_release_name_is_the_directory_only_when_helm_accepts_it(tmp_path: Path,
     assert hr._release_name(tmp_path / dirname) == expected
 
 
-def test_a_chart_directory_named_like_a_flag_is_never_a_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+# `--set` was reproduced against Helm 4.3.0. The others were never run against a real Helm: they
+# are the flags that do more than change a value (run a program on the render, read a file from
+# the host, pick a cluster), and the argv check below holds for every one of them, because
+# nothing from the repository is placed before `--`.
+@pytest.mark.parametrize(
+    "dirname",
+    [
+        "--set=m=PWN",
+        "--post-renderer=sh",
+        "--set-file=m=hostname",
+        "--values=secrets.yaml",
+        "-f=secrets.yaml",
+        "--kubeconfig=kubeconfig",
+        "--kube-context=prod",
+        "--output-dir=elsewhere",
+    ],
+)
+def test_a_chart_directory_named_like_a_flag_is_never_a_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dirname: str
+) -> None:
     """A chart folder named `--set=m=PWN` was read by `helm template` as a flag and changed the render."""
 
     repo = tmp_path / "repo"
-    chart = _make_chart(repo, "--set=m=PWN")
+    chart = _make_chart(repo, dirname)
     tmp_root = tmp_path / "out"
     tmp_root.mkdir()
     seen: list[list[str]] = []
@@ -259,4 +278,8 @@ def test_a_chart_directory_named_like_a_flag_is_never_a_flag(tmp_path: Path, mon
     argv = seen[0]
     separator = argv.index("--")
     assert argv[separator + 1 :] == ["chart", str(chart.resolve())]
-    assert not any(arg.startswith("--set") for arg in argv[:separator])
+    # Everything before `--` is the kit's own: the binary, the subcommand, and the output folder
+    # it created under its temporary root.
+    assert argv[:3] == ["/usr/bin/helm", "template", "--output-dir"]
+    assert separator == 4
+    assert Path(argv[3]).is_relative_to(tmp_root)
