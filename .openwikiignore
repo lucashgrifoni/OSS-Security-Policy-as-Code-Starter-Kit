@@ -1,0 +1,32 @@
+# Local agent configuration and private runtime state
+.git
+.agents
+.codex
+.claude
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.env
+.env.*
+.secrets
+secrets
+private-notes
+
+# Local evidence, caches and generated outputs
+.oss-policy-kit
+.venv
+.venv-*
+venv
+**/__pycache__/**
+**/*.egg-info/**
+node_modules
+**/node_modules/**
+**/dist/**
+out
+artifacts
+.tmp
+.tmp-validation
+_analysis_outputs
+sonar
+.coverage
+.coverage.*

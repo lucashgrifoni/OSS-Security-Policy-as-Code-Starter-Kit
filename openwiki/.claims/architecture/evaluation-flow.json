@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:563464d6dd5236a7332d9ded016445d9dad36377d630b95160f4b3bee996801a",
+  "claims": [
+    {
+      "id": "claim_69c7b7511198471ea54169051478cc53",
+      "statement": "The shared CLI evaluation path calls evaluate_repository, writes the evaluation reports, and only then applies fail_on_violated to decide a policy exit.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/cli/common.py#L1092-L1143",
+          "version": "repo-lines-v1:sha256:35feb56d1ec56134a1ad73d719bd7bb111d8169214d9786f718eb50225375f9f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIxZGY0YTFjNWVhZjQzNDM1OTUzMDIxMzc2MmI5M2QxODNmNzdmN2I5ZWYyYmVkMDA3Yjk1NGMzODg5MTQ5N2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRhYjQ5NTFmMjAxZDU0MDUzYTQ1OWZlMjAxYjJmYjQzNWUxYmM0YzJmOTY5ZDE4YmYwZWMzYzg5ZmI5OTAwMjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIzZGYyYWNmMDZlOGMzZjAzYzcxMzVjNmU4YWM1YTljYTU0MzJhYmUwNmE3NGFjYTBmZGQ5YTUzYTAwOGY5ODciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNlMDFiZGJlNzY1OTJiNjA0YThlNTA5ZTI1ODM4MWU3M2FlMmNiYzVlMjdiZTRkYTdmOTU3ZDgzOWM3NzkyZWIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c0e93295792e4c5593d1bcce222f6fcf",
+      "statement": "evaluate_repository builds EvalContext from static GitHub, Azure, AWS and GitLab CI analysis and evaluates the control IDs selected by the profile.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/engine.py#L538-L589",
+          "version": "repo-lines-v1:sha256:2937d5dfa6f4911f5efe754c9a8c032f6df430ab94b8e91e262746fb673376d2:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmZTU5MjIyMzg1MDYzOGFjZDQ1NjJkZDY2MzM1NjJlNzNiZDI0MGYxNjM1YWZmNWIzMmNkNDE4NTQ2MGE1ZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFkZDI0NDU4MmI2ZmIwM2QyM2I4NDE1YWJlY2QzNDZiMGM5ZjQ2NmI2Zjc1MmIwNjgxODljZTdlOWEyZGMzNTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhjYzRhN2QxY2M3OTZhYmEzZTQ2NzIzMzI3ZjUxN2U5ZjgxMTk4MmQyNTBmMDcwMjk4NmU0YjU3NjRhZDk1ODkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMwZGQ2YWY1NjI1Y2JkMjg4NjhjZDQ3OTA1NWU2NzQwMWZhODliMDYwZTQ3YjQ3YjE1YTJmYzAyZjc2MmFkNTkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ef5397cf9329441f95d7b8e9300a5e67",
+      "statement": "When enabled, the applicability engine can return NOT_APPLICABLE before an evaluator runs; third-party calls are contained separately from direct built-in evaluator calls.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/engine.py#L388-L438",
+          "version": "repo-lines-v1:sha256:f1a9b6f9e68474465f964886f37a38db559bbdd46f1b0d8218e17cb3fa66c743:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3MTE3OWRhNGExZDAwNzBhYjgzMmIzZTBhNmUxZGNkMmY3OTNmMzg4NGJkZDMxZGJhNDZiNDQ5MmRjMmI4M2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4ZjY5ZjlhMjcyZDI2NzZhYTEzNzUwMmY2NTA1ZTM3NDFmMWRhMzRiYjk5YmU1MWViMDEwOWU0YzhkMTlmOTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY2MWIzOTc4ZjA0NDU3MmY0Mzk3NDYyZjcwNzcxYjg1ZTRiOWRlMjQ3MWY2OTQ3ZmFjNzgzNzVkYWE4ZGYyYjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjlmZTZhMTdhNTgyZGE3ODg1ODgzYTczNGZkNjFlYmQzZTdmZTU1MjkyNjAwNmZjNjZiYjg1OTI5ZjU5YzZlMDIifQ"
+        },
+        {
+          "resource": "repo://src/oss_policy_kit/application/engine.py#L468-L525",
+          "version": "repo-lines-v1:sha256:1666849e9aa40160188934122cd2c94ab150f6102db32956ff37b5159f7e6b52:eyJzZWxlY3RlZExpbmVDb3VudCI6NTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNjOTdjMTRkOGZlNjhlMTVlNDBlNDBkZjg5ZjUyZGE2ODEzYjhlMzZlNDk3MzkyN2RlODYwNGE1MGE4MDgyMjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhZmZjOWE2MTE2ZGZiYjI1YmNjODAxMzQxMTVmZTI3ZDJmZTgzOTI5MDBmNjRmMzhkNTMwNjY5NDUwNWVlM2YiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhjYzRhN2QxY2M3OTZhYmEzZTQ2NzIzMzI3ZjUxN2U5ZjgxMTk4MmQyNTBmMDcwMjk4NmU0YjU3NjRhZDk1ODkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNmYWNiNGYxNGYxNGUzMDdmZmIxYzJmMTA5ZDlkOWQwMzQ5NWI2MTFjY2ZjMWE4M2Y5ZTVmYWFhMmRmOGUzMTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3d78c1be8e3d42cbb11c75cf6469811c",
+      "statement": "The engine applies a control waiver after obtaining the evaluator outcome and carries waiver metadata into ControlResult.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/engine.py#L504-L535",
+          "version": "repo-lines-v1:sha256:fb5eec88555cb577fd98ee7819313a6d91eb3f2f66535cc66c247963578c3299:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhkNWMwYzhiOGUzZmZmYTRjYWNiM2Y3MjkzN2I5ZGFkYmUzNGE2MGJlYjRlNWI4NTM3MDMzMDk5MjVlZWRkMTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5OWU5NjdmNzg2NjA3M2ZjMGVhNGYyZmQ2NzExZWNjMTBlMTljMWMxOTNjY2RiYTZmYTQ4ZmQwZjlkNTJmYWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRjOGMzMjdkYTBiZDMwOGY4NDM2MzNhNDQ3MTc0ZGE2MDY0NDk3OTFmMGMzMTJhZGU2MjJhODE1MjQ2NTZiZWMifQ"
+        },
+        {
+          "resource": "repo://tests/application/test_engine.py#L58-L75",
+          "version": "repo-lines-v1:sha256:341f66574f9ba0cad54fd196b4803309334addedac8446c8772af4a76adb0e5a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcxMjIzYzQzZDQxMjY4NjY3YzMwYjI4ZjBhOGVkNmY2Y2IzZDcwMWU4NWZjNzUzY2EyZDg3NzMyNDM1YmEyNzUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI4NDBlMmFlNmQ5ZDZhOTI2OGZkZjRlMDJmNGQzOTJmNzhiMmI2MWZiMTM1MGFlOTU2ZWQyMzYzYjE5YmVhMDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY4YWQzYmJkMjRhN2YzZDRiYzQ5NGViYjBlMzhlZWM3NzYyN2FjNGYwMzM2YTZkNjdkNjlmODY4Y2FhNTIyYTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUyMzFhNjg1ZTdiN2ZiNzliY2E2YTI0MmU0OWQzNzk3MTJlOWY0YzU0ZTdjYjY3ZDQ2MDJkNTg5YjU3ZTRmOTgifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T17:21:37.203Z"
+  }
+}

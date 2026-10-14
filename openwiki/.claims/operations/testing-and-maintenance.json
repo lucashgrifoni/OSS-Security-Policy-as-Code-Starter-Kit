@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:6d8510833c50df832e87f7fb78dd7b607eb95adf6394971f5f1c344ddeffa9f6",
+  "claims": [
+    {
+      "id": "claim_641c6ce2e64a4eb1856c38daa7164242",
+      "statement": "The contribution guide requires lint, formatting, type checking, public hygiene, a two-step test coverage gate and repository self-assessment; its final 100% coverage floor is enforced on the property-test step.",
+      "evidence": [
+        {
+          "resource": "repo://CONTRIBUTING.md#L24-L46",
+          "version": "repo-lines-v1:sha256:0dfb8f679361cb41224a35bba337d0e31197839d17976908e222d1927997a00a:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhMGY3ODAyOTQ3MmIyNjM5N2IxMDQ5OTZlYmY4ZjYzN2Y5OGZhZTJjYzJlZTNiYzdhYzk5OTJhZTA5YWMxOGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNiODM3OTYxM2Y3MjFhOTliODcxYTc5MTNjMWI2NjQ1ZWFhMjhmNTg5MmJmZmY3YWZhY2Q3MDNjM2VhMzVlYmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRkZjcyYjA5ZDgzZDc2OTRlMWVmMTg1NDAyZTVjMzM1N2QxNThhNTZiZDIxMzE1NWE4Zjc2MGE3ZjAyNjhjYTkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2a4beb7e3086471086cc5e3774191239",
+      "statement": "The public hygiene script scans tracked and untracked non-ignored public content and forbids agent operating-context filenames separately from content token checks.",
+      "evidence": [
+        {
+          "resource": "repo://scripts/check_public_hygiene.py#L146-L164",
+          "version": "repo-lines-v1:sha256:f2b0bdf7a5fe9da54042f56dadd4fb635006adba51c8647e3ec43e7b1b4d42ed:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlNWQzMWFlYzlkYWVmNDU2ZGYwY2JlZTE1MzQ5N2VmYzI2NTM0YmUzOTFlNzJhMzljZGYzOGRhYzNlZTg2YmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE5OGIwNjNkOWI0N2U2NTM3OTYyNTU3MmNjZTE5NzY2OWQ1NzY3ZTEyYzE4YmUwNzU2NTJiOGNkOTgxY2U4ZDUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0NmRjZmY4MzViNTQ3M2FiMjUxYzM0ODQ0Yzk5NGRlZjI2NGQ5MzA2ZjM3NzNlOTI4ZTllMGRkMjg1NzBmOWEifQ"
+        },
+        {
+          "resource": "repo://scripts/check_public_hygiene.py#L277-L299",
+          "version": "repo-lines-v1:sha256:b2f75f19d6a08fd57092f335fad4dfcac9f77aba246d2f899625f1b5489a029b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2NDNhNzAyYWExODdlNzJlZWJhYzY3MDFlNGY5NGIxNGE5ZjhmN2NkZTcyNmI1OGVmM2IxOWNlMjZhYWUyNWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3YzM2ZjI3NDgxNjhmOWFkMWNiN2RjYmFhZGVhODNhYTNkMmRiODhmMjA3MDJmMTQ5ZTNhMGJiNmQyMzNmNDciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE2MmM3YTNiMmM5OWVkNzU5NDg5MjVhNGI0NDVhZWE4YWIwYThiYTBhZmY4MmU5ZTI5ZDQzYjE0MjQ1NzMyZjYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI2N2E5ZjQxNTM2YTc5OGRkYjhhMmY2YTgzYTE4OTg4MTZiOGVlMDMzNmIyOTEyMDk4MzJkYWEzMWQ2ZTNlNDQifQ"
+        },
+        {
+          "resource": "repo://scripts/check_public_hygiene.py#L82-L91",
+          "version": "repo-lines-v1:sha256:b389e393ebc0e6213ab2684c6cba8d1396eee7f372d956ea949e147d4fd9a72e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRkNWRjNDNhZWU3OGY4YzBhMTZkZjljYWYyMGEyYmYyNzU3NjVmYzQyOTBhMmJmMGM1YzFlMjA1YjRkYjlhY2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhZmJhMDUyN2MzOTUzYzRiNmUwZTViNTczOWJhODM2MTJmODA1M2JjZGM5NDY2NzMwMTkzY2QxZDU5MGI0MDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRhMGQ0ZGJjYWRmNjRhYjhiMDk3MjM5YzhhNDQ3YTAxMzUyMmZmZjU1ZGE4MmI3MDA4M2ZkMmVkOTM0MzRkYTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEzNTFmZDU2ZjI4NzFkMzAyOWI2YTYxNmY5MzQyOGViN2E1Yjc1NDI3ODM1ZWUyMGRmNTA4ZWFkZmI0OTRiZjQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_218906891099424d98f97a836132741e",
+      "statement": "Bundled profile tests check required fields, identity-directory agreement, membership in the catalog and absence of duplicate control IDs.",
+      "evidence": [
+        {
+          "resource": "repo://tests/application/test_profile_schemas.py#L62-L105",
+          "version": "repo-lines-v1:sha256:985e5553df9cd042561879b6954b8040a5b79ede4c755dc1f01f0d630ee5b97d:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNmMjU1NzY0NWY2NTYwNGMyYmQ4MTM4YTMxYTE0OGE3YmZiMDI2Yjg2YmM5ZmU1ZDJlMmMzNmRmNTE1YjE4YTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE3ZDc2MGJmOThlYTE1NGFhMTIxYjU0MDllMjZlOWZiZmQ3OWUzYWI0OTg5OTc5ZWJjMDZhMGZlZWU3MzEwZDUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIzN2ZjMDhhYjNlMDU3OWQ2MTAxYTMwZjQ4NDU4ZWNjM2JhNjc2MjFmM2YwM2E2ZDRmNDkzYTIwOWJjNDU4ZDciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZhZTU3NmZiZDNlOTM1ZmFjZjFmYWVhY2E0NjRmZThjZGRhZGU1NWFhZDNkYzJkMTg5YzU5MjE0OTBhMzAyYjIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_054327a521274d449019003d8c2e76c4",
+      "statement": "The OpenWiki adoption guide versions the repository wiki while keeping project agent configuration and the init-generated scheduled workflow local, with CI adoption requiring separate review.",
+      "evidence": [
+        {
+          "resource": "repo://docs/openwiki.md",
+          "version": "repo-file-v1:sha256:7bd06c27730f20109579ed5b1d561d5f05b525c4c62da0e17e89723323f573fd"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T17:35:14.202Z"
+  }
+}

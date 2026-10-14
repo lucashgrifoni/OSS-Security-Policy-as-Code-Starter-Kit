@@ -144,6 +144,7 @@ Verification commands and limits are in [docs/supply-chain-verification.md](docs
 |---|---|
 | Project wiki | [Wiki](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/wiki) |
 | Documentation index | [docs/README.md](docs/README.md) |
+| Repository wiki | [OpenWiki quickstart](openwiki/quickstart.md) and [setup guide](docs/openwiki.md) |
 | Architecture | [docs/architecture.md](docs/architecture.md) |
 | CLI reference | [docs/cli-reference.md](docs/cli-reference.md) |
 | Results guide | [docs/results-guide.md](docs/results-guide.md) |
