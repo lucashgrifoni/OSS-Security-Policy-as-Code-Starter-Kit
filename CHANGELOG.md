@@ -6,6 +6,14 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.34](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.33...v10.0.34) (2026-10-14)
+
+
+### Notes
+
+* bump typer, boto3, botocore, semgrep and ruff, locks regenerated with uv ([#391](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/391)) ([444a570](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/444a57056c2d46a1d9115eb58375202d678daa9c))
+* **deps:** bump codeql-action, download-artifact, upload-artifact and harden-runner ([#389](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/389)) ([d90bc9b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/d90bc9b35bf0e1dee5bcc5d36874910189c695f0))
+
 ## [10.0.33](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.32...v10.0.33) (2026-10-07)
 
 
