@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:ea6f6e7ce5fb0806c9b4a50ee988edbfc8dde10b89c56aadd5878e4226836aa9",
+  "claims": [
+    {
+      "id": "claim_91afba2aabd142c3ad94f79b31450384",
+      "statement": "The nine internal control statuses project into reports/2.0 states with UNKNOWN reasons that distinguish review-required, waived, not-evaluated and not-observable outcomes.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/engine.py#L103-L138",
+          "version": "repo-lines-v1:sha256:f0a754a835ebc9701229879603cb59260b265e21855ffdabe585657d9e990ddb:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMxZTAzZmU0NDY4YWFlZjcwNTJjM2VlMTkzMTZlZGFlZjdlNjIzYTM3Y2UzODE1ZjVkNGU5M2FlNDg0MzNjZDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0ZjgwMDk4N2U1Nzc5ODkzYjVhMTBkNWI3M2Y1MDAyMmNjYWE3OWMwNmIzMDk0Y2M3OTk3MTgxOTIxNjBiOGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBlYjYzN2NiMWYwYjRmZmNiMzIyMjVkZjBjNDdkN2JhZGQ3ZDk4OWY3NmRmN2ViZDQ3MDdjMjgxNmVkMGQzYTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA4NDkzZmJjOWUwZmRkMWVkYzQxYzdmNzlkYWE0MzUzODcwNWUxN2I1NjM3ZWU3YmQzYTM0ZWY3NDg4OGFhYzUifQ"
+        },
+        {
+          "resource": "repo://src/oss_policy_kit/domain/models.py#L13-L29",
+          "version": "repo-lines-v1:sha256:13c072774744abfba5999b9b7064f4a70e9b4d4e0f708ef9180a1fc55cf0b324:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRhOTkwMzlkMzEzNTBkMjJkNmU4NjY4MzZlMjFiNDQ2NTY5NTgyMDRiMGJjODNlODc3NDA4MzU5MDU2ZjllYjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwZmIzYmU1MDU2ZjJlYTg1NGM0NTQ0YjlhYTljZjI1NmJjZDE1OGQ3NTMwYjlmYzcwNTE2NzlhYTNmNGZmNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjlkMzdhMzNkMDczYWI4ZGEyOWRjNzRjZTZhODkxMzE4MThhNTJhNWMxNjVkMTZmMzFkOTkxOTk3ZjBlNjZjZjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZlYjQ0OTRkZWJhYzM4MjQ3OTU1NjM4NGMyZjMyYjFkNjAzYzMxYjM0ZGNhNzM2ZGJlZWFkMWE0MzAxMmFjNGQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ce3d8bd1ab6847ebabf1b6889cf689f6",
+      "statement": "The loader accepts deterministic, signal and evidence-backed as catalog assurance values.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/loader.py#L95-L95",
+          "version": "repo-lines-v1:sha256:d76cff28d199bf6a4a06c301fe79c96aa089eeefdf3f925d0ff88cf6e56e5a4e:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDc2Y2ZmMjhkMTk5YmY2YTRhMDZjMzAxZmU3OWM5NmFhMDg5ZWVlZmRmM2Y5MjVkMGZmODhjZjZlNTZlNWE0ZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDc2Y2ZmMjhkMTk5YmY2YTRhMDZjMzAxZmU3OWM5NmFhMDg5ZWVlZmRmM2Y5MjVkMGZmODhjZjZlNTZlNWE0ZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWRlNmE4ODhlNTExNjdiMmEzMjdhNGNiMmQ2YWVkOGRmNTFjMDEwMjMzMzdiY2VlNzg0ZmIyMTRlNmVhOGFiNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOWE4YjljYzBmYmZkZTZjZmUwZGI2MWUxMGM4YWZhOTM3ODg0OTFlNjllZWJkZGEyMmQ1ZmM5ZTM4OTE4M2UzNiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_c2cdbb251d1a4cb299fa27e9af65babd",
+      "statement": "Evidence trust projection limits heuristic and derived sources to inferred and static-clone or user-supplied sources to declared; api_collected reaches verified only with fresh evidence and signed or self_attested metadata.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/evidence_projection.py#L248-L279",
+          "version": "repo-lines-v1:sha256:d03e5282ca9890637546b3423bc084d85afb66a7736400355b46b0204145f50b:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg1YmU0MDM2ZmU3NTBmY2E5NWIzNjA4NzFmODBjZTdiZDBhMDZhY2VjYmEyZGMxYWM1YjE0OTZlZmY1N2RlOTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ZjA5Y2NkODQ3OTlhMWUwN2FiYTkwZWE3N2EzZGUxZmU5M2ZlNGYzNjM1YjgwYzM4ZDk0M2QzZjNiOTc3ZTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU3OGRjMDhhMjA2NWIzMzExMWM3M2RiOTMwM2E0YzkwM2JkOWUzOGE1MmQ1MjdmZmUyNzQ5ZmRlOWZjMGJjYTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhjYzc4ZjA3MjM1OTIyNTdmYWI4NTdjNjQ2ODE4YjhhOTE0NWJkMjQwYWE5ZmRlYjBlMWY0OTQ0NDE2MDMwMzIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2bf9d7a0315a4885a8927cae22badfa0",
+      "statement": "Repository-relative evidence paths are preserved while host-rooted references are redacted by the common evidence reference classifier.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/evidence_projection.py#L126-L170",
+          "version": "repo-lines-v1:sha256:e9b764d8ca2f3fe228a688b2ac3a631ed566bbd901c6e614a9cbab19a0641ded:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMyMjI1YWU4ZTcyN2FjMmIzNmRiYzFhZTczMTBkNDA2ZDNkY2FiNjNiMjEzZGNkMDE4ZmRkNjllNjg4MzkzMDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE3OTUzM2YzYzE5NzZjNTQ1OGQ3YTFlODA1M2U1Njk1Zjk2OTFmZjVhMmUzOTQyZmRhN2M1ZmI1Zjc1ZmU1YzAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJiYjMzYjJkYmMwM2Y2NmQ3YzBlMDA0MTEzZDJiM2JmZmZhZDBlOWJjZTJjNDAwZWVmZWUyMWYyMzRiMWFiZjMifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T16:32:54.436Z"
+  }
+}

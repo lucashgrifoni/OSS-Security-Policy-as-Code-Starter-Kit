@@ -1,5 +1,9 @@
 # Local assistant/workspace state
 .claude/
+.agents/
+.codex/
+# OpenWiki init scaffolds this locally; CI adoption is a separate change.
+/.github/workflows/openwiki-update.yml
 .cursorrules
 # Agent instruction files are local operating context, never public surface.
 # CLAUDE.md was tracked by accident and is ignored here so it cannot return.

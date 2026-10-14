@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:fb7226785ef72e6a9c0b0691b0c517d0fdc9eeee534a485fa0c3a215f17c6350",
+  "claims": [
+    {
+      "id": "claim_4435eb006a2a4ed4acaa12579a53228c",
+      "statement": "Finding correlation is deterministic and scoped by axis, uses conservative under-merge, ranks using carried KEV, EPSS and severity, and does not fetch advisories or change control states.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/finding_correlation.py#L1-L21",
+          "version": "repo-lines-v1:sha256:e8d0f57b6e0b53f68030751f8279c3d04988b4b69975642b2889945e3788e3e7:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNmY2M2YTcxZjQ3NWU1ZThjN2Q5OGQ1YTQyMGMzYWQzOTc3YjBmMDg4ZTE1OGExNTg1MzJiM2E2M2M4ZWRmMzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1YjZlODcwNmI0MzA0N2YyYTZkYjY3ZjEzMjYzODU5NTYwNGU2N2YzNjk2Njg3NmNlMDE1OGYwMDUzZTZiZDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_661b2307e2ef4c16bfb7d857c93216fd",
+      "statement": "Finding correlation reads existing scanner evidence, preserves source severity, emits findings/1.0 and keeps vulnerability waivers separate from evaluate control outcomes.",
+      "evidence": [
+        {
+          "resource": "repo://docs/findings-correlation.md#L13-L76",
+          "version": "repo-lines-v1:sha256:47c60b4a846a2dc2b8f882e4a7dc4d2edba916e0360bdfa8bd18c3aa88fc6a63:eyJzZWxlY3RlZExpbmVDb3VudCI6NjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVmYWZkNWE0YzZhODZlYmJjZDM0OWY4MzY4NGU5Zjc0YWU5NmM3OTg1NmI0MmU0NDQ4ZGM3YWNlMTVjNTA1NGIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ5YWNhNGIyOTg4OTYyNjM0ODJhYWRhZTIxYzJhMTlmMjUyY2EwZGU5OTEzMjJhYTBmOWUyYThkZjkxMzJiYmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE2Yjg1ZTZkNTQ3OTNjMDdhZDdjM2FhZjUyM2ZhYTk0NzIwNGY1MDhjZjdhNDlhYzY0MWNhYTA1ZTliMzNkMWYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b77bf96bd9c94f4dbbf3415682b29514",
+      "statement": "emit-vex reads OSV SARIF, uses matching vulnerability waiver decisions and emits CycloneDX or OpenVEX without generating an SBOM or verifying the manufacturer's analysis.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/cli/emit_vex.py#L1-L24",
+          "version": "repo-lines-v1:sha256:71c20b6cd4ff2a834b1c5c6f66b263ecd41cefede87d2a6b98efb21139dd1371:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3NzA5NWRhZjlkMmI2NjgxZTM3YjFmMzdjMTQzYmQ4OWQ3MjkzMGU5MGZlZTc0YmUxZjZiMDQzZTE5ODI2ZDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVlZGE2ZmQ5MDU2YzgwY2EyYzJiZGZjN2QxZTU5ODNiNmU0ODE3NzFmMGFkOTM3NjdiN2EwYTVjZTc1NDgzODIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFhYWY3NjM3Y2I2ZTdlNWRiODVkNjM0Mjc0NjAxNGRmMDQxY2NkNTU4YTkyMGIyOWViNmFjNzE5ZDdiYWY1YzIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3ef7aa0948474abfbbb77080ffb93f64",
+      "statement": "export-evidence projects reports/2.0 into local external formats, including an unsigned in-toto statement and experimental Chainloop envelope, without establishing downstream acceptance.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/cli/export_evidence.py#L1-L28",
+          "version": "repo-lines-v1:sha256:aa417c23fe062df50c837b6ada05908583313611b6bfe394ab0cf017081f071d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNmNWI5ZTU0NmQ0OGNmNjJlOTk3YmQyOGNhNGZkNGE1OGU1MDk5NjYyNzY3ZjFhZjY0ZTg0NjBhMDU2MjMxMmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFiMzNhMDkwNjYzYWRlNTEyZTE2ZTBmOGEwM2YxYThkYWQxZjg2NTk3Y2MyNzA2ZmM2ZjQ4NTliODZmNjVmNjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFhYWY3NjM3Y2I2ZTdlNWRiODVkNjM0Mjc0NjAxNGRmMDQxY2NkNTU4YTkyMGIyOWViNmFjNzE5ZDdiYWY1YzIifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T16:07:56.899Z"
+  }
+}

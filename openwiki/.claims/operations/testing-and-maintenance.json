@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:e12c549943871d651dde1d56533d2d2e197f755cabcf74eee2ea7bca04278b88",
+  "claims": [
+    {
+      "id": "claim_641c6ce2e64a4eb1856c38daa7164242",
+      "statement": "The contribution guide requires lint, formatting, type checking, public hygiene, a two-step test coverage gate and repository self-assessment; its final 100% coverage floor is enforced on the property-test step.",
+      "evidence": [
+        {
+          "resource": "repo://CONTRIBUTING.md#L24-L46",
+          "version": "repo-lines-v1:sha256:0dfb8f679361cb41224a35bba337d0e31197839d17976908e222d1927997a00a:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhMGY3ODAyOTQ3MmIyNjM5N2IxMDQ5OTZlYmY4ZjYzN2Y5OGZhZTJjYzJlZTNiYzdhYzk5OTJhZTA5YWMxOGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNiODM3OTYxM2Y3MjFhOTliODcxYTc5MTNjMWI2NjQ1ZWFhMjhmNTg5MmJmZmY3YWZhY2Q3MDNjM2VhMzVlYmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRkZjcyYjA5ZDgzZDc2OTRlMWVmMTg1NDAyZTVjMzM1N2QxNThhNTZiZDIxMzE1NWE4Zjc2MGE3ZjAyNjhjYTkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2a4beb7e3086471086cc5e3774191239",
+      "statement": "The public hygiene script scans tracked and untracked non-ignored public content and forbids agent operating-context filenames separately from content token checks.",
+      "evidence": [
+        {
+          "resource": "repo://scripts/check_public_hygiene.py#L1-L14",
+          "version": "repo-lines-v1:sha256:01c4c15c336ecea35d269e10d9f469148aae6a912f51edd5972583623321680d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY4OTIyZGRlMGQ1ZTA1ZmUxYjU1MDM0ZDQxZGUwOTA1ZTQwZDAzYmEzNDJjYWQxNmY2ZDYwYTI5N2ZlYmU2Y2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmYTkwNDJkZmFhNmUxMDZiOTY4ZTU0Mzc1OTM0MTc3MGYwMjRjMDNkNmY2MmNlYTM3NjcyZmM2ZGIzY2I0NDEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFhYWY3NjM3Y2I2ZTdlNWRiODVkNjM0Mjc0NjAxNGRmMDQxY2NkNTU4YTkyMGIyOWViNmFjNzE5ZDdiYWY1YzIifQ"
+        },
+        {
+          "resource": "repo://scripts/check_public_hygiene.py#L85-L114",
+          "version": "repo-lines-v1:sha256:355114170d92a969b3085e5a6ff7aed0e81cbb89ab32244aadac21e00f0727f4:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZmMGJhMzZjNjZmZDVhY2M5MzU0NzI3YTc5OWExN2I1NzZmZjJmNGVhODY0MzcxZTgzNDE2ZDJkMzI4MjU4ZmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2YzZlNGRlMmRjMGE0OTllZjE2ZGE0NTM0YzM5M2FhZTQ4NTJlZmQyNzA0ZGM5OWVlYmE1MzU2Zjg0MTI4NmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEwN2VjMmM1OGQwM2JhZmMyYjUwYWZkNTVhNzc3ZjEyYjg0YTI2MzkxYjE2NThmNzEzNzUwMjY4MmJiYTMzNjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcwOTRkMTg0YTcyYzNlNzExNDNkZjI2ODkzZDI2OTBiNWZjODNhYWZhYzUyZGNiNTgyNGM1NTg5ZmI1NWQ3NWIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_218906891099424d98f97a836132741e",
+      "statement": "Bundled profile tests check required fields, identity-directory agreement, membership in the catalog and absence of duplicate control IDs.",
+      "evidence": [
+        {
+          "resource": "repo://tests/application/test_profile_schemas.py#L62-L105",
+          "version": "repo-lines-v1:sha256:985e5553df9cd042561879b6954b8040a5b79ede4c755dc1f01f0d630ee5b97d:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNmMjU1NzY0NWY2NTYwNGMyYmQ4MTM4YTMxYTE0OGE3YmZiMDI2Yjg2YmM5ZmU1ZDJlMmMzNmRmNTE1YjE4YTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE3ZDc2MGJmOThlYTE1NGFhMTIxYjU0MDllMjZlOWZiZmQ3OWUzYWI0OTg5OTc5ZWJjMDZhMGZlZWU3MzEwZDUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIzN2ZjMDhhYjNlMDU3OWQ2MTAxYTMwZjQ4NDU4ZWNjM2JhNjc2MjFmM2YwM2E2ZDRmNDkzYTIwOWJjNDU4ZDciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZhZTU3NmZiZDNlOTM1ZmFjZjFmYWVhY2E0NjRmZThjZGRhZGU1NWFhZDNkYzJkMTg5YzU5MjE0OTBhMzAyYjIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_054327a521274d449019003d8c2e76c4",
+      "statement": "The OpenWiki adoption guide versions the repository wiki while keeping project agent configuration and the init-generated scheduled workflow local, with CI adoption requiring separate review.",
+      "evidence": [
+        {
+          "resource": "repo://docs/openwiki.md",
+          "version": "repo-file-v1:sha256:cd86332b48e954b3aaa503e881aea4b39d4bb59e6613089ba00f87b65b2213f0"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T16:32:54.436Z"
+  }
+}

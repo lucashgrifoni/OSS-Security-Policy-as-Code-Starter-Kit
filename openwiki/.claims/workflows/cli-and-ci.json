@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:8f512d4d42e7e10f7b54f788805a584344bb699c66bbacb09b004fcf45604c42",
+  "claims": [
+    {
+      "id": "claim_04e266dcb26a45308dade7d9b3e558b4",
+      "statement": "The registered CLI surface includes distinct assessment, collection, scanning, findings, initialization and export commands on one Typer application.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/cli/main.py#L20-L88",
+          "version": "repo-lines-v1:sha256:0c158af11d19d7324f220a8408f998f557e422b8b535582b92eb35debb0e2630:eyJzZWxlY3RlZExpbmVDb3VudCI6NjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3YjRlYTFjZjgwMjZlNjI4NGQwNmZiYTI4NWFiN2MyYTM1ZjZjZTcwZWNkY2FkZDljNWNkZWEzZDFiZTFkMjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3YTg3YmU2ZDg4NWIwY2M3M2I3MjQzYzQ2YzE3MmUzNWQzNjQ2ZTQxZWQ3ZDU2M2YxZmZlZjRmMzM5OTMzNDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwYzYyNzkwOWExOGJlZGRlODBhOTQ2MjFjMjM2MDA2ZjY3OWIwYjE5YzU5OWQ1ZWFlOGZlMmNjZjQ5MzQzNzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgyZTQ4NWQwNzgwMGEwNGEyZmEzZWM1ZTZiYTlkODZjYzE4ZGQzOGQ4MzBiMWQ5MTM3YzYwYTQ4ZjRlZjU4YWIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e180fdeffbe24ddb972379f74c5f67c2",
+      "statement": "fail_on_violated implements none as non-blocking, fail as blocking on fail count, and degraded as blocking on fail or manual-review-required counts.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/cli_output.py#L60-L75",
+          "version": "repo-lines-v1:sha256:49717ccedd3cdc4d60f3523eec1a97711f9e67e1b44d64efb85967d80bdce80f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYjhjM2RiMDM4OTBmYmExMGNhNGVkOThlY2IxOTk5YzNkN2VhODVkOTk5MDEzNjRmY2VkNzc1OTc0ZDQ0MGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3ZTcwNzk0YzZkOGFlYTZhNzVjMzQxN2U3MjZmNGY2MjNmMzhiYjZiMTZhODAxZWYxNTMyMTMxYzI2NDczZGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3NDQ5NDAyNTUzYjlmODUyYmU0ZjhlYTFmODg4ZWRhNjk5MDUyN2Q3ODNlZDM0MTQwYjRlM2EyMTVhODJkZmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc1NGI3ZGIxNDc2ZTI2YzJiZjY2N2YyYjdkZmMzZTY2ODZjNGI2Zjc0M2NhOWFjOThhMTk4NjQ0YTM0ZWI4NjMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c9f47ef0e9c749e28c516f74db1f1b30",
+      "statement": "The shared CLI assessment writes reports before raising the policy exit, and handles invalid kit input with exit 2 separately from the unexpected-error boundary.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/cli/common.py#L1139-L1163",
+          "version": "repo-lines-v1:sha256:08cca383c7d9d18c020abc20200e9ceebccf2aeb71847e2d6c443af53c729710:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIwZDNiZGUxYjAxZTZlYzZlM2Y2NTZkYzM3ZTZmY2M0YjUyMjg1Nzg4OGVlOTg2ZmNlMjNmOTJiN2Y4NzdmZGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ3ZmExNTQ5NGNiMmIyMmNlMzU0ZjZiNWRlNWI5NWZjODYxNDdjMzNlNzJlYTFjMTk4MWExNWM4YjYzYzdhNzciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU3ODQ5NDc5YzUzNTE3YWM1ZTIyZDk5Nzc4ZTA1ZmJiY2I5MTIyOTQ0ODYxMjRkODM2ZGZlMjI0YWUxYmIxZmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a6ef0dce80b64c3da6355933a1c340c4",
+      "statement": "The GitHub composite action exposes assessment inputs and report outputs, defaults fail-on to fail, and makes SARIF optional.",
+      "evidence": [
+        {
+          "resource": "repo://action.yml#L30-L100",
+          "version": "repo-lines-v1:sha256:347e89457fe417b9f9a162a441e2bf8800bdb97414c5095801ff640204ce8b0b:eyJzZWxlY3RlZExpbmVDb3VudCI6NzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFkZWE1YTE3ZTE4ZGQ2ZDBjMzRiNGUzYTVjOTcxYTliN2FlYjYzM2Q2MWE1NTZiZTU0NDU2N2E0ZDkxMmFiOTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0ZjRmMmU3Y2MzYWE4MmUxMDdmZjA2OTdmNTFkYzYxYWMwMzBkNjg0MjUwZWNmODVlMzU1M2VlYTRlZTlkODEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA1NjI5MDkyZjg0YWRkODlkNzEyMDYyNmU0M2YyODg1Y2VlZjViZWMzMDA4NmRkMjEzZGJlZjk1OTM2MDBiMmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZlNDc4OGMzNDAzMjE1MmQ1NjgyMzc3ZDg3NWE1NTRhZjBiNDYyMzI0MWE5Yjg2MjFlOTk2OTA0NGYyNjUxZjMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_957b815f1bb14e6eb150607108e77195",
+      "statement": "The CLI evaluate options enable applicability and attested outcomes by default, while evaluate_repository exposes false defaults for those programmatic options.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/engine.py#L526-L547",
+          "version": "repo-lines-v1:sha256:9223b6c1dcb8524868faa6e13135a7463107a53dce6fb472192d1f1de8a6c546:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5ZWFmNzcwYmMwMWI1Y2I4Nzg1MWE4NjE0MGQ4MGVjNjYwODhmZDc4MmEyMjM4MzRjNmNkMjM5ZTllNTliY2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImExMzJlNGJmOTdlNjQxMWEwMWRlZDJlOTA2YzM4NjllZmZjMDY1MjQyNWQyOWMwMTJmZGYxODk4ODRkMWRhODAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk1OWI5ZjYxZWU2NzRkOTRhNzI2NGQ4MzQyMGMzZjgxZmZhMjg0NDEzZTY5ZDRiMDAyYTZlNjRiY2YxMDIzMDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU3MDI0MzM4NjE4NjViODUxZjNjNTViMDNkNjZiYjAxNWYxYzQ2MTk0MDY1MTNhYWE2ZmY3YmQ1ZjkxYzQzNTEifQ"
+        },
+        {
+          "resource": "repo://src/oss_policy_kit/cli/evaluate.py#L462-L483",
+          "version": "repo-lines-v1:sha256:9450471a85f88f942da55e8a9fad6ab6b9a778a2151b9410ba441c105cb47d1d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZkMTk4M2QyMTVlNTkwNzJmNWQ5MDFlZWQzMjZhNWQzNWM0ZWRkYWUyNDJhYzE0NjIzODViMGVjYzM1NGI5NjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcwMmM0MTRiNTRjZjg2ZGZiNGY5MGRmZTdkN2JkYmZhNjY2YjdkZGRkMzJmMTI4NmYyMzBhNWI1MzI0MTgxOGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcyNzdmOTc4ZmJmZTRjMDBkOGVhODdmYzM5ODRkNTRkYjhlYzg1ZDA4NzI4NDBmMDBmNzlmZjhlOTViNzdmM2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVkOTQyYTg1NDEzZWYzMDRkY2Y5M2EwNDVjYTdlNWI5YzZiYjQ1OGVlOTQ1YWE3MGYyYmQ2ODAxNDM0NjlmN2QifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T16:32:54.436Z"
+  }
+}

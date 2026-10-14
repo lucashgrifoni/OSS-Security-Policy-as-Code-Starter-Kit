@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:7a02ee23d6622e1a6c28a7808a356ba2936885b77382b6b50fe1d3dd2616f78b",
+  "claims": [
+    {
+      "id": "claim_f168d50e369a4450bcfdde44b128727c",
+      "statement": "load_profile_by_id accepts a bundled profile ID or an existing YAML file, and external files use schema validation; profile control IDs are de-duplicated in first-seen order.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/loader.py#L250-L272",
+          "version": "repo-lines-v1:sha256:e1cb59fc9a3f7d3cd4ccf9c67f19dd42527703b5d50089609957170cbed30d1a:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNhMzcwMjU3YzllZDdlYTIxODI2Y2U4YWU1MjU0OWQxODVlZGE3Y2U1ZTJjMzdkMGM3YjJiMGNjZTUxYjY1ODEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0MjM3ZTFhMzgzMDhjMzc0MzIyM2U1MTliMjY2N2E0Y2UzMjQyMDMzZDU4N2Q2MWQzNjhlNGQxNzUzMDdiNTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY0N2QwMmRlMTg5NmE2Y2ZiNjAwM2QyMmZlMGMyZjA4ZjQxZDU2YzQyMmQ4ZGM5ZTNjZGU4YjcwMmM0MzBhM2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzYTE4NzQ4Yjk5ZjY4MmMwMTU4NDlmYjFjZWU2NDY0YmJkOGY0MmRjNTM3MGVhYTQxYTcyMGNjMzA4ZGIxMDAifQ"
+        },
+        {
+          "resource": "repo://src/oss_policy_kit/application/loader.py#L337-L351",
+          "version": "repo-lines-v1:sha256:eada863cf7bd18a2426d479d4fc623547455d27f2ca7983fd00f06af929c6954:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2NWZhMWFhNzExZTU4N2ZhZjQ4YjJiY2FlM2MzMmNlYjcyMzdmOTM4YTJhOWU4OTAxZjAyZGYzNDIyZWJmNzUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM5MzY5YmFlMjkzYzNiMGY2YWYzODE4YzJkMzhkMTYwNzc5NTJmN2I2YWQ0MDRhZDQ1ZDFlMzU5NzQ1YmI1YzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA3MzM1OTE3YzY3NWVlZGVlM2M5MTY5MjgwMzNjYTEwZmE1ZjU4ZGJiZDg4YWFiN2E2NjM3MzEwNDM0NjM1NmEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_25e9bdbc0ab542f9b62089c2624723d5",
+      "statement": "Control applicability is determined from declared requires_any_files patterns using filesystem inspection, with no precondition always applicable.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/applicability.py",
+          "version": "repo-file-v1:sha256:24664e40f6121d029d85af3e08b58805606d69e3d63a115681bcbf856b0e0287"
+        }
+      ]
+    },
+    {
+      "id": "claim_f4f9404eaff0412cb4736bd95957c76b",
+      "statement": "Invalid or expired control waiver entries are skipped with warnings, and usable records require control_id, justification, owner and accepted status.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/waivers.py#L156-L204",
+          "version": "repo-lines-v1:sha256:8f1e20a36b3fcc20fa8a15f676c51bcb5e859c2c5d5e83c0350bc975a40c7071:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmN2I3MDdmNjIwMGMyMjRkMTg3ZmVlMzFhMmYyNjRlZGYyMjkyZmM2ZDc0OWJkNjRjMWY5M2VkNDI0MzU0N2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRmMDA1MjFjOTdmY2QxM2E5N2QyNmY0OTBlMTdiYjM4N2U5NDU1MTY5ZjU0OTQ4MTkzMGMzZjQyNzE0OTEzNDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ce4fc36efed648a68e8f0f2d7835b47e",
+      "statement": "The engine applies an approved or active control waiver only to FAIL or MANUAL_REVIEW_REQUIRED and returns WAIVED with the waiver record.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/engine.py#L218-L236",
+          "version": "repo-lines-v1:sha256:a88c9a34575ff5cde4b1527fc99f3061cfaed4356348338ff596b12a86395195:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVmYTkyMzM1YmM3NjAwOTMyYTNkNjBkYTc5ZGVjNDgzNmZlZTVjZjI2NGNmM2RlOGVhZWI5OWExMGNjMWFhYTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjlhODJlYmU5ZWQ0MDdjM2E2YmE0YjAwMzQyOTJiYWE1MmMxMWNlNWFlMjg2MTA3NDAyZGU0NzkyZWVlY2FjZmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcxMWYyZTliYTVmNDFiYjgwNzUyNjg1ZWFhZWE3Zjk4NmI1MzMxMzljZmNhZGU1OWEwMmIwODFhMzU2MjY3ZTcifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T16:07:56.899Z"
+  }
+}

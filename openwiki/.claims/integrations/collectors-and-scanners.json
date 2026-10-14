@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:fb142e063f7085fb106368aab4ace95d36d2649ca6a074946af026c9c51bd7b6",
+  "claims": [
+    {
+      "id": "claim_d15bc39d0f7b423a8469d779affefc39",
+      "statement": "Platform collection produces evidence files for subsequent evaluation, whereas scaffold-evidence creates templates and collect-evidence --dry-run previews without authenticated API calls.",
+      "evidence": [
+        {
+          "resource": "repo://docs/evidence-pack.md#L5-L78",
+          "version": "repo-lines-v1:sha256:7a2a577d85645e12a92e03d17551c8f6fd1a9782397d3b129c69ab1d4d894a95:eyJzZWxlY3RlZExpbmVDb3VudCI6NzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE3OWZiMTk1Y2M4OGFkNmQwOWIzYjkwMGRjM2U4N2UwM2ZlY2RkOGM5N2VjYmNjYWI2YzZkNzc5Mjk3YWJlZjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxYzQ1Zjk2NzFkMGJiY2ZhMzAwOWM5MjhkYzM2YjI2MGYwYWJhN2RhZWI5NDQ4ZDQyMTUzYTVhYjIyNmZiZDEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZlM2Q1MmMzZTIwYjQ0NGFhZDcyY2U4Nzk4NTdkMWJhMzM0YjA0YTUzNjE0OWY1YTEyOTlmZjYwYzM3Mzc5ZDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIxNmNhZjZjMWNkZWEwODkxYzlmZDFkYjNlMzNkODg5NzI5NDcyZGQyYTFmMjc5ZDQzODJjYzU3YWUzZWM2ZmIifQ"
+        },
+        {
+          "resource": "repo://src/oss_policy_kit/cli/evidence.py",
+          "version": "repo-file-v1:sha256:b2b6332f96a7ee8998149fc4d9cb16f8d93232664987ca321a21ca525ae42961"
+        }
+      ]
+    },
+    {
+      "id": "claim_b0d2bff292a4483aac457a355959979d",
+      "statement": "The collector interface returns structured CollectionResult records carrying the evidence key, payload, source URL and collection timestamp.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/infrastructure/collectors/base.py",
+          "version": "repo-file-v1:sha256:1066bc10d7574f0b87216c299538396cb0e10ec79aaae14575e9948a551aa42b"
+        }
+      ]
+    },
+    {
+      "id": "claim_a66cf3b5ce00449282b72a3d79fd85ba",
+      "statement": "GitHub optional-endpoint handling distinguishes permission errors from warned conservative fallbacks.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/infrastructure/collectors/github_collector.py#L39-L61",
+          "version": "repo-lines-v1:sha256:16d8c21189c65e3dfce4fe5e6d61ae71d361e0bbeb6781b2f084e1293749f7b3:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMWE5Yjg1Mjg2ODhhYmVlNmY2MTBlY2UzYmM4ZjAyNTcyMDZiYjFjNjhkYzAzNjAyYzMwMDRmYTY3M2UxNWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYjhiNzc0NDVkYTQ3MzBiZjJlYWUwOTkxN2QzMWYzOTQ2ZjhhN2MxMzk2ODc2YzEwOGNiZWZkOTVhNGFiYzQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRmYmQwMDkzMTRiYzI3MDg0MTY3MzRhMDJhZTVmZjM5YTFlNDhhMDUwYmU5MWY0M2IyZmFhOTIwMDJjNjJiZmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYxMGZjNGY1YTlmYjU2ZjQwMjNjOTIzMTdkNWVjNzY1ODUxNzczOTY2NGE0MGQ2MGM3M2VjNjgxYzcyMmZhNTkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_260933120efb4943939b9787069b33ff",
+      "statement": "scan-sast wraps Semgrep to write normalized evidence and does not implement evaluation gate policy; missing Semgrep is recorded as not_available and scanner errors are distinguished from clean scans.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/cli/scan_sast.py#L1-L17",
+          "version": "repo-lines-v1:sha256:d44b0051ea0cee7df8fe4d9890da8cc40d2613d1ed1a1ccb7112a987957435f5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM5NGZhMWFiYjA4Mzc1OTEyOTg0YmNhMWYzNTRmNDlmMGUxMzcyOTlmMzA2ZThjYjNlOTUyMDZmYjk1M2VmYTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1YjZlODcwNmI0MzA0N2YyYTZkYjY3ZjEzMjYzODU5NTYwNGU2N2YzNjk2Njg3NmNlMDE1OGYwMDUzZTZiZDEifQ"
+        },
+        {
+          "resource": "repo://src/oss_policy_kit/cli/scan_sast.py#L70-L86",
+          "version": "repo-lines-v1:sha256:581d5e2acff156b36eba4a03c817ea1f347647fca7937f982dde79a83fac59d9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4YjMwZjEyMGEyNDljMTY4MjA1ODU0NGIxMDU3YmZiYzBjZGFhOTBhODcwOTAwMTY4MzY1ZWU4YThhNTZkZjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVlMTYwMjdiNmFmMTc4ZTZlOTVlMzBkOWRmZDc4YjgyZWI4NDlkNmIxMjZjZDNiMTg0ZTRhNDk1MWE0OTNjZDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIzZGYyYWNmMDZlOGMzZjAzYzcxMzVjNmU4YWM1YTljYTU0MzJhYmUwNmE3NGFjYTBmZGQ5YTUzYTAwOGY5ODcifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T16:07:56.899Z"
+  }
+}

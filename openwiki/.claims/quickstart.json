@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:c1a0727095c93753d22cd21d23c906fa07e53ae54fe9e8ce4d8388a43e7f01e7",
+  "claims": [
+    {
+      "id": "claim_fe53d620aed94438a2ad9d581f2f3ad4",
+      "statement": "The project exposes a Python package named oss-policy-kit with a CLI entry point oss_policy_kit.cli.main:main and requires Python >=3.12.",
+      "evidence": [
+        {
+          "resource": "repo://pyproject.toml#L111-L112",
+          "version": "repo-lines-v1:sha256:597efb8ed58e79dceaae9624a53f1e2d0432b1c0b65523f45c9715c165d230aa:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGVhYjRlYzYzZGU1MTdkYTRjZDhlNWM4MzA3ZmIyYzc3MzdkMzkxOTBhYjY5ZjMyYTVlOWVmODFlYTQ0MTZkZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjBkZWU0NTRhYWJhZDI2OWRhZGNmNzcyNjFjYzI2MzBhNDAxZjJhYmI4MWMzNDM1N2VjMWRjZmVlNzdhMGYxNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTNlNjgxN2QxMjNkOWM2Zjg3M2RlMTg2YjBlYWE1YWJlOWNjZjJmN2Y4MTc2ZGMxNzgzY2IyMmU1ODBmMjFhOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzM4ZTk2MDE2OTRjYzVmMjRiOWJjMmQzNWViZWVhZDBiOTM4YWExMjBiMTk2M2QxMjA0YmI5NTNkZGU5YzhlZSJ9"
+        },
+        {
+          "resource": "repo://pyproject.toml#L5-L12",
+          "version": "repo-lines-v1:sha256:03d7c288e7d8773babdeea79d9f5ae70518b4b6190c26764555215563db5f776:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNzAyYTgxYzM4MzZlZGVmMmQwYmExMWQyMzUzZmI2ZGFiYzc3NzE1MGE3Y2E4M2VhMGQ5ZTlhNzAzMTNmZWFiYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMThhMzc3ODVlNzI2ZmY1NjBlNzAwMGFhNzAwYTRlOTJmYjk1OGRmOTNhM2RlNDQ1YzUxMTRhMmQ5NTc3MzBlMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDNjNWQzZTcxYTRmMjdmNjEyMDkyNzhmZWRiMWY1OTlhMGMxOGJkMTQ5YTdjYjA2ZWIzMDRmMzhmNDI0YmI4MCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTM3M2NlYTY1M2E4YzY1MDNiZjhkOTc2MzA1YzRmMTMyNWJmMmVhYTcyNWZiYmJmZGYwYTA1OWVlNTg1NWRkMyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_5afed4a5b85d475e91a78281f0fa85ec",
+      "statement": "The kit is a repository assessment and policy tool rather than a vulnerability scanner, certification engine or legal compliance guarantee.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L1-L20",
+          "version": "repo-lines-v1:sha256:9cc600a7b477797481e5e93f0309a20c37ea19e2d6b1bd88c3646c6e72b6310f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1OGI2MDQyNTcwN2JlODNkNmU1OTdjYzhjNDY4ZmJjNzgxNTM1YTdhYjdlODRlNmRkY2Y3ZDRhYzIzMGUyYzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI2MmI1OWJmMDdlZWQ5YTk5YjMwYzhlMDVjNzAxNjNlYTRhYWYwN2Q2MGUyOTExNWNhZDdmNDViNmI3OTM1NDIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1227f13079c744ec9fe096069832b45e",
+      "statement": "The CLI registers separate command families for assessment, collection, scanning, findings, initialization and exports.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/cli/main.py#L20-L88",
+          "version": "repo-lines-v1:sha256:0c158af11d19d7324f220a8408f998f557e422b8b535582b92eb35debb0e2630:eyJzZWxlY3RlZExpbmVDb3VudCI6NjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3YjRlYTFjZjgwMjZlNjI4NGQwNmZiYTI4NWFiN2MyYTM1ZjZjZTcwZWNkY2FkZDljNWNkZWEzZDFiZTFkMjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3YTg3YmU2ZDg4NWIwY2M3M2I3MjQzYzQ2YzE3MmUzNWQzNjQ2ZTQxZWQ3ZDU2M2YxZmZlZjRmMzM5OTMzNDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwYzYyNzkwOWExOGJlZGRlODBhOTQ2MjFjMjM2MDA2ZjY3OWIwYjE5YzU5OWQ1ZWFlOGZlMmNjZjQ5MzQzNzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgyZTQ4NWQwNzgwMGEwNGEyZmEzZWM1ZTZiYTlkODZjYzE4ZGQzOGQ4MzBiMWQ5MTM3YzYwYTQ4ZjRlZjU4YWIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_29bbb1240d2a442993e4d3710a0d6f29",
+      "statement": "The repository OpenWiki setup guide defines project-scoped coding-agent installation, read boundaries and separate review of the ignored init-generated scheduled workflow.",
+      "evidence": [
+        {
+          "resource": "repo://docs/openwiki.md",
+          "version": "repo-file-v1:sha256:cd86332b48e954b3aaa503e881aea4b39d4bb59e6613089ba00f87b65b2213f0"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T16:32:54.436Z"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:66f46cd7b09372cf2914326fb4ed3c51025032e26d56f983690f170dcc665abd",
+  "claims": [
+    {
+      "id": "claim_d5db41429659423b84cf28219bd94275",
+      "statement": "Evaluator plugins register in oss_policy_kit.evaluators and expose a callable from EvalContext to EvalOutcome.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/domain/plugin_contract.py#L12-L32",
+          "version": "repo-lines-v1:sha256:c50bb9af1d0384133fb844056b603b5ff5e4af7e5759883db7aae3dcba54e701:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlNzM2MDhlYTRjYzgzMDA4MDBhNGU5MGM4ODI3MGViZWM1NDJlMGI2Mzg5ZDAxNDcwMTc1MWNjODNiNWEzMzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU2MjBkODVkZTRlZDdhYjgwMjFiNGE4ZGQ0ZmExNWVjNTE5MjVjZGZjY2RlMTgwNTg5NWE0YzhhM2MzYmE0OGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM4NjA3MWMwNDQ5M2RmNDg3YTNmYWY0NDBkNzczNWViOTA2M2U2MmY1MWNkZTlmOTJmZjA5MWFjZjhiYzQzMzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_67e11a46c3214dc8b085ff86f3925600",
+      "statement": "External evaluator discovery preserves built-in ownership, records plugin collisions separately, and records discovery, load and non-callable failures without replacing built-ins.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/evaluators/__init__.py#L282-L360",
+          "version": "repo-lines-v1:sha256:3e403721e1e8e2fee96126ccc197d778a2af2df1da2fbc6c97b9361838ffafe3:eyJzZWxlY3RlZExpbmVDb3VudCI6NzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmY2I1YTE2ZTlkNjEwYTM0NGI5MjJlYTZjNDgzODFhMDhlNjBmN2Q5NmIzYWMzN2ZlYTMwMTg1NDViZmRlZjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVmYzU5NDQxZDMxNWMzY2Q0YjA5YTFlMTQ1OTcwMzYwZTdmNjI4MTEzOWFhMmI2MDIwNjQ5NGU0NzdkYWU1YzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA4ZDQ4NGIzNTIwMGE3Nzg1YTdiYjIzNjUzOGM5Mzk4NTc4M2NmZDQ4NWMzNjRlMGVkOTU0NzY2MzcyZDQwMzgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3277d07aa76d45cd86328da18dc1bd52",
+      "statement": "export-policy emits sorted Rego or CEL rules that inspect reports/2.0 control outcomes rather than reimplementing the repository evaluators.",
+      "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/cli/export_policy.py#L1-L34",
+          "version": "repo-lines-v1:sha256:7df356e08d265a73aa3910a5a6bd5e88f243b1fead4a0e73d57c5e55d0bb95ce:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIzOTVmZmJjZTA3YWZlMTM5ZDMyMjllYmFkMWQ0M2RiYmU1ZTEyMjIwOTAwMmJkNDZlYjc4YzZhMDIwNmJhMzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2MWE5MTEyYTI5MThlMmFiYTAzZTE5YTJmMjIxYTAyN2FiNGI2ZjllOTQ2YTZjMzk4MTRmNTRlMThlMDdkZmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU2NmVlZjU0Y2Q0MTNiOWE2ZDNmNGYxZmE3ODRjYjZhODQxNDI0MmEzMTk2Zjk3NmUyYTdlMDJmZjY5YWE5OWIifQ"
+        },
+        {
+          "resource": "repo://src/oss_policy_kit/cli/export_policy.py#L72-L172",
+          "version": "repo-lines-v1:sha256:ca316c7b8e96befe645ae8cf3c5255b83eff340d2808dfccadc305acedd51362:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAxLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzOGZlZjgxMGRjY2QyYmU1NzY0NDdkNjc5NmQ1ZjY4MDZhNzY4YzVlNDJkNDBiNGE5MGVkYWM5NWJhNmY3ZGRjIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJmZjM4MjUyZDRkNWU4MzQxNzY1OWZhN2FkNjUwMWIyMzRjYmQ1MWY1MDIwZmQ0YzNlNTMxYTc2MTViMjkyMDJiIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI0NGZjNmM0YTNlMWZiMTYzZDFkOTNlZWY4OTNmM2JmYTI2NGVkM2U2YTkwZTliYjI3OTcwNjJhYjkwZDdiNzI1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_758539c0b7fc4c97952fc0b1437be2f9",
+      "statement": "Policy-export tests distinguish golden and structural checks from actual CEL and OPA engine execution, whose availability controls engine-dependent skips.",
+      "evidence": [
+        {
+          "resource": "repo://tests/cli/test_export_policy_command.py#L1-L17",
+          "version": "repo-lines-v1:sha256:f35e916a494e294614bc4df7dc0f603641df2850633ab9700375e23a88720297:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMzNWU5OGYwNTk0NDQ2MjgwNThhNGU5ZTQ5MWZmNDE2MGRiNzYxMGRhODBhMWI0OTdmNWQ0NGMzMTQ3NmM1YmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBkYWQzNDI5YzAzZDRmMDJhMjE4MjdmMjY2MWZjZGFiZDk0YjA0ZTU5YTJmNTNhZDgwYzg0NzI3NDZjMWEwMDgifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-14T16:07:56.899Z"
+  }
+}
