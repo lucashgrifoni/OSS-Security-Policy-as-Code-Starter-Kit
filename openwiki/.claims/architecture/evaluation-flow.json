@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:e339491dbaeb41d0d1f8ddf5a1684db1d96cc20dccbe2398c7a890e028974727",
+  "pageVersion": "sha256:563464d6dd5236a7332d9ded016445d9dad36377d630b95160f4b3bee996801a",
   "claims": [
     {
       "id": "claim_69c7b7511198471ea54169051478cc53",
@@ -17,8 +17,8 @@
       "statement": "evaluate_repository builds EvalContext from static GitHub, Azure, AWS and GitLab CI analysis and evaluates the control IDs selected by the profile.",
       "evidence": [
         {
-          "resource": "repo://src/oss_policy_kit/application/engine.py#L526-L592",
-          "version": "repo-lines-v1:sha256:46a3e98cfa89700a302fa1354371ad3e3c2a2c31dbfdbd9222805b9c94699d25:eyJzZWxlY3RlZExpbmVDb3VudCI6NjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5ZWFmNzcwYmMwMWI1Y2I4Nzg1MWE4NjE0MGQ4MGVjNjYwODhmZDc4MmEyMjM4MzRjNmNkMjM5ZTllNTliY2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk1OWI5ZjYxZWU2NzRkOTRhNzI2NGQ4MzQyMGMzZjgxZmZhMjg0NDEzZTY5ZDRiMDAyYTZlNjRiY2YxMDIzMDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM5MzcxNGRjMmRjM2YzMGZjY2Q4MDA3ZTE5Nzk2OTI3ZjdmNDMwZmQ2NjM3ZmJlYjc1ZDBiZTJkZmY5MjI2Y2YifQ"
+          "resource": "repo://src/oss_policy_kit/application/engine.py#L538-L589",
+          "version": "repo-lines-v1:sha256:2937d5dfa6f4911f5efe754c9a8c032f6df430ab94b8e91e262746fb673376d2:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmZTU5MjIyMzg1MDYzOGFjZDQ1NjJkZDY2MzM1NjJlNzNiZDI0MGYxNjM1YWZmNWIzMmNkNDE4NTQ2MGE1ZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFkZDI0NDU4MmI2ZmIwM2QyM2I4NDE1YWJlY2QzNDZiMGM5ZjQ2NmI2Zjc1MmIwNjgxODljZTdlOWEyZGMzNTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhjYzRhN2QxY2M3OTZhYmEzZTQ2NzIzMzI3ZjUxN2U5ZjgxMTk4MmQyNTBmMDcwMjk4NmU0YjU3NjRhZDk1ODkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMwZGQ2YWY1NjI1Y2JkMjg4NjhjZDQ3OTA1NWU2NzQwMWZhODliMDYwZTQ3YjQ3YjE1YTJmYzAyZjc2MmFkNTkifQ"
         }
       ]
     },
@@ -41,8 +41,8 @@
       "statement": "The engine applies a control waiver after obtaining the evaluator outcome and carries waiver metadata into ControlResult.",
       "evidence": [
         {
-          "resource": "repo://src/oss_policy_kit/application/engine.py#L507-L524",
-          "version": "repo-lines-v1:sha256:2252d3f544d0232fc6a430269d674e354f84bea95f6187dc5809d88b71679609:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZiY2VkNDgzODlkMDE5NmM4YThiYmY2NDJjYWNkY2Y5ZDYxZmZiZTllMmEzNjBlMzIzYWFlZThmODEzNDZmMDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjZGMyNGYzYTA0NmZiYmJmNmY4ZTA1MDU4Y2M4NzY3MGY3MGY4ZDJmZjMyYmEwMGIzZjAyNWRkYTkwMTMyNmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ0ZGQ2YmEzODI1OWVlZTIyZTAwZThlZDgxNTZiMDViZWY5ZTc5ZWEzYWY0ZmZjYzFmMTA4NjVkMzRhMzNkZWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk4NjNlMzI5MDMxYjA1MjNjYzE2NmNiYTEwYzIzYTQzMTE5ZWNmZTM0NTkxZWE2YWMzMzJkM2QxNWRiNTg1NzUifQ"
+          "resource": "repo://src/oss_policy_kit/application/engine.py#L504-L535",
+          "version": "repo-lines-v1:sha256:fb5eec88555cb577fd98ee7819313a6d91eb3f2f66535cc66c247963578c3299:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhkNWMwYzhiOGUzZmZmYTRjYWNiM2Y3MjkzN2I5ZGFkYmUzNGE2MGJlYjRlNWI4NTM3MDMzMDk5MjVlZWRkMTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5OWU5NjdmNzg2NjA3M2ZjMGVhNGYyZmQ2NzExZWNjMTBlMTljMWMxOTNjY2RiYTZmYTQ4ZmQwZjlkNTJmYWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRjOGMzMjdkYTBiZDMwOGY4NDM2MzNhNDQ3MTc0ZGE2MDY0NDk3OTFmMGMzMTJhZGU2MjJhODE1MjQ2NTZiZWMifQ"
         },
         {
           "resource": "repo://tests/application/test_engine.py#L58-L75",
@@ -53,6 +53,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.2",
-    "at": "2026-10-14T16:07:56.899Z"
+    "at": "2026-10-14T17:21:37.203Z"
   }
 }

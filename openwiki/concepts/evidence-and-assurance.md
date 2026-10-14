@@ -3,9 +3,6 @@ type: concept
 title: Evidence, assurance and report states
 description: "Interpret control states, confidence and evidence provenance without overstating what a clone proves."
 tags: [evidence, assurance, reports, provenance]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-14T16:32:54.436Z
 sources:
   - id: openwiki-source-248b9a62bf9d97f700ae7eec
     resource: repo://src/oss_policy_kit/application/engine.py
@@ -15,7 +12,10 @@ sources:
     resource: repo://src/oss_policy_kit/application/loader.py
   - id: openwiki-source-45c695eef6f8b6ac1270ad2a
     resource: repo://src/oss_policy_kit/domain/models.py
-generated: { by: "codex", at: "2026-10-14T16:07:56.899Z" }
+generated: { by: "codex", at: "2026-10-14T17:21:37.203Z" }
+verified:
+  - by: openwiki/0.7.2
+    at: 2026-10-14T17:21:37.203Z
 ---
 
 # Evidence, assurance and report states
@@ -44,7 +44,7 @@ Consumers should retain the `reason` discriminator for `UNKNOWN`. Otherwise miss
 
 Catalog assurance is one of `deterministic`, `signal` or `evidence-backed`. It describes the kind of observation the control expects, rather than certifying the application. `ControlResult` also normalizes confidence and removes terminal-control and invisible characters from evaluator prose before writers consume it.
 
-The evidence projection keeps separate source type, freshness, attestation, trust level and gate role. Heuristic signals and derived data remain inferred; static-clone and user-supplied input remain declared. Unknown source types fall to an unobserved level.
+The evidence projection keeps separate source type, freshness, attestation, trust level and gate role. Heuristic signals and derived data cannot exceed `inferred`; static-clone and user-supplied input cannot exceed `declared`. Status-based rules can lower these levels to `inferred` or `unobserved`. When no status override applies, an unknown source type falls to `unobserved`.
 
 For an `api_collected` source, the projection emits `verified` only when freshness is `fresh` and its attestation field is `signed` or `self_attested`. This is the projection's metadata rule, not independent cryptographic verification performed by that function. Preserve the collection method, freshness and attestation fields when communicating the result.
 

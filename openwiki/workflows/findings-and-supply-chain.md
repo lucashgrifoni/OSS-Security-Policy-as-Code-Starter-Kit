@@ -5,7 +5,7 @@ description: "Follow normalized scanner findings, VEX decisions and exported ass
 tags: [findings, correlation, sarif, vex, supply-chain]
 verified:
   - by: openwiki/0.7.2
-    at: 2026-10-14T16:07:56.899Z
+    at: 2026-10-14T17:26:37.773Z
 sources:
   - id: openwiki-source-4b653013bd51d88bf6a1f561
     resource: repo://docs/findings-correlation.md
@@ -15,7 +15,7 @@ sources:
     resource: repo://src/oss_policy_kit/cli/emit_vex.py
   - id: openwiki-source-a349bcab989871ffb764bbb6
     resource: repo://src/oss_policy_kit/cli/export_evidence.py
-generated: { by: "codex", at: "2026-10-14T16:07:56.899Z" }
+generated: { by: "codex", at: "2026-10-14T17:26:37.773Z" }
 ---
 
 # Findings and supply-chain outputs
@@ -26,7 +26,7 @@ Control assessment, findings correlation and evidence export are separate contra
 
 `correlate-findings` reads the target's scanner evidence already on disk: kit JSON evidence and supported external SARIF drops. It normalizes finding structure while preserving source-reported severity, then correlates and ranks findings in a `findings/1.0` artifact.
 
-Correlation uses the versioned `opk-fk/v1` key. It keeps different axes and distinct or missing locations apart instead of guessing that two observations represent one issue. Vulnerability identity includes the advisory and component, so the same advisory affecting different named dependencies remains distinct.
+Correlation uses the versioned `opk-fk/v1` key and keeps different axes apart. Code findings use file and line; IaC and Kubernetes findings use resource coordinates. Missing or different coordinates remain distinct on those axes, and findings without usable coordinates fall back to a message-digest key. Vulnerability identity uses advisory IDs and component instead of location, so matching observations of the same advisory and component can merge across files or scanners, while different named dependencies remain distinct.
 
 Ranking uses source-carried KEV, EPSS and normalized severity with stable tie-breaks. The correlation module does not fetch advisories, rescan code or invent enrichment values. Deterministic findings identity and ordering are separate from the wall-clock generation timestamp.
 

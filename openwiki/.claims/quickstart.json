@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:c1a0727095c93753d22cd21d23c906fa07e53ae54fe9e8ce4d8388a43e7f01e7",
+  "pageVersion": "sha256:cec36bc9bec4b56ab62ca10ca9274e82404a4f686d8fa1a689e18924e84ba647",
   "claims": [
     {
       "id": "claim_fe53d620aed94438a2ad9d581f2f3ad4",
@@ -42,13 +42,13 @@
       "evidence": [
         {
           "resource": "repo://docs/openwiki.md",
-          "version": "repo-file-v1:sha256:cd86332b48e954b3aaa503e881aea4b39d4bb59e6613089ba00f87b65b2213f0"
+          "version": "repo-file-v1:sha256:7bd06c27730f20109579ed5b1d561d5f05b525c4c62da0e17e89723323f573fd"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.2",
-    "at": "2026-10-14T16:32:54.436Z"
+    "at": "2026-10-14T17:35:14.202Z"
   }
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:8f512d4d42e7e10f7b54f788805a584344bb699c66bbacb09b004fcf45604c42",
+  "pageVersion": "sha256:141572d5018c92cd68e26bf654b42a37f9a5205c128df0a2d50687f3a9069963",
   "claims": [
     {
       "id": "claim_04e266dcb26a45308dade7d9b3e558b4",
@@ -47,8 +47,8 @@
       "statement": "The CLI evaluate options enable applicability and attested outcomes by default, while evaluate_repository exposes false defaults for those programmatic options.",
       "evidence": [
         {
-          "resource": "repo://src/oss_policy_kit/application/engine.py#L526-L547",
-          "version": "repo-lines-v1:sha256:9223b6c1dcb8524868faa6e13135a7463107a53dce6fb472192d1f1de8a6c546:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5ZWFmNzcwYmMwMWI1Y2I4Nzg1MWE4NjE0MGQ4MGVjNjYwODhmZDc4MmEyMjM4MzRjNmNkMjM5ZTllNTliY2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImExMzJlNGJmOTdlNjQxMWEwMWRlZDJlOTA2YzM4NjllZmZjMDY1MjQyNWQyOWMwMTJmZGYxODk4ODRkMWRhODAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk1OWI5ZjYxZWU2NzRkOTRhNzI2NGQ4MzQyMGMzZjgxZmZhMjg0NDEzZTY5ZDRiMDAyYTZlNjRiY2YxMDIzMDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU3MDI0MzM4NjE4NjViODUxZjNjNTViMDNkNjZiYjAxNWYxYzQ2MTk0MDY1MTNhYWE2ZmY3YmQ1ZjkxYzQzNTEifQ"
+          "resource": "repo://src/oss_policy_kit/application/engine.py#L538-L554",
+          "version": "repo-lines-v1:sha256:bfdedcaed797543b00b975db2a2f2677efb3fc477f2ec592444b152130de92c0:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmZTU5MjIyMzg1MDYzOGFjZDQ1NjJkZDY2MzM1NjJlNzNiZDI0MGYxNjM1YWZmNWIzMmNkNDE4NTQ2MGE1ZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3ODRjMTY4OGY3MTVlZTFjOGNjOGJmYzA2Y2NmNGVjNDVlZDNjYzJkZjY4OTcwYzYzNzQ3NjcyZGUwNzViMjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhjYzRhN2QxY2M3OTZhYmEzZTQ2NzIzMzI3ZjUxN2U5ZjgxMTk4MmQyNTBmMDcwMjk4NmU0YjU3NjRhZDk1ODkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAxNmM3NGY3ZDA2OTIyMzZlMmUwMGM5M2M0MDZmNmMzOGFlYjRlYjMyZWQ3OTIxOWI0MDdkNzE0MDM0YzAwNGQifQ"
         },
         {
           "resource": "repo://src/oss_policy_kit/cli/evaluate.py#L462-L483",
@@ -59,6 +59,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.2",
-    "at": "2026-10-14T16:32:54.436Z"
+    "at": "2026-10-14T17:21:37.203Z"
   }
 }

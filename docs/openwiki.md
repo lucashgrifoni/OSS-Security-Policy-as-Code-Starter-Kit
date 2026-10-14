@@ -13,7 +13,7 @@ npm install --global openwiki@0.7.2
 openwiki integrations install codex --project .
 ```
 
-Restart Codex in this repository so it loads the integration. Ask it to initialize the wiki only for a fresh repository wiki; for this existing wiki, ask it to update from source changes. The integration uses the coding agent's authenticated session and repository tools. Refer to the [upstream guide](https://github.com/langchain-ai/openwiki#coding-agent-integrations) for other supported hosts.
+Restart Codex in this repository so it loads the integration. Ask it to initialize the wiki only for a fresh repository wiki; for this existing wiki, ask it to update from source changes. The integration uses the coding agent's authenticated session and repository tools. Refer to the [upstream guide](https://github.com/langchain-ai/openwiki#quick-start) for other supported hosts.
 
 Project-local `.agents/` and `.codex/` installation state and the generated root instruction files are ignored by this repository. Keep them local. The wiki itself and its claim sidecars are versioned as documentation.
 

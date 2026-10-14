@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:7a02ee23d6622e1a6c28a7808a356ba2936885b77382b6b50fe1d3dd2616f78b",
+  "pageVersion": "sha256:a504fca64d1dae4ac30f41cce6e655f16f2ce63b271dc1b88e1e82a899240b6d",
   "claims": [
     {
       "id": "claim_f168d50e369a4450bcfdde44b128727c",
       "statement": "load_profile_by_id accepts a bundled profile ID or an existing YAML file, and external files use schema validation; profile control IDs are de-duplicated in first-seen order.",
       "evidence": [
         {
-          "resource": "repo://src/oss_policy_kit/application/loader.py#L250-L272",
-          "version": "repo-lines-v1:sha256:e1cb59fc9a3f7d3cd4ccf9c67f19dd42527703b5d50089609957170cbed30d1a:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNhMzcwMjU3YzllZDdlYTIxODI2Y2U4YWU1MjU0OWQxODVlZGE3Y2U1ZTJjMzdkMGM3YjJiMGNjZTUxYjY1ODEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0MjM3ZTFhMzgzMDhjMzc0MzIyM2U1MTliMjY2N2E0Y2UzMjQyMDMzZDU4N2Q2MWQzNjhlNGQxNzUzMDdiNTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY0N2QwMmRlMTg5NmE2Y2ZiNjAwM2QyMmZlMGMyZjA4ZjQxZDU2YzQyMmQ4ZGM5ZTNjZGU4YjcwMmM0MzBhM2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzYTE4NzQ4Yjk5ZjY4MmMwMTU4NDlmYjFjZWU2NDY0YmJkOGY0MmRjNTM3MGVhYTQxYTcyMGNjMzA4ZGIxMDAifQ"
+          "resource": "repo://src/oss_policy_kit/application/loader.py#L217-L269",
+          "version": "repo-lines-v1:sha256:d435c7ea95191022013afb3cb0223423b19f90fee28b46325ce2c0483341a659:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3ZjhiZWRlYWQ1YTk2ZjA2OGZhY2M3MWM1ODEzMTI2NGEzMzJmNmJhYWEwNDEzN2M2NDIyYjI0ZDFiMGM3Y2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBiNDY4YWQwYWJkNWRmODYyMGJiOTRiZGZmZTg1ZjQyMTEwZWNkYThhZjc2NGE0ZDVjM2JhMDZiYWE1Zjc3M2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjViOGE5ZTI5NGViYjIwNmJhYTQ1NzljOTU3OGQ2NDQ2YTAxNDhhMGE0ZmEzOGY1OWJlODI4YTExMTBlOWY4ZmMifQ"
         },
         {
           "resource": "repo://src/oss_policy_kit/application/loader.py#L337-L351",
@@ -28,8 +28,16 @@
     },
     {
       "id": "claim_f4f9404eaff0412cb4736bd95957c76b",
-      "statement": "Invalid or expired control waiver entries are skipped with warnings, and usable records require control_id, justification, owner and accepted status.",
+      "statement": "Invalid or expired control waiver entries are skipped with warnings; usable records require control_id, justification and owner, default an omitted status to approved, and accept only approved or active when status is explicit.",
       "evidence": [
+        {
+          "resource": "repo://src/oss_policy_kit/application/vuln_waivers.py#L28-L31",
+          "version": "repo-lines-v1:sha256:84a2787eb5a961191d465cf1a0332da6391e81edb64fffc197030df823a4dcaf:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODViOTQ3YzE4ZjQ1NzVhYjkxZDViZWEwNjkzOTY0ZGU2MmQwNjJiNWUzOWVjNzZkMTllYWY2ZWZjYTFhOTEyYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOGJkZGEyMTkxNTBmNGIzNGExZWQ4ZDFhNGMwMTMzY2U0ZTI5Mzg1NWNiZmI2ZGRkODlhZmQxNWU2YjFkNWEwMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMmZlMWNhNjk3NGMxYmMyOWE2YmRmYThlMDAxYTlmNTRlMWUyNDEzMDg3OGM3MzcyNTE1ZThjZjk1Y2UyMWYyNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWYyYzMwMDZhN2RmNzA3ODg5YzEwZDk1ZTNhZjMxNmYzMzk4OTE0MzI2YTdmMTAzZWNmMzFjNWQyNmZiNDk4YyJ9"
+        },
+        {
+          "resource": "repo://src/oss_policy_kit/application/waivers.py#L107-L131",
+          "version": "repo-lines-v1:sha256:9982b931e3f31382fc090ba54c558fb6e2887896500e3bfef27ebbaeeb8daa45:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBjOTY0YzljYWUxMzE5MTI3MmFmYTgwMDFlZDMxODc3NmE0ZWI4NzJlNTRmMzgwNDg2ZjgzYmZiNmUyNjM0YzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3MDE0OWUwNjlhZDY3ZWNjZjQ3MzY0NmZmMWM3NTAwNTBkMzI5ZDExMDAxOGRjNTc2Njg3OGVhZmExZDYwN2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdlYTU1Y2FlMmEwZGI0ZmZmM2ZkZTEzOThjYmY0MDRlNzlhODViMGZhYmFiZTQwNGY2NjE2MDkxMDhmOTFhNDIifQ"
+        },
         {
           "resource": "repo://src/oss_policy_kit/application/waivers.py#L156-L204",
           "version": "repo-lines-v1:sha256:8f1e20a36b3fcc20fa8a15f676c51bcb5e859c2c5d5e83c0350bc975a40c7071:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmN2I3MDdmNjIwMGMyMjRkMTg3ZmVlMzFhMmYyNjRlZGYyMjkyZmM2ZDc0OWJkNjRjMWY5M2VkNDI0MzU0N2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRmMDA1MjFjOTdmY2QxM2E5N2QyNmY0OTBlMTdiYjM4N2U5NDU1MTY5ZjU0OTQ4MTkzMGMzZjQyNzE0OTEzNDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
@@ -49,6 +57,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.2",
-    "at": "2026-10-14T16:07:56.899Z"
+    "at": "2026-10-14T17:21:37.203Z"
   }
 }
