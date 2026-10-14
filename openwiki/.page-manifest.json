@@ -37,18 +37,18 @@
       "completedRunId": "42163e2c-db68-44af-92c6-babcf365822f"
     },
     "/openwiki/operations/testing-and-maintenance.md": {
+      "gitHead": "ac3e76a1024203c7733a5023538a478a7f47e0f3",
+      "sourceFingerprint": "sha256:92c6f9830a24bbc4bed657b4127c376102d6c013d4251e3ca6fe9f3617967d65",
       "pageVersion": "sha256:6d8510833c50df832e87f7fb78dd7b607eb95adf6394971f5f1c344ddeffa9f6",
       "completedBy": "codex",
-      "completedRunId": "82911b45-9efa-41d3-b686-d987d4aa7e8d",
-      "gitHead": "ac3e76a1024203c7733a5023538a478a7f47e0f3",
-      "sourceFingerprint": "sha256:92c6f9830a24bbc4bed657b4127c376102d6c013d4251e3ca6fe9f3617967d65"
+      "completedRunId": "82911b45-9efa-41d3-b686-d987d4aa7e8d"
     },
     "/openwiki/quickstart.md": {
+      "gitHead": "ac3e76a1024203c7733a5023538a478a7f47e0f3",
+      "sourceFingerprint": "sha256:92c6f9830a24bbc4bed657b4127c376102d6c013d4251e3ca6fe9f3617967d65",
       "pageVersion": "sha256:cec36bc9bec4b56ab62ca10ca9274e82404a4f686d8fa1a689e18924e84ba647",
       "completedBy": "codex",
-      "completedRunId": "82911b45-9efa-41d3-b686-d987d4aa7e8d",
-      "gitHead": "ac3e76a1024203c7733a5023538a478a7f47e0f3",
-      "sourceFingerprint": "sha256:92c6f9830a24bbc4bed657b4127c376102d6c013d4251e3ca6fe9f3617967d65"
+      "completedRunId": "82911b45-9efa-41d3-b686-d987d4aa7e8d"
     },
     "/openwiki/workflows/cli-and-ci.md": {
       "gitHead": "ac3e76a1024203c7733a5023538a478a7f47e0f3",
