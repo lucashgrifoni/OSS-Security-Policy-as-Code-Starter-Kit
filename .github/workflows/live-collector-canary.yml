@@ -85,10 +85,12 @@ jobs:
           python -m pip install --require-hashes -r .github/requirements/pip.txt
           python -m pip install -e ".[dev]"
 
-      - name: Collect and evaluate against the live API
+      - name: Check the collector against the live API
         # The token is read-only for a public repository and is scoped to this run. The test
-        # reads octocat/Hello-World, which belongs to GitHub and is not this repository, so a
-        # broader permission would buy nothing.
+        # reads octocat/Hello-World, which belongs to GitHub and is not this repository. It
+        # checks the repository object the collector reads and the 403 the collector relies on
+        # to refuse a token without administration: read; it does not collect end to end,
+        # because branch protection needs that scope and no token here can have it.
         env:
           GITHUB_TOKEN: ${{ github.token }}
         # `-p no:cacheprovider` for the same reason the self-check step uses it, and `-rs` so a
