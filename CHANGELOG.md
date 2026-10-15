@@ -6,6 +6,15 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.35](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.34...v10.0.35) (2026-10-15)
+
+
+### Notes
+
+* add source-linked OpenWiki repository guide ([#394](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/394)) ([8008e8a](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/8008e8ab0060ab411a1627e1c69c6dcd8fa9f8f6))
+* keep OpenWiki update baseline reachable ([#396](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/396)) ([263130c](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/263130c4ea1f07497192af79093dc04e74d57774))
+* refresh OpenWiki page provenance from master ([#397](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/397)) ([c050a76](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/c050a76cbff99ffd9d59547b58e1adea3cf29c4a))
+
 ## [10.0.34](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.33...v10.0.34) (2026-10-14)
 
 
