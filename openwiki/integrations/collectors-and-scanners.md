@@ -3,9 +3,6 @@ type: integration
 title: Collectors and scanner evidence
 description: "How opt-in platform collectors and scanner adapters supply evidence to an assessment."
 tags: [collectors, scanners, integrations, evidence]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-14T16:07:56.899Z
 sources:
   - id: openwiki-source-cd0f3c35546914b0f2774b27
     resource: repo://docs/evidence-pack.md
@@ -18,6 +15,9 @@ sources:
   - id: openwiki-source-bd4b20b9f2f9ab04a93c7eb0
     resource: repo://src/oss_policy_kit/infrastructure/collectors/github_collector.py
 generated: { by: "codex", at: "2026-10-14T16:07:56.899Z" }
+verified:
+  - by: openwiki/0.7.2
+    at: 2026-10-15T00:15:09.719Z
 ---
 
 # Collectors and scanner evidence

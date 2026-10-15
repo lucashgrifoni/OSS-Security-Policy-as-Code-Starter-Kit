@@ -3,9 +3,6 @@ type: workflow
 title: Findings and supply-chain outputs
 description: "Follow normalized scanner findings, VEX decisions and exported assessment evidence."
 tags: [findings, correlation, sarif, vex, supply-chain]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-14T17:26:37.773Z
 sources:
   - id: openwiki-source-4b653013bd51d88bf6a1f561
     resource: repo://docs/findings-correlation.md
@@ -16,6 +13,9 @@ sources:
   - id: openwiki-source-a349bcab989871ffb764bbb6
     resource: repo://src/oss_policy_kit/cli/export_evidence.py
 generated: { by: "codex", at: "2026-10-14T17:26:37.773Z" }
+verified:
+  - by: openwiki/0.7.2
+    at: 2026-10-15T00:15:09.719Z
 ---
 
 # Findings and supply-chain outputs
