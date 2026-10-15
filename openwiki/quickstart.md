@@ -15,7 +15,7 @@ sources:
 generated: { by: "codex", at: "2026-10-14T16:32:54.436Z" }
 verified:
   - by: openwiki/0.7.2
-    at: 2026-10-14T17:35:14.202Z
+    at: 2026-10-15T00:15:09.719Z
 ---
 
 # Repository quickstart

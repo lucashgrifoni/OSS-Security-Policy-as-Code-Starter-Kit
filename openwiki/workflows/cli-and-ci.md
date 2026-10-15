@@ -19,7 +19,7 @@ sources:
 generated: { by: "codex", at: "2026-10-14T16:07:56.899Z" }
 verified:
   - by: openwiki/0.7.2
-    at: 2026-10-14T17:21:37.203Z
+    at: 2026-10-15T00:15:09.719Z
 ---
 
 # CLI and CI decisions

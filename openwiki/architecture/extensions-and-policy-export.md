@@ -3,9 +3,6 @@ type: architecture
 title: Extensions and policy export
 description: "The evaluator plugin contract and the boundary between assessment and external policy engines."
 tags: [plugins, policy-export, rego, cel, architecture]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-14T16:07:56.899Z
 sources:
   - id: openwiki-source-c27a03c6c89debff79801854
     resource: repo://src/oss_policy_kit/application/evaluators/__init__.py
@@ -16,6 +13,9 @@ sources:
   - id: openwiki-source-7c80b05264f2eda0124f531b
     resource: repo://tests/cli/test_export_policy_command.py
 generated: { by: "codex", at: "2026-10-14T16:07:56.899Z" }
+verified:
+  - by: openwiki/0.7.2
+    at: 2026-10-15T00:15:09.719Z
 ---
 
 # Extensions and policy export

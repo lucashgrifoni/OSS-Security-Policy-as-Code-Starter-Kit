@@ -5,7 +5,7 @@ description: "How a CLI request becomes control results, artifacts and a gate de
 tags: [evaluation, architecture, reports, cli]
 verified:
   - by: openwiki/0.7.2
-    at: 2026-10-14T17:21:37.203Z
+    at: 2026-10-15T00:15:09.719Z
 sources:
   - id: openwiki-source-248b9a62bf9d97f700ae7eec
     resource: repo://src/oss_policy_kit/application/engine.py
