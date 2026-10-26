@@ -42,7 +42,7 @@
 # still moves by hand. Refresh it and check what it buys:
 #   docker buildx imagetools inspect python:3.12-slim-bookworm --format '{{.Manifest.Digest}}'
 #   trivy image --severity CRITICAL,HIGH --ignore-unfixed python@<digest>
-FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS builder
+FROM python:3.15-slim-bookworm@sha256:575f8bc12ec26542e0678bc6b60e385218248019d433157ec327264a78c3a853 AS builder
 
 # Build-time environment hygiene. PIP_NO_CACHE_DIR keeps the wheel cache
 # out of the final image; PYTHONDONTWRITEBYTECODE avoids stray __pycache__
@@ -120,7 +120,7 @@ RUN pip install --no-cache-dir --require-hashes -r /tmp/requirements/pip.txt \
 # ---------------------------------------------------------------------------
 # Stage 2: runtime
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS runtime
+FROM python:3.15-slim-bookworm@sha256:575f8bc12ec26542e0678bc6b60e385218248019d433157ec327264a78c3a853 AS runtime
 
 # Container-baseline-1 expectations:
 # - non-root user
