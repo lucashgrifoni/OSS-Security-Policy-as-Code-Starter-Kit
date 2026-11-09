@@ -8,7 +8,7 @@
     "build:css": "node ./node_modules/@tailwindcss/cli/dist/index.mjs -i ./tailwind.input.css -o ./tailwind.css --minify"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "^4.3.3",
+    "@tailwindcss/cli": "^4.3.4",
     "esbuild": "^0.28.2",
     "tailwindcss": "^4.3.3"
   },
