@@ -14,20 +14,20 @@ attrs==26.1.0 \
     # via
     #   jsonschema
     #   referencing
-boto3==1.43.111 \
-    --hash=sha256:5ae342a16c848909cd42d4be404f69d9082e5705460198d4d3327eca5f6cddcb \
-    --hash=sha256:c79994619c8d89e45f6fd0edc5c5b5a70c9358f00423f4c99cb64931f89ecf37
+boto3==1.44.10 \
+    --hash=sha256:2ec7370e9f387bf5ba3ae93024d18b3a9fd07eb697062d81165e3672f16a9335 \
+    --hash=sha256:4d5761c368ea199c2488401b86cfd966c132cbdb3c43b0390b25db69041f7989
     # via -r .github/requirements/runtime-all.in
-botocore==1.43.113 \
-    --hash=sha256:8908e4a5fe94a06801a7bf4c451717a38145cc4ffa41aaffa50665940b64b4fa \
-    --hash=sha256:941d3f0e289540da7c49d5e2dc022f992e3638127a02a74a0c91df2661bd98ef
+botocore==1.44.10 \
+    --hash=sha256:6fc109eefd1b02899196499d798141be6df70ca257b399741adc9975569d41b6 \
+    --hash=sha256:d9c8602d24df40e366bbe80157c6f94155c91c367eaaabeceb26d47532f6baba
     # via
     #   -r .github/requirements/runtime-all.in
     #   boto3
     #   s3transfer
-certifi==2026.7.22 \
-    --hash=sha256:62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775 \
-    --hash=sha256:741e2c3b351ddf169a738da9f2c048608ff7f2c5cc02f1ebc6b118bb090d5d55
+certifi==2026.11.20 \
+    --hash=sha256:7422df25243767b9877031a2248cb14d09ddac9beee846f4cef3d5c9191d488f \
+    --hash=sha256:af1cb240a8133f105aa52684a3a3258339d7f2fd0bd4e2812698ff5cf5588c4e
     # via
     #   httpcore
     #   httpx
