@@ -18,6 +18,7 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.15",
   "Topic :: Security",
 ]
 dependencies = [
@@ -104,7 +105,10 @@ dev = [
   # Without this line they skipped in every environment, local and CI, while the Rego half
   # ran against a real `opa` binary the workflow installs. A generated gate that never
   # compiles is a gate that never denies, and nothing was checking that it compiles.
-  "cel-python>=0.1.5",
+  # cel-python needs google-re2, which publishes no CPython 3.15 wheel and does not build
+  # from source on a stock runner. Only the CEL fidelity tests use it, through
+  # `pytest.importorskip("celpy")`, so on 3.15 they report as skipped rather than passed.
+  "cel-python>=0.1.5; python_version < '3.15'",
 ]
 
 # Third-party evaluator plugins can register custom controls via:

@@ -33,17 +33,18 @@ env:
 
 jobs:
   quality:
-    # Three legs. The first is the gate the ruleset requires by name and is unchanged.
-    # The other two exist because six failures in one cycle were visible only on a
+    # Four legs. The first is the gate the ruleset requires by name and is unchanged.
+    # The Windows and 3.13 legs exist because six failures in one cycle were visible only on a
     # platform the suite had never run on: `pathlib` treats a backslash as an ordinary
     # character on POSIX, and a directory where a file belongs is "Permission denied"
     # on Windows and "Is a directory" on Linux. Twelve commits inherited that red
     # because the maintainer's gate runs on Windows and CI ran only on Linux. The 3.13
     # leg covers the other half of `requires-python = ">=3.12"`, which admitted a
-    # version nothing had executed.
+    # version nothing had executed. The 3.15 leg runs the interpreter the container image
+    # ships.
     #
     # Coverage, the property floor and the self-check gate stay on the first leg only:
-    # the other two answer "does it run there", not "is every line covered there".
+    # the other three answer "does it run there", not "is every line covered there".
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -58,6 +59,11 @@ jobs:
           - name: Quality (ubuntu, Python 3.13)
             os: ubuntu-latest
             python: "3.13"
+            gate: false
+          # The container image runs 3.15, so the suite has to run there too.
+          - name: Quality (ubuntu, Python 3.15)
+            os: ubuntu-latest
+            python: "3.15"
             gate: false
           - name: Quality (windows, Python 3.12)
             os: windows-latest

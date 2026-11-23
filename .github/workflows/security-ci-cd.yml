@@ -379,7 +379,7 @@ jobs:
       # The three Trivy jobs around this one are all `scan-type: fs`. Nothing scanned the
       # container base, so the digest pinned in the Dockerfile went unexamined from the day
       # it was pinned -- and Dependabot cannot refresh it either, because its docker updater
-      # fires on a newer TAG and `3.12-slim-bookworm` is a rolling tag whose name never
+      # fires on a newer TAG and `3.15-slim-bookworm` is a rolling tag whose name never
       # changes. Two layers of apparent coverage, neither of which looked at this image.
       #
       # The digest is read out of the Dockerfile rather than repeated here: a second copy is

@@ -23,6 +23,7 @@ will be tracked in a future release. The evidence file still writes
 from __future__ import annotations
 
 import ast
+import contextlib
 import re
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass, field
@@ -523,6 +524,29 @@ def _read_candidate(repo_root: Path, path: Path) -> tuple[bytes, dict[str, str] 
         return b"", {"file": _normalize_target(repo_root, path), "error": bad_input_detail(exc)}
 
 
+def _parse_module(source: bytes) -> ast.Module:
+    """``ast.parse`` on the bytes, then once more on the lossy read if the bytes were refused.
+
+    The bytes go first so a PEP 263 cookie or a BOM is honoured. Through 3.13 the tokenizer
+    also let an invalid UTF-8 byte through inside a comment, which is what a cp1252 file with
+    `# owner: José` is. From 3.15 it refuses the whole module for that byte, and the file's
+    findings move to manual review. The retry is the read `source_text.decode_source` keeps
+    for every other scanner: the bad byte becomes U+FFFD and the structure survives. It only
+    runs for bytes that are not valid UTF-8, and when it fails too, the original error is the
+    one reported.
+    """
+
+    try:
+        return ast.parse(source)
+    except (SyntaxError, ValueError):
+        try:
+            source.decode("utf-8")
+        except UnicodeDecodeError:
+            with contextlib.suppress(SyntaxError, ValueError):
+                return ast.parse(source.decode("utf-8", errors="replace"))
+        raise
+
+
 def run_scan(
     repo_root: Path,
     *,
@@ -544,7 +568,7 @@ def run_scan(
             parse_errors.append(refused)
             continue
         try:
-            tree = ast.parse(source)
+            tree = _parse_module(source)
         except (SyntaxError, ValueError) as exc:
             # One handler, and the message is read defensively. Python 3.12 reports NUL
             # bytes -- what a UTF-16 file looks like to the tokenizer -- as a SyntaxError,
