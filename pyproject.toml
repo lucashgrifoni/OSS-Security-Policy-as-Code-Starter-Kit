@@ -31,7 +31,13 @@ dependencies = [
   # The floor is 0.26 rather than 0.19 because `tests/cli/test_a_stream_that_is_gone_is_not_a
   # _defect.py` asserts that the Abort typer raises is typer's own, which typer began
   # vendoring in 0.26.0. A floor the project's own suite fails at is not a floor it supports.
-  "typer>=0.26",
+  #
+  # The ceiling is the same rule from the other side. typer 0.29.0 (2026-11-09) removed
+  # `typer._click.types`, and with it the `ParamType` that `cli/common.py` subclasses for
+  # `NonEmptyPath`; every command module imports `cli/common.py`, so a fresh install resolving
+  # 0.29 gets a CLI that cannot import at all. 0.28.0 passes the suite. The ceiling comes off
+  # when `NonEmptyPath` is ported to what typer 0.29 offers instead.
+  "typer>=0.26,<0.29",
   # Imported at module scope by six shipped modules and declared nowhere until now. It reached
   # every environment only through typer's requirements, so the kit's import-time correctness
   # rested on a promise in someone else's metadata across a typer range with no ceiling, and
