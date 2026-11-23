@@ -5,8 +5,8 @@
 #
 # - Multi-stage build: a builder image installs the wheel into a venv,
 #   the runtime image only copies the venv. Final image stays under 200 MB.
-# - Pinned Python minor: 3.12 (the kit's declared minimum is >=3.12; we do
-#   not chase 3.13 yet because some dependencies still have rough edges).
+# - Pinned Python minor: 3.15, the newest CPython. The kit declares >=3.12 and
+#   CI runs the suite on 3.12, 3.13 and 3.15, so the image runs a tested interpreter.
 # - Non-root user: `appuser` (uid 10001). Required by container-baseline-1.
 # - Read-only-friendly: nothing writes to the image filesystem at runtime;
 #   adopters mount their repo and an output volume.
@@ -30,7 +30,7 @@
 #
 # NOTHING REFRESHES THIS AUTOMATICALLY, despite the docker ecosystem being
 # configured in .github/dependabot.yml. Dependabot's docker updater fires when a
-# newer TAG appears; `3.12-slim-bookworm` is a rolling tag whose name never
+# newer TAG appears; `3.15-slim-bookworm` is a rolling tag whose name never
 # changes, so the digest behind it moves upstream and Dependabot has nothing to
 # propose. It has opened zero docker pull requests on this repository while
 # opening them routinely for pip, npm and github-actions -- the coverage looked
@@ -40,9 +40,9 @@
 # .github/workflows/base-image-freshness.yml now watches it: every Monday it compares this
 # digest with the live tag and opens an issue when the live tag clears findings. The pin
 # still moves by hand. Refresh it and check what it buys:
-#   docker buildx imagetools inspect python:3.12-slim-bookworm --format '{{.Manifest.Digest}}'
+#   docker buildx imagetools inspect python:3.15-slim-bookworm --format '{{.Manifest.Digest}}'
 #   trivy image --severity CRITICAL,HIGH --ignore-unfixed python@<digest>
-FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS builder
+FROM python:3.15-slim-bookworm@sha256:96599df822d0e1c6bb700014a05c7f3c8cabc6e0f7ff3c4f9f69cee033b4b5d9 AS builder
 
 # Build-time environment hygiene. PIP_NO_CACHE_DIR keeps the wheel cache
 # out of the final image; PYTHONDONTWRITEBYTECODE avoids stray __pycache__
@@ -120,7 +120,7 @@ RUN pip install --no-cache-dir --require-hashes -r /tmp/requirements/pip.txt \
 # ---------------------------------------------------------------------------
 # Stage 2: runtime
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS runtime
+FROM python:3.15-slim-bookworm@sha256:96599df822d0e1c6bb700014a05c7f3c8cabc6e0f7ff3c4f9f69cee033b4b5d9 AS runtime
 
 # Container-baseline-1 expectations:
 # - non-root user

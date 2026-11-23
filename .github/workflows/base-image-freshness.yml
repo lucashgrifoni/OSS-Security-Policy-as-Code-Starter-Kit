@@ -1,6 +1,6 @@
 # Base image freshness
 #
-# The Dockerfile pins python:3.12-slim-bookworm by digest, and nothing moves that pin: the tag
+# The Dockerfile pins python:3.15-slim-bookworm by digest, and nothing moves that pin: the tag
 # never changes name, so Dependabot has no newer tag to propose (see the comment above the FROM
 # lines). The weekly "Base image - Trivy" job in security-ci-cd.yml already reports what the
 # pinned digest carries. This job answers the question that job cannot: has upstream rebuilt the

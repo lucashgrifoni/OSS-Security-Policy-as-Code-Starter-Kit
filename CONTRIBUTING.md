@@ -44,9 +44,10 @@ Three of those are easy to leave out and each one is a check CI enforces:
 - **The self-check evaluates this repository with its own kit**, which is what catches a
   control that regressed against real input rather than against a fixture.
 
-CI runs the same list on three legs: ubuntu with Python 3.12 (the required check), ubuntu
-with 3.13, and windows with 3.12. A local run is one of those three, so a green local gate
-is evidence about your platform and not about the other two.
+CI runs the same list on four legs: ubuntu with Python 3.12 (the required check), ubuntu
+with 3.13, ubuntu with 3.15 (the interpreter the container image ships), and windows with
+3.12. A local run is one of those four, so a green local gate is evidence about your
+platform and not about the other three.
 
 The CLI also accepts the same flags without the `evaluate` subcommand. Example:
 

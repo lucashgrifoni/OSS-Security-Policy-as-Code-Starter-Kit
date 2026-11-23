@@ -53,7 +53,7 @@ docker run --rm \
 ## Design choices
 
 - **Multi-stage build.** Builder stage installs the wheel into a venv; runtime stage copies only the venv. Keeps the final image small.
-- **Pinned Python 3.12.** The kit declares `requires-python >=3.12` in `pyproject.toml`; the image matches.
+- **Pinned Python 3.15.** The kit declares `requires-python >=3.12` in `pyproject.toml`; the image runs the newest CPython, which CI also tests.
 - **Non-root user `appuser` (uid 10001).** Required by `container-baseline-1`'s `CONT-IMAGE-001..003` controls.
 - **No build tools in the runtime image.** Source install happens in the builder stage, then only the venv is copied.
 - **`[all]` extras installed by default.** A single image supports every subcommand including `collect-evidence` (GitHub / GitLab / Azure / AWS) and the IaC scanners.
@@ -68,7 +68,7 @@ The `publish-container` workflow handles the release flow on `v*` tag pushes:
 - **Signed**: `cosign sign --yes` (keyless via Sigstore Public Good + GitHub OIDC). Verify with `cosign verify`.
 - **Provenance**: `actions/attest-build-provenance` pushes a GitHub Artifact Attestation to the registry. Verify with `gh attestation verify oci://...`.
 - **SBOM attached**: `sbom: true` on the Buildx build action; resulting SBOM is part of the OCI index.
-- **Reproducible-ish**: pinned base image (`python:3.12-slim-bookworm`), pinned action SHAs, and a source-tree install from the release tag, which is what fixes the version in the image.
+- **Reproducible-ish**: pinned base image (`python:3.15-slim-bookworm`), pinned action SHAs, and a source-tree install from the release tag, which is what fixes the version in the image.
 - **Tags**: `<version>` and `latest` on tagged releases; `edge` on manual `workflow_dispatch` runs.
 
 To verify a published image, by digest and against the identity of its own release run.
@@ -87,13 +87,13 @@ gh attestation verify oci://ghcr.io/<owner>/oss-policy-kit@<digest> \
 
 ## When to use this image
 
-- You want a Python-3.12-free CI runner.
+- You want a CI runner with no Python of its own.
 - You self-host the kit inside a sandboxed VM / Kubernetes Job.
 - You want a single, reproducible artifact to attach to a release archive.
 
 ## When NOT to use this image
 
-- You are already running Python 3.12 on the CI runner — `pip install oss-policy-kit` is simpler.
+- You are already running Python 3.12 or newer on the CI runner — `pip install oss-policy-kit` is simpler.
 - You need adapter-specific subcommands but want to omit the others to shrink the image. Build a slimmer image by replacing `oss-policy-kit[all]` with `oss-policy-kit[github]` (or whichever subset you need).
 
 ## Roadmap
