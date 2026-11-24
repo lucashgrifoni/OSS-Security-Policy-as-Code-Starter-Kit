@@ -16,11 +16,11 @@ from oss_policy_kit.application.evidence_scaffold import scaffold_evidence_files
 from oss_policy_kit.application.input_limits import long_path_note
 from oss_policy_kit.cli import terminal_ui
 from oss_policy_kit.cli.common import (
-    NonEmptyPath,
     app,
     display_path,
     exit_for_unexpected,
     markup_safe,
+    non_empty_path,
     stderr_console,
     write_wrapped_stdout_block,
 )
@@ -363,7 +363,7 @@ def collect_evidence_cmd(
         None,
         "--output-dir",
         "-o",
-        click_type=NonEmptyPath(),
+        parser=non_empty_path,
         help="Directory to write evidence files. Defaults to <target>/.oss-policy-kit/evidence/.",
     ),
     repo_slug: str | None = typer.Option(
