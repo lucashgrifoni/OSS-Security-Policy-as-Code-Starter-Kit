@@ -85,7 +85,7 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -148,7 +148,7 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -219,7 +219,7 @@ jobs:
         # cache the bundle is fetched as a GitHub release asset
         # (objects / release-assets.githubusercontent.com, fronted by Fastly/AWS)
         # and the job fails closed with ECONNREFUSED without them.
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -257,7 +257,7 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -336,7 +336,7 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -381,7 +381,7 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           # `audit`, not `block`, and for the reason publish-container.yml already records:
           # Docker Hub serves blobs from dynamic CloudFront hosts and allowed-endpoints has
@@ -484,7 +484,7 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -532,7 +532,7 @@ jobs:
         # a Cloudflare R2 bucket whose name is opaque/may rotate, so it is
         # allowed via the scoped wildcard *.r2.cloudflarestorage.com rather than a
         # brittle exact bucket hash (Harden-Runner insights run 26298261213).
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -582,7 +582,7 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -624,7 +624,7 @@ jobs:
       contents: read
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -666,7 +666,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -708,7 +708,7 @@ jobs:
       contents: read
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -734,7 +734,7 @@ jobs:
       contents: read
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -795,7 +795,7 @@ jobs:
       contents: read
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -831,7 +831,7 @@ jobs:
       security-events: write
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           allowed-endpoints: >
