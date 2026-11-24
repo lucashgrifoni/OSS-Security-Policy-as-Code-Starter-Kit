@@ -38,7 +38,7 @@ dependencies = [
   # `NonEmptyPath`; every command module imports `cli/common.py`, so a fresh install resolving
   # 0.29 gets a CLI that cannot import at all. 0.28.0 passes the suite. The ceiling comes off
   # when `NonEmptyPath` is ported to what typer 0.29 offers instead.
-  "typer>=0.26,<0.29",
+  "typer>=0.26,<0.30",
   # Imported at module scope by six shipped modules and declared nowhere until now. It reached
   # every environment only through typer's requirements, so the kit's import-time correctness
   # rested on a promise in someone else's metadata across a typer range with no ceiling, and
