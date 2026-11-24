@@ -171,11 +171,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install Snyk CLI
-        # Pinned: this job holds SNYK_TOKEN, so a floating `latest` would let any
-        # future npm publish run with that secret in the environment. Nothing
-        # watches this pin automatically -- Dependabot does not read
-        # `npm install -g` lines.
-        run: npm install -g snyk@1.1306.3
+        # This job holds SNYK_TOKEN, so the CLI installs from a lockfile with an integrity
+        # hash for every package (.github/snyk/package-lock.json), and Dependabot watches
+        # that directory. The earlier `npm install -g snyk@<version>` pinned a version but
+        # not its bytes, and nothing watched it.
+        run: |
+          npm ci --prefix .github/snyk --no-audit --no-fund
+          echo "${GITHUB_WORKSPACE}/.github/snyk/node_modules/.bin" >> "${GITHUB_PATH}"
 
       - name: Authenticate Snyk
         env:
@@ -208,8 +210,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # javascript-typescript left with the GitHub Pages site (#427): the repository has
+        # no JS or TS source, and CodeQL fails when a language has nothing to extract.
         language:
-          - javascript-typescript
           - python
     steps:
       - name: Harden runner
@@ -281,11 +284,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install Snyk CLI
-        # Pinned: this job holds SNYK_TOKEN, so a floating `latest` would let any
-        # future npm publish run with that secret in the environment. Nothing
-        # watches this pin automatically -- Dependabot does not read
-        # `npm install -g` lines.
-        run: npm install -g snyk@1.1306.3
+        # This job holds SNYK_TOKEN, so the CLI installs from a lockfile with an integrity
+        # hash for every package (.github/snyk/package-lock.json), and Dependabot watches
+        # that directory. The earlier `npm install -g snyk@<version>` pinned a version but
+        # not its bytes, and nothing watched it.
+        run: |
+          npm ci --prefix .github/snyk --no-audit --no-fund
+          echo "${GITHUB_WORKSPACE}/.github/snyk/node_modules/.bin" >> "${GITHUB_PATH}"
 
       - name: Authenticate Snyk
         env:
