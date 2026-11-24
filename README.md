@@ -170,7 +170,6 @@ Verification commands and limits are in [docs/supply-chain-verification.md](docs
 | `waivers/` | Waiver registry: the live file plus a documented example |
 | `pipelines/` | Azure Pipelines starter definition |
 | `scripts/` | Maintenance and generator scripts, including the public-hygiene check |
-| `gitpage/` | Source and prebuilt bundle for the GitHub Pages site |
 | `.github/` | Workflows, Dependabot config, and issue/PR templates |
 
 Only the `oss_policy_kit` package ships in the wheel. Everything else — templates, examples,

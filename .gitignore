@@ -66,9 +66,6 @@ reports/validacao-*/
 # Local-only analysis/review scratch reports (never push to remote).
 _analysis_outputs/
 
-# Front-end local dependencies/build outputs
-gitpage/dist/
-gitpage/node_modules/
 
 # Local secrets and private notes
 .env

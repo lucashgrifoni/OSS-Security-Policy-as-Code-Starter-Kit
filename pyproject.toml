@@ -157,7 +157,7 @@ oss_policy_kit = [
 target-version = "py312"
 line-length = 120
 src = ["src", "tests", "scripts"]
-exclude = ["gitpage", ".venv", ".venv-ci", ".venv-smoke", ".venv-v5-baseline", "venv"]
+exclude = [".venv", ".venv-ci", ".venv-smoke", ".venv-v5-baseline", "venv"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "C90"]

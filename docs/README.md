@@ -2,10 +2,6 @@
 
 Use this page as the documentation entry point for the OSS Security Policy as Code Starter Kit.
 
-Public project site:
-
-- [GitHub Pages site](https://lucashgrifoni.github.io/OSS-Security-Policy-as-Code-Starter-Kit/)
-
 Repository entry points:
 
 - [README.md](../README.md) - product overview, install paths, CLI contract, result interpretation
