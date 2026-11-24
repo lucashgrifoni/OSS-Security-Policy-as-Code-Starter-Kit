@@ -1,0 +1,8 @@
+{
+  "name": "oss-policy-kit-snyk-cli",
+  "private": true,
+  "description": "Pins the Snyk CLI used by Security CI so it installs by lockfile hash (npm ci).",
+  "dependencies": {
+    "snyk": "1.1306.3"
+  }
+}
