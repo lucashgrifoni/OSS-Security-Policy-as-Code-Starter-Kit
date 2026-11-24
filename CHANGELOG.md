@@ -6,6 +6,15 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.36](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.35...v10.0.36) (2026-11-24)
+
+
+### Notes
+
+* bump pip to 26.3, zizmor to 1.32.0 and python-hcl2 to 8.2.0, locks regenerated with uv ([#441](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/441)) ([3898bb5](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3898bb5a485cedb8665e870f66ed3c00142855c0))
+* **deps:** bump harden-runner, docker/login, kics, dependency-review and pypi-publish actions ([#440](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/440)) ([94ed96b](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/94ed96be0b309d7c04ab0edc84bee6bba9b6cd94))
+* install the Snyk CLI from a hash-pinned lockfile and drop the CodeQL JS leg ([#437](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/437)) ([2ea5312](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/2ea531222cd015b9afd4bfc91baab8e1573feee6))
+
 ## [10.0.35](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.34...v10.0.35) (2026-11-24)
 
 
