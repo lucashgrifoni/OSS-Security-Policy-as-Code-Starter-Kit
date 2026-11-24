@@ -6,6 +6,20 @@ This changelog follows the same public-facing format used by the GitHub release 
 
 ---
 
+## [10.0.37](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.36...v10.0.37) (2026-11-24)
+
+
+### Fixes
+
+* **cli:** support typer 0.29 and drop the &lt;0.29 ceiling ([#444](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/444)) ([3b1c1bf](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/3b1c1bfd5817e5c75a8a70ab23aadc029092fa4f))
+
+
+### Notes
+
+* bump pyyaml to 6.0.4 and typer to 0.29.2 in the hashed locks, regenerated with uv ([#449](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/449)) ([9bfe070](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/9bfe070f00e2616ba8d71e17cbdf656efe25c832))
+* **deps:** bump snyk from 1.1306.3 to 1.1309.0 in /tools/snyk-cli ([#446](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/446)) ([8d37583](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/8d37583fd692d7ac1b223245c850e26770444572))
+* **snyk:** move the Snyk CLI lockfile out of .github so Dependabot can update it ([#443](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/issues/443)) ([67eb2c9](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/commit/67eb2c95587f9b2bf43f02e7a5b2c0ebe7975309))
+
 ## [10.0.36](https://github.com/lucashgrifoni/OSS-Security-Policy-as-Code-Starter-Kit/compare/v10.0.35...v10.0.36) (2026-11-24)
 
 
