@@ -210,8 +210,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # javascript-typescript left with the GitHub Pages site (#427): the repository has
+        # no JS or TS source, and CodeQL fails when a language has nothing to extract.
         language:
-          - javascript-typescript
           - python
     steps:
       - name: Harden runner
