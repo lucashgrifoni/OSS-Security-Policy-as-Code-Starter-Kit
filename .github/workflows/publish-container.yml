@@ -46,7 +46,7 @@ jobs:
       IMAGE_NAME: ${{ github.repository_owner }}/oss-policy-kit
     steps:
       - name: Harden runner network audit
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           # 'audit' (not 'block') by design: this job hits rotating GitHub Actions artifact
           # endpoints with no wildcard support in allowed-endpoints, so an exact block list would
@@ -87,7 +87,7 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Log in to GHCR
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
