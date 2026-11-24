@@ -292,12 +292,31 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: snyk auth "$SNYK_TOKEN"
 
+      # Snyk's pip plugin reads the packages installed in the interpreter it runs, so the
+      # Python project needs Python and its dependencies in place first. Until 2026-11-24
+      # this job ran `--all-projects` with neither: every run logged "1/2 potential
+      # projects failed to get dependencies" and passed on the npm project of the GitHub
+      # Pages site alone, so not one Python dependency of the kit was analysed. With the
+      # site removed the gap turned into a red job, which is how it was found.
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install the runtime lock Snyk analyses
+        # The same hashed lock the container image installs, so the scan covers what ships.
+        run: |
+          python -m pip install --require-hashes -r .github/requirements/pip.txt
+          python -m pip install --require-hashes -r .github/requirements/runtime-all.txt
+
       - name: Run Snyk Open Source scan
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: >
           snyk test
-          --all-projects
+          --file=.github/requirements/runtime-all.txt
+          --package-manager=pip
+          --command=python
           --severity-threshold="$SNYK_SEVERITY_THRESHOLD"
           --sarif-file-output=snyk-oss.sarif
 
