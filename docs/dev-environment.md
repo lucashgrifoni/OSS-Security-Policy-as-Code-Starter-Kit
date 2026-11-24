@@ -100,7 +100,6 @@ Be careful with the following — clean only when you understand the impact:
 
 - `dist/` — may contain the latest wheel/sdist for a release. Do not remove if you are about to publish.
 - `.venv-v5-baseline/` — maintainer venv from earlier release lines. Remove only if you no longer need it.
-- `gitpage/node_modules/` — recreated by `npm ci` inside `gitpage/`. Removing forces a reinstall.
 
 ## Cross-platform line endings
 

@@ -130,7 +130,6 @@ That is intentional honesty, not a defect.
 
 - [ ] working tree clean of accidental artifacts
 - [ ] no secrets or tokens in tracked files
-- [ ] if `gitpage/` changed, run `npm ci` and `npm run build`
 - [ ] if templates changed, spot-check the recommended adoption path
 - [ ] update release notes in `CHANGELOG.md`
 
@@ -150,8 +149,6 @@ Typical merge-blocking jobs for this repository:
 - `GitHub CI/CD`: quality and package jobs
 - `Security CI/CD`: dependency review, CodeQL, and security jobs you choose to block on
 
-`Deploy GitHub Pages` is usually a delivery workflow, not a merge blocker for the Python package.
-
 ## Workflow pinning and routine operations
 
 Third-party GitHub Actions should stay pinned to full commit SHAs.
@@ -164,16 +161,6 @@ When rotating SHAs:
 4. confirm Actions still pass after push
 
 If a workflow or job name changes, update branch protection or rulesets to match the new name shown in GitHub Actions.
-
-## gitpage operations
-
-The site under `gitpage/` is optional.
-
-Operational rules:
-
-- run `npm ci` after lockfile changes
-- delete `gitpage/node_modules` if you suspect corruption or Windows file-lock issues
-- treat the GitHub Pages workflow as the build source of truth when local Windows behavior is noisy
 
 ## Final public launch question
 

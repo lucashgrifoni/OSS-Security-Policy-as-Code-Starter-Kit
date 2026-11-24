@@ -4,18 +4,12 @@ trigger:
       - main
       - master
       - develop
-  paths:
-    exclude:
-      - gitpage/**
 
 pr:
   branches:
     include:
       - main
       - master
-  paths:
-    exclude:
-      - gitpage/**
 
 pool:
   name: Default
