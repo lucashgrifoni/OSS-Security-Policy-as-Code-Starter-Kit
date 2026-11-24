@@ -83,7 +83,9 @@ updates:
       include: "scope"
 
   - package-ecosystem: "npm"
-    directory: "/.github/snyk"
+    # Outside .github/ on purpose: Dependabot's pull request for an npm manifest under
+    # .github/snyk was refused with "400 invalid or unauthorized changes" (2026-11-24).
+    directory: "/tools/snyk-cli"
     schedule:
       interval: "weekly"
       day: "monday"
