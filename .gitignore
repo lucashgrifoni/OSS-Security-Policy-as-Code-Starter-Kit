@@ -77,4 +77,4 @@ ROADMAP.md
 docs/releasing.md
 
 # Snyk CLI installed by npm ci in Security CI
-/.github/snyk/node_modules/
+/tools/snyk-cli/node_modules/
