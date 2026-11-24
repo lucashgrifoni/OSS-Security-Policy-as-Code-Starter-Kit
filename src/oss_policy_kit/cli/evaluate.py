@@ -10,11 +10,11 @@ from typer import Context
 from oss_policy_kit import __version__ as kit_version
 from oss_policy_kit.cli.common import (
     EvaluateRequest,
-    NonEmptyPath,
     app,
     enable_debug_logging,
     execute_evaluate,
     markup_safe,
+    non_empty_path,
     stderr_console,
 )
 from oss_policy_kit.cli.help_text import (
@@ -93,7 +93,7 @@ def cli_root(
         Path("out"),
         "--output-dir",
         "-o",
-        click_type=NonEmptyPath(),
+        parser=non_empty_path,
         help="Directory where evaluation-report.json and evaluation-report.md will be written.",
         rich_help_panel=OPT_PANEL_OUTPUT,
     ),
@@ -330,7 +330,7 @@ def evaluate_cmd(
         Path("out"),
         "--output-dir",
         "-o",
-        click_type=NonEmptyPath(),
+        parser=non_empty_path,
         help="Directory where evaluation-report.json and evaluation-report.md will be written.",
         rich_help_panel=OPT_PANEL_OUTPUT,
     ),
